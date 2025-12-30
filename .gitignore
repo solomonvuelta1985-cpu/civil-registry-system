@@ -1,0 +1,71 @@
+# iScan - Git Ignore File
+
+# Uploaded PDF files
+uploads/*.pdf
+uploads/*
+
+# Keep uploads directory but ignore contents
+!uploads/.gitkeep
+
+# Configuration files with sensitive data
+includes/config.php
+
+# Backup files
+*.sql.backup
+*.bak
+backup_*.sql
+
+# Log files
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.project
+.settings/
+
+# PHP specific
+vendor/
+composer.lock
+.env
+
+# Session files
+sessions/
+*.sess
+
+# Cache files
+cache/
+*.cache
+
+# Node modules (if using any build tools)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build files
+dist/
+build/
+
+# Test files
+tests/
+phpunit.xml
+.phpunit.result.cache

@@ -1,0 +1,57 @@
+================================================================================
+SCANNER SERVICE - INSTALLATION GUIDE
+================================================================================
+
+Follow these steps IN ORDER:
+
+STEP 1: Install Python
+================================================================================
+1. Go to: https://www.python.org/downloads/
+2. Download Python 3.8 or higher (latest version recommended)
+3. Run the installer
+4. *** IMPORTANT *** Check the box: "Add Python to PATH"
+5. Click "Install Now"
+6. Wait for installation to complete
+7. Restart your computer
+
+STEP 2: Install Scanner Drivers
+================================================================================
+1. Make sure DS-530 II scanner is connected via USB
+2. Go to Epson support website
+3. Download and install DS-530 II drivers for Windows
+4. Follow Epson's installation wizard
+5. Restart your computer if prompted
+
+STEP 3: Test Scanner (Optional but Recommended)
+================================================================================
+1. Open Windows "Scan" app (built into Windows 10/11)
+2. Select your DS-530 II scanner
+3. Try scanning a test document
+4. If successful, scanner drivers are working correctly
+
+STEP 4: Start Scanner Service
+================================================================================
+1. Go to: c:\xampp\htdocs\iscan\scanner_service\
+2. Double-click: start_scanner.bat
+3. First time will take 2-3 minutes (installing packages)
+4. Look for message: "Service running on: http://localhost:18622"
+5. KEEP THIS WINDOW OPEN
+
+STEP 5: Test in iScan
+================================================================================
+1. Open your browser
+2. Go to iScan Certificate of Live Birth form
+3. Click the green "Scan Document" button
+4. Scanner should scan and attach PDF automatically
+
+DONE!
+================================================================================
+
+The scanner is now ready to use!
+
+To use the scanner in the future:
+- Just double-click start_scanner.bat before using iScan
+- Keep the window open while working
+- Close it when done for the day
+
+================================================================================

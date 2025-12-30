@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate of Live Birth - Entry Form</title>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* ========================================
+           RESET & BASE STYLES
+           ======================================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #212529;
+            font-size: clamp(0.85rem, 2.3vw, 0.9rem);
+            line-height: 1.5;
+            padding: clamp(15px, 3vw, 20px);
+        }
+
+        /* ========================================
+           CONTAINER & LAYOUT
+           ======================================== */
+        .page-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+            padding: clamp(20px, 4vw, 30px);
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .page-title {
+            font-size: clamp(1.5rem, 4vw, 1.75rem);
+            font-weight: 600;
+            color: #212529;
+            margin-bottom: 8px;
+        }
+
+        .page-subtitle {
+            font-size: clamp(0.95rem, 2.5vw, 1rem);
+            color: #6c757d;
+            font-weight: 400;
+        }
+
+        /* ========================================
+           TWO COLUMN LAYOUT
+           ======================================== */
+        .form-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-top: 25px;
+        }
+
+        @media (max-width: 1024px) {
+            .form-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-column {
+            background-color: #ffffff;
+        }
+
+        .pdf-column {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 20px;
+            position: sticky;
+            top: 20px;
+            height: fit-content;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+
+        /* ========================================
+           FORM SECTIONS
+           ======================================== */
+        .form-section {
+            margin-bottom: 25px;
+        }
+
+        .section-header {
+            background-color: #f8f9fa;
+            border-left: 4px solid #0d6efd;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .section-title {
+            font-size: clamp(1.1rem, 3vw, 1.25rem);
+            font-weight: 600;
+            color: #495057;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title i {
+            color: #0d6efd;
+        }
+
+        /* ========================================
+           FORM GROUPS & INPUTS
+           ======================================== */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 6px;
+            font-size: clamp(0.85rem, 2.2vw, 0.9rem);
+        }
+
+        label .required {
+            color: #dc3545;
+            margin-left: 3px;
+        }
+
+        input[type="text"],
+        input[type="datetime-local"],
+        input[type="date"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: clamp(0.85rem, 2.3vw, 0.9rem);
+            font-family: inherit;
+            color: #212529;
+            background-color: #ffffff;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input[type="text"]:focus,
+        input[type="datetime-local"]:focus,
+        input[type="date"]:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        }
+
+        input[type="text"]:disabled,
+        select:disabled {
+            background-color: #e9ecef;
+            cursor: not-allowed;
+        }
+
+        input[type="file"] {
+            padding: 8px;
+            border: 2px dashed #ced4da;
+            border-radius: 4px;
+            width: 100%;
+            font-size: clamp(0.8rem, 2.2vw, 0.85rem);
+            background-color: #f8f9fa;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        input[type="file"]:hover {
+            border-color: #0d6efd;
+        }
+
+        /* ========================================
+           BUTTONS
+           ======================================== */
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: clamp(8px, 2vw, 10px) clamp(15px, 3vw, 18px);
+            border-radius: 4px;
+            font-size: clamp(0.85rem, 2.3vw, 0.9rem);
+            font-weight: 500;
+            border: 1px solid;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+            color: #ffffff;
+        }
+
+        .btn-primary:hover {
+            background-color: #0b5ed7;
+            border-color: #0b5ed7;
+        }
+
+        .btn-success {
+            background-color: #198754;
+            border-color: #198754;
+            color: #ffffff;
+        }
+
+        .btn-success:hover {
+            background-color: #157347;
+            border-color: #157347;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            border-color: #6c757d;
+            color: #ffffff;
+        }
+
+        .btn-secondary:hover {
+            background-color: #5c636a;
+            border-color: #5c636a;
+        }
+
+        .btn-warning {
+            background-color: #ffc107;
+            border-color: #ffc107;
+            color: #000000;
+        }
+
+        .btn-warning:hover {
+            background-color: #ffca2c;
+            border-color: #ffca2c;
+        }
+
+        /* ========================================
+           PDF PREVIEW SECTION
+           ======================================== */
+        .pdf-preview-header {
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .pdf-preview-title {
+            font-size: clamp(1rem, 2.8vw, 1.1rem);
+            font-weight: 600;
+            color: #495057;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pdf-upload-area {
+            border: 2px dashed #ced4da;
+            border-radius: 6px;
+            padding: 30px;
+            text-align: center;
+            background-color: #ffffff;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .pdf-upload-area:hover {
+            border-color: #0d6efd;
+            background-color: #f8f9fa;
+        }
+
+        .pdf-upload-area i {
+            font-size: 3rem;
+            color: #6c757d;
+            margin-bottom: 15px;
+        }
+
+        .pdf-upload-text {
+            color: #6c757d;
+            font-size: clamp(0.9rem, 2.5vw, 0.95rem);
+            margin-bottom: 10px;
+        }
+
+        .pdf-upload-hint {
+            color: #adb5bd;
+            font-size: clamp(0.75rem, 2vw, 0.8rem);
+        }
+
+        .pdf-preview-container {
+            width: 100%;
+            min-height: 400px;
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .pdf-preview-container iframe {
+            width: 100%;
+            height: 600px;
+            border: none;
+        }
+
+        .pdf-info {
+            margin-top: 15px;
+            padding: 12px;
+            background-color: #e7f1ff;
+            border-left: 4px solid #0d6efd;
+            border-radius: 4px;
+        }
+
+        .pdf-filename {
+            font-weight: 600;
+            color: #084298;
+            font-size: clamp(0.8rem, 2.2vw, 0.85rem);
+            word-break: break-all;
+        }
+
+        /* ========================================
+           ALERTS & NOTIFICATIONS
+           ======================================== */
+        .alert {
+            padding: 12px 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: clamp(0.85rem, 2.3vw, 0.9rem);
+        }
+
+        .alert-success {
+            background-color: #d1e7dd;
+            border-left: 4px solid #198754;
+            color: #0f5132;
+        }
+
+        .alert-danger {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+            color: #842029;
+        }
+
+        .alert-info {
+            background-color: #cff4fc;
+            border-left: 4px solid #0dcaf0;
+            color: #055160;
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            color: #664d03;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* ========================================
+           HELPER TEXT
+           ======================================== */
+        .help-text {
+            font-size: clamp(0.75rem, 2vw, 0.8rem);
+            color: #6c757d;
+            margin-top: 4px;
+            font-style: italic;
+        }
+
+        /* ========================================
+           RESPONSIVE DESIGN
+           ======================================== */
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .pdf-column {
+                position: static;
+                max-height: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">
+                <i class="fas fa-file-certificate"></i>
+                Certificate of Live Birth - Entry Form
+            </h1>
+            <p class="page-subtitle">Civil Registry Records Management System</p>
+        </div>
+
+        <!-- Alert Messages -->
+        <div id="alertContainer"></div>
+
+        <!-- Main Form -->
+        <form id="certificateForm" enctype="multipart/form-data">
+            <div class="form-layout">
+                <!-- LEFT COLUMN: Form Fields -->
+                <div class="form-column">
+
+                    <!-- Registry Information Section -->
+                    <div class="form-section">
+                        <div class="section-header">
+                            <h2 class="section-title">
+                                <i class="fas fa-clipboard-list"></i>
+                                Registry Information
+                            </h2>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="registry_no">
+                                Registry Number <span class="required">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                id="registry_no"
+                                name="registry_no"
+                                required
+                                placeholder="Enter registry number (e.g., REG-2025-00001)"
+                            >
+                            <span class="help-text">Unique identifier for this certificate</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="date_of_registration">
+                                Date of Registration <span class="required">*</span>
+                            </label>
+                            <input
+                                type="datetime-local"
+                                id="date_of_registration"
+                                name="date_of_registration"
+                                required
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Birth Information Section -->
+                    <div class="form-section">
+                        <div class="section-header">
+                            <h2 class="section-title">
+                                <i class="fas fa-baby"></i>
+                                Birth Information
+                            </h2>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="type_of_birth">
+                                    Type of Birth <span class="required">*</span>
+                                </label>
+                                <select id="type_of_birth" name="type_of_birth" required>
+                                    <option value="">-- Select Type --</option>
+                                    <option value="Single">Single</option>
+                                    <option value="Twin">Twin</option>
+                                    <option value="Triplets">Triplets</option>
+                                    <option value="Quadruplets">Quadruplets</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="type_of_birth_other_group" style="display: none;">
+                                <label for="type_of_birth_other">
+                                    Specify Other Type
+                                </label>
+                                <input
+                                    type="text"
+                                    id="type_of_birth_other"
+                                    name="type_of_birth_other"
+                                    placeholder="Please specify"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="birth_order">
+                                    Birth Order
+                                </label>
+                                <select id="birth_order" name="birth_order">
+                                    <option value="">-- Select Order --</option>
+                                    <option value="1st">1st</option>
+                                    <option value="2nd">2nd</option>
+                                    <option value="3rd">3rd</option>
+                                    <option value="4th">4th</option>
+                                    <option value="5th">5th</option>
+                                    <option value="6th">6th</option>
+                                    <option value="7th">7th</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="birth_order_other_group" style="display: none;">
+                                <label for="birth_order_other">
+                                    Specify Other Order
+                                </label>
+                                <input
+                                    type="text"
+                                    id="birth_order_other"
+                                    name="birth_order_other"
+                                    placeholder="Please specify"
+                                >
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mother's Information Section -->
+                    <div class="form-section">
+                        <div class="section-header">
+                            <h2 class="section-title">
+                                <i class="fas fa-user"></i>
+                                Mother's Maiden Name
+                            </h2>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="mother_first_name">
+                                    First Name <span class="required">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    id="mother_first_name"
+                                    name="mother_first_name"
+                                    required
+                                    placeholder="Enter first name"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="mother_middle_name">
+                                    Middle Name
+                                </label>
+                                <input
+                                    type="text"
+                                    id="mother_middle_name"
+                                    name="mother_middle_name"
+                                    placeholder="Enter middle name"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="mother_last_name">
+                                    Last Name <span class="required">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    id="mother_last_name"
+                                    name="mother_last_name"
+                                    required
+                                    placeholder="Enter last name"
+                                >
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Father's Information Section -->
+                    <div class="form-section">
+                        <div class="section-header">
+                            <h2 class="section-title">
+                                <i class="fas fa-user-tie"></i>
+                                Father's Name
+                            </h2>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="father_first_name">
+                                    First Name
+                                </label>
+                                <input
+                                    type="text"
+                                    id="father_first_name"
+                                    name="father_first_name"
+                                    placeholder="Enter first name"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="father_middle_name">
+                                    Middle Name
+                                </label>
+                                <input
+                                    type="text"
+                                    id="father_middle_name"
+                                    name="father_middle_name"
+                                    placeholder="Enter middle name"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="father_last_name">
+                                    Last Name
+                                </label>
+                                <input
+                                    type="text"
+                                    id="father_last_name"
+                                    name="father_last_name"
+                                    placeholder="Enter last name"
+                                >
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Marriage Information Section -->
+                    <div class="form-section">
+                        <div class="section-header">
+                            <h2 class="section-title">
+                                <i class="fas fa-rings-wedding"></i>
+                                Marriage Information
+                            </h2>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="date_of_marriage">
+                                    Date of Marriage
+                                </label>
+                                <input
+                                    type="date"
+                                    id="date_of_marriage"
+                                    name="date_of_marriage"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="place_of_marriage">
+                                    Place of Marriage
+                                </label>
+                                <input
+                                    type="text"
+                                    id="place_of_marriage"
+                                    name="place_of_marriage"
+                                    placeholder="Enter place of marriage"
+                                >
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i>
+                            Save Record
+                        </button>
+                        <button type="button" class="btn btn-success" id="saveAndNewBtn">
+                            <i class="fas fa-plus"></i>
+                            Save & Add New
+                        </button>
+                        <button type="reset" class="btn btn-secondary">
+                            <i class="fas fa-redo"></i>
+                            Reset Form
+                        </button>
+                        <a href="dashboard.php" class="btn btn-warning">
+                            <i class="fas fa-arrow-left"></i>
+                            Back to Dashboard
+                        </a>
+                    </div>
+
+                </div>
+
+                <!-- RIGHT COLUMN: PDF Preview -->
+                <div class="pdf-column">
+                    <div class="pdf-preview-header">
+                        <h3 class="pdf-preview-title">
+                            <i class="fas fa-file-pdf"></i>
+                            Certificate PDF Upload
+                        </h3>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pdf_file">
+                            Upload PDF Certificate <span class="required">*</span>
+                        </label>
+                        <input
+                            type="file"
+                            id="pdf_file"
+                            name="pdf_file"
+                            accept=".pdf"
+                            required
+                        >
+                        <span class="help-text">Maximum file size: 10MB. Only PDF files are accepted.</span>
+                    </div>
+
+                    <div id="pdfUploadArea" class="pdf-upload-area">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p class="pdf-upload-text">Click "Choose File" above to upload PDF</p>
+                        <p class="pdf-upload-hint">The PDF will be previewed here after upload</p>
+                    </div>
+
+                    <div id="pdfPreviewArea" class="hidden">
+                        <div class="pdf-preview-container">
+                            <iframe id="pdfPreview" src=""></iframe>
+                        </div>
+                        <div class="pdf-info">
+                            <i class="fas fa-info-circle"></i>
+                            <span>File: <span id="pdfFileName" class="pdf-filename"></span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // Show/hide "Other" input fields based on dropdown selection
+        document.getElementById('type_of_birth').addEventListener('change', function() {
+            const otherGroup = document.getElementById('type_of_birth_other_group');
+            const otherInput = document.getElementById('type_of_birth_other');
+
+            if (this.value === 'Other') {
+                otherGroup.style.display = 'block';
+                otherInput.required = true;
+            } else {
+                otherGroup.style.display = 'none';
+                otherInput.required = false;
+                otherInput.value = '';
+            }
+        });
+
+        document.getElementById('birth_order').addEventListener('change', function() {
+            const otherGroup = document.getElementById('birth_order_other_group');
+            const otherInput = document.getElementById('birth_order_other');
+
+            if (this.value === 'Other') {
+                otherGroup.style.display = 'block';
+                otherInput.required = true;
+            } else {
+                otherGroup.style.display = 'none';
+                otherInput.required = false;
+                otherInput.value = '';
+            }
+        });
+
+        // PDF file preview
+        document.getElementById('pdf_file').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+
+            if (file) {
+                // Validate file type
+                if (file.type !== 'application/pdf') {
+                    showAlert('danger', 'Please upload a valid PDF file.');
+                    this.value = '';
+                    return;
+                }
+
+                // Validate file size (10MB)
+                if (file.size > 10485760) {
+                    showAlert('danger', 'File size exceeds 10MB. Please upload a smaller file.');
+                    this.value = '';
+                    return;
+                }
+
+                // Show preview
+                const uploadArea = document.getElementById('pdfUploadArea');
+                const previewArea = document.getElementById('pdfPreviewArea');
+                const pdfPreview = document.getElementById('pdfPreview');
+                const pdfFileName = document.getElementById('pdfFileName');
+
+                const fileURL = URL.createObjectURL(file);
+                pdfPreview.src = fileURL;
+                pdfFileName.textContent = file.name;
+
+                uploadArea.classList.add('hidden');
+                previewArea.classList.remove('hidden');
+            }
+        });
+
+        // Form submission
+        document.getElementById('certificateForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            submitForm(false);
+        });
+
+        // Save and New button
+        document.getElementById('saveAndNewBtn').addEventListener('click', function() {
+            if (document.getElementById('certificateForm').checkValidity()) {
+                submitForm(true);
+            } else {
+                document.getElementById('certificateForm').reportValidity();
+            }
+        });
+
+        // Submit form function
+        function submitForm(addNew) {
+            const formData = new FormData(document.getElementById('certificateForm'));
+            formData.append('add_new', addNew ? '1' : '0');
+
+            fetch('../api/certificate_of_live_birth_save.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', data.message);
+
+                    if (addNew) {
+                        // Reset form for new entry
+                        setTimeout(() => {
+                            document.getElementById('certificateForm').reset();
+                            resetPdfPreview();
+                        }, 1500);
+                    } else {
+                        // Redirect to dashboard after 2 seconds
+                        setTimeout(() => {
+                            window.location.href = '../admin/dashboard.php';
+                        }, 2000);
+                    }
+                } else {
+                    showAlert('danger', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('danger', 'An error occurred while saving the record.');
+            });
+        }
+
+        // Reset PDF preview
+        function resetPdfPreview() {
+            const uploadArea = document.getElementById('pdfUploadArea');
+            const previewArea = document.getElementById('pdfPreviewArea');
+            const pdfPreview = document.getElementById('pdfPreview');
+
+            uploadArea.classList.remove('hidden');
+            previewArea.classList.add('hidden');
+            pdfPreview.src = '';
+        }
+
+        // Show alert message
+        function showAlert(type, message) {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+
+            const icon = type === 'success' ? 'fa-check-circle' :
+                        type === 'danger' ? 'fa-exclamation-circle' :
+                        type === 'warning' ? 'fa-exclamation-triangle' :
+                        'fa-info-circle';
+
+            alertDiv.innerHTML = `
+                <i class="fas ${icon}"></i>
+                <span>${message}</span>
+            `;
+
+            alertContainer.innerHTML = '';
+            alertContainer.appendChild(alertDiv);
+
+            // Scroll to top to show alert
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
+        }
+
+        // Set current date/time as default for registration
+        window.addEventListener('DOMContentLoaded', function() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+
+            const defaultDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+            document.getElementById('date_of_registration').value = defaultDateTime;
+        });
+    </script>
+</body>
+</html>
