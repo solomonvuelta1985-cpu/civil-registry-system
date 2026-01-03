@@ -36,6 +36,11 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 <i data-lucide="cross"></i> <span>Death</span>
             </a>
         </li>
+        <li>
+            <a href="../public/application_for_marriage_license.php" class="<?php echo $current_page == 'application_for_marriage_license.php' ? 'active' : ''; ?>" title="Marriage License Application">
+                <i data-lucide="file-heart"></i> <span>Marriage License</span>
+            </a>
+        </li>
 
         <!-- Records Management Section -->
         <li class="sidebar-divider"></li>
@@ -53,6 +58,11 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <li>
             <a href="../public/death_records.php" class="<?php echo $current_page == 'death_records.php' ? 'active' : ''; ?>" title="Manage Death Records">
                 <i data-lucide="file-minus"></i> <span>Death Records</span>
+            </a>
+        </li>
+        <li>
+            <a href="../public/marriage_license_records.php" class="<?php echo $current_page == 'marriage_license_records.php' ? 'active' : ''; ?>" title="Manage Marriage License Records">
+                <i data-lucide="files"></i> <span>License Records</span>
             </a>
         </li>
 

@@ -624,14 +624,95 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
            HEADER WITH LOGO
            ======================================== */
         .system-header {
-            background: #d63384;
+            background: #1e40af;
             padding: clamp(12px, 2vw, 16px) clamp(15px, 2.5vw, 20px);
-            margin: 0 0 clamp(15px, 2.5vw, 20px) 0;
+            margin: 0;
             border-radius: 0;
             display: flex;
             align-items: center;
             gap: clamp(12px, 2vw, 18px);
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Form Type Indicator Bar */
+        .form-type-indicator {
+            background: #ffffff;
+            padding: clamp(12px, 2vw, 16px) clamp(15px, 2.5vw, 20px);
+            margin: 0 0 clamp(15px, 2.5vw, 20px) 0;
+            display: flex;
+            align-items: center;
+            gap: clamp(12px, 2vw, 16px);
+            border-bottom: 3px solid var(--form-accent-color, #3b82f6);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .form-type-icon {
+            width: clamp(44px, 6vw, 52px);
+            height: clamp(44px, 6vw, 52px);
+            border-radius: 12px;
+            background: var(--form-accent-color, #3b82f6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .form-type-icon svg {
+            width: clamp(22px, 3vw, 26px);
+            height: clamp(22px, 3vw, 26px);
+            color: #ffffff;
+            stroke-width: 2;
+        }
+
+        .form-type-info {
+            flex: 1;
+        }
+
+        .form-type-title {
+            font-size: clamp(1rem, 2vw, 1.15rem);
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0 0 4px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .form-type-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: clamp(0.65rem, 1.2vw, 0.72rem);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: var(--form-accent-color, #3b82f6);
+            color: #ffffff;
+        }
+
+        .form-type-subtitle {
+            font-size: clamp(0.75rem, 1.4vw, 0.85rem);
+            color: #6b7280;
+            margin: 0;
+        }
+
+        /* Form-specific accent colors */
+        .form-birth {
+            --form-accent-color: #3b82f6;
+        }
+
+        .form-marriage {
+            --form-accent-color: #ec4899;
+        }
+
+        .form-death {
+            --form-accent-color: #64748b;
+        }
+
+        .form-marriage-license {
+            --form-accent-color: #f43f5e;
         }
 
         .system-logo {
@@ -1541,13 +1622,19 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                 </div>
             </div>
 
-        <!-- Page Header -->
-        <div class="page-header">
-            <h1 class="page-title">
-                <?php echo $edit_mode ? 'Edit' : 'New'; ?> Certificate of Marriage - Entry Form
-            </h1>
-            <p class="page-subtitle">Complete the form below to register a new marriage certificate</p>
-        </div>
+            <!-- Form Type Indicator -->
+            <div class="form-type-indicator form-marriage">
+                <div class="form-type-icon">
+                    <i data-lucide="heart"></i>
+                </div>
+                <div class="form-type-info">
+                    <h2 class="form-type-title">
+                        <?php echo $edit_mode ? 'Edit' : 'New'; ?> Certificate of Marriage
+                        <span class="form-type-badge">Marriage Record</span>
+                    </h2>
+                    <p class="form-type-subtitle">Complete the form below to register a marriage certificate</p>
+                </div>
+            </div>
 
         <!-- Alert Messages -->
         <div id="alertContainer">

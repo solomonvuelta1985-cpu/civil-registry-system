@@ -1,6 +1,6 @@
 <?php
 /**
- * Certificate of Death - Entry Form (PHP Version)
+ * Application for Marriage License - Entry Form (PHP Version)
  * Includes database connectivity and server-side processing
  */
 
@@ -17,7 +17,7 @@ if (!isLoggedIn()) {
 
 // Check permission - need create for new, edit for existing
 $edit_mode_check = isset($_GET['id']) && !empty($_GET['id']);
-$required_permission = $edit_mode_check ? 'death_edit' : 'death_create';
+$required_permission = $edit_mode_check ? 'marriage_license_edit' : 'marriage_license_create';
 if (!hasPermission($required_permission)) {
     http_response_code(403);
     include __DIR__ . '/403.php';
@@ -34,7 +34,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 
     // Fetch record from database
     try {
-        $stmt = $pdo->prepare("SELECT * FROM certificate_of_death WHERE id = :id AND status = 'Active'");
+        $stmt = $pdo->prepare("SELECT * FROM application_for_marriage_license WHERE id = :id AND status = 'Active'");
         $stmt->execute([':id' => $record_id]);
         $record = $stmt->fetch();
 
@@ -54,7 +54,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Death Certificate - Civil Registry System</title>
+    <title>Application for Marriage License - Civil Registry System</title>
 
     <!-- Google Fonts - Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -818,10 +818,18 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 
         .section-header {
             background-color: #f8f9fa;
-            border-left: 3px solid #0d6efd;
+            border-left: 3px solid #e91e63;
             padding: clamp(8px, 1.5vw, 12px) clamp(10px, 1.8vw, 14px);
             margin-bottom: clamp(12px, 2vw, 16px);
             border-radius: clamp(3px, 0.6vw, 4px);
+        }
+
+        .section-header.groom {
+            border-left-color: #2196f3;
+        }
+
+        .section-header.bride {
+            border-left-color: #e91e63;
         }
 
         .section-title {
@@ -836,7 +844,11 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         .section-title svg {
             width: clamp(16px, 2vw, 18px);
             height: clamp(16px, 2vw, 18px);
-            stroke: #0d6efd;
+            stroke: #e91e63;
+        }
+
+        .section-header.groom .section-title svg {
+            stroke: #2196f3;
         }
 
         /* ========================================
@@ -867,7 +879,6 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         }
 
         input[type="text"],
-        input[type="number"],
         input[type="datetime-local"],
         input[type="date"],
         select,
@@ -884,18 +895,16 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         }
 
         input[type="text"]:focus,
-        input[type="number"]:focus,
         input[type="datetime-local"]:focus,
         input[type="date"]:focus,
         select:focus,
         textarea:focus {
             outline: none;
-            border-color: #0d6efd;
-            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+            border-color: #e91e63;
+            box-shadow: 0 0 0 0.2rem rgba(233, 30, 99, 0.25);
         }
 
         input[type="text"]:disabled,
-        input[type="number"]:disabled,
         select:disabled {
             background-color: #e9ecef;
             cursor: not-allowed;
@@ -913,7 +922,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         }
 
         input[type="file"]:hover {
-            border-color: #0d6efd;
+            border-color: #e91e63;
         }
 
         /* ========================================
@@ -956,14 +965,14 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         }
 
         .btn-primary {
-            background-color: #0d6efd;
-            border-color: #0d6efd;
+            background-color: #e91e63;
+            border-color: #e91e63;
             color: #ffffff;
         }
 
         .btn-primary:hover {
-            background-color: #0b5ed7;
-            border-color: #0b5ed7;
+            background-color: #c2185b;
+            border-color: #c2185b;
         }
 
         .btn-success {
@@ -1047,8 +1056,8 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 
         .toggle-pdf-btn:hover {
             background: #f8f9fa;
-            border-color: #0d6efd;
-            color: #0d6efd;
+            border-color: #e91e63;
+            color: #e91e63;
         }
 
         .toggle-pdf-btn svg {
@@ -1072,7 +1081,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
             right: 20px;
             top: 50%;
             transform: translateY(-50%);
-            background: #0d6efd;
+            background: #e91e63;
             color: #ffffff;
             border: none;
             border-radius: 50%;
@@ -1082,15 +1091,15 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+            box-shadow: 0 4px 12px rgba(233, 30, 99, 0.3);
             z-index: 1000;
             transition: all 0.3s ease;
         }
 
         .floating-toggle-btn:hover {
-            background: #0b5ed7;
+            background: #c2185b;
             transform: translateY(-50%) scale(1.1);
-            box-shadow: 0 6px 16px rgba(13, 110, 253, 0.4);
+            box-shadow: 0 6px 16px rgba(233, 30, 99, 0.4);
         }
 
         .floating-toggle-btn.show {
@@ -1105,7 +1114,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         .pdf-preview-title svg {
             width: clamp(16px, 2vw, 18px);
             height: clamp(16px, 2vw, 18px);
-            stroke: #0d6efd;
+            stroke: #e91e63;
         }
 
         /* Upload Scanner Container */
@@ -1193,7 +1202,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         }
 
         .pdf-upload-area:hover {
-            border-color: #0d6efd;
+            border-color: #e91e63;
             background-color: #f8f9fa;
         }
 
@@ -1233,8 +1242,8 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         .pdf-info {
             margin-top: clamp(10px, 1.8vw, 12px);
             padding: clamp(8px, 1.5vw, 10px);
-            background-color: #e7f1ff;
-            border-left: 3px solid #0d6efd;
+            background-color: #fce4ec;
+            border-left: 3px solid #e91e63;
             border-radius: clamp(3px, 0.6vw, 4px);
             font-size: clamp(0.7rem, 1.3vw, 0.75rem);
         }
@@ -1242,7 +1251,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         .pdf-info svg {
             width: clamp(14px, 1.8vw, 16px);
             height: clamp(14px, 1.8vw, 16px);
-            stroke: #084298;
+            stroke: #c2185b;
             display: inline-block;
             vertical-align: middle;
             margin-right: clamp(4px, 0.8vw, 6px);
@@ -1250,7 +1259,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 
         .pdf-filename {
             font-weight: 600;
-            color: #084298;
+            color: #c2185b;
             font-size: clamp(0.7rem, 1.3vw, 0.75rem);
             word-break: break-all;
         }
@@ -1316,74 +1325,6 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 
         .hidden {
             display: none;
-        }
-
-        /* ========================================
-           SKELETON LOADING STYLES
-           ======================================== */
-        .skeleton {
-            background: linear-gradient(
-                90deg,
-                #E5E7EB 0%,
-                #F3F4F6 50%,
-                #E5E7EB 100%
-            );
-            background-size: 200% 100%;
-            animation: skeleton-loading 1.5s ease-in-out infinite;
-            border-radius: clamp(3px, 0.6vw, 4px);
-            height: 20px;
-            width: 100%;
-        }
-
-        @keyframes skeleton-loading {
-            0% {
-                background-position: -200% 0;
-            }
-            100% {
-                background-position: 200% 0;
-            }
-        }
-
-        .skeleton-input {
-            height: clamp(32px, 4vw, 38px);
-            border-radius: clamp(3px, 0.6vw, 4px);
-        }
-
-        .skeleton-label {
-            height: clamp(16px, 2vw, 18px);
-            width: 40%;
-            margin-bottom: clamp(4px, 0.8vw, 6px);
-        }
-
-        .skeleton-section-title {
-            height: clamp(20px, 2.5vw, 24px);
-            width: 60%;
-        }
-
-        .skeleton-help-text {
-            height: clamp(12px, 1.8vw, 14px);
-            width: 80%;
-            margin-top: clamp(3px, 0.6vw, 4px);
-        }
-
-        .skeleton-pdf-header {
-            height: clamp(18px, 2.2vw, 22px);
-            width: 50%;
-            margin-bottom: clamp(10px, 1.8vw, 12px);
-        }
-
-        .skeleton-pdf-area {
-            height: clamp(200px, 30vw, 300px);
-            border-radius: clamp(4px, 0.8vw, 6px);
-        }
-
-        .form-column.loading .form-group,
-        .form-column.loading .form-row > div {
-            opacity: 0;
-        }
-
-        .form-column.loading .skeleton {
-            opacity: 1;
         }
 
         /* ========================================
@@ -1568,7 +1509,6 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
             }
 
             input[type="text"],
-            input[type="number"],
             input[type="datetime-local"],
             input[type="date"],
             select,
@@ -1593,35 +1533,48 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 
     <!-- Main Content Area -->
     <div class="content">
-        <div class="main-content-wrapper">
-            <div class="form-content-container">
-                <!-- System Header with Logo -->
-                <div class="system-header">
-                    <div class="system-logo">
-                        <img src="../assets/img/LOGO1.png" alt="Bayan ng Baggao Logo">
-                    </div>
-                    <div class="system-title-container">
-                        <h1 class="system-title">Civil Registry Records Management System</h1>
-                        <p class="system-subtitle">Lalawigan ng Cagayan - Bayan ng Baggao</p>
-                    </div>
+        <div class="page-container">
+            <!-- System Header with Logo -->
+            <div class="system-header">
+                <div class="system-logo">
+                    <img src="../assets/img/LOGO1.png" alt="Bayan ng Baggao Logo">
                 </div>
+                <div class="system-title-container">
+                    <h1 class="system-title">Civil Registry Records Management System</h1>
+                    <p class="system-subtitle">Lalawigan ng Cagayan - Bayan ng Baggao</p>
+                </div>
+            </div>
 
-                <!-- Form Type Indicator -->
-                <div class="form-type-indicator form-death">
-                    <div class="form-type-icon">
-                        <i data-lucide="file-heart"></i>
-                    </div>
-                    <div class="form-type-info">
-                        <h2 class="form-type-title">
-                            <?php echo $edit_mode ? 'Edit' : 'New'; ?> Certificate of Death
-                            <span class="form-type-badge">Death Record</span>
-                        </h2>
-                        <p class="form-type-subtitle">Complete the form below to register a death certificate</p>
-                    </div>
+            <!-- Form Type Indicator -->
+            <div class="form-type-indicator form-marriage-license">
+                <div class="form-type-icon">
+                    <i data-lucide="file-signature"></i>
                 </div>
+                <div class="form-type-info">
+                    <h2 class="form-type-title">
+                        <?php echo $edit_mode ? 'Edit' : 'New'; ?> Application for Marriage License
+                        <span class="form-type-badge">License Application</span>
+                    </h2>
+                    <p class="form-type-subtitle">Complete the form below to register a marriage license application</p>
+                </div>
+            </div>
 
         <!-- Alert Messages -->
-        <?php include '../includes/form_alerts.php'; ?>
+        <div id="alertContainer">
+            <?php if (isset($_SESSION['success'])): ?>
+                <div class="alert alert-success">
+                    <i data-lucide="check-circle"></i>
+                    <span><?php echo htmlspecialchars($_SESSION['success']); unset($_SESSION['success']); ?></span>
+                </div>
+            <?php endif; ?>
+
+            <?php if (isset($_SESSION['error'])): ?>
+                <div class="alert alert-danger">
+                    <i data-lucide="alert-circle"></i>
+                    <span><?php echo htmlspecialchars($_SESSION['error']); unset($_SESSION['error']); ?></span>
+                </div>
+            <?php endif; ?>
+        </div>
 
         <!-- Main Form -->
         <form id="certificateForm" enctype="multipart/form-data">
@@ -1642,307 +1595,512 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                             </h2>
                         </div>
 
-                        <div class="form-group">
-                            <label for="registry_no">
-                                Registry Number
-                            </label>
-                            <input
-                                type="text"
-                                id="registry_no"
-                                name="registry_no"
-                                placeholder="Enter registry number (e.g., REG-2025-00001 or single digit)"
-                                value="<?php echo $edit_mode ? htmlspecialchars($record['registry_no']) : ''; ?>"
-                            >
-                            <span class="help-text">Optional - Can be any format including single digit numbers</span>
-                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="registry_no">
+                                    Registry Number
+                                </label>
+                                <input
+                                    type="text"
+                                    id="registry_no"
+                                    name="registry_no"
+                                    placeholder="Enter registry number"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['registry_no']) : ''; ?>"
+                                >
+                                <span class="help-text">Optional - Can be any format</span>
+                            </div>
 
-                        <div class="form-group">
-                            <label for="date_of_registration">
-                                Date of Registration <span class="required">*</span>
-                            </label>
-                            <input
-                                type="date"
-                                id="date_of_registration"
-                                name="date_of_registration"
-                                required
-                                value="<?php echo $edit_mode ? date('Y-m-d', strtotime($record['date_of_registration'])) : ''; ?>"
-                            >
+                            <div class="form-group">
+                                <label for="date_of_application">
+                                    Date of Application <span class="required">*</span>
+                                </label>
+                                <input
+                                    type="date"
+                                    id="date_of_application"
+                                    name="date_of_application"
+                                    required
+                                    value="<?php echo $edit_mode ? date('Y-m-d', strtotime($record['date_of_application'])) : ''; ?>"
+                                >
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Deceased Information Section -->
+                    <!-- Groom's Information Section -->
                     <div class="form-section">
-                        <div class="section-header">
+                        <div class="section-header groom">
                             <h2 class="section-title">
                                 <i data-lucide="user"></i>
-                                Deceased Information
+                                Groom's Information
                             </h2>
                         </div>
 
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="deceased_first_name">
+                                <label for="groom_first_name">
                                     First Name <span class="required">*</span>
                                 </label>
                                 <input
                                     type="text"
-                                    id="deceased_first_name"
-                                    name="deceased_first_name"
+                                    id="groom_first_name"
+                                    name="groom_first_name"
                                     required
                                     placeholder="Enter first name"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['deceased_first_name']) : ''; ?>"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_first_name']) : ''; ?>"
                                 >
                             </div>
 
                             <div class="form-group">
-                                <label for="deceased_middle_name">
+                                <label for="groom_middle_name">
                                     Middle Name
                                 </label>
                                 <input
                                     type="text"
-                                    id="deceased_middle_name"
-                                    name="deceased_middle_name"
+                                    id="groom_middle_name"
+                                    name="groom_middle_name"
                                     placeholder="Enter middle name"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['deceased_middle_name'] ?? '') : ''; ?>"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_middle_name'] ?? '') : ''; ?>"
                                 >
                             </div>
 
                             <div class="form-group">
-                                <label for="deceased_last_name">
+                                <label for="groom_last_name">
                                     Last Name <span class="required">*</span>
                                 </label>
                                 <input
                                     type="text"
-                                    id="deceased_last_name"
-                                    name="deceased_last_name"
+                                    id="groom_last_name"
+                                    name="groom_last_name"
                                     required
                                     placeholder="Enter last name"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['deceased_last_name']) : ''; ?>"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_last_name']) : ''; ?>"
                                 >
                             </div>
                         </div>
 
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="date_of_birth">
+                                <label for="groom_date_of_birth">
                                     Date of Birth <span class="required">*</span>
                                 </label>
                                 <input
                                     type="date"
-                                    id="date_of_birth"
-                                    name="date_of_birth"
+                                    id="groom_date_of_birth"
+                                    name="groom_date_of_birth"
                                     required
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['date_of_birth']) : ''; ?>"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_date_of_birth']) : ''; ?>"
                                 >
                             </div>
 
                             <div class="form-group">
-                                <label for="date_of_death">
-                                    Date of Death <span class="required">*</span>
+                                <label for="groom_place_of_birth">
+                                    Place of Birth <span class="required">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    id="groom_place_of_birth"
+                                    name="groom_place_of_birth"
+                                    required
+                                    placeholder="Enter place of birth"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_place_of_birth']) : ''; ?>"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="groom_citizenship">
+                                    Citizenship <span class="required">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    id="groom_citizenship"
+                                    name="groom_citizenship"
+                                    required
+                                    placeholder="Enter citizenship"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_citizenship']) : ''; ?>"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="groom_residence">
+                                    Residence <span class="required">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    id="groom_residence"
+                                    name="groom_residence"
+                                    required
+                                    placeholder="Enter complete address"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_residence']) : ''; ?>"
+                                >
+                            </div>
+                        </div>
+
+                        <!-- Groom's Father Information -->
+                        <h3 style="font-size: 0.9rem; color: #495057; margin: 15px 0 10px 0; padding-left: 10px; border-left: 2px solid #2196f3;">Father's Name</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="groom_father_first_name">First Name</label>
+                                <input
+                                    type="text"
+                                    id="groom_father_first_name"
+                                    name="groom_father_first_name"
+                                    placeholder="Enter first name"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_father_first_name'] ?? '') : ''; ?>"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="groom_father_middle_name">Middle Name</label>
+                                <input
+                                    type="text"
+                                    id="groom_father_middle_name"
+                                    name="groom_father_middle_name"
+                                    placeholder="Enter middle name"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_father_middle_name'] ?? '') : ''; ?>"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="groom_father_last_name">Last Name</label>
+                                <input
+                                    type="text"
+                                    id="groom_father_last_name"
+                                    name="groom_father_last_name"
+                                    placeholder="Enter last name"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_father_last_name'] ?? '') : ''; ?>"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="groom_father_citizenship">Citizenship</label>
+                                <input
+                                    type="text"
+                                    id="groom_father_citizenship"
+                                    name="groom_father_citizenship"
+                                    placeholder="Enter citizenship"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_father_citizenship'] ?? '') : ''; ?>"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="groom_father_residence">Residence</label>
+                                <input
+                                    type="text"
+                                    id="groom_father_residence"
+                                    name="groom_father_residence"
+                                    placeholder="Enter address"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_father_residence'] ?? '') : ''; ?>"
+                                >
+                            </div>
+                        </div>
+
+                        <!-- Groom's Mother Information -->
+                        <h3 style="font-size: 0.9rem; color: #495057; margin: 15px 0 10px 0; padding-left: 10px; border-left: 2px solid #2196f3;">Mother's Maiden Name</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="groom_mother_first_name">First Name</label>
+                                <input
+                                    type="text"
+                                    id="groom_mother_first_name"
+                                    name="groom_mother_first_name"
+                                    placeholder="Enter first name"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_mother_first_name'] ?? '') : ''; ?>"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="groom_mother_middle_name">Middle Name</label>
+                                <input
+                                    type="text"
+                                    id="groom_mother_middle_name"
+                                    name="groom_mother_middle_name"
+                                    placeholder="Enter middle name"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_mother_middle_name'] ?? '') : ''; ?>"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="groom_mother_last_name">Last Name</label>
+                                <input
+                                    type="text"
+                                    id="groom_mother_last_name"
+                                    name="groom_mother_last_name"
+                                    placeholder="Enter maiden last name"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_mother_last_name'] ?? '') : ''; ?>"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="groom_mother_citizenship">Citizenship</label>
+                                <input
+                                    type="text"
+                                    id="groom_mother_citizenship"
+                                    name="groom_mother_citizenship"
+                                    placeholder="Enter citizenship"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_mother_citizenship'] ?? '') : ''; ?>"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="groom_mother_residence">Residence</label>
+                                <input
+                                    type="text"
+                                    id="groom_mother_residence"
+                                    name="groom_mother_residence"
+                                    placeholder="Enter address"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_mother_residence'] ?? '') : ''; ?>"
+                                >
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bride's Information Section -->
+                    <div class="form-section">
+                        <div class="section-header bride">
+                            <h2 class="section-title">
+                                <i data-lucide="user-check"></i>
+                                Bride's Information
+                            </h2>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="bride_first_name">
+                                    First Name <span class="required">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    id="bride_first_name"
+                                    name="bride_first_name"
+                                    required
+                                    placeholder="Enter first name"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_first_name']) : ''; ?>"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="bride_middle_name">
+                                    Middle Name
+                                </label>
+                                <input
+                                    type="text"
+                                    id="bride_middle_name"
+                                    name="bride_middle_name"
+                                    placeholder="Enter middle name"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_middle_name'] ?? '') : ''; ?>"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="bride_last_name">
+                                    Last Name <span class="required">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    id="bride_last_name"
+                                    name="bride_last_name"
+                                    required
+                                    placeholder="Enter maiden last name"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_last_name']) : ''; ?>"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="bride_date_of_birth">
+                                    Date of Birth <span class="required">*</span>
                                 </label>
                                 <input
                                     type="date"
-                                    id="date_of_death"
-                                    name="date_of_death"
+                                    id="bride_date_of_birth"
+                                    name="bride_date_of_birth"
                                     required
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['date_of_death']) : ''; ?>"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_date_of_birth']) : ''; ?>"
                                 >
                             </div>
 
                             <div class="form-group">
-                                <label for="age">
-                                    Age (Years) <span class="required">*</span>
+                                <label for="bride_place_of_birth">
+                                    Place of Birth <span class="required">*</span>
                                 </label>
                                 <input
-                                    type="number"
-                                    id="age"
-                                    name="age"
+                                    type="text"
+                                    id="bride_place_of_birth"
+                                    name="bride_place_of_birth"
                                     required
-                                    readonly
-                                    placeholder="Auto-calculated"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['age']) : ''; ?>"
-                                    style="background-color: #e9ecef; cursor: not-allowed;"
+                                    placeholder="Enter place of birth"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_place_of_birth']) : ''; ?>"
                                 >
-                                <span class="help-text">Automatically calculated from date of birth and date of death</span>
                             </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="occupation">
-                                Occupation
-                            </label>
-                            <input
-                                type="text"
-                                id="occupation"
-                                name="occupation"
-                                placeholder="Enter occupation"
-                                value="<?php echo $edit_mode ? htmlspecialchars($record['occupation'] ?? '') : ''; ?>"
-                            >
-                        </div>
-                    </div>
-
-                    <!-- Place of Death Section -->
-                    <div class="form-section">
-                        <div class="section-header">
-                            <h2 class="section-title">
-                                <i data-lucide="map-pin"></i>
-                                Place of Death
-                            </h2>
                         </div>
 
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="place_of_death">
-                                    Barangay/Hospital <span class="required">*</span>
+                                <label for="bride_citizenship">
+                                    Citizenship <span class="required">*</span>
                                 </label>
                                 <input
                                     type="text"
-                                    id="place_of_death"
-                                    name="place_of_death"
+                                    id="bride_citizenship"
+                                    name="bride_citizenship"
                                     required
-                                    placeholder="Enter barangay or hospital name"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['place_of_death']) : ''; ?>"
-                                >
-                                <span class="help-text">Enter the specific barangay or hospital where death occurred</span>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="municipality">
-                                    Municipality
-                                </label>
-                                <input
-                                    type="text"
-                                    id="municipality"
-                                    name="municipality"
-                                    value="Baggao"
-                                    readonly
-                                    disabled
-                                    style="background-color: #e9ecef; cursor: not-allowed;"
+                                    placeholder="Enter citizenship"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_citizenship']) : ''; ?>"
                                 >
                             </div>
 
                             <div class="form-group">
-                                <label for="province">
-                                    Province
+                                <label for="bride_residence">
+                                    Residence <span class="required">*</span>
                                 </label>
                                 <input
                                     type="text"
-                                    id="province"
-                                    name="province"
-                                    value="Cagayan"
-                                    readonly
-                                    disabled
-                                    style="background-color: #e9ecef; cursor: not-allowed;"
+                                    id="bride_residence"
+                                    name="bride_residence"
+                                    required
+                                    placeholder="Enter complete address"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_residence']) : ''; ?>"
                                 >
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Father's Information Section -->
-                    <div class="form-section">
-                        <div class="section-header">
-                            <h2 class="section-title">
-                                <i data-lucide="user-check"></i>
-                                Father's Name
-                            </h2>
-                        </div>
-
+                        <!-- Bride's Father Information -->
+                        <h3 style="font-size: 0.9rem; color: #495057; margin: 15px 0 10px 0; padding-left: 10px; border-left: 2px solid #e91e63;">Father's Name</h3>
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="father_first_name">
-                                    First Name
-                                </label>
+                                <label for="bride_father_first_name">First Name</label>
                                 <input
                                     type="text"
-                                    id="father_first_name"
-                                    name="father_first_name"
+                                    id="bride_father_first_name"
+                                    name="bride_father_first_name"
                                     placeholder="Enter first name"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['father_first_name'] ?? '') : ''; ?>"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_father_first_name'] ?? '') : ''; ?>"
                                 >
                             </div>
-
                             <div class="form-group">
-                                <label for="father_middle_name">
-                                    Middle Name
-                                </label>
+                                <label for="bride_father_middle_name">Middle Name</label>
                                 <input
                                     type="text"
-                                    id="father_middle_name"
-                                    name="father_middle_name"
+                                    id="bride_father_middle_name"
+                                    name="bride_father_middle_name"
                                     placeholder="Enter middle name"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['father_middle_name'] ?? '') : ''; ?>"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_father_middle_name'] ?? '') : ''; ?>"
                                 >
                             </div>
-
                             <div class="form-group">
-                                <label for="father_last_name">
-                                    Last Name
-                                </label>
+                                <label for="bride_father_last_name">Last Name</label>
                                 <input
                                     type="text"
-                                    id="father_last_name"
-                                    name="father_last_name"
+                                    id="bride_father_last_name"
+                                    name="bride_father_last_name"
                                     placeholder="Enter last name"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['father_last_name'] ?? '') : ''; ?>"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_father_last_name'] ?? '') : ''; ?>"
                                 >
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Mother's Information Section -->
-                    <div class="form-section">
-                        <div class="section-header">
-                            <h2 class="section-title">
-                                <i data-lucide="user"></i>
-                                Mother's Maiden Name
-                            </h2>
                         </div>
 
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="mother_first_name">
-                                    First Name
-                                </label>
+                                <label for="bride_father_citizenship">Citizenship</label>
                                 <input
                                     type="text"
-                                    id="mother_first_name"
-                                    name="mother_first_name"
+                                    id="bride_father_citizenship"
+                                    name="bride_father_citizenship"
+                                    placeholder="Enter citizenship"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_father_citizenship'] ?? '') : ''; ?>"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="bride_father_residence">Residence</label>
+                                <input
+                                    type="text"
+                                    id="bride_father_residence"
+                                    name="bride_father_residence"
+                                    placeholder="Enter address"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_father_residence'] ?? '') : ''; ?>"
+                                >
+                            </div>
+                        </div>
+
+                        <!-- Bride's Mother Information -->
+                        <h3 style="font-size: 0.9rem; color: #495057; margin: 15px 0 10px 0; padding-left: 10px; border-left: 2px solid #e91e63;">Mother's Maiden Name</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="bride_mother_first_name">First Name</label>
+                                <input
+                                    type="text"
+                                    id="bride_mother_first_name"
+                                    name="bride_mother_first_name"
                                     placeholder="Enter first name"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['mother_first_name'] ?? '') : ''; ?>"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_mother_first_name'] ?? '') : ''; ?>"
                                 >
                             </div>
-
                             <div class="form-group">
-                                <label for="mother_middle_name">
-                                    Middle Name
-                                </label>
+                                <label for="bride_mother_middle_name">Middle Name</label>
                                 <input
                                     type="text"
-                                    id="mother_middle_name"
-                                    name="mother_middle_name"
+                                    id="bride_mother_middle_name"
+                                    name="bride_mother_middle_name"
                                     placeholder="Enter middle name"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['mother_middle_name'] ?? '') : ''; ?>"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_mother_middle_name'] ?? '') : ''; ?>"
                                 >
                             </div>
-
                             <div class="form-group">
-                                <label for="mother_last_name">
-                                    Last Name
-                                </label>
+                                <label for="bride_mother_last_name">Last Name</label>
                                 <input
                                     type="text"
-                                    id="mother_last_name"
-                                    name="mother_last_name"
-                                    placeholder="Enter last name"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['mother_last_name'] ?? '') : ''; ?>"
+                                    id="bride_mother_last_name"
+                                    name="bride_mother_last_name"
+                                    placeholder="Enter maiden last name"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_mother_last_name'] ?? '') : ''; ?>"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="bride_mother_citizenship">Citizenship</label>
+                                <input
+                                    type="text"
+                                    id="bride_mother_citizenship"
+                                    name="bride_mother_citizenship"
+                                    placeholder="Enter citizenship"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_mother_citizenship'] ?? '') : ''; ?>"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="bride_mother_residence">Residence</label>
+                                <input
+                                    type="text"
+                                    id="bride_mother_residence"
+                                    name="bride_mother_residence"
+                                    placeholder="Enter address"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_mother_residence'] ?? '') : ''; ?>"
                                 >
                             </div>
                         </div>
                     </div>
 
                     <!-- Action Buttons -->
-                    <div class="sticky-buttons">
-                        <?php include '../includes/form_buttons.php'; ?>
+                    <div class="button-group sticky-buttons">
+                        <button type="submit" class="btn btn-primary" aria-label="Save application record">
+                            <i data-lucide="save" aria-hidden="true"></i>
+                            <span><?php echo $edit_mode ? 'Update Record' : 'Save Record'; ?></span>
+                        </button>
+                        <?php if (!$edit_mode): ?>
+                        <button type="button" class="btn btn-success" id="saveAndNewBtn" aria-label="Save this record and create another">
+                            <i data-lucide="plus-circle" aria-hidden="true"></i>
+                            <span>Save & Add New</span>
+                        </button>
+                        <?php endif; ?>
+                        <button type="reset" class="btn btn-danger" aria-label="Reset form to empty state">
+                            <i data-lucide="rotate-ccw" aria-hidden="true"></i>
+                            <span>Reset Form</span>
+                        </button>
+                        <a href="../admin/dashboard.php" class="btn btn-secondary" data-action="back" aria-label="Return to dashboard">
+                            <i data-lucide="arrow-left" aria-hidden="true"></i>
+                            <span>Back to Dashboard</span>
+                        </a>
                     </div>
 
                 </div>
@@ -1952,7 +2110,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                     <div class="pdf-preview-header">
                         <h3 class="pdf-preview-title">
                             <i data-lucide="file-text"></i>
-                            Certificate PDF Upload
+                            Application PDF Upload
                         </h3>
                         <button type="button" id="togglePdfBtn" class="toggle-pdf-btn" title="Hide PDF Upload">
                             <i data-lucide="eye-off"></i>
@@ -1961,7 +2119,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 
                     <div class="form-group">
                         <label for="pdf_file">
-                            Upload PDF Certificate <?php echo !$edit_mode ? '<span class="required">*</span>' : ''; ?>
+                            Upload PDF Document <?php echo !$edit_mode ? '<span class="required">*</span>' : ''; ?>
                         </label>
 
                         <div class="upload-scanner-container">
@@ -2022,57 +2180,21 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
             <i data-lucide="eye"></i>
         </button>
 
-            </div> <!-- Close form-content-container -->
-        </div> <!-- Close main-content-wrapper -->
-    </div> <!-- Close content -->
+        </div> <!-- Close dashboard-container -->
+    </div> <!-- Close main-content -->
+</div> <!-- Close page-wrapper -->
 
     <!-- Shared Certificate Form Handler -->
     <script src="../assets/js/certificate-form-handler.js"></script>
 
-    <!-- Death Certificate Specific Logic -->
+    <!-- Marriage License Specific Logic -->
     <script>
+        const editMode = <?php echo $edit_mode ? 'true' : 'false'; ?>;
+
         // Initialize the form handler
         const formHandler = new CertificateFormHandler({
-            formType: 'death',
-            apiEndpoint: '../api/certificate_of_death_save.php'
-        });
-
-        // Death-specific: Calculate age automatically based on date of birth and date of death
-        function calculateAge() {
-            const dateOfBirth = document.getElementById('date_of_birth').value;
-            const dateOfDeath = document.getElementById('date_of_death').value;
-            const ageInput = document.getElementById('age');
-
-            if (dateOfBirth && dateOfDeath) {
-                const birthDate = new Date(dateOfBirth);
-                const deathDate = new Date(dateOfDeath);
-
-                // Check if death date is after birth date
-                if (deathDate < birthDate) {
-                    formHandler.showAlert('warning', 'Date of death cannot be before date of birth.');
-                    ageInput.value = '';
-                    return;
-                }
-
-                // Calculate age in years
-                let age = deathDate.getFullYear() - birthDate.getFullYear();
-                const monthDiff = deathDate.getMonth() - birthDate.getMonth();
-
-                // Adjust age if birthday hasn't occurred yet in the death year
-                if (monthDiff < 0 || (monthDiff === 0 && deathDate.getDate() < birthDate.getDate())) {
-                    age--;
-                }
-
-                ageInput.value = age;
-            } else {
-                ageInput.value = '';
-            }
-        }
-
-        // Add event listeners for age calculation
-        window.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('date_of_birth').addEventListener('change', calculateAge);
-            document.getElementById('date_of_death').addEventListener('change', calculateAge);
+            formType: 'marriage_license',
+            apiEndpoint: '../api/application_for_marriage_license_save.php'
         });
     </script>
 
@@ -2096,9 +2218,6 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
     <script src="../assets/js/ocr-field-mapper.js"></script>
     <script src="../assets/js/ocr-modal.js"></script>
 
-    <!-- Certificate Skeleton Loader -->
-    <script src="../assets/js/certificate-skeleton-loader.js"></script>
-
     <!-- Initialize OCR Modal -->
     <script>
         // Initialize professional modal OCR interface
@@ -2106,7 +2225,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
             autoProcess: true,
             autoFill: false,
             confidenceThreshold: 75,
-            formType: 'death'
+            formType: 'marriage_license'
         });
     </script>
 </body>

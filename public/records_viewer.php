@@ -19,7 +19,8 @@ if (!isLoggedIn()) {
 $permission_map = [
     'marriage' => 'marriage_view',
     'birth' => 'birth_view',
-    'death' => 'death_view'
+    'death' => 'death_view',
+    'marriage_license' => 'marriage_license_view'
 ];
 
 // Determine record type - defaults to 'marriage' if not already set
@@ -177,6 +178,49 @@ $record_configs = [
             ['name' => 'place', 'label' => 'Place of Death', 'type' => 'text', 'field' => 'place_of_death', 'operator' => 'LIKE'],
             ['name' => 'age_from', 'label' => 'Age From', 'type' => 'number', 'field' => 'age', 'operator' => '>='],
             ['name' => 'age_to', 'label' => 'Age To', 'type' => 'number', 'field' => 'age', 'operator' => '<=']
+        ]
+    ],
+    'marriage_license' => [
+        'table' => 'application_for_marriage_license',
+        'title' => 'Marriage License Applications',
+        'icon' => 'file-heart',
+        'entry_form' => 'application_for_marriage_license.php',
+        'delete_api' => '../api/application_for_marriage_license_delete.php',
+        'search_fields' => [
+            'registry_no',
+            'groom_first_name',
+            'groom_middle_name',
+            'groom_last_name',
+            'bride_first_name',
+            'bride_middle_name',
+            'bride_last_name',
+            'groom_place_of_birth',
+            'bride_place_of_birth',
+            'groom_citizenship',
+            'bride_citizenship'
+        ],
+        'sort_columns' => [
+            'registry_no',
+            'groom_first_name',
+            'bride_first_name',
+            'date_of_application',
+            'groom_citizenship',
+            'bride_citizenship',
+            'created_at'
+        ],
+        'table_columns' => [
+            ['label' => 'Registry No.', 'field' => 'registry_no', 'sortable' => true],
+            ['label' => 'Groom', 'field' => 'groom_name', 'sortable' => true, 'sort_field' => 'groom_first_name'],
+            ['label' => 'Bride', 'field' => 'bride_name', 'sortable' => true, 'sort_field' => 'bride_first_name'],
+            ['label' => 'Application Date', 'field' => 'date_of_application', 'sortable' => true, 'type' => 'date'],
+            ['label' => 'Groom Citizenship', 'field' => 'groom_citizenship', 'sortable' => true],
+            ['label' => 'Bride Citizenship', 'field' => 'bride_citizenship', 'sortable' => true]
+        ],
+        'filters' => [
+            ['name' => 'app_date_from', 'label' => 'Application Date From', 'type' => 'date', 'field' => 'date_of_application', 'operator' => '>='],
+            ['name' => 'app_date_to', 'label' => 'Application Date To', 'type' => 'date', 'field' => 'date_of_application', 'operator' => '<='],
+            ['name' => 'groom_citizenship', 'label' => 'Groom Citizenship', 'type' => 'text', 'field' => 'groom_citizenship', 'operator' => 'LIKE'],
+            ['name' => 'bride_citizenship', 'label' => 'Bride Citizenship', 'type' => 'text', 'field' => 'bride_citizenship', 'operator' => 'LIKE']
         ]
     ]
 ];
@@ -345,6 +389,18 @@ function get_field_value($record, $field, $type = 'text') {
         $first = $record['deceased_first_name'] ?? '';
         $middle = $record['deceased_middle_name'] ?? '';
         $last = $record['deceased_last_name'] ?? '';
+        $full_name = trim($first . ' ' . $middle . ' ' . $last);
+        return htmlspecialchars($full_name) ?: 'N/A';
+    } elseif ($field === 'groom_name' && $record_type === 'marriage_license') {
+        $first = $record['groom_first_name'] ?? '';
+        $middle = $record['groom_middle_name'] ?? '';
+        $last = $record['groom_last_name'] ?? '';
+        $full_name = trim($first . ' ' . $middle . ' ' . $last);
+        return htmlspecialchars($full_name) ?: 'N/A';
+    } elseif ($field === 'bride_name' && $record_type === 'marriage_license') {
+        $first = $record['bride_first_name'] ?? '';
+        $middle = $record['bride_middle_name'] ?? '';
+        $last = $record['bride_last_name'] ?? '';
         $full_name = trim($first . ' ' . $middle . ' ' . $last);
         return htmlspecialchars($full_name) ?: 'N/A';
     } elseif ($field === 'father_name') {
