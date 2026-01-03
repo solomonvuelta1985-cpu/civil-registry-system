@@ -5,4 +5,4 @@
 
 // Set record type to birth and include the unified template
 $record_type = 'birth';
-require_once 'marriage_records.php';
+require_once 'records_viewer.php';

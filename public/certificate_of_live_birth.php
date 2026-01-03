@@ -7,13 +7,22 @@
 // Include configuration and functions
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/auth.php';
 
-// Optional: Check if user is authenticated
-// require_once '../includes/auth.php';
-// if (!isLoggedIn()) {
-//     header('Location: ../login.php');
-//     exit;
-// }
+// Check authentication
+if (!isLoggedIn()) {
+    header('Location: login.php');
+    exit;
+}
+
+// Check permission - need create for new, edit for existing
+$edit_mode_check = isset($_GET['id']) && !empty($_GET['id']);
+$required_permission = $edit_mode_check ? 'birth_edit' : 'birth_create';
+if (!hasPermission($required_permission)) {
+    http_response_code(403);
+    include __DIR__ . '/403.php';
+    exit;
+}
 
 // Get record ID if editing (optional)
 $edit_mode = false;
@@ -1237,6 +1246,95 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         }
 
         /* ========================================
+           SKELETON LOADING STYLES
+           ======================================== */
+        .skeleton {
+            background: linear-gradient(
+                90deg,
+                #E5E7EB 0%,
+                #F3F4F6 50%,
+                #E5E7EB 100%
+            );
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s ease-in-out infinite;
+            border-radius: clamp(3px, 0.6vw, 4px);
+            height: 20px;
+            width: 100%;
+        }
+
+        @keyframes skeleton-loading {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        .skeleton-input {
+            height: clamp(32px, 4vw, 38px);
+            border-radius: clamp(3px, 0.6vw, 4px);
+        }
+
+        .skeleton-label {
+            height: clamp(16px, 2vw, 18px);
+            width: 40%;
+            margin-bottom: clamp(4px, 0.8vw, 6px);
+        }
+
+        .skeleton-section-title {
+            height: clamp(20px, 2.5vw, 24px);
+            width: 60%;
+        }
+
+        .skeleton-help-text {
+            height: clamp(12px, 1.8vw, 14px);
+            width: 80%;
+            margin-top: clamp(3px, 0.6vw, 4px);
+        }
+
+        .skeleton-pdf-header {
+            height: clamp(18px, 2.2vw, 22px);
+            width: 50%;
+            margin-bottom: clamp(10px, 1.8vw, 12px);
+        }
+
+        .skeleton-pdf-area {
+            height: clamp(200px, 30vw, 300px);
+            border-radius: clamp(4px, 0.8vw, 6px);
+        }
+
+        .skeleton-button {
+            height: clamp(32px, 4vw, 38px);
+            width: clamp(100px, 15vw, 150px);
+            border-radius: clamp(3px, 0.6vw, 4px);
+        }
+
+        .skeleton-toggle-btn {
+            height: clamp(32px, 3.5vw, 36px);
+            width: clamp(80px, 12vw, 100px);
+            border-radius: 6px;
+        }
+
+        .form-column.loading .form-group,
+        .form-column.loading .form-row > div {
+            opacity: 0;
+        }
+
+        .form-column.loading .skeleton {
+            opacity: 1;
+        }
+
+        /* Prevent scrollbars during skeleton loading */
+        body.skeleton-loading {
+            overflow-x: hidden;
+        }
+
+        .form-column.skeleton-loading-active {
+            overflow: hidden;
+        }
+
+        /* ========================================
            HELPER TEXT
            ======================================== */
         .help-text {
@@ -1949,6 +2047,9 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
     <!-- Core OCR Integration -->
     <script src="../assets/js/ocr-field-mapper.js"></script>
     <script src="../assets/js/ocr-modal.js"></script>
+
+    <!-- Certificate Skeleton Loader -->
+    <script src="../assets/js/certificate-skeleton-loader.js"></script>
 
     <!-- Initialize OCR Modal -->
     <script>

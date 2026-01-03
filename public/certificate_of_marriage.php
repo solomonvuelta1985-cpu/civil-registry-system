@@ -7,13 +7,22 @@
 // Include configuration and functions
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/auth.php';
 
-// Optional: Check if user is authenticated
-// require_once '../includes/auth.php';
-// if (!isLoggedIn()) {
-//     header('Location: ../login.php');
-//     exit;
-// }
+// Check authentication
+if (!isLoggedIn()) {
+    header('Location: login.php');
+    exit;
+}
+
+// Check permission - need create for new, edit for existing
+$edit_mode_check = isset($_GET['id']) && !empty($_GET['id']);
+$required_permission = $edit_mode_check ? 'marriage_edit' : 'marriage_create';
+if (!hasPermission($required_permission)) {
+    http_response_code(403);
+    include __DIR__ . '/403.php';
+    exit;
+}
 
 // Get record ID if editing (optional)
 $edit_mode = false;
@@ -1226,6 +1235,95 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         }
 
         /* ========================================
+           SKELETON LOADING STYLES
+           ======================================== */
+        .skeleton {
+            background: linear-gradient(
+                90deg,
+                #E5E7EB 0%,
+                #F3F4F6 50%,
+                #E5E7EB 100%
+            );
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s ease-in-out infinite;
+            border-radius: clamp(3px, 0.6vw, 4px);
+            height: 20px;
+            width: 100%;
+        }
+
+        @keyframes skeleton-loading {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        .skeleton-input {
+            height: clamp(32px, 4vw, 38px);
+            border-radius: clamp(3px, 0.6vw, 4px);
+        }
+
+        .skeleton-label {
+            height: clamp(16px, 2vw, 18px);
+            width: 40%;
+            margin-bottom: clamp(4px, 0.8vw, 6px);
+        }
+
+        .skeleton-section-title {
+            height: clamp(20px, 2.5vw, 24px);
+            width: 60%;
+        }
+
+        .skeleton-help-text {
+            height: clamp(12px, 1.8vw, 14px);
+            width: 80%;
+            margin-top: clamp(3px, 0.6vw, 4px);
+        }
+
+        .skeleton-pdf-header {
+            height: clamp(18px, 2.2vw, 22px);
+            width: 50%;
+            margin-bottom: clamp(10px, 1.8vw, 12px);
+        }
+
+        .skeleton-pdf-area {
+            height: clamp(200px, 30vw, 300px);
+            border-radius: clamp(4px, 0.8vw, 6px);
+        }
+
+        .skeleton-button {
+            height: clamp(32px, 4vw, 38px);
+            width: clamp(100px, 15vw, 150px);
+            border-radius: clamp(3px, 0.6vw, 4px);
+        }
+
+        .skeleton-toggle-btn {
+            height: clamp(32px, 3.5vw, 36px);
+            width: clamp(80px, 12vw, 100px);
+            border-radius: 6px;
+        }
+
+        .form-column.loading .form-group,
+        .form-column.loading .form-row > div {
+            opacity: 0;
+        }
+
+        .form-column.loading .skeleton {
+            opacity: 1;
+        }
+
+        /* Prevent scrollbars during skeleton loading */
+        body.skeleton-loading {
+            overflow-x: hidden;
+        }
+
+        .form-column.skeleton-loading-active {
+            overflow: hidden;
+        }
+
+        /* ========================================
            HELPER TEXT
            ======================================== */
         .help-text {
@@ -2003,6 +2101,230 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
             autoFill: false,
             confidenceThreshold: 75,
             formType: 'marriage'
+        });
+
+        // Form Skeleton Loading on Page Load
+        document.addEventListener('DOMContentLoaded', function() {
+            const formColumn = document.querySelector('.form-column');
+            if (!formColumn) return;
+
+            // Add class to prevent scrollbars
+            document.body.classList.add('skeleton-loading');
+            formColumn.classList.add('skeleton-loading-active');
+
+            // Find ALL input fields, selects, and textareas in the form
+            const allInputs = formColumn.querySelectorAll('input[type="text"], input[type="date"], input[type="datetime-local"], select, textarea');
+
+            // Hide all inputs and create skeleton for each
+            allInputs.forEach(input => {
+                // Hide the real input using visibility instead of position absolute
+                input.style.visibility = 'hidden';
+                input.style.height = '0';
+                input.style.margin = '0';
+                input.style.padding = '0';
+                input.style.border = 'none';
+
+                // Create skeleton placeholder
+                const skeleton = document.createElement('div');
+                skeleton.className = 'skeleton skeleton-input';
+
+                // Insert skeleton before the input
+                input.parentNode.insertBefore(skeleton, input);
+            });
+
+            // Also add skeleton to labels
+            const allLabels = formColumn.querySelectorAll('label');
+            allLabels.forEach(label => {
+                label.style.opacity = '0';
+
+                const labelSkeleton = document.createElement('div');
+                labelSkeleton.className = 'skeleton skeleton-label';
+                label.parentNode.insertBefore(labelSkeleton, label);
+            });
+
+            // Add skeleton to section titles
+            const sectionTitles = formColumn.querySelectorAll('.section-title');
+            sectionTitles.forEach(title => {
+                title.style.opacity = '0';
+
+                const titleSkeleton = document.createElement('div');
+                titleSkeleton.className = 'skeleton skeleton-section-title';
+                titleSkeleton.style.marginBottom = '12px';
+                title.parentNode.insertBefore(titleSkeleton, title);
+            });
+
+            // Add skeleton to help text
+            const helpTexts = formColumn.querySelectorAll('.help-text');
+            helpTexts.forEach(helpText => {
+                helpText.style.opacity = '0';
+
+                const helpSkeleton = document.createElement('div');
+                helpSkeleton.className = 'skeleton skeleton-help-text';
+                helpText.parentNode.insertBefore(helpSkeleton, helpText);
+            });
+
+            // Add skeleton to PDF column
+            const pdfColumn = document.querySelector('.pdf-column');
+            if (pdfColumn) {
+                // Hide PDF preview title
+                const pdfTitle = pdfColumn.querySelector('.pdf-preview-title');
+                if (pdfTitle) {
+                    pdfTitle.style.opacity = '0';
+                    const pdfTitleSkeleton = document.createElement('div');
+                    pdfTitleSkeleton.className = 'skeleton skeleton-pdf-header';
+                    pdfTitle.parentNode.insertBefore(pdfTitleSkeleton, pdfTitle);
+                }
+
+                // Hide PDF upload/preview area
+                const pdfUploadArea = pdfColumn.querySelector('.pdf-upload-area, .pdf-preview-container');
+                if (pdfUploadArea) {
+                    pdfUploadArea.style.opacity = '0';
+                    const pdfAreaSkeleton = document.createElement('div');
+                    pdfAreaSkeleton.className = 'skeleton skeleton-pdf-area';
+                    pdfUploadArea.parentNode.insertBefore(pdfAreaSkeleton, pdfUploadArea);
+                }
+
+                // Hide PDF labels in upload section
+                const pdfLabels = pdfColumn.querySelectorAll('label');
+                pdfLabels.forEach(label => {
+                    label.style.opacity = '0';
+                    const labelSkeleton = document.createElement('div');
+                    labelSkeleton.className = 'skeleton skeleton-label';
+                    label.parentNode.insertBefore(labelSkeleton, label);
+                });
+
+                // Hide PDF help texts
+                const pdfHelpTexts = pdfColumn.querySelectorAll('.help-text');
+                pdfHelpTexts.forEach(helpText => {
+                    helpText.style.opacity = '0';
+                    const helpSkeleton = document.createElement('div');
+                    helpSkeleton.className = 'skeleton skeleton-help-text';
+                    helpText.parentNode.insertBefore(helpSkeleton, helpText);
+                });
+
+                // Hide toggle PDF button
+                const togglePdfBtn = pdfColumn.querySelector('#togglePdfBtn, .toggle-pdf-btn');
+                if (togglePdfBtn) {
+                    togglePdfBtn.style.opacity = '0';
+                    const btnSkeleton = document.createElement('div');
+                    btnSkeleton.className = 'skeleton skeleton-toggle-btn';
+                    togglePdfBtn.parentNode.insertBefore(btnSkeleton, togglePdfBtn);
+                }
+
+                // Hide file input and scan button in upload-scanner-container
+                const uploadContainer = pdfColumn.querySelector('.upload-scanner-container');
+                if (uploadContainer) {
+                    const fileInput = uploadContainer.querySelector('input[type="file"]');
+                    const scanBtn = uploadContainer.querySelector('.btn-scan, #scanDocumentBtn');
+
+                    if (fileInput) {
+                        fileInput.style.opacity = '0';
+                        const fileSkeleton = document.createElement('div');
+                        fileSkeleton.className = 'skeleton skeleton-button';
+                        fileSkeleton.style.flex = '1';
+                        fileInput.parentNode.insertBefore(fileSkeleton, fileInput);
+                    }
+
+                    if (scanBtn) {
+                        scanBtn.style.opacity = '0';
+                        const scanSkeleton = document.createElement('div');
+                        scanSkeleton.className = 'skeleton skeleton-button';
+                        scanBtn.parentNode.insertBefore(scanSkeleton, scanBtn);
+                    }
+                }
+            }
+
+            // Remove all skeletons and show real content after delay
+            setTimeout(() => {
+                // Remove scrollbar prevention classes
+                document.body.classList.remove('skeleton-loading');
+                formColumn.classList.remove('skeleton-loading-active');
+
+                // Remove all skeleton elements
+                const skeletons = document.querySelectorAll('.skeleton');
+                skeletons.forEach(skeleton => skeleton.remove());
+
+                // Show all real inputs with fade effect
+                allInputs.forEach(input => {
+                    input.style.visibility = 'visible';
+                    input.style.height = '';
+                    input.style.margin = '';
+                    input.style.padding = '';
+                    input.style.border = '';
+                    input.style.opacity = '0';
+                    input.style.transition = 'opacity 0.3s ease';
+                    setTimeout(() => {
+                        input.style.opacity = '1';
+                    }, 10);
+                });
+
+                // Show all labels with fade effect
+                allLabels.forEach(label => {
+                    label.style.transition = 'opacity 0.3s ease';
+                    setTimeout(() => {
+                        label.style.opacity = '1';
+                    }, 10);
+                });
+
+                // Show all section titles with fade effect
+                sectionTitles.forEach(title => {
+                    title.style.transition = 'opacity 0.3s ease';
+                    setTimeout(() => {
+                        title.style.opacity = '1';
+                    }, 10);
+                });
+
+                // Show all help texts with fade effect
+                helpTexts.forEach(helpText => {
+                    helpText.style.transition = 'opacity 0.3s ease';
+                    setTimeout(() => {
+                        helpText.style.opacity = '1';
+                    }, 10);
+                });
+
+                // Show PDF column elements with fade effect
+                if (pdfColumn) {
+                    const pdfTitle = pdfColumn.querySelector('.pdf-preview-title');
+                    const pdfUploadArea = pdfColumn.querySelector('.pdf-upload-area, .pdf-preview-container');
+                    const pdfLabels = pdfColumn.querySelectorAll('label');
+                    const pdfHelpTexts = pdfColumn.querySelectorAll('.help-text');
+                    const togglePdfBtn = pdfColumn.querySelector('#togglePdfBtn, .toggle-pdf-btn');
+                    const uploadContainer = pdfColumn.querySelector('.upload-scanner-container');
+
+                    if (pdfTitle) {
+                        pdfTitle.style.transition = 'opacity 0.3s ease';
+                        setTimeout(() => { pdfTitle.style.opacity = '1'; }, 10);
+                    }
+                    if (pdfUploadArea) {
+                        pdfUploadArea.style.transition = 'opacity 0.3s ease';
+                        setTimeout(() => { pdfUploadArea.style.opacity = '1'; }, 10);
+                    }
+                    pdfLabels.forEach(label => {
+                        label.style.transition = 'opacity 0.3s ease';
+                        setTimeout(() => { label.style.opacity = '1'; }, 10);
+                    });
+                    pdfHelpTexts.forEach(helpText => {
+                        helpText.style.transition = 'opacity 0.3s ease';
+                        setTimeout(() => { helpText.style.opacity = '1'; }, 10);
+                    });
+                    if (togglePdfBtn) {
+                        togglePdfBtn.style.transition = 'opacity 0.3s ease';
+                        setTimeout(() => { togglePdfBtn.style.opacity = '1'; }, 10);
+                    }
+                    if (uploadContainer) {
+                        const fileInput = uploadContainer.querySelector('input[type="file"]');
+                        const scanBtn = uploadContainer.querySelector('.btn-scan, #scanDocumentBtn');
+                        if (fileInput) {
+                            fileInput.style.transition = 'opacity 0.3s ease';
+                            setTimeout(() => { fileInput.style.opacity = '1'; }, 10);
+                        }
+                        if (scanBtn) {
+                            scanBtn.style.transition = 'opacity 0.3s ease';
+                            setTimeout(() => { scanBtn.style.opacity = '1'; }, 10);
+                        }
+                    }
+                }
+            }, 400);
         });
     </script>
 </body>

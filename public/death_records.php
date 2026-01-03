@@ -1,8 +1,8 @@
 <?php
 /**
- * Death Records - Redirect to unified records viewer
+ * Death Records Viewer - View, Search, Edit, Delete Death Certificates
  */
 
-// Redirect to marriage_records.php with type=death
-header('Location: marriage_records.php?type=death');
-exit;
+// Set record type to death and include the unified template
+$record_type = 'death';
+require_once 'records_viewer.php';

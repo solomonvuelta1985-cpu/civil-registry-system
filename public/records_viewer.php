@@ -7,17 +7,32 @@
 require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/auth.php';
 
-// Optional: Check authentication
-// require_once '../includes/auth.php';
-// if (!isLoggedIn()) {
-//     header('Location: ../login.php');
-//     exit;
-// }
+// Check authentication
+if (!isLoggedIn()) {
+    header('Location: login.php');
+    exit;
+}
+
+// Check permission based on record type
+$permission_map = [
+    'marriage' => 'marriage_view',
+    'birth' => 'birth_view',
+    'death' => 'death_view'
+];
 
 // Determine record type - defaults to 'marriage' if not already set
 if (!isset($record_type)) {
     $record_type = 'marriage';
+}
+
+// Check if user has permission for this record type
+$required_permission = $permission_map[$record_type] ?? 'marriage_view';
+if (!hasPermission($required_permission)) {
+    http_response_code(403);
+    include __DIR__ . '/403.php';
+    exit;
 }
 
 // Configuration for different certificate types
@@ -98,7 +113,7 @@ $record_configs = [
         ],
         'table_columns' => [
             ['label' => 'Registry No.', 'field' => 'registry_no', 'sortable' => true],
-            ['label' => 'Child Name', 'field' => 'child_name', 'sortable' => true, 'sort_field' => 'child_first_name'],
+            ['label' => 'Child', 'field' => 'child_name', 'sortable' => true, 'sort_field' => 'child_first_name'],
             ['label' => 'Birth Date', 'field' => 'child_date_of_birth', 'sortable' => true, 'type' => 'date'],
             ['label' => 'Sex', 'field' => 'child_sex', 'sortable' => true],
             ['label' => 'Father', 'field' => 'father_name', 'sortable' => true, 'sort_field' => 'father_first_name'],
@@ -147,7 +162,7 @@ $record_configs = [
         ],
         'table_columns' => [
             ['label' => 'Registry No.', 'field' => 'registry_no', 'sortable' => true],
-            ['label' => 'Deceased Name', 'field' => 'deceased_name', 'sortable' => true, 'sort_field' => 'deceased_first_name'],
+            ['label' => 'Deceased', 'field' => 'deceased_name', 'sortable' => true, 'sort_field' => 'deceased_first_name'],
             ['label' => 'Date of Birth', 'field' => 'date_of_birth', 'sortable' => true, 'type' => 'date'],
             ['label' => 'Date of Death', 'field' => 'date_of_death', 'sortable' => true, 'type' => 'date'],
             ['label' => 'Age', 'field' => 'age', 'sortable' => true],
@@ -188,11 +203,14 @@ $params = [];
 
 if (!empty($search)) {
     $search_conditions = [];
+    $search_index = 0;
     foreach ($config['search_fields'] as $field) {
-        $search_conditions[] = "{$field} LIKE :search";
+        $param_name = ':search_' . $search_index;
+        $search_conditions[] = "{$field} LIKE {$param_name}";
+        $params[$param_name] = "%{$search}%";
+        $search_index++;
     }
     $search_query = " AND (" . implode(' OR ', $search_conditions) . ")";
-    $params[':search'] = "%{$search}%";
 }
 
 // Advanced filters
@@ -229,25 +247,50 @@ $sort_order = isset($_GET['sort_order']) && strtoupper($_GET['sort_order']) === 
 
 // Get total records count
 $count_sql = "SELECT COUNT(*) as total FROM {$config['table']} WHERE status = 'Active'" . $search_query . $filter_query;
-$count_stmt = $pdo->prepare($count_sql);
-$count_stmt->execute($params);
-$total_records = $count_stmt->fetch()['total'];
-$total_pages = ceil($total_records / $records_per_page);
+
+try {
+    $count_stmt = $pdo->prepare($count_sql);
+
+    // Bind parameters for count query
+    foreach ($params as $key => $value) {
+        $count_stmt->bindValue($key, $value);
+    }
+
+    $count_stmt->execute();
+    $total_records = (int)($count_stmt->fetch()['total'] ?? 0);
+    $total_pages = (int)ceil($total_records / $records_per_page);
+} catch (PDOException $e) {
+    error_log("Count query error: " . $e->getMessage());
+    error_log("Count SQL: " . $count_sql);
+    error_log("Params: " . print_r($params, true));
+    $total_records = 0;
+    $total_pages = 0;
+}
 
 // Fetch records
 $sql = "SELECT * FROM {$config['table']} WHERE status = 'Active'"
     . $search_query
     . $filter_query
     . " ORDER BY {$sort_by} {$sort_order} LIMIT :limit OFFSET :offset";
-$stmt = $pdo->prepare($sql);
 
-foreach ($params as $key => $value) {
-    $stmt->bindValue($key, $value);
+try {
+    $stmt = $pdo->prepare($sql);
+
+    // Bind parameters for main query
+    foreach ($params as $key => $value) {
+        $stmt->bindValue($key, $value);
+    }
+
+    $stmt->bindValue(':limit', $records_per_page, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
+    $records = $stmt->fetchAll();
+} catch (PDOException $e) {
+    error_log("Main query error: " . $e->getMessage());
+    error_log("Main SQL: " . $sql);
+    error_log("Params: " . print_r($params, true));
+    $records = [];
 }
-$stmt->bindValue(':limit', $records_per_page, PDO::PARAM_INT);
-$stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-$stmt->execute();
-$records = $stmt->fetchAll();
 
 // Helper function to build query string for pagination/sorting
 function build_query_string($exclude = []) {
@@ -282,28 +325,40 @@ function get_field_value($record, $field, $type = 'text') {
     // Handle composite fields (e.g., full names)
     if ($field === 'husband_name' && $record_type === 'marriage') {
         $first = $record['husband_first_name'] ?? '';
+        $middle = $record['husband_middle_name'] ?? '';
         $last = $record['husband_last_name'] ?? '';
-        return htmlspecialchars(trim($first . ' ' . $last)) ?: 'N/A';
+        $full_name = trim($first . ' ' . $middle . ' ' . $last);
+        return htmlspecialchars($full_name) ?: 'N/A';
     } elseif ($field === 'wife_name' && $record_type === 'marriage') {
         $first = $record['wife_first_name'] ?? '';
+        $middle = $record['wife_middle_name'] ?? '';
         $last = $record['wife_last_name'] ?? '';
-        return htmlspecialchars(trim($first . ' ' . $last)) ?: 'N/A';
+        $full_name = trim($first . ' ' . $middle . ' ' . $last);
+        return htmlspecialchars($full_name) ?: 'N/A';
     } elseif ($field === 'child_name' && $record_type === 'birth') {
         $first = $record['child_first_name'] ?? '';
+        $middle = $record['child_middle_name'] ?? '';
         $last = $record['child_last_name'] ?? '';
-        return htmlspecialchars(trim($first . ' ' . $last)) ?: 'N/A';
+        $full_name = trim($first . ' ' . $middle . ' ' . $last);
+        return htmlspecialchars($full_name) ?: 'N/A';
     } elseif ($field === 'deceased_name' && $record_type === 'death') {
         $first = $record['deceased_first_name'] ?? '';
+        $middle = $record['deceased_middle_name'] ?? '';
         $last = $record['deceased_last_name'] ?? '';
-        return htmlspecialchars(trim($first . ' ' . $last)) ?: 'N/A';
+        $full_name = trim($first . ' ' . $middle . ' ' . $last);
+        return htmlspecialchars($full_name) ?: 'N/A';
     } elseif ($field === 'father_name') {
         $first = $record['father_first_name'] ?? '';
+        $middle = $record['father_middle_name'] ?? '';
         $last = $record['father_last_name'] ?? '';
-        return htmlspecialchars(trim($first . ' ' . $last)) ?: 'N/A';
+        $full_name = trim($first . ' ' . $middle . ' ' . $last);
+        return htmlspecialchars($full_name) ?: 'N/A';
     } elseif ($field === 'mother_name') {
         $first = $record['mother_first_name'] ?? '';
+        $middle = $record['mother_middle_name'] ?? '';
         $last = $record['mother_last_name'] ?? '';
-        return htmlspecialchars(trim($first . ' ' . $last)) ?: 'N/A';
+        $full_name = trim($first . ' ' . $middle . ' ' . $last);
+        return htmlspecialchars($full_name) ?: 'N/A';
     } elseif ($type === 'date' && !empty($record[$field])) {
         return date('M d, Y', strtotime($record[$field]));
     } else {
@@ -330,6 +385,11 @@ function get_field_value($record, $field, $type = 'text') {
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
+        /* ========================================
+           MODERN CLEAN DESIGN - 2026 STANDARDS
+           No gradients, minimal styling, professional
+           ======================================== */
+
         /* Reset & Base */
         * {
             margin: 0;
@@ -338,36 +398,90 @@ function get_field_value($record, $field, $type = 'text') {
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background-color: #f8f9fa;
-            color: #1a1a1a;
-            font-size: 0.875rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #F9FAFB;
+            color: #111827;
+            font-size: 14px;
             line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         :root {
+            /* Layout */
             --sidebar-width: 260px;
             --sidebar-collapsed-width: 72px;
-            --sidebar-bg: #051f3a;
+
+            /* Sidebar Colors - Dark as Original */
+            --sidebar-bg: #1F2937;
+            --sidebar-border: #374151;
             --sidebar-item-hover: rgba(59, 130, 246, 0.1);
-            --sidebar-item-active: rgba(59, 130, 246, 0.2);
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --accent-color: #3b82f6;
+            --sidebar-item-active: rgba(59, 130, 246, 0.15);
+            --sidebar-text: #D1D5DB;
+            --sidebar-text-active: #60A5FA;
+
+            /* Base Colors - Flat, No Gradients */
+            --bg-primary: #FFFFFF;
+            --bg-secondary: #F9FAFB;
+            --bg-tertiary: #F3F4F6;
+
+            /* Text Colors */
+            --text-primary: #111827;
+            --text-secondary: #6B7280;
+            --text-tertiary: #9CA3AF;
+
+            /* Border Colors */
+            --border-light: #F3F4F6;
+            --border-medium: #E5E7EB;
+            --border-strong: #D1D5DB;
+
+            /* Action Colors - Flat */
+            --primary: #3B82F6;
+            --primary-hover: #2563EB;
+            --primary-light: #EFF6FF;
+
+            --success: #10B981;
+            --success-hover: #059669;
+            --success-light: #D1FAE5;
+
+            --warning: #F59E0B;
+            --warning-hover: #D97706;
+            --warning-light: #FEF3C7;
+
+            --danger: #EF4444;
+            --danger-hover: #DC2626;
+            --danger-light: #FEE2E2;
+
+            /* Spacing */
+            --spacing-xs: 8px;
+            --spacing-sm: 12px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+
+            /* Border Radius */
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+
+            /* Shadows - Minimal */
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.07);
         }
 
         /* Mobile Header */
         .mobile-header {
             display: none;
-            background: var(--sidebar-bg);
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-medium);
             color: var(--text-primary);
-            padding: 16px 20px;
+            padding: var(--spacing-md) var(--spacing-lg);
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             z-index: 1100;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
 
         .mobile-header-content {
@@ -378,19 +492,27 @@ function get_field_value($record, $field, $type = 'text') {
 
         .mobile-header h4 {
             margin: 0;
-            font-size: 1rem;
+            font-size: 16px;
             font-weight: 600;
+            color: var(--text-primary);
         }
 
         #mobileSidebarToggle {
             background: none;
             border: none;
-            color: var(--text-primary);
+            color: var(--text-secondary);
             cursor: pointer;
-            padding: 8px;
+            padding: var(--spacing-xs);
+            border-radius: var(--radius-sm);
+            transition: all 0.15s ease;
         }
 
-        /* Sidebar */
+        #mobileSidebarToggle:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        /* Sidebar - Clean White Design */
         .sidebar-overlay {
             display: none;
             position: fixed;
@@ -398,8 +520,9 @@ function get_field_value($record, $field, $type = 'text') {
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0, 0, 0, 0.4);
             z-index: 999;
+            backdrop-filter: blur(2px);
         }
 
         .sidebar-overlay.active {
@@ -413,12 +536,11 @@ function get_field_value($record, $field, $type = 'text') {
             width: var(--sidebar-width);
             height: 100vh;
             background: var(--sidebar-bg);
-            color: var(--text-primary);
+            border-right: 1px solid var(--sidebar-border);
             z-index: 1000;
-            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
             display: flex;
             flex-direction: column;
-            transition: width 0.3s;
+            transition: width 0.2s ease;
             overflow: hidden;
         }
 
@@ -427,22 +549,25 @@ function get_field_value($record, $field, $type = 'text') {
         }
 
         .sidebar-header {
-            padding: 20px;
-            border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             min-height: 64px;
+            background: var(--sidebar-bg);
         }
 
         .sidebar-header h4 {
             margin: 0;
-            font-size: 1rem;
+            font-size: 16px;
             font-weight: 600;
             display: flex;
             align-items: center;
+            gap: var(--spacing-sm);
+            color: #FFFFFF;
         }
 
         .sidebar-header h4 [data-lucide] {
-            min-width: 28px;
-            color: var(--accent-color);
+            min-width: 20px;
+            color: #60A5FA;
         }
 
         .sidebar-collapsed .sidebar-header h4 span {
@@ -451,17 +576,16 @@ function get_field_value($record, $field, $type = 'text') {
 
         .sidebar-menu {
             list-style: none;
-            padding: 12px 0;
+            padding: var(--spacing-sm) 0;
             margin: 0;
             flex: 1;
             overflow-y: auto;
             scrollbar-width: thin;
-            scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+            scrollbar-color: var(--border-strong) transparent;
         }
 
-        /* Custom scrollbar for webkit browsers */
         .sidebar-menu::-webkit-scrollbar {
-            width: 6px;
+            width: 4px;
         }
 
         .sidebar-menu::-webkit-scrollbar-track {
@@ -469,60 +593,63 @@ function get_field_value($record, $field, $type = 'text') {
         }
 
         .sidebar-menu::-webkit-scrollbar-thumb {
-            background-color: rgba(148, 163, 184, 0.3);
-            border-radius: 3px;
+            background-color: var(--border-strong);
+            border-radius: var(--radius-sm);
         }
 
         .sidebar-menu::-webkit-scrollbar-thumb:hover {
-            background-color: rgba(148, 163, 184, 0.5);
+            background-color: var(--text-tertiary);
         }
 
         .sidebar-menu li a {
             display: flex;
             align-items: center;
-            padding: 10px 16px;
-            margin: 2px 12px;
-            color: var(--text-secondary);
+            padding: 10px var(--spacing-md);
+            margin: 2px var(--spacing-sm);
+            color: var(--sidebar-text);
             text-decoration: none;
-            transition: all 0.3s;
-            border-radius: 10px;
-            font-size: 13.5px;
+            transition: all 0.15s ease;
+            border-radius: var(--radius-md);
+            font-size: 14px;
             font-weight: 500;
+            gap: var(--spacing-sm);
             white-space: nowrap;
             position: relative;
         }
 
         .sidebar-menu li a:hover {
             background: var(--sidebar-item-hover);
-            color: var(--text-primary);
-            transform: translateX(3px);
+            color: #FFFFFF;
         }
 
         .sidebar-menu li a.active {
             background: var(--sidebar-item-active);
-            color: #b7ff9a;
+            color: var(--sidebar-text-active);
             font-weight: 600;
         }
 
         .sidebar-menu li a.active::before {
             content: '';
             position: absolute;
-            left: -12px;
+            left: 0;
             top: 50%;
             transform: translateY(-50%);
             width: 3px;
-            height: 22px;
-            background: var(--accent-color);
-            border-radius: 0 4px 4px 0;
+            height: 20px;
+            background: var(--primary);
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
         }
 
         .sidebar-menu li a [data-lucide] {
-            min-width: 28px;
+            width: 18px;
+            height: 18px;
+            min-width: 18px;
+            flex-shrink: 0;
         }
 
         .sidebar-collapsed .sidebar-menu li a {
             justify-content: center;
-            padding: 14px 10px;
+            padding: 10px;
         }
 
         .sidebar-collapsed .sidebar-menu li a span {
@@ -530,35 +657,42 @@ function get_field_value($record, $field, $type = 'text') {
         }
 
         .sidebar-divider {
-            border-top: 1px solid rgba(148, 163, 184, 0.15);
-            margin: 12px 16px;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: var(--spacing-sm) var(--spacing-md);
+        }
+
+        .sidebar-collapsed .sidebar-divider {
+            margin: var(--spacing-sm);
         }
 
         .sidebar-heading {
-            padding: 14px 20px 8px;
-            font-size: 10.5px;
-            text-transform: uppercase;
-            color: #64748b;
+            padding: var(--spacing-sm) var(--spacing-md) 6px;
+            margin: var(--spacing-sm) var(--spacing-sm) 4px;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 11px;
             font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .sidebar-collapsed .sidebar-heading {
             text-indent: -9999px;
         }
 
-        /* Top Navbar */
+        /* Top Navbar - Clean Minimal Design */
         .top-navbar {
             position: fixed;
             top: 0;
             left: var(--sidebar-width);
             right: 0;
             height: 64px;
-            background: #ffffff;
-            border-bottom: 1px solid #e5e7eb;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-medium);
             display: flex;
             align-items: center;
             z-index: 100;
-            transition: left 0.3s;
+            transition: left 0.2s ease;
         }
 
         .sidebar-collapsed .top-navbar {
@@ -568,59 +702,60 @@ function get_field_value($record, $field, $type = 'text') {
         #sidebarCollapse {
             background: none;
             border: none;
-            font-size: 1.25rem;
-            color: #374151;
+            font-size: 20px;
+            color: var(--text-secondary);
             cursor: pointer;
-            padding: 10px;
-            margin-left: 20px;
-            border-radius: 8px;
+            padding: var(--spacing-sm);
+            margin-left: var(--spacing-lg);
+            border-radius: var(--radius-md);
+            transition: all 0.15s ease;
         }
 
         #sidebarCollapse:hover {
-            background: #f3f4f6;
-            color: var(--accent-color);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
         }
 
         .top-navbar-info {
-            margin-left: 16px;
+            margin-left: var(--spacing-md);
         }
 
         .welcome-text {
-            color: #6b7280;
-            font-size: 13.5px;
+            color: var(--text-secondary);
+            font-size: 14px;
             font-weight: 500;
         }
 
-        /* User Profile Dropdown */
+        /* User Profile Dropdown - Clean Design */
         .user-profile-dropdown {
             margin-left: auto;
-            margin-right: 20px;
+            margin-right: var(--spacing-lg);
             position: relative;
         }
 
         .user-profile-btn {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 6px 12px 6px 6px;
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
+            gap: var(--spacing-sm);
+            padding: 6px var(--spacing-sm) 6px 6px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-lg);
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.15s ease;
         }
 
         .user-profile-btn:hover {
-            background: #f9fafb;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background: var(--bg-secondary);
+            border-color: var(--border-strong);
         }
 
         .user-avatar {
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
-            background: var(--accent-color);
-            color: #ffffff;
+            background: var(--primary);
+            color: #FFFFFF;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -634,27 +769,127 @@ function get_field_value($record, $field, $type = 'text') {
         }
 
         .user-name {
-            font-size: 13.5px;
+            font-size: 13px;
             font-weight: 600;
-            color: #111827;
+            color: var(--text-primary);
         }
 
         .user-role {
-            font-size: 11.5px;
-            color: #6b7280;
+            font-size: 12px;
+            color: var(--text-secondary);
         }
 
         .dropdown-arrow {
-            color: #9ca3af;
+            color: var(--text-tertiary);
+            transition: transform 0.15s ease;
         }
 
-        /* Main Content */
+        .user-profile-btn.active .dropdown-arrow {
+            transform: rotate(180deg);
+        }
+
+        .user-dropdown-menu {
+            position: absolute;
+            top: calc(100% + var(--spacing-xs));
+            right: 0;
+            min-width: 260px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s ease;
+            z-index: 10000;
+            overflow: hidden;
+        }
+
+        .user-dropdown-menu.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-header {
+            padding: var(--spacing-md) var(--spacing-lg);
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-medium);
+        }
+
+        .dropdown-user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar.large {
+            width: 48px;
+            height: 48px;
+            font-size: 16px;
+        }
+
+        .dropdown-user-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 2px;
+        }
+
+        .dropdown-user-email {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+
+        .dropdown-user-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #3b82f6;
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: 600;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: #e5e7eb;
+            margin: 0;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            color: #374151;
+            text-decoration: none;
+            font-size: 13.5px;
+            transition: all 0.2s ease;
+        }
+
+        .dropdown-item:hover {
+            background: #f9fafb;
+        }
+
+        .dropdown-item.logout-item {
+            color: #dc2626;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .dropdown-item.logout-item:hover {
+            background: #fef2f2;
+        }
+
+        /* Main Content - Clean Layout */
         .content {
             margin-left: var(--sidebar-width);
             padding-top: 64px;
             min-height: 100vh;
-            background: #f8f9fa;
-            transition: margin-left 0.3s;
+            background: var(--bg-secondary);
+            transition: margin-left 0.2s ease;
         }
 
         .sidebar-collapsed .content {
@@ -662,127 +897,115 @@ function get_field_value($record, $field, $type = 'text') {
         }
 
         .page-container {
-            padding: 20px;
-            max-width: 1400px;
+            padding: var(--spacing-xl);
+            max-width: 1600px;
             margin: 0 auto;
         }
 
         /* Header */
         .page-header {
-            background: #ffffff;
-            padding: 24px 28px;
-            border-radius: 12px;
-            margin-bottom: 24px;
-            border: 1px solid #e5e7eb;
+            margin-bottom: var(--spacing-xl);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: var(--spacing-md);
         }
 
         .page-title {
-            font-size: 1.75rem;
+            font-size: 28px;
             font-weight: 700;
-            color: #111827;
+            color: var(--text-primary);
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: var(--spacing-sm);
             letter-spacing: -0.02em;
         }
 
         .page-title [data-lucide] {
-            color: #3b82f6;
+            color: var(--primary);
+            width: 28px;
+            height: 28px;
         }
 
+        /* Buttons - Clean Flat Design */
         .btn {
-            padding: 10px 18px;
-            border-radius: 8px;
-            font-size: 0.875rem;
+            padding: 10px 20px;
+            border-radius: var(--radius-md);
+            font-size: 14px;
             font-weight: 500;
             border: none;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: var(--spacing-xs);
             text-decoration: none;
-            transition: all 0.15s ease-in-out;
+            transition: all 0.15s ease;
         }
 
         .btn-primary {
-            background-color: #3b82f6;
-            color: #ffffff;
+            background-color: var(--primary);
+            color: #FFFFFF;
         }
 
         .btn-primary:hover {
-            background-color: #2563eb;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            background-color: var(--primary-hover);
         }
 
         .btn-success {
-            background-color: #10b981;
-            color: #ffffff;
+            background-color: var(--success);
+            color: #FFFFFF;
         }
 
         .btn-success:hover {
-            background-color: #059669;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            background-color: var(--success-hover);
         }
 
         .btn-warning {
-            background-color: #f59e0b;
-            color: #ffffff;
-            border: 1px solid #d97706;
+            background-color: var(--warning);
+            color: #FFFFFF;
         }
 
         .btn-warning:hover {
-            background-color: #d97706;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+            background-color: var(--warning-hover);
         }
 
         .btn-danger {
-            background-color: #ef4444;
-            color: #ffffff;
+            background-color: var(--danger);
+            color: #FFFFFF;
         }
 
         .btn-danger:hover {
-            background-color: #dc2626;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+            background-color: var(--danger-hover);
         }
 
         .btn-sm {
-            padding: 6px 12px;
-            font-size: 0.8125rem;
+            padding: 7px 12px;
+            font-size: 13px;
         }
 
         .btn-outline {
-            background: transparent;
-            border: 1px solid #d1d5db;
-            color: #6b7280;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-medium);
+            color: var(--text-secondary);
         }
 
         .btn-outline:hover {
-            background: #f9fafb;
-            border-color: #9ca3af;
-            color: #374151;
+            background: var(--bg-tertiary);
+            border-color: var(--border-strong);
+            color: var(--text-primary);
         }
 
-        /* Search & Filter */
+        /* Search & Filter - Clean Spacing */
         .search-section {
-            background: #ffffff;
-            padding: 24px;
-            border-radius: 12px;
-            margin-bottom: 24px;
-            border: 1px solid #e5e7eb;
+            margin-bottom: var(--spacing-lg);
         }
 
         .search-form {
             display: flex;
-            gap: 12px;
-            margin-bottom: 16px;
-            align-items: center;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+            align-items: stretch;
         }
 
         .search-input-wrapper {
@@ -792,29 +1015,30 @@ function get_field_value($record, $field, $type = 'text') {
 
         .search-input {
             width: 100%;
-            padding: 12px 16px 12px 44px;
-            border: 2px solid #e5e7eb;
-            border-radius: 10px;
-            font-size: 0.9375rem;
-            background-color: #f9fafb;
-            transition: all 0.2s ease-in-out;
+            padding: 12px var(--spacing-md) 12px 44px;
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            background-color: var(--bg-primary);
+            transition: all 0.15s ease;
+            font-family: inherit;
         }
 
         .search-input:focus {
             outline: none;
-            border-color: #3b82f6;
-            background-color: #ffffff;
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+            border-color: var(--primary);
+            background-color: var(--bg-primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
         .search-input-wrapper::before {
             content: '';
             position: absolute;
-            left: 16px;
+            left: 18px;
             top: 50%;
             transform: translateY(-50%);
-            width: 18px;
-            height: 18px;
+            width: 20px;
+            height: 20px;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
             background-size: contain;
             background-repeat: no-repeat;
@@ -824,35 +1048,37 @@ function get_field_value($record, $field, $type = 'text') {
         .filter-toggle-btn {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            color: #4b5563;
-            background: #ffffff;
-            border: 2px solid #e5e7eb;
-            padding: 10px 18px;
-            border-radius: 10px;
+            gap: var(--spacing-xs);
+            color: var(--text-secondary);
+            background: var(--bg-primary);
+            border: 1px solid var(--border-medium);
+            padding: 12px var(--spacing-lg);
+            border-radius: var(--radius-md);
             cursor: pointer;
-            font-size: 0.875rem;
+            font-size: 14px;
             font-weight: 500;
-            transition: all 0.15s ease-in-out;
+            transition: all 0.15s ease;
         }
 
         .filter-toggle-btn:hover {
-            background: #f9fafb;
-            border-color: #3b82f6;
-            color: #3b82f6;
+            background: var(--bg-tertiary);
+            border-color: var(--border-strong);
+            color: var(--text-primary);
         }
 
         .filter-toggle-btn.active {
-            background: #eff6ff;
-            border-color: #3b82f6;
-            color: #3b82f6;
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #FFFFFF;
         }
 
         .advanced-filters {
             display: none;
-            padding-top: 20px;
-            border-top: 2px solid #f3f4f6;
-            margin-top: 16px;
+            padding: 0;
+            background: transparent;
+            border-radius: 0;
+            border: none;
+            margin-bottom: var(--spacing-lg);
         }
 
         .advanced-filters.show {
@@ -862,66 +1088,72 @@ function get_field_value($record, $field, $type = 'text') {
         .filter-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 16px;
-            margin-bottom: 20px;
+            gap: var(--spacing-sm);
+            margin-bottom: 0;
+            padding: var(--spacing-md);
+            background: var(--bg-primary);
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-md);
         }
 
         .filter-group {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: var(--spacing-xs);
         }
 
         .filter-group label {
-            font-size: 0.8125rem;
+            font-size: 13px;
             font-weight: 600;
-            color: #374151;
-            letter-spacing: 0.01em;
+            color: var(--text-secondary);
         }
 
         .filter-group input,
         .filter-group select {
-            padding: 10px 14px;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            font-size: 0.875rem;
-            background-color: #ffffff;
-            transition: all 0.2s ease-in-out;
+            padding: 10px var(--spacing-sm);
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            background-color: var(--bg-primary);
+            transition: all 0.15s ease;
+            font-family: inherit;
         }
 
         .filter-group input:focus,
         .filter-group select:focus {
             outline: none;
-            border-color: #3b82f6;
-            background-color: #ffffff;
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+            border-color: var(--primary);
+            background-color: var(--bg-primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
         .filter-actions {
             display: flex;
-            gap: 10px;
-            justify-content: flex-end;
+            gap: var(--spacing-sm);
+            justify-content: flex-start;
+            margin-top: 0;
         }
 
         .filter-badge {
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            background: #3b82f6;
-            color: #ffffff;
-            padding: 2px 10px;
-            border-radius: 20px;
-            font-size: 0.6875rem;
+            background: var(--primary);
+            color: #FFFFFF;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
             font-weight: 600;
             letter-spacing: 0.02em;
         }
 
-        /* Table */
+        /* Table - Modern Clean Design, NO GRADIENTS, NO EXTRA BOXES */
         .table-container {
-            background: #ffffff;
-            border-radius: 12px;
-            border: 1px solid #e5e7eb;
+            background: var(--bg-primary);
+            border-radius: 0;
+            border: 1px solid var(--border-medium);
             overflow: hidden;
+            box-shadow: none;
         }
 
         .records-table {
@@ -930,32 +1162,32 @@ function get_field_value($record, $field, $type = 'text') {
         }
 
         .records-table thead {
-            background: #f9fafb;
+            background: var(--bg-secondary);
             position: sticky;
             top: 0;
             z-index: 10;
         }
 
         .records-table th {
-            padding: 14px 16px;
+            padding: 14px var(--spacing-lg);
             text-align: left;
             font-weight: 600;
-            color: #374151;
-            font-size: 0.8125rem;
-            letter-spacing: 0.03em;
-            text-transform: uppercase;
-            border-bottom: 2px solid #e5e7eb;
+            color: var(--text-secondary);
+            font-size: 13px;
+            letter-spacing: 0.02em;
+            border-bottom: 1px solid var(--border-medium);
+            white-space: nowrap;
         }
 
         .records-table th.sortable {
             cursor: pointer;
             user-select: none;
-            transition: all 0.15s ease-in-out;
+            transition: all 0.15s ease;
         }
 
         .records-table th.sortable:hover {
-            background-color: #f3f4f6;
-            color: #3b82f6;
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
         }
 
         .records-table th.sortable a {
@@ -967,13 +1199,13 @@ function get_field_value($record, $field, $type = 'text') {
         }
 
         .records-table th.sortable.active {
-            background-color: #eff6ff;
-            color: #3b82f6;
+            background-color: var(--primary-light);
+            color: var(--primary);
         }
 
         .sort-icon {
-            opacity: 0.3;
-            transition: opacity 0.2s;
+            opacity: 0.4;
+            transition: opacity 0.15s;
             width: 16px;
             height: 16px;
         }
@@ -987,63 +1219,71 @@ function get_field_value($record, $field, $type = 'text') {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 16px 20px;
-            background: #f9fafb;
-            border-bottom: 2px solid #f3f4f6;
+            padding: var(--spacing-md) var(--spacing-lg);
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-medium);
         }
 
         .table-controls-left {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
         }
 
         .table-controls-right {
-            color: #6b7280;
-            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            font-size: 13px;
             font-weight: 500;
         }
 
         .per-page-selector {
             display: flex;
             align-items: center;
-            gap: 10px;
-            font-size: 0.8125rem;
-            color: #4b5563;
+            gap: var(--spacing-xs);
+            font-size: 13px;
+            color: var(--text-secondary);
             font-weight: 500;
         }
 
         .per-page-selector select {
-            padding: 8px 12px;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            font-size: 0.8125rem;
+            padding: 6px var(--spacing-sm);
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
             cursor: pointer;
-            background-color: #ffffff;
+            background-color: var(--bg-primary);
             font-weight: 500;
-            transition: all 0.2s ease-in-out;
+            transition: all 0.15s ease;
         }
 
         .per-page-selector select:focus {
             outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
         .records-table td {
-            padding: 14px 16px;
-            border-bottom: 1px solid #f3f4f6;
-            font-size: 0.875rem;
-            color: #374151;
+            padding: 16px var(--spacing-lg);
+            border-bottom: 1px solid var(--border-light);
+            font-size: 14px;
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        .records-table tbody {
+            transition: opacity 0.3s ease;
         }
 
         .records-table tbody tr {
-            transition: all 0.15s ease-in-out;
+            transition: background-color 0.15s ease;
         }
 
         .records-table tbody tr:hover {
-            background-color: #f9fafb;
-            box-shadow: inset 0 0 0 1px #e5e7eb;
+            background-color: var(--bg-secondary);
+        }
+
+        .records-table tbody tr:last-child td {
+            border-bottom: none;
         }
 
         .action-buttons {
@@ -1051,172 +1291,253 @@ function get_field_value($record, $field, $type = 'text') {
             gap: 6px;
         }
 
-        /* Pagination */
+        /* Pagination - Clean Design, NO CARD BOX */
         .pagination {
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 8px;
-            padding: 24px;
-            background: #ffffff;
-            border-radius: 12px;
-            margin-top: 24px;
-            border: 1px solid #e5e7eb;
+            gap: 4px;
+            padding: var(--spacing-lg) 0;
+            margin-top: var(--spacing-lg);
+            background: transparent;
+            border-radius: 0;
+            border: none;
         }
 
         .pagination-btn {
             min-width: 40px;
             height: 40px;
-            padding: 8px 12px;
-            border: 2px solid #e5e7eb;
-            background: #ffffff;
-            border-radius: 8px;
+            padding: 0;
+            border: 1px solid var(--border-medium);
+            background: var(--bg-primary);
+            border-radius: var(--radius-md);
             cursor: pointer;
-            font-size: 0.875rem;
+            font-size: 14px;
             font-weight: 500;
-            transition: all 0.15s ease-in-out;
+            transition: all 0.15s ease;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            color: #4b5563;
+            color: var(--text-secondary);
+            text-decoration: none;
         }
 
-        .pagination-btn:hover:not(:disabled):not(.active) {
-            background: #f9fafb;
-            border-color: #3b82f6;
-            color: #3b82f6;
+        .pagination-btn:hover:not(.disabled):not(.active) {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #FFFFFF;
         }
 
-        .pagination-btn:disabled {
+        .pagination-btn.disabled {
             opacity: 0.4;
             cursor: not-allowed;
+            pointer-events: none;
         }
 
         .pagination-btn.active {
-            background: #3b82f6;
-            color: #ffffff;
-            border-color: #3b82f6;
-            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+            background: var(--primary);
+            color: #FFFFFF;
+            border-color: var(--primary);
+            font-weight: 600;
+        }
+
+        .pagination-info {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: 0 var(--spacing-md);
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .pagination-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--border-medium);
+            margin: 0 var(--spacing-xs);
         }
 
         .no-records {
             text-align: center;
-            padding: 64px 20px;
-            color: #9ca3af;
+            padding: 60px var(--spacing-lg);
+            color: var(--text-tertiary);
         }
 
         .no-records i {
-            margin-bottom: 16px;
+            margin-bottom: var(--spacing-md);
         }
 
         .no-records p {
-            margin: 8px 0;
-            font-size: 0.9375rem;
+            margin: var(--spacing-xs) 0;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
         }
 
-        /* Alert */
+        /* Alert - Clean Design */
         .alert {
-            padding: 14px 18px;
-            border-radius: 10px;
-            margin-bottom: 24px;
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-xl);
             display: flex;
             align-items: center;
-            gap: 12px;
-            border: 2px solid transparent;
+            gap: var(--spacing-sm);
+            border-left: 3px solid transparent;
+            font-weight: 500;
+            font-size: 14px;
         }
 
         .alert-success {
-            background-color: #d1fae5;
-            color: #065f46;
-            border-color: #10b981;
+            background-color: var(--success-light);
+            color: #065F46;
+            border-left-color: var(--success);
         }
 
         .alert-danger {
-            background-color: #fee2e2;
-            color: #991b1b;
-            border-color: #ef4444;
+            background-color: var(--danger-light);
+            color: #991B1B;
+            border-left-color: var(--danger);
         }
 
         .alert [data-lucide] {
             flex-shrink: 0;
+            width: 18px;
+            height: 18px;
         }
 
-        /* Record Stats Badge */
-        .record-stats {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 14px;
-            background: #eff6ff;
-            border: 1px solid #bfdbfe;
-            border-radius: 20px;
-            font-size: 0.8125rem;
-            font-weight: 600;
-            color: #1e40af;
+        /* Record Stats Badge - Removed for minimal design */
+
+        /* Remove stat cards - keeping design minimal as requested */
+
+        /* Skeleton Loading Styles */
+        .skeleton {
+            background: linear-gradient(
+                90deg,
+                #E5E7EB 0%,
+                #F3F4F6 50%,
+                #E5E7EB 100%
+            );
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s ease-in-out infinite;
+            border-radius: var(--radius-sm);
+            height: 20px;
+            width: 100%;
         }
 
-        .record-stats [data-lucide] {
-            width: 16px;
-            height: 16px;
+        @keyframes skeleton-loading {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
         }
 
-        /* Quick Stats Row */
-        .quick-stats {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
+        .skeleton-row {
+            height: 60px;
+            margin-bottom: 1px;
         }
 
-        .stat-card {
-            flex: 1;
-            min-width: 200px;
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 18px 20px;
-            display: flex;
-            align-items: center;
-            gap: 14px;
+        .skeleton-input {
+            height: 42px;
+            width: 100%;
         }
 
-        .stat-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 10px;
-            display: flex;
+        .skeleton-text {
+            height: 18px;
+            width: 85%;
+            margin: 0;
+        }
+
+        .skeleton-text.short {
+            width: 60%;
+        }
+
+        .skeleton-text.medium {
+            width: 80%;
+        }
+
+        .skeleton-text.long {
+            width: 95%;
+        }
+
+        .table-loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        /* Skeleton in table cells */
+        .records-table td .skeleton {
+            height: 18px;
+            border-radius: 4px;
+        }
+
+        /* Skeleton variations for different column widths */
+        .records-table tr:nth-child(odd) td:nth-child(1) .skeleton {
+            width: 70%;
+        }
+
+        .records-table tr:nth-child(even) td:nth-child(1) .skeleton {
+            width: 80%;
+        }
+
+        .records-table tr:nth-child(odd) td:nth-child(2) .skeleton {
+            width: 90%;
+        }
+
+        .records-table tr:nth-child(even) td:nth-child(2) .skeleton {
+            width: 85%;
+        }
+
+        .records-table tr:nth-child(odd) td:nth-child(3) .skeleton {
+            width: 75%;
+        }
+
+        .records-table tr:nth-child(even) td:nth-child(3) .skeleton {
+            width: 65%;
+        }
+
+        .search-input.loading {
+            background-image: linear-gradient(
+                90deg,
+                transparent 0%,
+                rgba(59, 130, 246, 0.1) 50%,
+                transparent 100%
+            );
+            background-size: 200% 100%;
+            animation: input-loading 1.5s ease-in-out infinite;
+        }
+
+        @keyframes input-loading {
+            0% {
+                background-position: 200% 0;
+            }
+            100% {
+                background-position: -200% 0;
+            }
+        }
+
+        .loading-overlay {
+            position: relative;
+        }
+
+        .loading-overlay::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.7);
+            display: none;
             align-items: center;
             justify-content: center;
-            flex-shrink: 0;
+            z-index: 10;
         }
 
-        .stat-icon.blue {
-            background: #eff6ff;
-            color: #3b82f6;
-        }
-
-        .stat-icon.green {
-            background: #d1fae5;
-            color: #10b981;
-        }
-
-        .stat-icon.purple {
-            background: #f3e8ff;
-            color: #a855f7;
-        }
-
-        .stat-content h4 {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #111827;
-            margin: 0 0 4px 0;
-        }
-
-        .stat-content p {
-            font-size: 0.8125rem;
-            color: #6b7280;
-            margin: 0;
-            font-weight: 500;
+        .loading-overlay.loading::after {
+            display: flex;
         }
 
         /* Responsive */
@@ -1264,109 +1585,11 @@ function get_field_value($record, $field, $type = 'text') {
     </style>
 </head>
 <body>
-    <!-- Mobile Header -->
-    <div class="mobile-header">
-        <div class="mobile-header-content">
-            <h4><i data-lucide="file-badge"></i> Civil Registry</h4>
-            <button type="button" id="mobileSidebarToggle">
-                <i data-lucide="menu"></i>
-            </button>
-        </div>
-    </div>
+    <?php include '../includes/mobile_header.php'; ?>
 
-    <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <?php include '../includes/sidebar_nav.php'; ?>
 
-    <!-- Sidebar Navigation -->
-    <nav class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h4><i data-lucide="file-badge"></i> <span>Civil Registry</span></h4>
-        </div>
-
-        <ul class="sidebar-menu">
-            <li class="sidebar-heading">Overview</li>
-            <li>
-                <a href="../admin/dashboard.php" title="Dashboard">
-                    <i data-lucide="layout-dashboard"></i> <span>Dashboard</span>
-                </a>
-            </li>
-
-            <li class="sidebar-divider"></li>
-            <li class="sidebar-heading">Certificates</li>
-            <li>
-                <a href="certificate_of_live_birth.php" title="Birth Certificates">
-                    <i data-lucide="baby"></i> <span>Birth Certificates</span>
-                </a>
-            </li>
-            <li>
-                <a href="certificate_of_marriage.php" title="Marriage Certificates">
-                    <i data-lucide="heart"></i> <span>Marriage Certificates</span>
-                </a>
-            </li>
-            <li>
-                <a href="#" title="Death Certificates">
-                    <i data-lucide="cross"></i> <span>Death Certificates</span>
-                </a>
-            </li>
-
-            <li class="sidebar-divider"></li>
-            <li class="sidebar-heading">Management</li>
-            <li>
-                <a href="birth_records.php" class="<?php echo $record_type === 'birth' ? 'active' : ''; ?>" title="Birth Records">
-                    <i data-lucide="baby"></i> <span>Birth Records</span>
-                </a>
-            </li>
-            <li>
-                <a href="marriage_records.php" class="<?php echo $record_type === 'marriage' ? 'active' : ''; ?>" title="Marriage Records">
-                    <i data-lucide="heart"></i> <span>Marriage Records</span>
-                </a>
-            </li>
-            <li>
-                <a href="#" title="Reports">
-                    <i data-lucide="bar-chart-3"></i> <span>Reports</span>
-                </a>
-            </li>
-            <li>
-                <a href="#" title="Archives">
-                    <i data-lucide="archive"></i> <span>Archives</span>
-                </a>
-            </li>
-
-            <li class="sidebar-divider"></li>
-            <li class="sidebar-heading">System</li>
-            <li>
-                <a href="#" title="Users">
-                    <i data-lucide="users"></i> <span>Users</span>
-                </a>
-            </li>
-            <li>
-                <a href="#" title="Settings">
-                    <i data-lucide="settings"></i> <span>Settings</span>
-                </a>
-            </li>
-        </ul>
-    </nav>
-
-    <!-- Top Navbar -->
-    <div class="top-navbar" id="topNavbar">
-        <button type="button" id="sidebarCollapse" title="Toggle Sidebar">
-            <i data-lucide="menu"></i>
-        </button>
-        <div class="top-navbar-info">
-            <span class="welcome-text">Welcome, Admin User</span>
-        </div>
-
-        <div class="user-profile-dropdown">
-            <button class="user-profile-btn" type="button">
-                <div class="user-avatar">AU</div>
-                <div class="user-profile-info">
-                    <span class="user-name">Admin User</span>
-                    <span class="user-role">Administrator</span>
-                </div>
-                <i data-lucide="chevron-down" class="dropdown-arrow"></i>
-            </button>
-        </div>
-    </div>
+    <?php include '../includes/top_navbar.php'; ?>
 
     <!-- Main Content -->
     <div class="content">
@@ -1377,10 +1600,15 @@ function get_field_value($record, $field, $type = 'text') {
                     <i data-lucide="<?php echo $config['icon']; ?>"></i>
                     <?php echo htmlspecialchars($config['title']); ?>
                 </h1>
+                <?php
+                $create_permission = str_replace('_view', '_create', $required_permission);
+                if (hasPermission($create_permission)):
+                ?>
                 <a href="<?php echo $config['entry_form']; ?>" class="btn btn-primary">
                     <i data-lucide="plus"></i>
                     Add New Record
                 </a>
+                <?php endif; ?>
             </div>
 
             <!-- Alert Messages -->
@@ -1394,12 +1622,14 @@ function get_field_value($record, $field, $type = 'text') {
                         <input
                             type="text"
                             name="search"
+                            id="liveSearchInput"
                             class="search-input"
                             placeholder="Search by registry number, names, date, or place..."
                             value="<?php echo htmlspecialchars($search); ?>"
+                            autocomplete="off"
                         >
                     </div>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary" style="display: none;">
                         <i data-lucide="search"></i>
                         Search
                     </button>
@@ -1439,20 +1669,10 @@ function get_field_value($record, $field, $type = 'text') {
                                     placeholder="Enter <?php echo strtolower($filter['label']); ?>..."
                                     <?php endif; ?>
                                     value="<?php echo htmlspecialchars($_GET[$filter['name']] ?? ''); ?>"
+                                    onchange="this.form.submit()"
                                 >
                             </div>
                             <?php endforeach; ?>
-                        </div>
-
-                        <div class="filter-actions">
-                            <button type="button" class="btn btn-warning" onclick="clearFilters()">
-                                <i data-lucide="x"></i>
-                                Clear Filters
-                            </button>
-                            <button type="submit" class="btn btn-primary">
-                                <i data-lucide="check"></i>
-                                Apply Filters
-                            </button>
                         </div>
                     </form>
                 </div>
@@ -1502,7 +1722,7 @@ function get_field_value($record, $field, $type = 'text') {
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="recordsTableBody" style="opacity: 0;">
                         <?php foreach ($records as $record): ?>
                         <tr>
                             <?php foreach ($config['table_columns'] as $column): ?>
@@ -1518,16 +1738,24 @@ function get_field_value($record, $field, $type = 'text') {
                                         <i data-lucide="file-text"></i>
                                     </a>
                                     <?php endif; ?>
+                                    <?php
+                                    $edit_permission = str_replace('_view', '_edit', $required_permission);
+                                    $delete_permission = str_replace('_view', '_delete', $required_permission);
+                                    ?>
+                                    <?php if (hasPermission($edit_permission)): ?>
                                     <a href="<?php echo $config['entry_form']; ?>?id=<?php echo $record['id']; ?>"
                                        class="btn btn-primary btn-sm"
                                        title="Edit">
                                         <i data-lucide="edit"></i>
                                     </a>
+                                    <?php endif; ?>
+                                    <?php if (hasPermission($delete_permission)): ?>
                                     <button onclick="deleteRecord(<?php echo $record['id']; ?>)"
                                             class="btn btn-danger btn-sm"
                                             title="Delete">
                                         <i data-lucide="trash-2"></i>
                                     </button>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>
@@ -1549,36 +1777,69 @@ function get_field_value($record, $field, $type = 'text') {
             <?php if ($total_pages > 1): ?>
             <div class="pagination">
                 <?php
+                // Ensure variables are integers for pagination math
+                $current_page = (int)$current_page;
+                $total_pages = (int)$total_pages;
+
                 $base_query = build_query_string(['page']);
                 $query_prefix = $base_query ? '&' . $base_query : '';
                 ?>
+
+                <!-- First Page Button -->
                 <a href="?page=1<?php echo $query_prefix; ?>"
-                   class="pagination-btn <?php echo $current_page === 1 ? 'disabled' : ''; ?>">
+                   class="pagination-btn <?php echo $current_page === 1 ? 'disabled' : ''; ?>"
+                   title="First page">
                     <i data-lucide="chevrons-left"></i>
                 </a>
+
+                <!-- Previous Page Button -->
                 <a href="?page=<?php echo max(1, $current_page - 1); ?><?php echo $query_prefix; ?>"
-                   class="pagination-btn <?php echo $current_page === 1 ? 'disabled' : ''; ?>">
+                   class="pagination-btn <?php echo $current_page === 1 ? 'disabled' : ''; ?>"
+                   title="Previous page">
                     <i data-lucide="chevron-left"></i>
                 </a>
 
+                <!-- Page Numbers -->
                 <?php
                 $start_page = max(1, $current_page - 2);
                 $end_page = min($total_pages, $current_page + 2);
 
-                for ($i = $start_page; $i <= $end_page; $i++):
+                // Show ellipsis at start if needed
+                if ($start_page > 1):
                 ?>
+                <a href="?page=1<?php echo $query_prefix; ?>" class="pagination-btn">1</a>
+                <?php if ($start_page > 2): ?>
+                <span class="pagination-info">...</span>
+                <?php endif; ?>
+                <?php endif; ?>
+
+                <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
                 <a href="?page=<?php echo $i; ?><?php echo $query_prefix; ?>"
-                   class="pagination-btn <?php echo $i === $current_page ? 'active' : ''; ?>">
+                   class="pagination-btn <?php echo $i === $current_page ? 'active' : ''; ?>"
+                   title="Page <?php echo $i; ?>">
                     <?php echo $i; ?>
                 </a>
                 <?php endfor; ?>
 
+                <!-- Show ellipsis at end if needed -->
+                <?php if ($end_page < $total_pages): ?>
+                <?php if ($end_page < $total_pages - 1): ?>
+                <span class="pagination-info">...</span>
+                <?php endif; ?>
+                <a href="?page=<?php echo $total_pages; ?><?php echo $query_prefix; ?>" class="pagination-btn"><?php echo $total_pages; ?></a>
+                <?php endif; ?>
+
+                <!-- Next Page Button -->
                 <a href="?page=<?php echo min($total_pages, $current_page + 1); ?><?php echo $query_prefix; ?>"
-                   class="pagination-btn <?php echo $current_page === $total_pages ? 'disabled' : ''; ?>">
+                   class="pagination-btn <?php echo $current_page === $total_pages ? 'disabled' : ''; ?>"
+                   title="Next page">
                     <i data-lucide="chevron-right"></i>
                 </a>
+
+                <!-- Last Page Button -->
                 <a href="?page=<?php echo $total_pages; ?><?php echo $query_prefix; ?>"
-                   class="pagination-btn <?php echo $current_page === $total_pages ? 'disabled' : ''; ?>">
+                   class="pagination-btn <?php echo $current_page === $total_pages ? 'disabled' : ''; ?>"
+                   title="Last page">
                     <i data-lucide="chevrons-right"></i>
                 </a>
             </div>
@@ -1586,43 +1847,19 @@ function get_field_value($record, $field, $type = 'text') {
         </div>
     </div>
 
+    <?php include '../includes/sidebar_scripts.php'; ?>
+
     <script>
-        // Initialize Lucide icons
-        lucide.createIcons();
+        // Initialize Lucide icons after DOM loads
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+                console.log('Lucide icons initialized');
+            }
 
-        // Sidebar functionality
-        const sidebar = document.getElementById('sidebar');
-        const sidebarOverlay = document.getElementById('sidebarOverlay');
-        const sidebarCollapse = document.getElementById('sidebarCollapse');
-        const mobileSidebarToggle = document.getElementById('mobileSidebarToggle');
-        const body = document.body;
-
-        if (sidebarCollapse) {
-            sidebarCollapse.addEventListener('click', function() {
-                body.classList.toggle('sidebar-collapsed');
-                localStorage.setItem('sidebarCollapsed', body.classList.contains('sidebar-collapsed'));
-            });
-        }
-
-        if (mobileSidebarToggle) {
-            mobileSidebarToggle.addEventListener('click', function() {
-                sidebar.classList.toggle('active');
-                sidebarOverlay.classList.toggle('active');
-            });
-        }
-
-        if (sidebarOverlay) {
-            sidebarOverlay.addEventListener('click', function() {
-                sidebar.classList.remove('active');
-                sidebarOverlay.classList.remove('active');
-            });
-        }
-
-        // Restore sidebar state
-        const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-        if (isCollapsed && window.innerWidth > 768) {
-            body.classList.add('sidebar-collapsed');
-        }
+            // Show skeleton loading on page load, then fade in real content
+            initPageLoadSkeleton();
+        });
 
         // Toggle advanced filters
         function toggleFilters() {
@@ -1718,13 +1955,267 @@ function get_field_value($record, $field, $type = 'text') {
             alertContainer.innerHTML = '';
             alertContainer.appendChild(alertDiv);
 
-            lucide.createIcons();
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
 
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
             setTimeout(() => {
                 alertDiv.remove();
             }, 5000);
+        }
+
+        // Re-initialize icons after page fully loads (backup)
+        window.addEventListener('load', function() {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+                console.log('Lucide icons re-initialized on window load');
+            }
+        });
+
+        // Live Search Functionality
+        const liveSearchInput = document.getElementById('liveSearchInput');
+        const tableContainer = document.querySelector('.table-container');
+        const recordsTable = document.querySelector('.records-table tbody');
+        const tableControls = document.querySelector('.table-controls-right');
+        let searchTimeout;
+        let currentPage = 1;
+        const recordType = '<?php echo $record_type; ?>';
+
+        // Initialize page load skeleton
+        function initPageLoadSkeleton() {
+            const tbody = document.getElementById('recordsTableBody');
+            if (!tbody) return;
+
+            // Check if table has actual data
+            const hasData = tbody.children.length > 0;
+
+            if (hasData) {
+                // Show skeleton briefly, then fade in real content
+                const columns = <?php echo json_encode($config['table_columns']); ?>;
+                const numColumns = columns.length + 1;
+
+                // Create skeleton rows
+                let skeletonHTML = '';
+                for (let i = 0; i < Math.min(<?php echo $records_per_page; ?>, 10); i++) {
+                    skeletonHTML += '<tr class="skeleton-loading-row">';
+                    for (let j = 0; j < numColumns; j++) {
+                        skeletonHTML += '<td><div class="skeleton skeleton-text"></div></td>';
+                    }
+                    skeletonHTML += '</tr>';
+                }
+
+                // Store real content
+                const realContent = tbody.innerHTML;
+
+                // Show skeleton
+                tbody.innerHTML = skeletonHTML;
+                tbody.style.opacity = '1';
+
+                // After a short delay, fade in real content
+                setTimeout(() => {
+                    tbody.innerHTML = realContent;
+
+                    // Re-initialize Lucide icons for the real content
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+                }, 400);
+            } else {
+                // No data, just show the tbody
+                tbody.style.opacity = '1';
+            }
+        }
+
+        // Debounce function - wait for user to stop typing
+        function debounce(func, delay) {
+            return function(...args) {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => func.apply(this, args), delay);
+            };
+        }
+
+        // Show skeleton loading in table
+        function showSkeletonLoading() {
+            if (!recordsTable) return;
+
+            const columns = <?php echo json_encode($config['table_columns']); ?>;
+            const numColumns = columns.length + 1; // +1 for Actions column
+            const numRows = <?php echo $records_per_page; ?>;
+
+            let skeletonHTML = '';
+            for (let i = 0; i < Math.min(numRows, 10); i++) {
+                skeletonHTML += '<tr>';
+                for (let j = 0; j < numColumns; j++) {
+                    skeletonHTML += '<td><div class="skeleton skeleton-text"></div></td>';
+                }
+                skeletonHTML += '</tr>';
+            }
+
+            recordsTable.innerHTML = skeletonHTML;
+        }
+
+        // Perform live search
+        async function performLiveSearch(query) {
+            // Add loading state
+            liveSearchInput.classList.add('loading');
+
+            // Show skeleton loading
+            showSkeletonLoading();
+
+            try {
+                const url = `../api/records_search.php?type=${recordType}&search=${encodeURIComponent(query)}&page=${currentPage}&per_page=<?php echo $records_per_page; ?>`;
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.success) {
+                    updateTable(data.records, data.pagination);
+                } else {
+                    console.error('Search error:', data.error);
+                }
+            } catch (error) {
+                console.error('Live search failed:', error);
+            } finally {
+                // Remove loading state
+                liveSearchInput.classList.remove('loading');
+            }
+        }
+
+        // Update table with new results
+        function updateTable(records, pagination) {
+            if (!recordsTable) return;
+
+            // Update table body
+            if (records.length === 0) {
+                recordsTable.innerHTML = `
+                    <tr>
+                        <td colspan="100%" style="text-align: center; padding: 60px;">
+                            <div class="no-records">
+                                <i data-lucide="inbox" style="width: 48px; height: 48px; stroke: #adb5bd;"></i>
+                                <p>No records found.</p>
+                                <p>Try adjusting your search terms.</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            } else {
+                let html = '';
+                records.forEach(record => {
+                    html += buildTableRow(record);
+                });
+                recordsTable.innerHTML = html;
+            }
+
+            // Update table controls
+            if (tableControls && pagination) {
+                tableControls.textContent = `Showing ${pagination.from} to ${pagination.to} of ${pagination.total_records} records`;
+            }
+
+            // Re-initialize Lucide icons
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }
+
+        // Build table row HTML based on record type
+        function buildTableRow(record) {
+            const columns = <?php echo json_encode($config['table_columns']); ?>;
+            let html = '<tr>';
+
+            // Build cells for each column
+            columns.forEach(column => {
+                const value = getFieldValue(record, column.field, column.type || 'text');
+                html += `<td>${value}</td>`;
+            });
+
+            // Actions column
+            html += '<td><div class="action-buttons">';
+
+            if (record.pdf_filename) {
+                html += `<a href="../uploads/${escapeHtml(record.pdf_filename)}" target="_blank" class="btn btn-success btn-sm" title="View PDF">
+                    <i data-lucide="file-text"></i>
+                </a>`;
+            }
+
+            <?php
+            $edit_permission = str_replace('_view', '_edit', $required_permission);
+            $delete_permission = str_replace('_view', '_delete', $required_permission);
+            ?>
+
+            <?php if (hasPermission($edit_permission)): ?>
+            html += `<a href="<?php echo $config['entry_form']; ?>?id=${record.id}" class="btn btn-primary btn-sm" title="Edit">
+                <i data-lucide="edit"></i>
+            </a>`;
+            <?php endif; ?>
+
+            <?php if (hasPermission($delete_permission)): ?>
+            html += `<button onclick="deleteRecord(${record.id})" class="btn btn-danger btn-sm" title="Delete">
+                <i data-lucide="trash-2"></i>
+            </button>`;
+            <?php endif; ?>
+
+            html += '</div></td>';
+            html += '</tr>';
+
+            return html;
+        }
+
+        // Get field value (similar to PHP function)
+        function getFieldValue(record, field, type) {
+            const recordType = '<?php echo $record_type; ?>';
+
+            // Handle composite name fields
+            if (field === 'husband_name' && recordType === 'marriage') {
+                return buildFullName(record.husband_first_name, record.husband_middle_name, record.husband_last_name);
+            } else if (field === 'wife_name' && recordType === 'marriage') {
+                return buildFullName(record.wife_first_name, record.wife_middle_name, record.wife_last_name);
+            } else if (field === 'child_name' && recordType === 'birth') {
+                return buildFullName(record.child_first_name, record.child_middle_name, record.child_last_name);
+            } else if (field === 'deceased_name' && recordType === 'death') {
+                return buildFullName(record.deceased_first_name, record.deceased_middle_name, record.deceased_last_name);
+            } else if (field === 'father_name') {
+                return buildFullName(record.father_first_name, record.father_middle_name, record.father_last_name);
+            } else if (field === 'mother_name') {
+                return buildFullName(record.mother_first_name, record.mother_middle_name, record.mother_last_name);
+            } else if (type === 'date' && record[field]) {
+                return formatDate(record[field]);
+            } else {
+                return escapeHtml(record[field] || 'N/A');
+            }
+        }
+
+        // Build full name from parts
+        function buildFullName(first, middle, last) {
+            const parts = [first, middle, last].filter(p => p && p.trim());
+            return escapeHtml(parts.length > 0 ? parts.join(' ') : 'N/A');
+        }
+
+        // Format date
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Attach live search to input
+        if (liveSearchInput) {
+            liveSearchInput.addEventListener('input', debounce(function(e) {
+                const query = e.target.value.trim();
+
+                // Only search if query is at least 1 character or empty (to reset)
+                if (query.length >= 1 || query.length === 0) {
+                    performLiveSearch(query);
+                }
+            }, 300)); // 300ms delay after user stops typing
         }
     </script>
 </body>
