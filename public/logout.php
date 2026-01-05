@@ -1,7 +1,7 @@
 <?php
 /**
  * Logout Handler
- * Civil Registry Records Management System
+ * Civil Registry Document Management System (CRDMS)
  */
 
 require_once '../includes/session_config.php';

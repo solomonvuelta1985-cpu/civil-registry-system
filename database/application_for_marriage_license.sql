@@ -1,6 +1,6 @@
 -- =====================================================
 -- Application for Marriage License (AML) Table
--- Civil Registry Records Management System
+-- Civil Registry Document Management System (CRDMS)
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS `application_for_marriage_license` (

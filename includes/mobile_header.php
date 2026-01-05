@@ -2,7 +2,12 @@
 <div class="mobile-header">
     <div class="mobile-header-content">
         <div>
-            <h4><i data-lucide="file-badge"></i> Civil Registry</h4>
+            <h4>
+                <div class="mobile-header-logo">
+                    <img src="../assets/img/LOGO1.png" alt="CRDMS Logo">
+                </div>
+                <span>CRDMS</span>
+            </h4>
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
             <!-- User Profile Dropdown (Mobile) -->

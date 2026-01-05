@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Civil Registry Records Management System</title>
+    <title>Login - Civil Registry Document Management System (CRDMS)</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -504,7 +504,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="logo-circle" id="logoCircle">
                     <img src="../assets/img/LOGO1.png" alt="Baggao Logo">
                 </div>
-                <h1 class="brand-name">Civil Registry Records<br>Management System</h1>
+                <h1 class="brand-name">Civil Registry Document<br>Management System (CRDMS)</h1>
                 <p class="tagline">Lalawigan ng Cagayan - Bayan ng Baggao</p>
             </div>
         </div>
@@ -566,7 +566,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </form>
 
                 <div class="form-footer">
-                    Civil Registry Records Management System
+                    Civil Registry Document Management System (CRDMS)
                 </div>
             </div>
         </div>
