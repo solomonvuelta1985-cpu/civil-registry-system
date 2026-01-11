@@ -116,6 +116,17 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
             background-color: #f5f5f5;
         }
 
+        .main-content-wrapper {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: #ffffff;
+            min-height: calc(100vh - 64px);
+        }
+
+        .form-content-container {
+            padding: 0;
+        }
+
         /* ========================================
            HEADER WITH LOGO
            ======================================== */
@@ -1110,9 +1121,9 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                     <div class="form-type-info">
                         <h2 class="form-type-title">
                             <?php echo $edit_mode ? 'Edit' : 'New'; ?> Certificate of Death
-                            <span class="form-type-badge">Death Record</span>
+                            <span class="form-type-badge"><?php echo $edit_mode ? 'Edit Mode' : 'Death Record'; ?></span>
                         </h2>
-                        <p class="form-type-subtitle">Complete the form below to register a death certificate</p>
+                        <p class="form-type-subtitle"><?php echo $edit_mode ? 'Update the death certificate information below' : 'Complete the form below to register a death certificate'; ?></p>
                     </div>
                 </div>
 

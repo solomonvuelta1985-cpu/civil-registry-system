@@ -824,6 +824,95 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         }
 
         /* ========================================
+           SKELETON LOADING STYLES
+           ======================================== */
+        .skeleton {
+            background: linear-gradient(
+                90deg,
+                #E5E7EB 0%,
+                #F3F4F6 50%,
+                #E5E7EB 100%
+            );
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s ease-in-out infinite;
+            border-radius: clamp(3px, 0.6vw, 4px);
+            height: 20px;
+            width: 100%;
+        }
+
+        @keyframes skeleton-loading {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        .skeleton-input {
+            height: clamp(32px, 4vw, 38px);
+            border-radius: clamp(3px, 0.6vw, 4px);
+        }
+
+        .skeleton-label {
+            height: clamp(16px, 2vw, 18px);
+            width: 40%;
+            margin-bottom: clamp(4px, 0.8vw, 6px);
+        }
+
+        .skeleton-section-title {
+            height: clamp(20px, 2.5vw, 24px);
+            width: 60%;
+        }
+
+        .skeleton-help-text {
+            height: clamp(12px, 1.8vw, 14px);
+            width: 80%;
+            margin-top: clamp(3px, 0.6vw, 4px);
+        }
+
+        .skeleton-pdf-header {
+            height: clamp(18px, 2.2vw, 22px);
+            width: 50%;
+            margin-bottom: clamp(10px, 1.8vw, 12px);
+        }
+
+        .skeleton-pdf-area {
+            height: clamp(200px, 30vw, 300px);
+            border-radius: clamp(4px, 0.8vw, 6px);
+        }
+
+        .skeleton-button {
+            height: clamp(32px, 4vw, 38px);
+            width: clamp(100px, 15vw, 150px);
+            border-radius: clamp(3px, 0.6vw, 4px);
+        }
+
+        .skeleton-toggle-btn {
+            height: clamp(32px, 3.5vw, 36px);
+            width: clamp(80px, 12vw, 100px);
+            border-radius: 6px;
+        }
+
+        .form-column.loading .form-group,
+        .form-column.loading .form-row > div {
+            opacity: 0;
+        }
+
+        .form-column.loading .skeleton {
+            opacity: 1;
+        }
+
+        /* Prevent scrollbars during skeleton loading */
+        body.skeleton-loading {
+            overflow-x: hidden;
+        }
+
+        .form-column.skeleton-loading-active {
+            overflow: hidden;
+        }
+
+        /* ========================================
            HELPER TEXT
            ======================================== */
         .help-text {
@@ -1049,9 +1138,9 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                 <div class="form-type-info">
                     <h2 class="form-type-title">
                         <?php echo $edit_mode ? 'Edit' : 'New'; ?> Application for Marriage License
-                        <span class="form-type-badge">License Application</span>
+                        <span class="form-type-badge"><?php echo $edit_mode ? 'Edit Mode' : 'License Application'; ?></span>
                     </h2>
-                    <p class="form-type-subtitle">Complete the form below to register a marriage license application</p>
+                    <p class="form-type-subtitle"><?php echo $edit_mode ? 'Update the marriage license application information below' : 'Complete the form below to register a marriage license application'; ?></p>
                 </div>
             </div>
 
@@ -1696,6 +1785,9 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
     </script>
 
     <?php include '../includes/sidebar_scripts.php'; ?>
+
+    <!-- Certificate Skeleton Loader -->
+    <script src="../assets/js/certificate-skeleton-loader.js"></script>
 
     <!-- OCR Feature Integration - Professional Modal System -->
     <!-- Page Range Selector -->

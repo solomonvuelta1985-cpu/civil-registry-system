@@ -329,11 +329,21 @@ class CertificateFormHandler {
             // Show success with redirect countdown
             const isUpdate = this.form.querySelector('[name="record_id"]')?.value;
             const action = isUpdate ? 'updated' : 'created';
-            this.showAlert('success', `Certificate ${action} successfully! Redirecting to dashboard in 3 seconds...`);
+            this.showAlert('success', `Certificate ${action} successfully! Redirecting to records page in 3 seconds...`);
+
+            // Determine the correct redirect URL based on record type
+            const redirectUrls = {
+                'birth': '/iscan/public/birth_records.php',
+                'marriage': '/iscan/public/marriage_records.php',
+                'death': '/iscan/public/death_records.php',
+                'marriage_license': '/iscan/public/marriage_license_records.php'
+            };
+
+            const redirectUrl = redirectUrls[this.formType] || '/iscan/admin/dashboard.php';
 
             // Redirect after 3 seconds
             setTimeout(() => {
-                window.location.href = '/iscan/public/certificate_of_live_birth.php';
+                window.location.href = redirectUrl;
             }, 3000);
         }
     }

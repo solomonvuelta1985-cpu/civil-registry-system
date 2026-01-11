@@ -935,7 +935,7 @@ function get_field_value($record, $field, $type = 'text') {
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 4px;
+            gap: 6px;
             padding: var(--spacing-lg) 0;
             margin-top: var(--spacing-lg);
             background: transparent;
@@ -947,37 +947,46 @@ function get_field_value($record, $field, $type = 'text') {
             min-width: 40px;
             height: 40px;
             padding: 0;
-            border: 1px solid var(--border-medium);
+            border: 2px solid var(--border-medium);
             background: var(--bg-primary);
             border-radius: var(--radius-md);
             cursor: pointer;
             font-size: 14px;
             font-weight: 500;
-            transition: all 0.15s ease;
+            transition: all 0.2s ease;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            color: var(--text-secondary);
+            color: var(--text-primary);
             text-decoration: none;
+            box-shadow: var(--shadow-sm);
         }
 
         .pagination-btn:hover:not(.disabled):not(.active) {
-            background: var(--primary);
+            background: var(--primary-light);
             border-color: var(--primary);
-            color: #FFFFFF;
+            color: var(--primary);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
         }
 
         .pagination-btn.disabled {
-            opacity: 0.4;
+            opacity: 0.3;
             cursor: not-allowed;
             pointer-events: none;
+            background: var(--bg-tertiary);
         }
 
         .pagination-btn.active {
-            background: var(--primary);
-            color: #FFFFFF;
-            border-color: var(--primary);
-            font-weight: 600;
+            background: #3B82F6 !important;
+            background: var(--primary) !important;
+            color: #FFFFFF !important;
+            border-color: #3B82F6 !important;
+            border-color: var(--primary) !important;
+            font-weight: 700 !important;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3) !important;
+            cursor: default !important;
+            pointer-events: none !important;
         }
 
         .pagination-info {
@@ -1422,7 +1431,9 @@ function get_field_value($record, $field, $type = 'text') {
                 // Show ellipsis at start if needed
                 if ($start_page > 1):
                 ?>
-                <a href="?page=1<?php echo $query_prefix; ?>" class="pagination-btn">1</a>
+                <a href="?page=1<?php echo $query_prefix; ?>"
+                   class="pagination-btn <?php echo (int)$current_page === 1 ? 'active' : ''; ?>"
+                   <?php if ((int)$current_page === 1): ?>style="background: #3B82F6 !important; color: #FFFFFF !important; border-color: #3B82F6 !important; font-weight: 700 !important;"<?php endif; ?>>1</a>
                 <?php if ($start_page > 2): ?>
                 <span class="pagination-info">...</span>
                 <?php endif; ?>
@@ -1430,7 +1441,8 @@ function get_field_value($record, $field, $type = 'text') {
 
                 <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
                 <a href="?page=<?php echo $i; ?><?php echo $query_prefix; ?>"
-                   class="pagination-btn <?php echo $i === $current_page ? 'active' : ''; ?>"
+                   class="pagination-btn <?php echo (int)$i === (int)$current_page ? 'active' : ''; ?>"
+                   <?php if ((int)$i === (int)$current_page): ?>style="background: #3B82F6 !important; color: #FFFFFF !important; border-color: #3B82F6 !important; font-weight: 700 !important;"<?php endif; ?>
                    title="Page <?php echo $i; ?>">
                     <?php echo $i; ?>
                 </a>
@@ -1441,7 +1453,9 @@ function get_field_value($record, $field, $type = 'text') {
                 <?php if ($end_page < $total_pages - 1): ?>
                 <span class="pagination-info">...</span>
                 <?php endif; ?>
-                <a href="?page=<?php echo $total_pages; ?><?php echo $query_prefix; ?>" class="pagination-btn"><?php echo $total_pages; ?></a>
+                <a href="?page=<?php echo $total_pages; ?><?php echo $query_prefix; ?>"
+                   class="pagination-btn <?php echo (int)$current_page === (int)$total_pages ? 'active' : ''; ?>"
+                   <?php if ((int)$current_page === (int)$total_pages): ?>style="background: #3B82F6 !important; color: #FFFFFF !important; border-color: #3B82F6 !important; font-weight: 700 !important;"<?php endif; ?>><?php echo $total_pages; ?></a>
                 <?php endif; ?>
 
                 <!-- Next Page Button -->
