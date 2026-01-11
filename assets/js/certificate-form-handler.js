@@ -8,6 +8,7 @@ class CertificateFormHandler {
     constructor(config) {
         this.formType = config.formType; // 'birth', 'marriage', 'death'
         this.apiEndpoint = config.apiEndpoint;
+        this.updateEndpoint = config.updateEndpoint || config.apiEndpoint;
         this.form = document.getElementById('certificateForm');
         this.submitButtons = {
             save: null,
@@ -207,7 +208,7 @@ class CertificateFormHandler {
         };
 
         const certificateType = formTypeNames[this.formType] || 'Certificate';
-        const isEditMode = this.form.querySelector('input[name="id"]')?.value;
+        const isEditMode = this.form.querySelector('input[name="record_id"]')?.value;
         const action = isEditMode ? 'update' : 'submit';
         const confirmMessage = `Are you sure you want to ${action} this ${certificateType} record?`;
 
@@ -241,8 +242,12 @@ class CertificateFormHandler {
             // Prepare form data
             const formData = new FormData(this.form);
 
+            // Determine which endpoint to use based on edit mode
+            const isEditMode = this.form.querySelector('input[name="record_id"]')?.value;
+            const endpoint = isEditMode ? this.updateEndpoint : this.apiEndpoint;
+
             try {
-                const response = await fetch(this.apiEndpoint, {
+                const response = await fetch(endpoint, {
                     method: 'POST',
                     body: formData
                 });

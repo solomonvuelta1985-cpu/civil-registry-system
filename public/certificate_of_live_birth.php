@@ -1137,9 +1137,9 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                     <div class="form-type-info">
                         <h2 class="form-type-title">
                             Certificate of Live Birth
-                            <span class="form-type-badge">Birth Record</span>
+                            <span class="form-type-badge"><?php echo $edit_mode ? 'Edit Mode' : 'Birth Record'; ?></span>
                         </h2>
-                        <p class="form-type-subtitle">Complete the form below to register a new birth certificate</p>
+                        <p class="form-type-subtitle"><?php echo $edit_mode ? 'Update the birth certificate information below' : 'Complete the form below to register a new birth certificate'; ?></p>
                     </div>
                 </div>
 
@@ -1606,7 +1606,8 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         // Initialize the form handler
         const formHandler = new CertificateFormHandler({
             formType: 'birth',
-            apiEndpoint: '../api/certificate_of_live_birth_save.php'
+            apiEndpoint: '../api/certificate_of_live_birth_save.php',
+            updateEndpoint: '../api/certificate_of_live_birth_update.php'
         });
     </script>
 

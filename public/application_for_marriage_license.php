@@ -1690,7 +1690,8 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         // Initialize the form handler
         const formHandler = new CertificateFormHandler({
             formType: 'marriage_license',
-            apiEndpoint: '../api/application_for_marriage_license_save.php'
+            apiEndpoint: '../api/application_for_marriage_license_save.php',
+            updateEndpoint: '../api/application_for_marriage_license_update.php'
         });
     </script>
 

@@ -773,17 +773,34 @@ class RecordPreviewModal {
         };
 
         const recordTypeNames = {
-            'birth': 'Birth Certificate',
-            'marriage': 'Marriage Certificate',
-            'death': 'Death Certificate',
-            'marriage_license': 'Marriage License Application'
+            'birth': 'Birth Record',
+            'marriage': 'Marriage Record',
+            'death': 'Death Record',
+            'marriage_license': 'Marriage License'
         };
 
         const formPage = entryFormMap[this.currentRecordType];
         const recordName = recordTypeNames[this.currentRecordType] || 'Record';
         const recordId = this.currentRecordId;
+        const record = this.currentRecord;
 
         if (!formPage) return;
+
+        // Build dialog title
+        const dialogTitle = `Edit ${recordName}`;
+
+        // Build message with structured details - using HTML for proper line breaks
+        let message = `Are you sure you want to edit this record?<br><br>`;
+        if (record) {
+            const details = this.getRecordSummary(record);
+            if (details) {
+                message += details;
+            } else {
+                message = `Are you sure you want to edit this ${recordName.toLowerCase()}?`;
+            }
+        } else {
+            message = `Are you sure you want to edit this ${recordName.toLowerCase()}?`;
+        }
 
         // Close the modal first to prevent z-index issues with Notiflix
         this.close();
@@ -792,28 +809,46 @@ class RecordPreviewModal {
         setTimeout(() => {
             if (typeof Notiflix !== 'undefined' && Notiflix.Confirm) {
                 Notiflix.Confirm.show(
-                    'Edit Record',
-                    `Do you want to edit this ${recordName}?`,
-                    'Edit',
+                    dialogTitle,
+                    message,
                     'Cancel',
-                    () => {
-                        window.location.href = `${formPage}?id=${recordId}`;
-                    },
+                    'Proceed to Edit',
                     () => {
                         // User cancelled - do nothing
                         console.log('Edit cancelled by user');
                     },
+                    () => {
+                        // User confirmed - navigate to edit page
+                        window.location.href = `${formPage}?id=${recordId}`;
+                    },
                     {
-                        width: '360px',
+                        width: '500px',
                         borderRadius: '12px',
-                        titleColor: '#3B82F6',
-                        okButtonBackground: '#3B82F6',
+                        backgroundColor: '#FFFFFF',
+                        titleColor: '#111827',
+                        titleFontSize: '20px',
+                        titleMaxLength: 50,
+                        messageColor: '#1F2937',
+                        messageFontSize: '15px',
+                        messageMaxLength: 600,
+                        plainText: false,
+                        okButtonColor: '#374151',
+                        okButtonBackground: '#F3F4F6',
+                        cancelButtonColor: '#FFFFFF',
+                        cancelButtonBackground: '#3B82F6',
+                        buttonsFontSize: '15px',
+                        buttonsMaxLength: 50,
+                        buttonsBorderRadius: '60px',
+                        cssAnimationStyle: 'zoom',
+                        cssAnimationDuration: 250,
+                        distance: '24px',
+                        backOverlayColor: 'rgba(0,0,0,0.6)',
                     }
                 );
             } else {
                 // Fallback to native confirm
                 console.warn('Notiflix not loaded, using native confirm dialog');
-                if (confirm(`Do you want to edit this ${recordName}?`)) {
+                if (confirm(message)) {
                     window.location.href = `${formPage}?id=${recordId}`;
                 }
             }
@@ -840,6 +875,31 @@ class RecordPreviewModal {
 
     deleteRecord() {
         const recordId = this.currentRecordId;
+        const record = this.currentRecord;
+
+        // Build dialog title based on record type
+        const recordTypeNames = {
+            'birth': 'Birth Record',
+            'marriage': 'Marriage Record',
+            'death': 'Death Record',
+            'marriage_license': 'Marriage License'
+        };
+        const recordName = recordTypeNames[this.currentRecordType] || 'Record';
+        const dialogTitle = `Delete ${recordName}`;
+
+        // Build message with structured details - using HTML for proper line breaks
+        let message = `Are you sure you want to delete this record?<br><br>`;
+        if (record) {
+            const details = this.getRecordSummary(record);
+            if (details) {
+                message += details;
+                message += `<br><br><span style="color: #DC2626; font-weight: 600;">⚠ This action cannot be undone.</span>`;
+            } else {
+                message = `Are you sure you want to delete this record?<br><br><span style="color: #DC2626; font-weight: 600;">⚠ This action cannot be undone.</span>`;
+            }
+        } else {
+            message = `Are you sure you want to delete this record?<br><br><span style="color: #DC2626; font-weight: 600;">⚠ This action cannot be undone.</span>`;
+        }
 
         // Close the modal first to prevent z-index issues with Notiflix
         this.close();
@@ -848,34 +908,51 @@ class RecordPreviewModal {
         setTimeout(() => {
             if (typeof Notiflix !== 'undefined' && Notiflix.Confirm) {
                 Notiflix.Confirm.show(
-                    'Delete Record',
-                    'Are you sure you want to delete this record? This action cannot be undone.',
-                    'Delete',
+                    dialogTitle,
+                    message,
                     'Cancel',
-                    () => {
-                        // Call the existing deleteRecord function from records_viewer.php
-                        if (typeof deleteRecord === 'function') {
-                            deleteRecord(recordId);
-                        }
-                    },
+                    'Delete Permanently',
                     () => {
                         // User cancelled - do nothing
                         console.log('Delete cancelled by user');
                     },
+                    () => {
+                        // Call the existing deleteRecord function from records_viewer.php
+                        if (typeof deleteRecord === 'function') {
+                            deleteRecord(recordId, record);
+                        }
+                    },
                     {
-                        width: '360px',
+                        width: '500px',
                         borderRadius: '12px',
-                        titleColor: '#EF4444',
-                        okButtonBackground: '#EF4444',
+                        backgroundColor: '#FFFFFF',
+                        titleColor: '#111827',
+                        titleFontSize: '20px',
+                        titleMaxLength: 50,
+                        messageColor: '#1F2937',
+                        messageFontSize: '15px',
+                        messageMaxLength: 600,
+                        plainText: false,
+                        okButtonColor: '#374151',
+                        okButtonBackground: '#F3F4F6',
+                        cancelButtonColor: '#FFFFFF',
+                        cancelButtonBackground: '#EF4444',
+                        buttonsFontSize: '15px',
+                        buttonsMaxLength: 50,
+                        buttonsBorderRadius: '60px',
+                        cssAnimationStyle: 'zoom',
+                        cssAnimationDuration: 250,
+                        distance: '24px',
+                        backOverlayColor: 'rgba(0,0,0,0.6)',
                     }
                 );
             } else {
                 // Fallback to native confirm if Notiflix not loaded
                 console.warn('Notiflix not loaded, using native confirm dialog');
-                if (confirm('Are you sure you want to delete this record? This action cannot be undone.')) {
+                if (confirm(message)) {
                     // Call the existing deleteRecord function from records_viewer.php
                     if (typeof deleteRecord === 'function') {
-                        deleteRecord(recordId);
+                        deleteRecord(recordId, record);
                     }
                 }
             }
@@ -883,6 +960,25 @@ class RecordPreviewModal {
     }
 
     // Utility Methods
+    capitalizeNames(nameParts) {
+        const filtered = nameParts.filter(n => n && n.trim());
+        if (filtered.length === 0) return '';
+
+        return filtered.map(name => {
+            return name.split(' ').map(word => {
+                return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+            }).join(' ');
+        }).join(' ');
+    }
+
+    formatDateFull(dateString) {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                      'July', 'August', 'September', 'October', 'November', 'December'];
+        return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+    }
+
     getFullName(first, middle, last) {
         const parts = [first, middle, last].filter(p => p && p.trim());
         if (parts.length === 0) {
@@ -916,6 +1012,54 @@ class RecordPreviewModal {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    getRecordSummary(record) {
+        let details = '';
+
+        if (record.registry_no) {
+            details += `<strong>Registry No:</strong> ${record.registry_no}<br>`;
+        }
+
+        switch(this.currentRecordType) {
+            case 'birth':
+                const childName = this.capitalizeNames([record.child_first_name, record.child_middle_name, record.child_last_name]);
+                if (childName) details += `<strong>Child:</strong> ${childName}<br>`;
+                if (record.child_date_of_birth) details += `<strong>Date of Birth:</strong> ${this.formatDateFull(record.child_date_of_birth)}`;
+                break;
+
+            case 'marriage':
+                const husbandName = this.capitalizeNames([record.husband_first_name, record.husband_middle_name, record.husband_last_name]);
+                const wifeName = this.capitalizeNames([record.wife_first_name, record.wife_middle_name, record.wife_last_name]);
+                if (husbandName) details += `<strong>Husband:</strong> ${husbandName}<br>`;
+                if (wifeName) details += `<strong>Wife:</strong> ${wifeName}<br>`;
+                if (record.date_of_marriage) details += `<strong>Marriage Date:</strong> ${this.formatDateFull(record.date_of_marriage)}`;
+                break;
+
+            case 'death':
+                const deceasedName = this.capitalizeNames([record.deceased_first_name, record.deceased_middle_name, record.deceased_last_name]);
+                if (deceasedName) details += `<strong>Deceased:</strong> ${deceasedName}<br>`;
+                if (record.date_of_death) details += `<strong>Date of Death:</strong> ${this.formatDateFull(record.date_of_death)}<br>`;
+                if (record.age) details += `<strong>Age:</strong> ${record.age}`;
+                break;
+
+            case 'marriage_license':
+                const groomName = this.capitalizeNames([record.groom_first_name, record.groom_middle_name, record.groom_last_name]);
+                const brideName = this.capitalizeNames([record.bride_first_name, record.bride_middle_name, record.bride_last_name]);
+                if (groomName) details += `<strong>Groom:</strong> ${groomName}<br>`;
+                if (brideName) details += `<strong>Bride:</strong> ${brideName}<br>`;
+                if (record.date_of_application) details += `<strong>Application Date:</strong> ${this.formatDateFull(record.date_of_application)}`;
+                break;
+        }
+
+        return details.trim();
+    }
+
+    formatDatePlain(dateString) {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
     }
 }
 

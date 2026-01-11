@@ -1358,14 +1358,14 @@ function get_field_value($record, $field, $type = 'text') {
                                     $delete_permission = str_replace('_view', '_delete', $required_permission);
                                     ?>
                                     <?php if (hasPermission($edit_permission)): ?>
-                                    <button onclick="editRecord(<?php echo $record['id']; ?>, '<?php echo $config['entry_form']; ?>')"
+                                    <button onclick="editRecord(<?php echo $record['id']; ?>, '<?php echo $config['entry_form']; ?>', <?php echo htmlspecialchars(json_encode($record), ENT_QUOTES, 'UTF-8'); ?>)"
                                        class="btn btn-primary btn-sm"
                                        title="Edit">
                                         <i data-lucide="pen-line"></i>
                                     </button>
                                     <?php endif; ?>
                                     <?php if (hasPermission($delete_permission)): ?>
-                                    <button onclick="deleteRecord(<?php echo $record['id']; ?>)"
+                                    <button onclick="deleteRecord(<?php echo $record['id']; ?>, <?php echo htmlspecialchars(json_encode($record), ENT_QUOTES, 'UTF-8'); ?>)"
                                             class="btn btn-danger btn-sm"
                                             title="Delete">
                                         <i data-lucide="x-circle"></i>
@@ -1524,37 +1524,78 @@ function get_field_value($record, $field, $type = 'text') {
         }
 
         // Delete record function
-        function deleteRecord(id) {
+        function deleteRecord(id, recordData = null) {
             const recordType = '<?php echo $record_type; ?>';
             const recordTitle = '<?php echo $config['title']; ?>';
+
+            // Build dialog title based on record type
+            const recordTypeLabels = {
+                'birth': 'Birth Record',
+                'marriage': 'Marriage Record',
+                'death': 'Death Record',
+                'marriage_license': 'Marriage License'
+            };
+            const recordLabel = recordTypeLabels[recordType] || 'Record';
+            const dialogTitle = `Delete ${recordLabel}`;
+
+            // Build message with structured details - using HTML for proper line breaks
+            let message = `Are you sure you want to delete this record?<br><br>`;
+
+            if (recordData) {
+                const details = getRecordDetails(recordData, recordType);
+                if (details) {
+                    message += details;
+                    message += `<br><br><span style="color: #DC2626; font-weight: 600;">⚠ This action cannot be undone.</span>`;
+                } else {
+                    message = `Are you sure you want to delete this record?<br><br><span style="color: #DC2626; font-weight: 600;">⚠ This action cannot be undone.</span>`;
+                }
+            } else {
+                message = `Are you sure you want to delete this record?<br><br><span style="color: #DC2626; font-weight: 600;">⚠ This action cannot be undone.</span>`;
+            }
 
             // Check if Notiflix is available
             if (typeof Notiflix === 'undefined') {
                 console.error('Notiflix is not loaded');
-                if (confirm('Are you sure you want to delete this record? This action cannot be undone.')) {
+                if (confirm(message)) {
                     performDelete(id);
                 }
                 return;
             }
 
             Notiflix.Confirm.show(
-                'Delete Record',
-                'Are you sure you want to delete this record? This action cannot be undone.',
-                'Delete',
+                dialogTitle,
+                message,
                 'Cancel',
+                'Delete Permanently',
                 function okCb() {
-                    performDelete(id);
+                    // User cancelled
+                    console.log('Delete cancelled by user');
                 },
                 function cancelCb() {
-                    // User cancelled
+                    performDelete(id);
                 },
                 {
-                    width: '360px',
+                    width: '500px',
                     borderRadius: '12px',
-                    titleColor: '#EF4444',
-                    okButtonBackground: '#EF4444',
-                    buttonsFontSize: '14px',
-                    messageMaxLength: 200,
+                    backgroundColor: '#FFFFFF',
+                    titleColor: '#111827',
+                    titleFontSize: '20px',
+                    titleMaxLength: 50,
+                    messageColor: '#1F2937',
+                    messageFontSize: '15px',
+                    messageMaxLength: 600,
+                    plainText: false,
+                    okButtonColor: '#374151',
+                    okButtonBackground: '#F3F4F6',
+                    cancelButtonColor: '#FFFFFF',
+                    cancelButtonBackground: '#EF4444',
+                    buttonsFontSize: '15px',
+                    buttonsMaxLength: 50,
+                    buttonsBorderRadius: '60px',
+                    cssAnimationStyle: 'zoom',
+                    cssAnimationDuration: 250,
+                    distance: '24px',
+                    backOverlayColor: 'rgba(0,0,0,0.6)',
                 }
             );
         }
@@ -1612,44 +1653,147 @@ function get_field_value($record, $field, $type = 'text') {
         }
 
         // Edit record function with confirmation
-        function editRecord(id, formUrl) {
+        function editRecord(id, formUrl, recordData = null) {
             const recordType = '<?php echo $record_type; ?>';
             const recordTitle = '<?php echo $config['title']; ?>';
 
             // Remove 's' from the end for singular form
             const singularTitle = recordTitle.replace(/s$/, '');
 
+            // Build dialog title based on record type
+            const recordTypeLabels = {
+                'birth': 'Birth Record',
+                'marriage': 'Marriage Record',
+                'death': 'Death Record',
+                'marriage_license': 'Marriage License'
+            };
+            const recordLabel = recordTypeLabels[recordType] || 'Record';
+            const dialogTitle = `Edit ${recordLabel}`;
+
+            // Build message with structured details - using HTML for proper line breaks
+            let message = `Are you sure you want to edit this record?<br><br>`;
+
+            if (recordData) {
+                const details = getRecordDetails(recordData, recordType);
+                if (details) {
+                    message += details;
+                } else {
+                    // Fallback if no details
+                    message = `Are you sure you want to edit this ${singularTitle.toLowerCase()}?`;
+                }
+            } else {
+                message = `Are you sure you want to edit this ${singularTitle.toLowerCase()}?`;
+            }
+
             // Check if Notiflix is available
             if (typeof Notiflix === 'undefined' || !Notiflix.Confirm) {
                 console.warn('Notiflix not loaded, using native confirm dialog');
-                if (confirm(`Do you want to edit this ${singularTitle.toLowerCase()}?`)) {
+                if (confirm(message)) {
                     window.location.href = formUrl + '?id=' + id;
                 }
                 return;
             }
 
             Notiflix.Confirm.show(
-                'Edit Record',
-                `Do you want to edit this ${singularTitle.toLowerCase()}?`,
-                'Edit',
+                dialogTitle,
+                message,
                 'Cancel',
+                'Proceed to Edit',
                 function okCb() {
-                    // User confirmed - navigate to edit page
-                    window.location.href = formUrl + '?id=' + id;
-                },
-                function cancelCb() {
                     // User cancelled
                     console.log('Edit cancelled by user');
                 },
+                function cancelCb() {
+                    // User confirmed - navigate to edit page
+                    window.location.href = formUrl + '?id=' + id;
+                },
                 {
-                    width: '360px',
+                    width: '500px',
                     borderRadius: '12px',
-                    titleColor: '#3B82F6',
-                    okButtonBackground: '#3B82F6',
-                    buttonsFontSize: '14px',
-                    messageMaxLength: 200,
+                    backgroundColor: '#FFFFFF',
+                    titleColor: '#111827',
+                    titleFontSize: '20px',
+                    titleMaxLength: 50,
+                    messageColor: '#1F2937',
+                    messageFontSize: '15px',
+                    messageMaxLength: 600,
+                    plainText: false,
+                    okButtonColor: '#374151',
+                    okButtonBackground: '#F3F4F6',
+                    cancelButtonColor: '#FFFFFF',
+                    cancelButtonBackground: '#3B82F6',
+                    buttonsFontSize: '15px',
+                    buttonsMaxLength: 50,
+                    buttonsBorderRadius: '60px',
+                    cssAnimationStyle: 'zoom',
+                    cssAnimationDuration: 250,
+                    distance: '24px',
+                    backOverlayColor: 'rgba(0,0,0,0.6)',
                 }
             );
+        }
+
+        // Get record details for confirmation dialogs
+        function getRecordDetails(record, recordType) {
+            let details = '';
+
+            if (record.registry_no) {
+                details += `<strong>Registry No:</strong> ${record.registry_no}<br>`;
+            }
+
+            switch(recordType) {
+                case 'birth':
+                    const childName = capitalizeNames([record.child_first_name, record.child_middle_name, record.child_last_name]);
+                    if (childName) details += `<strong>Child:</strong> ${childName}<br>`;
+                    if (record.child_date_of_birth) details += `<strong>Date of Birth:</strong> ${formatDateFull(record.child_date_of_birth)}`;
+                    break;
+
+                case 'marriage':
+                    const husbandName = capitalizeNames([record.husband_first_name, record.husband_middle_name, record.husband_last_name]);
+                    const wifeName = capitalizeNames([record.wife_first_name, record.wife_middle_name, record.wife_last_name]);
+                    if (husbandName) details += `<strong>Husband:</strong> ${husbandName}<br>`;
+                    if (wifeName) details += `<strong>Wife:</strong> ${wifeName}<br>`;
+                    if (record.date_of_marriage) details += `<strong>Marriage Date:</strong> ${formatDateFull(record.date_of_marriage)}`;
+                    break;
+
+                case 'death':
+                    const deceasedName = capitalizeNames([record.deceased_first_name, record.deceased_middle_name, record.deceased_last_name]);
+                    if (deceasedName) details += `<strong>Deceased:</strong> ${deceasedName}<br>`;
+                    if (record.date_of_death) details += `<strong>Date of Death:</strong> ${formatDateFull(record.date_of_death)}<br>`;
+                    if (record.age) details += `<strong>Age:</strong> ${record.age}`;
+                    break;
+
+                case 'marriage_license':
+                    const groomName = capitalizeNames([record.groom_first_name, record.groom_middle_name, record.groom_last_name]);
+                    const brideName = capitalizeNames([record.bride_first_name, record.bride_middle_name, record.bride_last_name]);
+                    if (groomName) details += `<strong>Groom:</strong> ${groomName}<br>`;
+                    if (brideName) details += `<strong>Bride:</strong> ${brideName}<br>`;
+                    if (record.date_of_application) details += `<strong>Application Date:</strong> ${formatDateFull(record.date_of_application)}`;
+                    break;
+            }
+
+            return details.trim();
+        }
+
+        // Capitalize names properly
+        function capitalizeNames(nameParts) {
+            const filtered = nameParts.filter(n => n && n.trim());
+            if (filtered.length === 0) return '';
+
+            return filtered.map(name => {
+                return name.split(' ').map(word => {
+                    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+                }).join(' ');
+            }).join(' ');
+        }
+
+        // Format date for display (full month name)
+        function formatDateFull(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                          'July', 'August', 'September', 'October', 'November', 'December'];
+            return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
         }
 
         // Show alert function - Using Notiflix
@@ -1850,13 +1994,15 @@ function get_field_value($record, $field, $type = 'text') {
             ?>
 
             <?php if (hasPermission($edit_permission)): ?>
-            html += `<button onclick="editRecord(${record.id}, '<?php echo $config['entry_form']; ?>')" class="btn btn-primary btn-sm" title="Edit">
+            const recordDataEdit = JSON.stringify(record).replace(/"/g, '&quot;');
+            html += `<button onclick='editRecord(${record.id}, "<?php echo $config['entry_form']; ?>", JSON.parse("${recordDataEdit}"))' class="btn btn-primary btn-sm" title="Edit">
                 <i data-lucide="pen-line"></i>
             </button>`;
             <?php endif; ?>
 
             <?php if (hasPermission($delete_permission)): ?>
-            html += `<button onclick="deleteRecord(${record.id})" class="btn btn-danger btn-sm" title="Delete">
+            const recordDataDelete = JSON.stringify(record).replace(/"/g, '&quot;');
+            html += `<button onclick='deleteRecord(${record.id}, JSON.parse("${recordDataDelete}"))' class="btn btn-danger btn-sm" title="Delete">
                 <i data-lucide="x-circle"></i>
             </button>`;
             <?php endif; ?>

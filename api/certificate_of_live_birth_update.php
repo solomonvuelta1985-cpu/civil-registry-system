@@ -68,8 +68,8 @@ try {
 
     // Validate registry number if provided
     if (!empty($registry_no)) {
-        // Check if registry number already exists (excluding current record)
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM certificate_of_live_birth WHERE registry_no = :registry_no AND id != :id");
+        // Check if registry number already exists (excluding current record and deleted records)
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM certificate_of_live_birth WHERE registry_no = :registry_no AND id != :id AND status = 'Active'");
         $stmt->execute([':registry_no' => $registry_no, ':id' => $record_id]);
         if ($stmt->fetchColumn() > 0) {
             $errors[] = "Registry number already exists.";

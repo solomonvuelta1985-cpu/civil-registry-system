@@ -1530,7 +1530,8 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         // Initialize the form handler
         const formHandler = new CertificateFormHandler({
             formType: 'death',
-            apiEndpoint: '../api/certificate_of_death_save.php'
+            apiEndpoint: '../api/certificate_of_death_save.php',
+            updateEndpoint: '../api/certificate_of_death_update.php'
         });
 
         // Death-specific: Calculate age automatically based on date of birth and date of death

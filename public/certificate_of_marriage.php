@@ -1126,9 +1126,9 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                 <div class="form-type-info">
                     <h2 class="form-type-title">
                         <?php echo $edit_mode ? 'Edit' : 'New'; ?> Certificate of Marriage
-                        <span class="form-type-badge">Marriage Record</span>
+                        <span class="form-type-badge"><?php echo $edit_mode ? 'Edit Mode' : 'Marriage Record'; ?></span>
                     </h2>
-                    <p class="form-type-subtitle">Complete the form below to register a marriage certificate</p>
+                    <p class="form-type-subtitle"><?php echo $edit_mode ? 'Update the marriage certificate information below' : 'Complete the form below to register a marriage certificate'; ?></p>
                 </div>
             </div>
 
@@ -1652,7 +1652,8 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         // Initialize the form handler
         const formHandler = new CertificateFormHandler({
             formType: 'marriage',
-            apiEndpoint: '../api/certificate_of_marriage_save.php'
+            apiEndpoint: '../api/certificate_of_marriage_save.php',
+            updateEndpoint: '../api/certificate_of_marriage_update.php'
         });
     </script>
 
