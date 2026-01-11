@@ -237,8 +237,8 @@ $records_per_page = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
 if ($records_per_page < 5 || $records_per_page > 100) {
     $records_per_page = 10;
 }
-$current_page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$offset = ($current_page - 1) * $records_per_page;
+$pagination_current_page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$offset = ($pagination_current_page - 1) * $records_per_page;
 
 // Search functionality
 $search = isset($_GET['search']) ? sanitize_input($_GET['search']) : '';
@@ -1402,7 +1402,7 @@ function get_field_value($record, $field, $type = 'text') {
             <div class="pagination">
                 <?php
                 // Ensure variables are integers for pagination math
-                $current_page = (int)$current_page;
+                $pagination_current_page = (int)$pagination_current_page;
                 $total_pages = (int)$total_pages;
 
                 $base_query = build_query_string(['page']);
@@ -1411,38 +1411,40 @@ function get_field_value($record, $field, $type = 'text') {
 
                 <!-- First Page Button -->
                 <a href="?page=1<?php echo $query_prefix; ?>"
-                   class="pagination-btn <?php echo $current_page === 1 ? 'disabled' : ''; ?>"
+                   class="pagination-btn <?php echo $pagination_current_page === 1 ? 'disabled' : ''; ?>"
                    title="First page">
                     <i data-lucide="chevrons-left"></i>
                 </a>
 
                 <!-- Previous Page Button -->
-                <a href="?page=<?php echo max(1, $current_page - 1); ?><?php echo $query_prefix; ?>"
-                   class="pagination-btn <?php echo $current_page === 1 ? 'disabled' : ''; ?>"
+                <a href="?page=<?php echo max(1, $pagination_current_page - 1); ?><?php echo $query_prefix; ?>"
+                   class="pagination-btn <?php echo $pagination_current_page === 1 ? 'disabled' : ''; ?>"
                    title="Previous page">
                     <i data-lucide="chevron-left"></i>
                 </a>
 
                 <!-- Page Numbers -->
                 <?php
-                $start_page = max(1, $current_page - 2);
-                $end_page = min($total_pages, $current_page + 2);
+                $start_page = max(1, $pagination_current_page - 2);
+                $end_page = min($total_pages, $pagination_current_page + 2);
 
                 // Show ellipsis at start if needed
                 if ($start_page > 1):
                 ?>
                 <a href="?page=1<?php echo $query_prefix; ?>"
-                   class="pagination-btn <?php echo (int)$current_page === 1 ? 'active' : ''; ?>"
-                   <?php if ((int)$current_page === 1): ?>style="background: #3B82F6 !important; color: #FFFFFF !important; border-color: #3B82F6 !important; font-weight: 700 !important;"<?php endif; ?>>1</a>
+                   class="pagination-btn <?php echo $pagination_current_page === 1 ? 'active' : ''; ?>"
+                   <?php if ($pagination_current_page === 1): ?>style="background: #3B82F6 !important; color: #FFFFFF !important; border-color: #3B82F6 !important; font-weight: 700 !important;"<?php endif; ?>>1</a>
                 <?php if ($start_page > 2): ?>
                 <span class="pagination-info">...</span>
                 <?php endif; ?>
                 <?php endif; ?>
 
-                <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
+                <?php for ($i = $start_page; $i <= $end_page; $i++):
+                    $is_active = $i === $pagination_current_page;
+                ?>
                 <a href="?page=<?php echo $i; ?><?php echo $query_prefix; ?>"
-                   class="pagination-btn <?php echo (int)$i === (int)$current_page ? 'active' : ''; ?>"
-                   <?php if ((int)$i === (int)$current_page): ?>style="background: #3B82F6 !important; color: #FFFFFF !important; border-color: #3B82F6 !important; font-weight: 700 !important;"<?php endif; ?>
+                   class="pagination-btn <?php echo $is_active ? 'active' : ''; ?>"
+                   <?php if ($is_active): ?>style="background: #3B82F6 !important; color: #FFFFFF !important; border-color: #3B82F6 !important; font-weight: 700 !important;"<?php endif; ?>
                    title="Page <?php echo $i; ?>">
                     <?php echo $i; ?>
                 </a>
@@ -1454,20 +1456,20 @@ function get_field_value($record, $field, $type = 'text') {
                 <span class="pagination-info">...</span>
                 <?php endif; ?>
                 <a href="?page=<?php echo $total_pages; ?><?php echo $query_prefix; ?>"
-                   class="pagination-btn <?php echo (int)$current_page === (int)$total_pages ? 'active' : ''; ?>"
-                   <?php if ((int)$current_page === (int)$total_pages): ?>style="background: #3B82F6 !important; color: #FFFFFF !important; border-color: #3B82F6 !important; font-weight: 700 !important;"<?php endif; ?>><?php echo $total_pages; ?></a>
+                   class="pagination-btn <?php echo $pagination_current_page === $total_pages ? 'active' : ''; ?>"
+                   <?php if ($pagination_current_page === $total_pages): ?>style="background: #3B82F6 !important; color: #FFFFFF !important; border-color: #3B82F6 !important; font-weight: 700 !important;"<?php endif; ?>><?php echo $total_pages; ?></a>
                 <?php endif; ?>
 
                 <!-- Next Page Button -->
-                <a href="?page=<?php echo min($total_pages, $current_page + 1); ?><?php echo $query_prefix; ?>"
-                   class="pagination-btn <?php echo $current_page === $total_pages ? 'disabled' : ''; ?>"
+                <a href="?page=<?php echo min($total_pages, $pagination_current_page + 1); ?><?php echo $query_prefix; ?>"
+                   class="pagination-btn <?php echo $pagination_current_page === $total_pages ? 'disabled' : ''; ?>"
                    title="Next page">
                     <i data-lucide="chevron-right"></i>
                 </a>
 
                 <!-- Last Page Button -->
                 <a href="?page=<?php echo $total_pages; ?><?php echo $query_prefix; ?>"
-                   class="pagination-btn <?php echo $current_page === $total_pages ? 'disabled' : ''; ?>"
+                   class="pagination-btn <?php echo $pagination_current_page === $total_pages ? 'disabled' : ''; ?>"
                    title="Last page">
                     <i data-lucide="chevrons-right"></i>
                 </a>
