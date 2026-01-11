@@ -5,11 +5,25 @@
  */
 
 // Include configuration and functions
+require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/auth.php';
 
 // Set JSON response header
 header('Content-Type: application/json');
+
+// Check authentication
+if (!isLoggedIn()) {
+    json_response(false, 'Unauthorized access. Please log in.', null, 401);
+    exit;
+}
+
+// Check delete permission
+if (!hasPermission('birth_delete')) {
+    json_response(false, 'You do not have permission to delete birth records.', null, 403);
+    exit;
+}
 
 // Only allow POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

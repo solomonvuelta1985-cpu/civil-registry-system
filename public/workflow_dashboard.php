@@ -133,6 +133,12 @@ function getWorkflowRecords($pdo, $state, $type) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Workflow Dashboard - iScan</title>
+
+    <!-- Notiflix - Modern Notification Library -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notiflix@3.2.6/dist/notiflix-3.2.6.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/notiflix@3.2.6/dist/notiflix-3.2.6.min.js"></script>
+    <script src="../assets/js/notiflix-config.js"></script>
+
     <style>
         * {
             margin: 0;
@@ -518,63 +524,102 @@ function getWorkflowRecords($pdo, $state, $type) {
 
     <script>
         function transition(certId, certType, transitionType) {
-            if (!confirm(`Are you sure you want to ${transitionType} this certificate?`)) {
-                return;
-            }
+            Notiflix.Confirm.show(
+                'Confirm Transition',
+                `Are you sure you want to ${transitionType} this certificate?`,
+                'Confirm',
+                'Cancel',
+                function() {
+                    // Show loading
+                    Notiflix.Loading.circle(`Processing ${transitionType}...`);
 
-            const formData = new FormData();
-            formData.append('certificate_id', certId);
-            formData.append('certificate_type', certType);
-            formData.append('transition_type', transitionType);
+                    const formData = new FormData();
+                    formData.append('certificate_id', certId);
+                    formData.append('certificate_type', certType);
+                    formData.append('transition_type', transitionType);
 
-            fetch('../api/workflow_transition.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message);
-                    window.location.reload();
-                } else {
-                    alert('Error: ' + data.error);
+                    fetch('../api/workflow_transition.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        Notiflix.Loading.remove();
+
+                        if (data.success) {
+                            Notiflix.Notify.success(data.message);
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1500);
+                        } else {
+                            Notiflix.Notify.failure('Error: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        Notiflix.Loading.remove();
+                        Notiflix.Notify.failure('Network error: ' + error);
+                    });
+                },
+                function() {
+                    // User cancelled
                 }
-            })
-            .catch(error => {
-                alert('Network error: ' + error);
-            });
+            );
         }
 
         function rejectRecord(certId, certType) {
+            // Use native prompt for input, then Notiflix for confirmation and notifications
             const reason = prompt('Please provide a reason for rejection:');
 
-            if (!reason) {
-                alert('Rejection reason is required');
+            if (!reason || reason.trim() === '') {
+                Notiflix.Notify.warning('Rejection reason is required');
                 return;
             }
 
-            const formData = new FormData();
-            formData.append('certificate_id', certId);
-            formData.append('certificate_type', certType);
-            formData.append('transition_type', 'reject');
-            formData.append('notes', reason);
+            Notiflix.Confirm.show(
+                'Confirm Rejection',
+                'Are you sure you want to reject this certificate?',
+                'Reject',
+                'Cancel',
+                function() {
+                    // Show loading
+                    Notiflix.Loading.circle('Processing rejection...');
 
-            fetch('../api/workflow_transition.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message);
-                    window.location.reload();
-                } else {
-                    alert('Error: ' + data.error);
+                    const formData = new FormData();
+                    formData.append('certificate_id', certId);
+                    formData.append('certificate_type', certType);
+                    formData.append('transition_type', 'reject');
+                    formData.append('notes', reason);
+
+                    fetch('../api/workflow_transition.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        Notiflix.Loading.remove();
+
+                        if (data.success) {
+                            Notiflix.Notify.success(data.message);
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1500);
+                        } else {
+                            Notiflix.Notify.failure('Error: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        Notiflix.Loading.remove();
+                        Notiflix.Notify.failure('Network error: ' + error);
+                    });
+                },
+                function() {
+                    // User cancelled
+                },
+                {
+                    titleColor: '#EF4444',
+                    okButtonBackground: '#EF4444',
                 }
-            })
-            .catch(error => {
-                alert('Network error: ' + error);
-            });
+            );
         }
     </script>
 </body>

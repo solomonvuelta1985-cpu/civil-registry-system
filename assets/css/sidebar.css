@@ -252,7 +252,7 @@
     display: flex;
     align-items: center;
     padding: 11px 16px;
-    margin: 4px 14px;
+    margin: 4px 14px 4px 0;
     color: var(--sidebar-text);
     text-decoration: none;
     transition: all 0.2s ease;
@@ -277,6 +277,9 @@
     background: var(--sidebar-item-active-bg);
     color: var(--sidebar-text-active);
     font-weight: 600;
+    border-radius: 0 60px 60px 0;
+    margin-left: 0;
+    padding-left: 20px;
 }
 
 .sidebar-menu li a.active::before {

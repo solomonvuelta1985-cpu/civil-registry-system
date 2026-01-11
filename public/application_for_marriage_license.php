@@ -67,6 +67,11 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
+    <!-- Notiflix - Modern Notification Library -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notiflix@3.2.6/dist/notiflix-3.2.6.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/notiflix@3.2.6/dist/notiflix-3.2.6.min.js"></script>
+    <script src="../assets/js/notiflix-config.js"></script>
+
     <!-- Shared Sidebar Styles -->
     <link rel="stylesheet" href="../assets/css/sidebar.css">
 

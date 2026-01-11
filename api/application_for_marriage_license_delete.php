@@ -5,55 +5,105 @@
  */
 
 require_once '../includes/session_config.php';
-header('Content-Type: application/json');
-
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/auth.php';
+
+header('Content-Type: application/json');
+
+// Check authentication
+if (!isLoggedIn()) {
+    json_response(false, 'Unauthorized access. Please log in.', null, 401);
+    exit;
+}
+
+// Check delete permission
+if (!hasPermission('marriage_license_delete')) {
+    json_response(false, 'You do not have permission to delete marriage license applications.', null, 403);
+    exit;
+}
 
 // Validate request method
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
+    json_response(false, 'Invalid request method.', null, 405);
     exit;
 }
 
 try {
-    // Get record ID
-    $data = json_decode(file_get_contents('php://input'), true);
-    $record_id = sanitize_input($data['id'] ?? '');
+    // Get record ID from POST data
+    $record_id = sanitize_input($_POST['record_id'] ?? '');
+    $delete_type = sanitize_input($_POST['delete_type'] ?? 'soft');
 
     if (empty($record_id)) {
-        echo json_encode(['success' => false, 'message' => 'Record ID is required.']);
+        json_response(false, 'Record ID is required.', null, 400);
         exit;
     }
 
     // Check if record exists
-    $stmt = $pdo->prepare("SELECT id FROM application_for_marriage_license WHERE id = :id AND status = 'Active'");
+    $stmt = $pdo->prepare("SELECT * FROM application_for_marriage_license WHERE id = :id");
     $stmt->execute([':id' => $record_id]);
+    $record = $stmt->fetch();
 
-    if (!$stmt->fetch()) {
-        echo json_encode(['success' => false, 'message' => 'Record not found.']);
+    if (!$record) {
+        json_response(false, 'Record not found.', null, 404);
         exit;
     }
 
-    // Soft delete - update status to 'Deleted'
-    $sql = "UPDATE application_for_marriage_license SET status = 'Deleted', updated_by = :updated_by WHERE id = :id";
-    $stmt = $pdo->prepare($sql);
+    // Begin transaction
+    $pdo->beginTransaction();
 
-    $updated_by = $_SESSION['user_id'] ?? 1;
+    try {
+        if ($delete_type === 'hard') {
+            // Hard delete: Permanently remove from database
+            $stmt = $pdo->prepare("DELETE FROM application_for_marriage_license WHERE id = :id");
+            $stmt->execute([':id' => $record_id]);
 
-    if ($stmt->execute([':updated_by' => $updated_by, ':id' => $record_id])) {
-        echo json_encode([
-            'success' => true,
-            'message' => 'Marriage license application deleted successfully.'
-        ]);
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Failed to delete record.']);
+            // Delete associated PDF file if exists
+            if (!empty($record['pdf_filename'])) {
+                delete_file($record['pdf_filename']);
+            }
+
+            // Log activity
+            log_activity(
+                $pdo,
+                'HARD_DELETE_APPLICATION',
+                "Permanently deleted Marriage License Application: Registry No. {$record['registry_no']} (ID: {$record_id})",
+                $_SESSION['user_id'] ?? null
+            );
+
+            $message = "Marriage license application permanently deleted.";
+        } else {
+            // Soft delete - update status to 'Deleted'
+            $stmt = $pdo->prepare("UPDATE application_for_marriage_license SET status = 'Deleted', updated_at = NOW(), updated_by = :updated_by WHERE id = :id");
+            $stmt->execute([
+                ':updated_by' => $_SESSION['user_id'] ?? null,
+                ':id' => $record_id
+            ]);
+
+            // Log activity
+            log_activity(
+                $pdo,
+                'SOFT_DELETE_APPLICATION',
+                "Soft deleted Marriage License Application: Registry No. {$record['registry_no']} (ID: {$record_id})",
+                $_SESSION['user_id'] ?? null
+            );
+
+            $message = "Marriage license application moved to trash.";
+        }
+
+        // Commit transaction
+        $pdo->commit();
+
+        json_response(true, $message, ['id' => $record_id], 200);
+
+    } catch (PDOException $e) {
+        // Rollback transaction on error
+        $pdo->rollBack();
+        error_log("Database Delete Error: " . $e->getMessage());
+        json_response(false, 'Database error occurred. Please try again.', null, 500);
     }
 
-} catch (PDOException $e) {
-    error_log("Database Error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'Database error occurred.']);
 } catch (Exception $e) {
-    error_log("Error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'An error occurred while processing your request.']);
+    error_log("Unexpected Error: " . $e->getMessage());
+    json_response(false, 'An unexpected error occurred. Please contact the administrator.', null, 500);
 }

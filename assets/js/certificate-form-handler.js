@@ -26,6 +26,9 @@ class CertificateFormHandler {
             return;
         }
 
+        // Check Notiflix availability
+        this.checkNotiflixAvailability();
+
         this.cacheElements();
         this.setupFormValidation();
         this.setupFormSubmission();
@@ -34,6 +37,19 @@ class CertificateFormHandler {
         this.setupResetConfirmation();
         this.setupAutoSave();
         this.setupBeforeUnload();
+    }
+
+    /**
+     * Check if Notiflix is available
+     */
+    checkNotiflixAvailability() {
+        if (typeof Notiflix === 'undefined') {
+            console.warn('⚠️ Notiflix library not loaded. Falling back to native dialogs.');
+        } else if (!Notiflix.Confirm || !Notiflix.Notify) {
+            console.warn('⚠️ Notiflix modules incomplete. Some features may not work.');
+        } else {
+            console.log('✅ Notiflix library loaded successfully');
+        }
     }
 
     cacheElements() {
@@ -184,59 +200,101 @@ class CertificateFormHandler {
 
         // Show confirmation dialog based on form type
         const formTypeNames = {
-            'birth': 'BIRTH',
-            'marriage': 'MARRIAGE',
-            'death': 'DEATH'
+            'birth': 'Birth',
+            'marriage': 'Marriage',
+            'death': 'Death',
+            'marriage_license': 'Marriage License'
         };
 
-        const certificateType = formTypeNames[this.formType] || 'CERTIFICATE';
-        const confirmMessage = `You are submitting a ${certificateType} certificate. Continue?`;
+        const certificateType = formTypeNames[this.formType] || 'Certificate';
+        const isEditMode = this.form.querySelector('input[name="id"]')?.value;
+        const action = isEditMode ? 'update' : 'submit';
+        const confirmMessage = `Are you sure you want to ${action} this ${certificateType} record?`;
 
-        if (!confirm(confirmMessage)) {
-            return;
-        }
+        // Function to actually submit the form
+        const doSubmit = async () => {
+            // Validate all fields
+            if (!this.form.checkValidity()) {
+                this.form.reportValidity();
 
-        // Validate all fields
-        if (!this.form.checkValidity()) {
-            this.form.reportValidity();
+                // Validate all fields to show error messages
+                const requiredInputs = this.form.querySelectorAll('[required]');
+                requiredInputs.forEach(input => this.validateField(input));
 
-            // Validate all fields to show error messages
-            const requiredInputs = this.form.querySelectorAll('[required]');
-            requiredInputs.forEach(input => this.validateField(input));
+                if (typeof Notiflix !== 'undefined') {
+                    Notiflix.Notify.warning('Please fill in all required fields correctly.');
+                } else {
+                    this.showAlert('danger', 'Please fill in all required fields correctly.');
+                }
+                return;
+            }
 
-            this.showAlert('danger', 'Please fill in all required fields correctly.');
-            return;
-        }
+            this.isSubmitting = true;
 
-        this.isSubmitting = true;
+            // Show loading state
+            this.setButtonLoading(this.submitButtons.save, true);
+            this.showLoadingOverlay(true);
+            if (typeof Notiflix !== 'undefined') {
+                Notiflix.Loading.circle('Submitting certificate...');
+            }
 
-        // Show loading state
-        this.setButtonLoading(this.submitButtons.save, true);
-        this.showLoadingOverlay(true);
+            // Prepare form data
+            const formData = new FormData(this.form);
 
-        // Prepare form data
-        const formData = new FormData(this.form);
+            try {
+                const response = await fetch(this.apiEndpoint, {
+                    method: 'POST',
+                    body: formData
+                });
 
-        try {
-            const response = await fetch(this.apiEndpoint, {
-                method: 'POST',
-                body: formData
-            });
+                const data = await response.json();
 
-            const data = await response.json();
-
-            if (data.success) {
-                this.handleSuccess(data.message, addNew);
+                if (data.success) {
+                    this.handleSuccess(data.message, addNew);
             } else {
                 this.handleError(data.message || 'An error occurred while saving the record.');
             }
-        } catch (error) {
-            console.error('Form submission error:', error);
-            this.handleError('Network connection failed. Please check your connection and try again.');
-        } finally {
-            this.isSubmitting = false;
-            this.setButtonLoading(this.submitButtons.save, false);
-            this.showLoadingOverlay(false);
+            } catch (error) {
+                console.error('Form submission error:', error);
+                this.handleError('Network connection failed. Please check your connection and try again.');
+            } finally {
+                this.isSubmitting = false;
+                this.setButtonLoading(this.submitButtons.save, false);
+                this.showLoadingOverlay(false);
+                if (typeof Notiflix !== 'undefined') {
+                    Notiflix.Loading.remove();
+                }
+            }
+        };
+
+        // Show Notiflix confirmation
+        if (typeof Notiflix !== 'undefined' && Notiflix.Confirm) {
+            Notiflix.Confirm.show(
+                'Confirm Submission',
+                confirmMessage,
+                isEditMode ? 'Update' : 'Submit',
+                'Cancel',
+                () => {
+                    doSubmit();
+                },
+                () => {
+                    // User cancelled - do nothing
+                    console.log('Form submission cancelled by user');
+                },
+                {
+                    width: '360px',
+                    borderRadius: '12px',
+                    okButtonBackground: isEditMode ? '#3B82F6' : '#10B981',
+                    titleColor: '#111827',
+                }
+            );
+        } else {
+            // Fallback to native confirm
+            console.warn('Notiflix not loaded, using native confirm dialog');
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+            doSubmit();
         }
     }
 
@@ -492,7 +550,7 @@ class CertificateFormHandler {
         this.submitButtons.reset.addEventListener('click', (e) => {
             e.preventDefault();
 
-            if (confirm('Are you sure you want to reset the form? All unsaved data will be lost.')) {
+            const resetForm = () => {
                 this.form.reset();
 
                 // Clear validation states
@@ -504,7 +562,39 @@ class CertificateFormHandler {
                 // Clear autosave
                 this.clearAutoSave();
 
-                this.showAlert('info', 'Form has been reset.');
+                if (typeof Notiflix !== 'undefined') {
+                    Notiflix.Notify.info('Form has been reset.');
+                } else {
+                    this.showAlert('info', 'Form has been reset.');
+                }
+            };
+
+            if (typeof Notiflix !== 'undefined' && Notiflix.Confirm) {
+                Notiflix.Confirm.show(
+                    'Reset Form',
+                    'Are you sure you want to reset the form? All unsaved data will be lost.',
+                    'Reset',
+                    'Cancel',
+                    () => {
+                        resetForm();
+                    },
+                    () => {
+                        // User cancelled - do nothing
+                        console.log('Form reset cancelled by user');
+                    },
+                    {
+                        width: '360px',
+                        borderRadius: '12px',
+                        titleColor: '#F59E0B',
+                        okButtonBackground: '#F59E0B',
+                    }
+                );
+            } else {
+                // Fallback to native confirm
+                console.warn('Notiflix not loaded for reset confirmation, using native confirm dialog');
+                if (confirm('Are you sure you want to reset the form? All unsaved data will be lost.')) {
+                    resetForm();
+                }
             }
         });
     }
@@ -521,13 +611,45 @@ class CertificateFormHandler {
         if (savedData) {
             try {
                 const data = JSON.parse(savedData);
-                const shouldRestore = confirm('Found autosaved data. Would you like to restore it?');
 
-                if (shouldRestore) {
-                    this.restoreFormData(data);
-                    this.showAlert('info', 'Autosaved data has been restored.');
+                if (typeof Notiflix !== 'undefined' && Notiflix.Confirm) {
+                    Notiflix.Confirm.show(
+                        'Restore Autosaved Data',
+                        'Found autosaved data. Would you like to restore it?',
+                        'Restore',
+                        'Discard',
+                        () => {
+                            this.restoreFormData(data);
+                            if (typeof Notiflix !== 'undefined' && Notiflix.Notify) {
+                                Notiflix.Notify.info('Autosaved data has been restored.');
+                            } else {
+                                this.showAlert('info', 'Autosaved data has been restored.');
+                            }
+                        },
+                        () => {
+                            localStorage.removeItem(autoSaveKey);
+                            if (typeof Notiflix !== 'undefined' && Notiflix.Notify) {
+                                Notiflix.Notify.info('Autosaved data discarded.');
+                            } else {
+                                this.showAlert('info', 'Autosaved data discarded.');
+                            }
+                        },
+                        {
+                            width: '360px',
+                            borderRadius: '12px',
+                            okButtonBackground: '#3B82F6',
+                            cancelButtonBackground: '#6B7280',
+                        }
+                    );
                 } else {
-                    localStorage.removeItem(autoSaveKey);
+                    // Fallback to native confirm
+                    const shouldRestore = confirm('Found autosaved data. Would you like to restore it?');
+                    if (shouldRestore) {
+                        this.restoreFormData(data);
+                        this.showAlert('info', 'Autosaved data has been restored.');
+                    } else {
+                        localStorage.removeItem(autoSaveKey);
+                    }
                 }
             } catch (e) {
                 console.error('Error restoring autosaved data:', e);

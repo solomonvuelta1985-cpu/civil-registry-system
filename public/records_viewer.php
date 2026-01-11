@@ -440,8 +440,25 @@ function get_field_value($record, $field, $type = 'text') {
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
+    <!-- Notiflix - Modern Notification Library -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notiflix@3.2.6/dist/notiflix-3.2.6.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/notiflix@3.2.6/dist/notiflix-3.2.6.min.js"></script>
+    <script src="../assets/js/notiflix-config.js"></script>
+
     <!-- Shared Sidebar Styles -->
     <link rel="stylesheet" href="../assets/css/sidebar.css">
+
+    <!-- Record Preview Modal Styles -->
+    <link rel="stylesheet" href="../assets/css/record-preview-modal.css">
+
+    <!-- PDF.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // Configure PDF.js worker
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+    </script>
 
     <style>
         /* ========================================
@@ -1330,30 +1347,28 @@ function get_field_value($record, $field, $type = 'text') {
                             <?php endforeach; ?>
                             <td>
                                 <div class="action-buttons">
-                                    <?php if (!empty($record['pdf_filename'])): ?>
-                                    <a href="../uploads/<?php echo htmlspecialchars($record['pdf_filename']); ?>"
-                                       target="_blank"
-                                       class="btn btn-success btn-sm"
-                                       title="View PDF">
+                                    <!-- View Record Button - Opens Modal -->
+                                    <button onclick="recordPreviewModal.open(<?php echo $record['id']; ?>, '<?php echo $record_type; ?>')"
+                                            class="btn btn-success btn-sm"
+                                            title="View Record">
                                         <i data-lucide="file-text"></i>
-                                    </a>
-                                    <?php endif; ?>
+                                    </button>
                                     <?php
                                     $edit_permission = str_replace('_view', '_edit', $required_permission);
                                     $delete_permission = str_replace('_view', '_delete', $required_permission);
                                     ?>
                                     <?php if (hasPermission($edit_permission)): ?>
-                                    <a href="<?php echo $config['entry_form']; ?>?id=<?php echo $record['id']; ?>"
+                                    <button onclick="editRecord(<?php echo $record['id']; ?>, '<?php echo $config['entry_form']; ?>')"
                                        class="btn btn-primary btn-sm"
                                        title="Edit">
-                                        <i data-lucide="edit"></i>
-                                    </a>
+                                        <i data-lucide="pen-line"></i>
+                                    </button>
                                     <?php endif; ?>
                                     <?php if (hasPermission($delete_permission)): ?>
                                     <button onclick="deleteRecord(<?php echo $record['id']; ?>)"
                                             class="btn btn-danger btn-sm"
                                             title="Delete">
-                                        <i data-lucide="trash-2"></i>
+                                        <i data-lucide="x-circle"></i>
                                     </button>
                                     <?php endif; ?>
                                 </div>
@@ -1457,6 +1472,8 @@ function get_field_value($record, $field, $type = 'text') {
                 console.log('Lucide icons initialized');
             }
 
+            // Notiflix is initialized via notiflix-config.js
+
             // Show skeleton loading on page load, then fade in real content
             initPageLoadSkeleton();
         });
@@ -1511,59 +1528,149 @@ function get_field_value($record, $field, $type = 'text') {
             const recordType = '<?php echo $record_type; ?>';
             const recordTitle = '<?php echo $config['title']; ?>';
 
-            if (!confirm(`Are you sure you want to delete this record? This action cannot be undone.`)) {
+            // Check if Notiflix is available
+            if (typeof Notiflix === 'undefined') {
+                console.error('Notiflix is not loaded');
+                if (confirm('Are you sure you want to delete this record? This action cannot be undone.')) {
+                    performDelete(id);
+                }
                 return;
             }
 
+            Notiflix.Confirm.show(
+                'Delete Record',
+                'Are you sure you want to delete this record? This action cannot be undone.',
+                'Delete',
+                'Cancel',
+                function okCb() {
+                    performDelete(id);
+                },
+                function cancelCb() {
+                    // User cancelled
+                },
+                {
+                    width: '360px',
+                    borderRadius: '12px',
+                    titleColor: '#EF4444',
+                    okButtonBackground: '#EF4444',
+                    buttonsFontSize: '14px',
+                    messageMaxLength: 200,
+                }
+            );
+        }
+
+        // Perform the actual delete operation
+        function performDelete(id) {
+            // Show loading
+            if (typeof Notiflix !== 'undefined') {
+                Notiflix.Loading.circle('Deleting record...');
+            }
+
+            // Create FormData object (API expects POST form data, not JSON)
+            const formData = new FormData();
+            formData.append('record_id', id);
+            formData.append('delete_type', 'soft');
+
             fetch('<?php echo $config['delete_api']; ?>', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ id: id })
+                body: formData
             })
             .then(response => response.json())
             .then(data => {
+                if (typeof Notiflix !== 'undefined') {
+                    Notiflix.Loading.remove();
+                }
+
                 if (data.success) {
-                    showAlert('success', data.message);
+                    if (typeof Notiflix !== 'undefined') {
+                        Notiflix.Notify.success(data.message);
+                    } else {
+                        alert(data.message);
+                    }
                     setTimeout(() => {
                         location.reload();
                     }, 1500);
                 } else {
-                    showAlert('danger', data.message);
+                    if (typeof Notiflix !== 'undefined') {
+                        Notiflix.Notify.failure(data.message);
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
                 }
             })
             .catch(error => {
+                if (typeof Notiflix !== 'undefined') {
+                    Notiflix.Loading.remove();
+                }
                 console.error('Error:', error);
-                showAlert('danger', 'An error occurred while deleting the record.');
+                if (typeof Notiflix !== 'undefined') {
+                    Notiflix.Notify.failure('An error occurred while deleting the record.');
+                } else {
+                    alert('An error occurred while deleting the record.');
+                }
             });
         }
 
-        // Show alert function
-        function showAlert(type, message) {
-            const alertContainer = document.getElementById('alertContainer');
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${type}`;
+        // Edit record function with confirmation
+        function editRecord(id, formUrl) {
+            const recordType = '<?php echo $record_type; ?>';
+            const recordTitle = '<?php echo $config['title']; ?>';
 
-            const icon = type === 'success' ? 'check-circle' : 'alert-circle';
+            // Remove 's' from the end for singular form
+            const singularTitle = recordTitle.replace(/s$/, '');
 
-            alertDiv.innerHTML = `
-                <i data-lucide="${icon}"></i>
-                <span>${message}</span>
-            `;
-
-            alertContainer.innerHTML = '';
-            alertContainer.appendChild(alertDiv);
-
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
+            // Check if Notiflix is available
+            if (typeof Notiflix === 'undefined' || !Notiflix.Confirm) {
+                console.warn('Notiflix not loaded, using native confirm dialog');
+                if (confirm(`Do you want to edit this ${singularTitle.toLowerCase()}?`)) {
+                    window.location.href = formUrl + '?id=' + id;
+                }
+                return;
             }
 
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            Notiflix.Confirm.show(
+                'Edit Record',
+                `Do you want to edit this ${singularTitle.toLowerCase()}?`,
+                'Edit',
+                'Cancel',
+                function okCb() {
+                    // User confirmed - navigate to edit page
+                    window.location.href = formUrl + '?id=' + id;
+                },
+                function cancelCb() {
+                    // User cancelled
+                    console.log('Edit cancelled by user');
+                },
+                {
+                    width: '360px',
+                    borderRadius: '12px',
+                    titleColor: '#3B82F6',
+                    okButtonBackground: '#3B82F6',
+                    buttonsFontSize: '14px',
+                    messageMaxLength: 200,
+                }
+            );
+        }
 
-            setTimeout(() => {
-                alertDiv.remove();
-            }, 5000);
+        // Show alert function - Using Notiflix
+        function showAlert(type, message) {
+            switch(type) {
+                case 'success':
+                    Notiflix.Notify.success(message);
+                    break;
+                case 'danger':
+                case 'error':
+                    Notiflix.Notify.failure(message);
+                    break;
+                case 'warning':
+                    Notiflix.Notify.warning(message);
+                    break;
+                case 'info':
+                    Notiflix.Notify.info(message);
+                    break;
+                default:
+                    Notiflix.Notify.info(message);
+            }
         }
 
         // Re-initialize icons after page fully loads (backup)
@@ -1732,11 +1839,10 @@ function get_field_value($record, $field, $type = 'text') {
             // Actions column
             html += '<td><div class="action-buttons">';
 
-            if (record.pdf_filename) {
-                html += `<a href="../uploads/${escapeHtml(record.pdf_filename)}" target="_blank" class="btn btn-success btn-sm" title="View PDF">
-                    <i data-lucide="file-text"></i>
-                </a>`;
-            }
+            // View Record Button - Opens Modal
+            html += `<button onclick="recordPreviewModal.open(${record.id}, '${recordType}')" class="btn btn-success btn-sm" title="View Record">
+                <i data-lucide="file-text"></i>
+            </button>`;
 
             <?php
             $edit_permission = str_replace('_view', '_edit', $required_permission);
@@ -1744,14 +1850,14 @@ function get_field_value($record, $field, $type = 'text') {
             ?>
 
             <?php if (hasPermission($edit_permission)): ?>
-            html += `<a href="<?php echo $config['entry_form']; ?>?id=${record.id}" class="btn btn-primary btn-sm" title="Edit">
-                <i data-lucide="edit"></i>
-            </a>`;
+            html += `<button onclick="editRecord(${record.id}, '<?php echo $config['entry_form']; ?>')" class="btn btn-primary btn-sm" title="Edit">
+                <i data-lucide="pen-line"></i>
+            </button>`;
             <?php endif; ?>
 
             <?php if (hasPermission($delete_permission)): ?>
             html += `<button onclick="deleteRecord(${record.id})" class="btn btn-danger btn-sm" title="Delete">
-                <i data-lucide="trash-2"></i>
+                <i data-lucide="x-circle"></i>
             </button>`;
             <?php endif; ?>
 
@@ -1818,5 +1924,8 @@ function get_field_value($record, $field, $type = 'text') {
             }, 300)); // 300ms delay after user stops typing
         }
     </script>
+
+    <!-- Record Preview Modal Script -->
+    <script src="../assets/js/record-preview-modal.js"></script>
 </body>
 </html>
