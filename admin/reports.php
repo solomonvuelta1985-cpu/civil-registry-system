@@ -8,6 +8,31 @@ require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 
+// =====================================================
+// GET FILTER PARAMETERS FROM URL
+// =====================================================
+$date_from = $_GET['date_from'] ?? date('Y-m-01');
+$date_to = $_GET['date_to'] ?? date('Y-m-d');
+$certificate_type = $_GET['certificate_type'] ?? 'all';
+$period = $_GET['period'] ?? 'month';
+$sort_by = $_GET['sort'] ?? 'date-desc';
+
+// Validate and sanitize dates
+$date_from = date('Y-m-d', strtotime($date_from));
+$date_to = date('Y-m-d', strtotime($date_to));
+
+// Build date range SQL condition
+$date_condition = "DATE(created_at) BETWEEN '$date_from' AND '$date_to'";
+
+// Build certificate type condition
+$type_conditions = [
+    'all' => "1=1", // All certificates
+    'birth' => "certificate_type = 'birth'",
+    'marriage' => "certificate_type = 'marriage'",
+    'death' => "certificate_type = 'death'",
+    'license' => "certificate_type = 'license'"
+];
+
 // Initialize all statistics arrays
 $stats = [
     'total_births' => 0,
@@ -41,12 +66,14 @@ $citizenship_stats = [];
 
 try {
     // =====================================================
-    // BIRTH CERTIFICATES STATISTICS
+    // BIRTH CERTIFICATES STATISTICS (WITH FILTERS)
     // =====================================================
 
-    // Total birth certificates
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_live_birth WHERE status = 'Active'");
-    $stats['total_births'] = $stmt->fetch()['count'] ?? 0;
+    // Total birth certificates (with date filter)
+    if ($certificate_type == 'all' || $certificate_type == 'birth') {
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_live_birth WHERE status = 'Active' AND $date_condition");
+        $stats['total_births'] = $stmt->fetch()['count'] ?? 0;
+    }
 
     // This month's births
     $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_live_birth WHERE status = 'Active' AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
@@ -61,17 +88,21 @@ try {
         ? round((($stats['this_month_births'] - $stats['last_month_births']) / $stats['last_month_births']) * 100)
         : ($stats['this_month_births'] > 0 ? 100 : 0);
 
-    // Gender distribution for births
-    $stmt = $pdo->query("SELECT child_sex, COUNT(*) as count FROM certificate_of_live_birth WHERE status = 'Active' AND child_sex IS NOT NULL GROUP BY child_sex");
-    $gender_distribution = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Gender distribution for births (with date filter)
+    if ($certificate_type == 'all' || $certificate_type == 'birth') {
+        $stmt = $pdo->query("SELECT child_sex, COUNT(*) as count FROM certificate_of_live_birth WHERE status = 'Active' AND $date_condition AND child_sex IS NOT NULL GROUP BY child_sex");
+        $gender_distribution = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 
     // =====================================================
-    // MARRIAGE CERTIFICATES STATISTICS
+    // MARRIAGE CERTIFICATES STATISTICS (WITH FILTERS)
     // =====================================================
 
-    // Total marriage certificates
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_marriage WHERE status = 'Active'");
-    $stats['total_marriages'] = $stmt->fetch()['count'] ?? 0;
+    // Total marriage certificates (with date filter)
+    if ($certificate_type == 'all' || $certificate_type == 'marriage') {
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_marriage WHERE status = 'Active' AND $date_condition");
+        $stats['total_marriages'] = $stmt->fetch()['count'] ?? 0;
+    }
 
     // This month's marriages
     $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_marriage WHERE status = 'Active' AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
@@ -86,13 +117,21 @@ try {
         ? round((($stats['this_month_marriages'] - $stats['last_month_marriages']) / $stats['last_month_marriages']) * 100)
         : ($stats['this_month_marriages'] > 0 ? 100 : 0);
 
+    // Nature of Solemnization distribution for marriages (with date filter)
+    if ($certificate_type == 'all' || $certificate_type == 'marriage') {
+        $stmt = $pdo->query("SELECT nature_of_solemnization, COUNT(*) as count FROM certificate_of_marriage WHERE status = 'Active' AND $date_condition AND nature_of_solemnization IS NOT NULL GROUP BY nature_of_solemnization");
+        $marriage_nature_distribution = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     // =====================================================
-    // DEATH CERTIFICATES STATISTICS
+    // DEATH CERTIFICATES STATISTICS (WITH FILTERS)
     // =====================================================
 
-    // Total death certificates
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_death WHERE status = 'Active'");
-    $stats['total_deaths'] = $stmt->fetch()['count'] ?? 0;
+    // Total death certificates (with date filter)
+    if ($certificate_type == 'all' || $certificate_type == 'death') {
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_death WHERE status = 'Active' AND $date_condition");
+        $stats['total_deaths'] = $stmt->fetch()['count'] ?? 0;
+    }
 
     // This month's deaths
     $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_death WHERE status = 'Active' AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
@@ -107,71 +146,86 @@ try {
         ? round((($stats['this_month_deaths'] - $stats['last_month_deaths']) / $stats['last_month_deaths']) * 100)
         : ($stats['this_month_deaths'] > 0 ? 100 : 0);
 
-    // Age demographics for deaths
-    $stmt = $pdo->query("
-        SELECT
-            CASE
-                WHEN age < 1 THEN 'Infant (< 1)'
-                WHEN age BETWEEN 1 AND 17 THEN 'Child (1-17)'
-                WHEN age BETWEEN 18 AND 35 THEN 'Young Adult (18-35)'
-                WHEN age BETWEEN 36 AND 55 THEN 'Middle Age (36-55)'
-                WHEN age BETWEEN 56 AND 75 THEN 'Senior (56-75)'
-                ELSE 'Elderly (75+)'
-            END as age_group,
-            COUNT(*) as count
-        FROM certificate_of_death
-        WHERE status = 'Active' AND age IS NOT NULL
-        GROUP BY age_group
-        ORDER BY MIN(age)
-    ");
-    $age_demographics = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Age demographics for deaths (with date filter)
+    if ($certificate_type == 'all' || $certificate_type == 'death') {
+        $stmt = $pdo->query("
+            SELECT
+                CASE
+                    WHEN age < 1 THEN 'Infant (< 1)'
+                    WHEN age BETWEEN 1 AND 17 THEN 'Child (1-17)'
+                    WHEN age BETWEEN 18 AND 35 THEN 'Young Adult (18-35)'
+                    WHEN age BETWEEN 36 AND 55 THEN 'Middle Age (36-55)'
+                    WHEN age BETWEEN 56 AND 75 THEN 'Senior (56-75)'
+                    ELSE 'Elderly (75+)'
+                END as age_group,
+                COUNT(*) as count
+            FROM certificate_of_death
+            WHERE status = 'Active' AND age IS NOT NULL AND $date_condition
+            GROUP BY age_group
+            ORDER BY MIN(age)
+        ");
+        $age_demographics = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } else {
+        $age_demographics = [];
+    }
 
     // =====================================================
     // MARRIAGE LICENSE APPLICATIONS STATISTICS
     // =====================================================
 
-    // Total marriage license applications
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM application_for_marriage_license WHERE status = 'Active'");
-    $stats['total_licenses'] = $stmt->fetch()['count'] ?? 0;
+    // Total marriage license applications (with date filter)
+    if ($certificate_type == 'all' || $certificate_type == 'license') {
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM application_for_marriage_license WHERE status = 'Active' AND $date_condition");
+        $stats['total_licenses'] = $stmt->fetch()['count'] ?? 0;
 
-    // This month's licenses
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM application_for_marriage_license WHERE status = 'Active' AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
-    $stats['this_month_licenses'] = $stmt->fetch()['count'] ?? 0;
+        // This month's licenses
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM application_for_marriage_license WHERE status = 'Active' AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
+        $stats['this_month_licenses'] = $stmt->fetch()['count'] ?? 0;
 
-    // Last month's licenses
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM application_for_marriage_license WHERE status = 'Active' AND MONTH(created_at) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH)) AND YEAR(created_at) = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))");
-    $stats['last_month_licenses'] = $stmt->fetch()['count'] ?? 0;
+        // Last month's licenses
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM application_for_marriage_license WHERE status = 'Active' AND MONTH(created_at) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH)) AND YEAR(created_at) = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))");
+        $stats['last_month_licenses'] = $stmt->fetch()['count'] ?? 0;
 
-    // License trend
-    $stats['license_trend'] = $stats['last_month_licenses'] > 0
-        ? round((($stats['this_month_licenses'] - $stats['last_month_licenses']) / $stats['last_month_licenses']) * 100)
-        : ($stats['this_month_licenses'] > 0 ? 100 : 0);
-
-    // Citizenship statistics for marriage licenses
-    $stmt = $pdo->query("
-        SELECT groom_citizenship as citizenship, COUNT(*) as count
-        FROM application_for_marriage_license
-        WHERE status = 'Active' AND groom_citizenship IS NOT NULL
-        GROUP BY groom_citizenship
-        UNION ALL
-        SELECT bride_citizenship as citizenship, COUNT(*) as count
-        FROM application_for_marriage_license
-        WHERE status = 'Active' AND bride_citizenship IS NOT NULL
-        GROUP BY bride_citizenship
-    ");
-    $citizenship_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // Aggregate citizenship stats
-    $citizenship_stats = [];
-    foreach ($citizenship_raw as $row) {
-        $citizenship = strtoupper(trim($row['citizenship']));
-        if (!isset($citizenship_stats[$citizenship])) {
-            $citizenship_stats[$citizenship] = 0;
-        }
-        $citizenship_stats[$citizenship] += $row['count'];
+        // License trend
+        $stats['license_trend'] = $stats['last_month_licenses'] > 0
+            ? round((($stats['this_month_licenses'] - $stats['last_month_licenses']) / $stats['last_month_licenses']) * 100)
+            : ($stats['this_month_licenses'] > 0 ? 100 : 0);
+    } else {
+        $stats['total_licenses'] = 0;
+        $stats['this_month_licenses'] = 0;
+        $stats['last_month_licenses'] = 0;
+        $stats['license_trend'] = 0;
     }
-    arsort($citizenship_stats);
-    $citizenship_stats = array_slice($citizenship_stats, 0, 10, true); // Top 10
+
+    // Citizenship statistics for marriage licenses (with date filter)
+    if ($certificate_type == 'all' || $certificate_type == 'license') {
+        $stmt = $pdo->query("
+            SELECT groom_citizenship as citizenship, COUNT(*) as count
+            FROM application_for_marriage_license
+            WHERE status = 'Active' AND groom_citizenship IS NOT NULL AND $date_condition
+            GROUP BY groom_citizenship
+            UNION ALL
+            SELECT bride_citizenship as citizenship, COUNT(*) as count
+            FROM application_for_marriage_license
+            WHERE status = 'Active' AND bride_citizenship IS NOT NULL AND $date_condition
+            GROUP BY bride_citizenship
+        ");
+        $citizenship_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Aggregate citizenship stats
+        $citizenship_stats = [];
+        foreach ($citizenship_raw as $row) {
+            $citizenship = strtoupper(trim($row['citizenship']));
+            if (!isset($citizenship_stats[$citizenship])) {
+                $citizenship_stats[$citizenship] = 0;
+            }
+            $citizenship_stats[$citizenship] += $row['count'];
+        }
+        arsort($citizenship_stats);
+        $citizenship_stats = array_slice($citizenship_stats, 0, 10, true); // Top 10
+    } else {
+        $citizenship_stats = [];
+    }
 
     // =====================================================
     // MONTHLY TREND DATA (Last 12 months)
@@ -183,24 +237,36 @@ try {
         $short_label = date('M', strtotime("-$i months"));
 
         // Births
-        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM certificate_of_live_birth WHERE status = 'Active' AND DATE_FORMAT(created_at, '%Y-%m') = ?");
-        $stmt->execute([$month]);
-        $births = $stmt->fetch()['count'] ?? 0;
+        $births = 0;
+        if ($certificate_type == 'all' || $certificate_type == 'birth') {
+            $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM certificate_of_live_birth WHERE status = 'Active' AND DATE_FORMAT(created_at, '%Y-%m') = ?");
+            $stmt->execute([$month]);
+            $births = $stmt->fetch()['count'] ?? 0;
+        }
 
         // Marriages
-        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM certificate_of_marriage WHERE status = 'Active' AND DATE_FORMAT(created_at, '%Y-%m') = ?");
-        $stmt->execute([$month]);
-        $marriages = $stmt->fetch()['count'] ?? 0;
+        $marriages = 0;
+        if ($certificate_type == 'all' || $certificate_type == 'marriage') {
+            $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM certificate_of_marriage WHERE status = 'Active' AND DATE_FORMAT(created_at, '%Y-%m') = ?");
+            $stmt->execute([$month]);
+            $marriages = $stmt->fetch()['count'] ?? 0;
+        }
 
         // Deaths
-        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM certificate_of_death WHERE status = 'Active' AND DATE_FORMAT(created_at, '%Y-%m') = ?");
-        $stmt->execute([$month]);
-        $deaths = $stmt->fetch()['count'] ?? 0;
+        $deaths = 0;
+        if ($certificate_type == 'all' || $certificate_type == 'death') {
+            $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM certificate_of_death WHERE status = 'Active' AND DATE_FORMAT(created_at, '%Y-%m') = ?");
+            $stmt->execute([$month]);
+            $deaths = $stmt->fetch()['count'] ?? 0;
+        }
 
         // Licenses
-        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM application_for_marriage_license WHERE status = 'Active' AND DATE_FORMAT(created_at, '%Y-%m') = ?");
-        $stmt->execute([$month]);
-        $licenses = $stmt->fetch()['count'] ?? 0;
+        $licenses = 0;
+        if ($certificate_type == 'all' || $certificate_type == 'license') {
+            $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM application_for_marriage_license WHERE status = 'Active' AND DATE_FORMAT(created_at, '%Y-%m') = ?");
+            $stmt->execute([$month]);
+            $licenses = $stmt->fetch()['count'] ?? 0;
+        }
 
         $monthly_data[] = [
             'month' => $month_label,
@@ -220,31 +286,55 @@ try {
     $current_year = date('Y');
     $previous_year = $current_year - 1;
 
-    // Current year totals
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_live_birth WHERE status = 'Active' AND YEAR(created_at) = YEAR(CURDATE())");
-    $current_year_births = $stmt->fetch()['count'] ?? 0;
+    // Current year totals (with certificate type filter)
+    $current_year_births = 0;
+    if ($certificate_type == 'all' || $certificate_type == 'birth') {
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_live_birth WHERE status = 'Active' AND YEAR(created_at) = YEAR(CURDATE())");
+        $current_year_births = $stmt->fetch()['count'] ?? 0;
+    }
 
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_marriage WHERE status = 'Active' AND YEAR(created_at) = YEAR(CURDATE())");
-    $current_year_marriages = $stmt->fetch()['count'] ?? 0;
+    $current_year_marriages = 0;
+    if ($certificate_type == 'all' || $certificate_type == 'marriage') {
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_marriage WHERE status = 'Active' AND YEAR(created_at) = YEAR(CURDATE())");
+        $current_year_marriages = $stmt->fetch()['count'] ?? 0;
+    }
 
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_death WHERE status = 'Active' AND YEAR(created_at) = YEAR(CURDATE())");
-    $current_year_deaths = $stmt->fetch()['count'] ?? 0;
+    $current_year_deaths = 0;
+    if ($certificate_type == 'all' || $certificate_type == 'death') {
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_death WHERE status = 'Active' AND YEAR(created_at) = YEAR(CURDATE())");
+        $current_year_deaths = $stmt->fetch()['count'] ?? 0;
+    }
 
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM application_for_marriage_license WHERE status = 'Active' AND YEAR(created_at) = YEAR(CURDATE())");
-    $current_year_licenses = $stmt->fetch()['count'] ?? 0;
+    $current_year_licenses = 0;
+    if ($certificate_type == 'all' || $certificate_type == 'license') {
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM application_for_marriage_license WHERE status = 'Active' AND YEAR(created_at) = YEAR(CURDATE())");
+        $current_year_licenses = $stmt->fetch()['count'] ?? 0;
+    }
 
-    // Previous year totals
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_live_birth WHERE status = 'Active' AND YEAR(created_at) = YEAR(CURDATE()) - 1");
-    $previous_year_births = $stmt->fetch()['count'] ?? 0;
+    // Previous year totals (with certificate type filter)
+    $previous_year_births = 0;
+    if ($certificate_type == 'all' || $certificate_type == 'birth') {
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_live_birth WHERE status = 'Active' AND YEAR(created_at) = YEAR(CURDATE()) - 1");
+        $previous_year_births = $stmt->fetch()['count'] ?? 0;
+    }
 
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_marriage WHERE status = 'Active' AND YEAR(created_at) = YEAR(CURDATE()) - 1");
-    $previous_year_marriages = $stmt->fetch()['count'] ?? 0;
+    $previous_year_marriages = 0;
+    if ($certificate_type == 'all' || $certificate_type == 'marriage') {
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_marriage WHERE status = 'Active' AND YEAR(created_at) = YEAR(CURDATE()) - 1");
+        $previous_year_marriages = $stmt->fetch()['count'] ?? 0;
+    }
 
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_death WHERE status = 'Active' AND YEAR(created_at) = YEAR(CURDATE()) - 1");
-    $previous_year_deaths = $stmt->fetch()['count'] ?? 0;
+    $previous_year_deaths = 0;
+    if ($certificate_type == 'all' || $certificate_type == 'death') {
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_death WHERE status = 'Active' AND YEAR(created_at) = YEAR(CURDATE()) - 1");
+        $previous_year_deaths = $stmt->fetch()['count'] ?? 0;
+    }
 
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM application_for_marriage_license WHERE status = 'Active' AND YEAR(created_at) = YEAR(CURDATE()) - 1");
-    $previous_year_licenses = $stmt->fetch()['count'] ?? 0;
+    $previous_year_licenses = 0;
+    if ($certificate_type == 'all' || $certificate_type == 'license') {
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM application_for_marriage_license WHERE status = 'Active' AND YEAR(created_at) = YEAR(CURDATE()) - 1");
+        $previous_year_licenses = $stmt->fetch()['count'] ?? 0;
+    }
 
     $yearly_comparison = [
         'current_year' => $current_year,
@@ -273,16 +363,30 @@ try {
         $date = date('Y-m-d', strtotime("-$i days"));
         $day_label = date('M d', strtotime("-$i days"));
 
-        // Total registrations per day
-        $stmt = $pdo->prepare("
-            SELECT
-                (SELECT COUNT(*) FROM certificate_of_live_birth WHERE status = 'Active' AND DATE(created_at) = ?) +
-                (SELECT COUNT(*) FROM certificate_of_marriage WHERE status = 'Active' AND DATE(created_at) = ?) +
-                (SELECT COUNT(*) FROM certificate_of_death WHERE status = 'Active' AND DATE(created_at) = ?) +
-                (SELECT COUNT(*) FROM application_for_marriage_license WHERE status = 'Active' AND DATE(created_at) = ?) as total
-        ");
-        $stmt->execute([$date, $date, $date, $date]);
-        $total = $stmt->fetch()['total'] ?? 0;
+        // Build query based on certificate type filter
+        $query_parts = [];
+        if ($certificate_type == 'all' || $certificate_type == 'birth') {
+            $query_parts[] = "(SELECT COUNT(*) FROM certificate_of_live_birth WHERE status = 'Active' AND DATE(created_at) = ?)";
+        }
+        if ($certificate_type == 'all' || $certificate_type == 'marriage') {
+            $query_parts[] = "(SELECT COUNT(*) FROM certificate_of_marriage WHERE status = 'Active' AND DATE(created_at) = ?)";
+        }
+        if ($certificate_type == 'all' || $certificate_type == 'death') {
+            $query_parts[] = "(SELECT COUNT(*) FROM certificate_of_death WHERE status = 'Active' AND DATE(created_at) = ?)";
+        }
+        if ($certificate_type == 'all' || $certificate_type == 'license') {
+            $query_parts[] = "(SELECT COUNT(*) FROM application_for_marriage_license WHERE status = 'Active' AND DATE(created_at) = ?)";
+        }
+
+        if (count($query_parts) > 0) {
+            $query = "SELECT " . implode(" + ", $query_parts) . " as total";
+            $params = array_fill(0, count($query_parts), $date);
+            $stmt = $pdo->prepare($query);
+            $stmt->execute($params);
+            $total = $stmt->fetch()['total'] ?? 0;
+        } else {
+            $total = 0;
+        }
 
         $daily_registrations[] = [
             'date' => $day_label,
@@ -294,28 +398,41 @@ try {
     // TOP LOCATIONS (Places of birth/marriage/death)
     // =====================================================
 
-    $stmt = $pdo->query("
-        SELECT place, SUM(count) as total FROM (
-            SELECT child_place_of_birth as place, COUNT(*) as count
-            FROM certificate_of_live_birth
-            WHERE status = 'Active' AND child_place_of_birth IS NOT NULL
-            GROUP BY child_place_of_birth
-            UNION ALL
-            SELECT place_of_marriage as place, COUNT(*) as count
-            FROM certificate_of_marriage
-            WHERE status = 'Active' AND place_of_marriage IS NOT NULL
-            GROUP BY place_of_marriage
-            UNION ALL
-            SELECT place_of_death as place, COUNT(*) as count
-            FROM certificate_of_death
-            WHERE status = 'Active' AND place_of_death IS NOT NULL
-            GROUP BY place_of_death
-        ) as combined
-        GROUP BY place
-        ORDER BY total DESC
-        LIMIT 10
-    ");
-    $top_locations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Build UNION query based on certificate type filter
+    $location_queries = [];
+    if ($certificate_type == 'all' || $certificate_type == 'birth') {
+        $location_queries[] = "SELECT child_place_of_birth as place, COUNT(*) as count
+                               FROM certificate_of_live_birth
+                               WHERE status = 'Active' AND child_place_of_birth IS NOT NULL AND $date_condition
+                               GROUP BY child_place_of_birth";
+    }
+    if ($certificate_type == 'all' || $certificate_type == 'marriage') {
+        $location_queries[] = "SELECT place_of_marriage as place, COUNT(*) as count
+                               FROM certificate_of_marriage
+                               WHERE status = 'Active' AND place_of_marriage IS NOT NULL AND $date_condition
+                               GROUP BY place_of_marriage";
+    }
+    if ($certificate_type == 'all' || $certificate_type == 'death') {
+        $location_queries[] = "SELECT place_of_death as place, COUNT(*) as count
+                               FROM certificate_of_death
+                               WHERE status = 'Active' AND place_of_death IS NOT NULL AND $date_condition
+                               GROUP BY place_of_death";
+    }
+
+    if (count($location_queries) > 0) {
+        $combined_query = "
+            SELECT place, SUM(count) as total FROM (
+                " . implode(" UNION ALL ", $location_queries) . "
+            ) as combined
+            GROUP BY place
+            ORDER BY total DESC
+            LIMIT 10
+        ";
+        $stmt = $pdo->query($combined_query);
+        $top_locations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } else {
+        $top_locations = [];
+    }
 
     // =====================================================
     // RECORD STATUS SUMMARY
@@ -463,12 +580,13 @@ $user_first_name = explode(' ', $user_name)[0];
             width: 48px;
             height: 48px;
             border-radius: 12px;
-            background: linear-gradient(135deg, var(--md-primary), #8B5CF6);
+            background: #f0f4ff;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
+            color: var(--md-primary);
             font-size: 1.25rem;
+            border: 2px solid #e0e7ff;
         }
 
         .page-subtitle {
@@ -518,6 +636,168 @@ $user_first_name = explode(' ', $user_name)[0];
             background: var(--bg-primary);
             border-color: var(--md-primary);
             color: var(--md-primary);
+        }
+
+        /* Filter Controls */
+        .filter-controls {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 28px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .filter-section {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr 1fr 1fr auto;
+            gap: 16px;
+            align-items: end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .filter-label {
+            font-size: 0.6875rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 2px;
+        }
+
+        .filter-label i {
+            width: 15px;
+            height: 15px;
+            color: #6750A4;
+        }
+
+        .filter-select {
+            padding: 11px 16px;
+            padding-right: 36px;
+            border: 1.5px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-family: inherit;
+            background: white;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 12px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+        }
+
+        .filter-select:hover {
+            border-color: #94a3b8;
+            background-color: #f8fafc;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--md-primary);
+            background-color: white;
+            box-shadow: 0 0 0 3px rgba(103, 80, 164, 0.1);
+        }
+
+        .date-range-inputs {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: nowrap;
+        }
+
+        .date-input {
+            flex: 1;
+            min-width: 135px;
+            padding: 11px 14px;
+            padding-right: 10px;
+            border: 1.5px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-family: inherit;
+            background: white;
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+            font-weight: 500;
+            line-height: 1.5;
+        }
+
+        .date-input::-webkit-calendar-picker-indicator {
+            margin-left: 6px;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s ease;
+        }
+
+        .date-input:hover::-webkit-calendar-picker-indicator {
+            opacity: 1;
+        }
+
+        .date-input:hover {
+            border-color: #94a3b8;
+            background-color: #f8fafc;
+        }
+
+        .date-input:focus {
+            outline: none;
+            border-color: var(--md-primary);
+            background-color: white;
+            box-shadow: 0 0 0 3px rgba(103, 80, 164, 0.1);
+        }
+
+        .date-separator {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .btn-apply-filters {
+            padding: 11px 28px;
+            background: var(--md-primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(103, 80, 164, 0.25);
+            white-space: nowrap;
+            align-self: flex-end;
+        }
+
+        .btn-apply-filters:hover {
+            background: #5a47a1;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(103, 80, 164, 0.35);
+        }
+
+        .btn-apply-filters:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(103, 80, 164, 0.25);
+        }
+
+        .btn-apply-filters i {
+            width: 18px;
+            height: 18px;
         }
 
         /* Summary Stats Grid */
@@ -892,35 +1172,58 @@ $user_first_name = explode(' ', $user_name)[0];
 
         /* Quick Stats Bar */
         .quick-stats-bar {
-            background: linear-gradient(135deg, var(--md-primary), #8B5CF6);
+            background: white;
             border-radius: 12px;
-            padding: 24px 32px;
+            padding: 0;
             margin-bottom: 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            color: white;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
         .quick-stat {
+            padding: 28px 24px;
             text-align: center;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        .quick-stat:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 1px;
+            height: 50%;
+            background: var(--border-color);
+        }
+
+        .quick-stat:hover {
+            background: #f9fafb;
         }
 
         .quick-stat-value {
-            font-size: 2rem;
+            font-size: 2.5rem;
             font-weight: 700;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
+            color: var(--text-primary);
+            line-height: 1;
         }
 
         .quick-stat-label {
-            font-size: 0.875rem;
-            opacity: 0.9;
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .quick-stat-divider {
-            width: 1px;
-            height: 60px;
-            background: rgba(255, 255, 255, 0.3);
+            display: none;
         }
 
         /* Export Section */
@@ -1058,6 +1361,15 @@ $user_first_name = explode(' ', $user_name)[0];
             .export-options {
                 grid-template-columns: repeat(2, 1fr);
             }
+
+            .filter-section {
+                grid-template-columns: 1fr 1fr;
+                gap: 16px;
+            }
+
+            .btn-apply-filters {
+                grid-column: span 2;
+            }
         }
 
         @media (max-width: 992px) {
@@ -1067,6 +1379,23 @@ $user_first_name = explode(' ', $user_name)[0];
 
             .secondary-charts-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .quick-stats-bar {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .filter-section {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .btn-apply-filters {
+                grid-column: 1;
+            }
+
+            .date-range-inputs {
+                flex-wrap: wrap;
             }
         }
 
@@ -1091,14 +1420,29 @@ $user_first_name = explode(' ', $user_name)[0];
             }
 
             .quick-stats-bar {
-                flex-direction: column;
-                gap: 20px;
-                text-align: center;
+                grid-template-columns: 1fr;
             }
 
-            .quick-stat-divider {
+            .quick-stat:not(:last-child)::after {
+                display: none;
+            }
+
+            .btn-apply-filters {
                 width: 100%;
-                height: 1px;
+            }
+
+            .date-range-inputs {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .date-input {
+                width: 100%;
+                min-width: unset;
+            }
+
+            .date-separator {
+                text-align: center;
             }
 
             .comparison-grid {
@@ -1107,11 +1451,6 @@ $user_first_name = explode(' ', $user_name)[0];
 
             .export-options {
                 grid-template-columns: 1fr;
-            }
-
-            .date-range-picker {
-                flex-direction: column;
-                gap: 8px;
             }
         }
 
@@ -1151,12 +1490,6 @@ $user_first_name = explode(' ', $user_name)[0];
                     </div>
                 </div>
                 <div class="header-actions">
-                    <div class="date-range-picker">
-                        <i data-lucide="calendar" style="width: 18px; height: 18px; color: var(--text-secondary);"></i>
-                        <input type="date" id="dateFrom" value="<?php echo date('Y-m-01'); ?>">
-                        <span>to</span>
-                        <input type="date" id="dateTo" value="<?php echo date('Y-m-d'); ?>">
-                    </div>
                     <button class="btn btn-outline" onclick="refreshData()">
                         <i data-lucide="refresh-cw"></i>
                         Refresh
@@ -1164,6 +1497,68 @@ $user_first_name = explode(' ', $user_name)[0];
                     <button class="btn btn-primary" onclick="window.print()">
                         <i data-lucide="printer"></i>
                         Print Report
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filter & Sort Controls -->
+            <div class="filter-controls">
+                <div class="filter-section">
+                    <div class="filter-group">
+                        <label class="filter-label">
+                            <i data-lucide="calendar"></i>
+                            Date Range
+                        </label>
+                        <div class="date-range-inputs">
+                            <input type="date" id="dateFrom" class="date-input" value="<?php echo date('Y-m-01'); ?>">
+                            <span class="date-separator">to</span>
+                            <input type="date" id="dateTo" class="date-input" value="<?php echo date('Y-m-d'); ?>">
+                        </div>
+                    </div>
+
+                    <div class="filter-group">
+                        <label class="filter-label">
+                            <i data-lucide="filter"></i>
+                            Certificate Type
+                        </label>
+                        <select id="certificateFilter" class="filter-select">
+                            <option value="all">All Certificates</option>
+                            <option value="birth">Birth Certificates</option>
+                            <option value="marriage">Marriage Certificates</option>
+                            <option value="death">Death Certificates</option>
+                            <option value="license">Marriage Licenses</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label class="filter-label">
+                            <i data-lucide="trending-up"></i>
+                            Time Period
+                        </label>
+                        <select id="periodFilter" class="filter-select">
+                            <option value="month">This Month</option>
+                            <option value="quarter">This Quarter</option>
+                            <option value="year">This Year</option>
+                            <option value="all">All Time</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label class="filter-label">
+                            <i data-lucide="bar-chart-2"></i>
+                            Sort By
+                        </label>
+                        <select id="sortBy" class="filter-select">
+                            <option value="date-desc">Date (Newest First)</option>
+                            <option value="date-asc">Date (Oldest First)</option>
+                            <option value="count-desc">Count (High to Low)</option>
+                            <option value="count-asc">Count (Low to High)</option>
+                        </select>
+                    </div>
+
+                    <button class="btn-apply-filters" onclick="applyFilters()">
+                        <i data-lucide="check-circle"></i>
+                        Apply Filters
                     </button>
                 </div>
             </div>
@@ -1472,19 +1867,19 @@ $user_first_name = explode(' ', $user_name)[0];
                     </div>
                 </div>
 
-                <!-- Age Demographics (Deaths) -->
+                <!-- Marriage Nature Distribution -->
                 <div class="chart-card">
                     <div class="chart-header">
                         <div>
                             <h3 class="chart-title">
-                                <i class="fas fa-users"></i>
-                                Age Demographics
+                                <i class="fas fa-church"></i>
+                                Marriage Solemnization
                             </h3>
-                            <p class="chart-subtitle">Death records by age group</p>
+                            <p class="chart-subtitle">Marriage ceremony types</p>
                         </div>
                     </div>
                     <div class="chart-container small">
-                        <canvas id="ageChart"></canvas>
+                        <canvas id="marriageNatureChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -1960,57 +2355,86 @@ $user_first_name = explode(' ', $user_name)[0];
             genderCtx.fillText('No gender data available', genderCtx.canvas.width / 2, genderCtx.canvas.height / 2);
         }
 
-        // Age Demographics Chart
-        const ageCtx = document.getElementById('ageChart').getContext('2d');
-        const ageData = <?php echo json_encode($age_demographics); ?>;
+        // Marriage Nature of Solemnization Chart
+        const marriageNatureCtx = document.getElementById('marriageNatureChart').getContext('2d');
+        const marriageNatureData = <?php echo json_encode($marriage_nature_distribution); ?>;
 
-        if (ageData.length > 0) {
-            new Chart(ageCtx, {
-                type: 'bar',
+        const natureLabels = marriageNatureData.map(n => n.nature_of_solemnization || 'Unknown');
+        const natureValues = marriageNatureData.map(n => parseInt(n.count));
+        const natureColors = natureLabels.map(label => {
+            if (label === 'Church') return '#9C27B0';
+            if (label === 'Civil') return '#2196F3';
+            if (label === 'Other Religious Sect') return '#FF9800';
+            return '#9CA3AF';
+        });
+
+        if (natureValues.length > 0 && natureValues.some(v => v > 0)) {
+            new Chart(marriageNatureCtx, {
+                type: 'doughnut',
                 data: {
-                    labels: ageData.map(a => a.age_group),
+                    labels: natureLabels,
                     datasets: [{
-                        label: 'Deaths by Age Group',
-                        data: ageData.map(a => parseInt(a.count)),
-                        backgroundColor: [
-                            'rgba(239, 68, 68, 0.7)',
-                            'rgba(249, 115, 22, 0.7)',
-                            'rgba(234, 179, 8, 0.7)',
-                            'rgba(34, 197, 94, 0.7)',
-                            'rgba(59, 130, 246, 0.7)',
-                            'rgba(139, 92, 246, 0.7)'
-                        ],
-                        borderColor: ['#EF4444', '#F97316', '#EAB308', '#22C55E', '#3B82F6', '#8B5CF6'],
-                        borderWidth: 1,
-                        borderRadius: 6
+                        data: natureValues,
+                        backgroundColor: natureColors,
+                        borderWidth: 3,
+                        borderColor: '#ffffff',
+                        hoverOffset: 6
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    indexAxis: 'y',
+                    cutout: '60%',
                     plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        x: {
-                            beginAtZero: true,
-                            grid: { color: 'rgba(0, 0, 0, 0.05)', drawBorder: false },
-                            ticks: { font: { size: 10 } }
+                        legend: {
+                            position: 'bottom',
+                            labels: { usePointStyle: true, padding: 12, font: { size: 11 } }
                         },
-                        y: {
-                            grid: { display: false },
-                            ticks: { font: { size: 10 } }
+                        tooltip: {
+                            backgroundColor: 'rgba(31, 41, 55, 0.95)',
+                            padding: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
+                                    return `${context.label}: ${context.parsed.toLocaleString()} (${percentage}%)`;
+                                }
+                            }
                         }
                     },
                     animation: { duration: 1500 }
                 }
             });
         } else {
-            ageCtx.font = '14px Inter';
-            ageCtx.fillStyle = '#9ca3af';
-            ageCtx.textAlign = 'center';
-            ageCtx.fillText('No age data available', ageCtx.canvas.width / 2, ageCtx.canvas.height / 2);
+            // Show "No data available" message with icon
+            const canvas = marriageNatureCtx.canvas;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+
+            // Draw icon circle background
+            marriageNatureCtx.beginPath();
+            marriageNatureCtx.arc(centerX, centerY - 20, 30, 0, 2 * Math.PI);
+            marriageNatureCtx.fillStyle = '#f3f4f6';
+            marriageNatureCtx.fill();
+
+            // Draw icon text (church emoji or symbol)
+            marriageNatureCtx.font = '24px Arial';
+            marriageNatureCtx.fillStyle = '#9ca3af';
+            marriageNatureCtx.textAlign = 'center';
+            marriageNatureCtx.textBaseline = 'middle';
+            marriageNatureCtx.fillText('⛪', centerX, centerY - 20);
+
+            // Draw "No data available" text
+            marriageNatureCtx.font = '600 14px Inter, sans-serif';
+            marriageNatureCtx.fillStyle = '#6b7280';
+            marriageNatureCtx.textAlign = 'center';
+            marriageNatureCtx.textBaseline = 'top';
+            marriageNatureCtx.fillText('No Data Available', centerX, centerY + 25);
+
+            // Draw subtext
+            marriageNatureCtx.font = '12px Inter, sans-serif';
+            marriageNatureCtx.fillStyle = '#9ca3af';
+            marriageNatureCtx.fillText('Add marriage certificates to see distribution', centerX, centerY + 45);
         }
 
         // Export functionality
@@ -2036,6 +2460,90 @@ $user_first_name = explode(' ', $user_name)[0];
         function refreshData() {
             location.reload();
         }
+
+        // Apply filters function
+        function applyFilters() {
+            const dateFrom = document.getElementById('dateFrom').value;
+            const dateTo = document.getElementById('dateTo').value;
+            const certificateFilter = document.getElementById('certificateFilter').value;
+            const periodFilter = document.getElementById('periodFilter').value;
+            const sortBy = document.getElementById('sortBy').value;
+
+            // Build query parameters
+            const params = new URLSearchParams({
+                date_from: dateFrom,
+                date_to: dateTo,
+                certificate_type: certificateFilter,
+                period: periodFilter,
+                sort: sortBy
+            });
+
+            // Show loading indicator
+            const applyBtn = document.querySelector('.btn-apply-filters');
+            const originalHTML = applyBtn.innerHTML;
+            applyBtn.innerHTML = '<i data-lucide="loader" class="spin"></i> Applying...';
+            applyBtn.disabled = true;
+
+            // Reload with filters
+            setTimeout(() => {
+                window.location.href = `?${params.toString()}`;
+            }, 500);
+        }
+
+        // Auto-apply period filter
+        document.getElementById('periodFilter')?.addEventListener('change', function() {
+            const period = this.value;
+            const today = new Date();
+            let dateFrom, dateTo;
+
+            switch(period) {
+                case 'month':
+                    dateFrom = new Date(today.getFullYear(), today.getMonth(), 1);
+                    dateTo = today;
+                    break;
+                case 'quarter':
+                    const quarter = Math.floor(today.getMonth() / 3);
+                    dateFrom = new Date(today.getFullYear(), quarter * 3, 1);
+                    dateTo = today;
+                    break;
+                case 'year':
+                    dateFrom = new Date(today.getFullYear(), 0, 1);
+                    dateTo = today;
+                    break;
+                case 'all':
+                    dateFrom = new Date(2020, 0, 1); // Default start
+                    dateTo = today;
+                    break;
+            }
+
+            if (dateFrom && dateTo) {
+                document.getElementById('dateFrom').value = dateFrom.toISOString().split('T')[0];
+                document.getElementById('dateTo').value = dateTo.toISOString().split('T')[0];
+            }
+        });
+
+        // Restore filter values from URL parameters on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+
+            // Restore date range
+            const dateFrom = urlParams.get('date_from');
+            const dateTo = urlParams.get('date_to');
+            if (dateFrom) document.getElementById('dateFrom').value = dateFrom;
+            if (dateTo) document.getElementById('dateTo').value = dateTo;
+
+            // Restore certificate type
+            const certType = urlParams.get('certificate_type');
+            if (certType) document.getElementById('certificateFilter').value = certType;
+
+            // Restore period
+            const period = urlParams.get('period');
+            if (period) document.getElementById('periodFilter').value = period;
+
+            // Restore sort
+            const sort = urlParams.get('sort');
+            if (sort) document.getElementById('sortBy').value = sort;
+        });
     </script>
 </body>
 </html>

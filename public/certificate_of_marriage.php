@@ -1537,6 +1537,22 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 >
                             </div>
                         </div>
+
+                        <div class="form-group">
+                            <label for="nature_of_solemnization">
+                                Nature of Solemnization <span class="required">*</span>
+                            </label>
+                            <select id="nature_of_solemnization" name="nature_of_solemnization" required>
+                                <option value="">-- Select Type --</option>
+                                <?php
+                                $solemnization_types = ['Church', 'Civil', 'Other Religious Sect'];
+                                foreach ($solemnization_types as $type) {
+                                    $selected = ($edit_mode && isset($record['nature_of_solemnization']) && $record['nature_of_solemnization'] === $type) ? 'selected' : '';
+                                    echo "<option value='$type' $selected>$type</option>";
+                                }
+                                ?>
+                            </select>
+                        </div>
                     </div>
 
                     <!-- Action Buttons -->

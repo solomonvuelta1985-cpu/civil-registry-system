@@ -1116,7 +1116,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                 <!-- Form Type Indicator -->
                 <div class="form-type-indicator form-death">
                     <div class="form-type-icon">
-                        <i data-lucide="file-heart"></i>
+                        <i data-lucide="cross"></i>
                     </div>
                     <div class="form-type-info">
                         <h2 class="form-type-title">

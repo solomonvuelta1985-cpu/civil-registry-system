@@ -726,13 +726,53 @@ class CertificateFormHandler {
             formChanged = true;
         });
 
-        window.addEventListener('beforeunload', (e) => {
-            if (formChanged && !this.isSubmitting) {
+        // Intercept all link clicks (internal and external) to show Notiflix confirmation
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('a');
+
+            // Check if it's a link and there are unsaved changes
+            if (link && link.href && formChanged && !this.isSubmitting) {
                 e.preventDefault();
-                e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-                return e.returnValue;
+                e.stopPropagation();
+
+                const targetUrl = link.href;
+
+                if (typeof Notiflix !== 'undefined' && Notiflix.Confirm) {
+                    Notiflix.Confirm.show(
+                        'Unsaved Changes',
+                        'You have unsaved changes that will be lost. Are you sure you want to leave this page?',
+                        'Leave Page',
+                        'Stay',
+                        () => {
+                            // User confirmed - clear flag and navigate
+                            formChanged = false;
+                            window.location.href = targetUrl;
+                        },
+                        () => {
+                            // User chose to stay - do nothing
+                        },
+                        {
+                            width: '380px',
+                            borderRadius: '12px',
+                            titleColor: '#F59E0B',
+                            okButtonBackground: '#EF4444',
+                            okButtonColor: '#FFFFFF',
+                            cancelButtonBackground: '#6B7280',
+                            cancelButtonColor: '#FFFFFF',
+                        }
+                    );
+                } else {
+                    // Fallback to native confirm
+                    if (confirm('You have unsaved changes. Are you sure you want to leave this page?')) {
+                        formChanged = false;
+                        window.location.href = targetUrl;
+                    }
+                }
             }
         });
+
+        // NO beforeunload handler - we handle all navigation via click interception
+        // The native browser "Leave site?" dialog cannot be customized, so we remove it completely
 
         // Clear flag on successful submission
         this.form.addEventListener('submit', () => {

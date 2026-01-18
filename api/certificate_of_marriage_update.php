@@ -72,13 +72,14 @@ try {
     // Marriage Information
     $date_of_marriage = sanitize_input($_POST['date_of_marriage'] ?? '');
     $place_of_marriage = sanitize_input($_POST['place_of_marriage'] ?? '');
+    $nature_of_solemnization = sanitize_input($_POST['nature_of_solemnization'] ?? '');
 
     // Validation: Required fields
     if (empty($date_of_registration) || empty($husband_first_name) || empty($husband_last_name) ||
         empty($husband_date_of_birth) || empty($husband_place_of_birth) || empty($husband_residence) ||
         empty($wife_first_name) || empty($wife_last_name) ||
         empty($wife_date_of_birth) || empty($wife_place_of_birth) || empty($wife_residence) ||
-        empty($date_of_marriage) || empty($place_of_marriage)) {
+        empty($date_of_marriage) || empty($place_of_marriage) || empty($nature_of_solemnization)) {
         echo json_encode(['success' => false, 'message' => 'Please fill in all required fields.']);
         exit;
     }
@@ -161,6 +162,7 @@ try {
         wife_mother_residence = :wife_mother_residence,
         date_of_marriage = :date_of_marriage,
         place_of_marriage = :place_of_marriage,
+        nature_of_solemnization = :nature_of_solemnization,
         pdf_filename = :pdf_filename,
         pdf_filepath = :pdf_filepath,
         updated_by = :updated_by
@@ -195,6 +197,7 @@ try {
         ':wife_mother_residence' => $wife_mother_residence ?: null,
         ':date_of_marriage' => $date_of_marriage,
         ':place_of_marriage' => $place_of_marriage,
+        ':nature_of_solemnization' => $nature_of_solemnization,
         ':pdf_filename' => $pdf_filename,
         ':pdf_filepath' => $pdf_filepath,
         ':updated_by' => $updated_by,

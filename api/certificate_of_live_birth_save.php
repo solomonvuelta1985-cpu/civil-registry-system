@@ -27,6 +27,8 @@ try {
     $child_last_name = sanitize_input($_POST['child_last_name'] ?? '');
     $child_date_of_birth = sanitize_input($_POST['child_date_of_birth'] ?? '');
     $child_place_of_birth = sanitize_input($_POST['child_place_of_birth'] ?? '');
+    $child_sex = sanitize_input($_POST['child_sex'] ?? '');
+    $legitimacy_status = sanitize_input($_POST['legitimacy_status'] ?? '');
 
     $type_of_birth = sanitize_input($_POST['type_of_birth'] ?? '');
     $type_of_birth_other = sanitize_input($_POST['type_of_birth_other'] ?? null);
@@ -95,6 +97,14 @@ try {
         $errors[] = "Child's place of birth (Barangay/Hospital) is required.";
     }
 
+    if (empty($child_sex)) {
+        $errors[] = "Child's sex is required.";
+    }
+
+    if (empty($legitimacy_status)) {
+        $errors[] = "Legitimacy status is required.";
+    }
+
     // Validate PDF file upload
     if (!isset($_FILES['pdf_file']) || $_FILES['pdf_file']['error'] === UPLOAD_ERR_NO_FILE) {
         $errors[] = "PDF certificate is required.";
@@ -150,6 +160,8 @@ try {
                     child_last_name,
                     child_date_of_birth,
                     child_place_of_birth,
+                    child_sex,
+                    legitimacy_status,
                     type_of_birth,
                     type_of_birth_other,
                     birth_order,
@@ -174,6 +186,8 @@ try {
                     :child_last_name,
                     :child_date_of_birth,
                     :child_place_of_birth,
+                    :child_sex,
+                    :legitimacy_status,
                     :type_of_birth,
                     :type_of_birth_other,
                     :birth_order,
@@ -202,6 +216,8 @@ try {
             ':child_last_name' => $child_last_name,
             ':child_date_of_birth' => $child_date_of_birth,
             ':child_place_of_birth' => $child_place_of_birth,
+            ':child_sex' => $child_sex,
+            ':legitimacy_status' => $legitimacy_status,
             ':type_of_birth' => $type_of_birth,
             ':type_of_birth_other' => $type_of_birth_other,
             ':birth_order' => $birth_order,

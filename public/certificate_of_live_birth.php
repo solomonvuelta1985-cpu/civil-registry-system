@@ -1310,6 +1310,40 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 
                         <div class="form-row">
                             <div class="form-group">
+                                <label for="child_sex">
+                                    Sex <span class="required">*</span>
+                                </label>
+                                <select id="child_sex" name="child_sex" required>
+                                    <option value="">-- Select Sex --</option>
+                                    <?php
+                                    $sexes = ['Male', 'Female'];
+                                    foreach ($sexes as $sex) {
+                                        $selected = ($edit_mode && isset($record['child_sex']) && $record['child_sex'] === $sex) ? 'selected' : '';
+                                        echo "<option value='$sex' $selected>$sex</option>";
+                                    }
+                                    ?>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="legitimacy_status">
+                                    Legitimacy Status <span class="required">*</span>
+                                </label>
+                                <select id="legitimacy_status" name="legitimacy_status" required>
+                                    <option value="">-- Select Status --</option>
+                                    <?php
+                                    $statuses = ['Legitimate', 'Illegitimate'];
+                                    foreach ($statuses as $status) {
+                                        $selected = ($edit_mode && isset($record['legitimacy_status']) && $record['legitimacy_status'] === $status) ? 'selected' : '';
+                                        echo "<option value='$status' $selected>$status</option>";
+                                    }
+                                    ?>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
                                 <label for="type_of_birth">
                                     Type of Birth <span class="required">*</span>
                                 </label>

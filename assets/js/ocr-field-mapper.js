@@ -13,6 +13,7 @@ class OCRFieldMapper {
             'child_middle_name': 'child_middle_name',
             'child_last_name': 'child_last_name',
             'child_sex': 'child_sex',
+            'legitimacy_status': 'legitimacy_status',
             'child_date_of_birth': 'child_date_of_birth',
             'child_place_of_birth': 'child_place_of_birth',
             'type_of_birth': 'type_of_birth',

@@ -30,7 +30,7 @@
                 </div>
             </div>
             <div class="dropdown-divider"></div>
-            <a href="#" class="dropdown-item logout-item">
+            <a href="../public/logout.php" class="dropdown-item logout-item">
                 <i data-lucide="log-out"></i>
                 <span>Logout</span>
             </a>
