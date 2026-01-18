@@ -3,6 +3,11 @@ require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/security.php';
+require_once '../includes/security_headers.php';
+
+// Set security headers
+setSecurityHeaders();
 
 // Redirect if already logged in
 if (isLoggedIn()) {
@@ -10,29 +15,76 @@ if (isLoggedIn()) {
     exit;
 }
 
+// Check for session timeout
+$timeout_message = '';
+if (isset($_GET['timeout']) && $_GET['timeout'] == '1') {
+    $timeout_message = 'Your session has expired. Please login again.';
+}
+
 // Handle login submission
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = sanitize_input($_POST['username'] ?? '');
-    $password = $_POST['password'] ?? '';
+    // CSRF Protection
+    if (ENABLE_CSRF_PROTECTION) {
+        $csrf_token = $_POST['csrf_token'] ?? '';
+        if (!verifyCSRFToken($csrf_token)) {
+            $error = 'Invalid security token. Please refresh and try again.';
+            logSecurityEvent('CSRF_VALIDATION_FAILED', 'MEDIUM', 'CSRF token validation failed on login');
+        }
+    }
 
-    if (empty($username) || empty($password)) {
-        $error = 'Please enter both username and password.';
-    } else {
-        // Authenticate user from database
-        $user = authenticateUser($username, $password);
+    if (empty($error)) {
+        $username = sanitize_input($_POST['username'] ?? '');
+        $password = $_POST['password'] ?? '';
 
-        if ($user) {
-            // Set user session
-            setUserSession($user);
-
-            // Log the login activity
-            logActivity('login', 'auth', $user['id'], 'User logged in');
-
-            header('Location: ../admin/dashboard.php');
-            exit;
+        if (empty($username) || empty($password)) {
+            $error = 'Please enter both username and password.';
         } else {
-            $error = 'Invalid username or password.';
+            // Rate Limiting
+            if (ENABLE_RATE_LIMITING) {
+                $rate_limit_identifier = 'login_' . $username . '_' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+                $rate_limit_check = checkRateLimit($rate_limit_identifier, MAX_LOGIN_ATTEMPTS, RATE_LIMIT_WINDOW);
+
+                if (!$rate_limit_check['allowed']) {
+                    $error = $rate_limit_check['message'];
+                    logSecurityEvent('RATE_LIMIT_EXCEEDED', 'MEDIUM', "Rate limit exceeded for user: {$username}");
+                } else {
+                    // Authenticate user from database
+                    $user = authenticateUser($username, $password);
+
+                    if ($user) {
+                        // Clear rate limit on successful login
+                        clearRateLimit($rate_limit_identifier);
+
+                        // Set user session
+                        setUserSession($user);
+
+                        // Log the login activity
+                        logActivity('login', 'auth', $user['id'], 'User logged in');
+                        logSecurityEvent('LOGIN_SUCCESS', 'LOW', "Successful login for user: {$username}", $user['id']);
+
+                        header('Location: ../admin/dashboard.php');
+                        exit;
+                    } else {
+                        $error = 'Invalid username or password.';
+                        logSecurityEvent('LOGIN_FAILED', 'MEDIUM', "Failed login attempt for user: {$username}");
+                    }
+                }
+            } else {
+                // No rate limiting - direct authentication
+                $user = authenticateUser($username, $password);
+
+                if ($user) {
+                    setUserSession($user);
+                    logActivity('login', 'auth', $user['id'], 'User logged in');
+                    logSecurityEvent('LOGIN_SUCCESS', 'LOW', "Successful login for user: {$username}", $user['id']);
+                    header('Location: ../admin/dashboard.php');
+                    exit;
+                } else {
+                    $error = 'Invalid username or password.';
+                    logSecurityEvent('LOGIN_FAILED', 'MEDIUM', "Failed login attempt for user: {$username}");
+                }
+            }
         }
     }
 }
@@ -536,11 +588,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <h2 class="welcome-title">Welcome Back</h2>
                 <p class="welcome-subtitle">Please login to continue</p>
 
+                <?php if ($timeout_message): ?>
+                    <div class="alert" style="background: #fff3cd; color: #856404; border-left-color: #ffc107;">
+                        <?php echo htmlspecialchars($timeout_message); ?>
+                    </div>
+                <?php endif; ?>
+
                 <?php if ($error): ?>
                     <div class="alert"><?php echo htmlspecialchars($error); ?></div>
                 <?php endif; ?>
 
                 <form method="POST" action="" id="loginForm">
+                    <?php if (ENABLE_CSRF_PROTECTION): ?>
+                        <?php echo csrfTokenField(); ?>
+                    <?php endif; ?>
                     <div class="input-group">
                         <input type="text" name="username" class="form-input" placeholder="Username"
                                value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>" required autofocus>

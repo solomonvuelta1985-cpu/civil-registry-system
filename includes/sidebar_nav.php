@@ -92,6 +92,11 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </a>
         </li>
         <li>
+            <a href="../admin/security_logs.php" class="<?php echo $current_page == 'security_logs.php' ? 'active' : ''; ?>" title="Security Event Logs">
+                <i data-lucide="shield-alert"></i> <span>Security Logs</span>
+            </a>
+        </li>
+        <li>
             <a href="../admin/settings.php" class="<?php echo $current_page == 'settings.php' ? 'active' : ''; ?>" title="System Configuration">
                 <i data-lucide="settings"></i> <span>Settings</span>
             </a>

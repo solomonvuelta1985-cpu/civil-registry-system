@@ -477,7 +477,7 @@ function get_field_value($record, $field, $type = 'text') {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background-color: #F9FAFB;
             color: #111827;
-            font-size: 14px;
+            font-size: clamp(0.8rem, 1.5vw, 0.875rem);
             line-height: 1.5;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;

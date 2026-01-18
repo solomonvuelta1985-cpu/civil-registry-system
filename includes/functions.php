@@ -10,6 +10,12 @@ function sanitize_input($data) {
     if (is_array($data)) {
         return array_map('sanitize_input', $data);
     }
+
+    // Handle null values - return empty string or null based on preference
+    if ($data === null) {
+        return null;
+    }
+
     $data = trim($data);
     $data = stripslashes($data);
     $data = htmlspecialchars($data, ENT_QUOTES, 'UTF-8');

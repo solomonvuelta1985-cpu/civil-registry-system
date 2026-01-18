@@ -38,6 +38,7 @@ class CertificateFormHandler {
         this.setupResetConfirmation();
         this.setupAutoSave();
         this.setupBeforeUnload();
+        this.setupRegistryNumberCheck();
     }
 
     /**
@@ -230,6 +231,15 @@ class CertificateFormHandler {
                 return;
             }
 
+            // Check for duplicate registry number before submitting
+            const registryNoInput = this.form.querySelector('[name="registry_no"]');
+            if (registryNoInput && registryNoInput.value.trim()) {
+                const isDuplicate = await this.checkDuplicateRegistry(registryNoInput.value.trim(), isEditMode);
+                if (isDuplicate) {
+                    return; // Stop submission if duplicate found
+                }
+            }
+
             this.isSubmitting = true;
 
             // Show loading state
@@ -311,8 +321,14 @@ class CertificateFormHandler {
         this.clearAutoSave();
 
         if (addNew) {
-            // Show success message
-            this.showAlert('success', `${message} Ready to create another record.`);
+            if (typeof Notiflix !== 'undefined' && Notiflix.Notify) {
+                Notiflix.Notify.success(`${message} Ready to create another record.`, {
+                    timeout: 3000,
+                    position: 'right-top',
+                });
+            } else {
+                this.showAlert('success', `${message} Ready to create another record.`);
+            }
 
             // Reset form
             this.form.reset();
@@ -329,7 +345,6 @@ class CertificateFormHandler {
             // Show success with redirect countdown
             const isUpdate = this.form.querySelector('[name="record_id"]')?.value;
             const action = isUpdate ? 'updated' : 'created';
-            this.showAlert('success', `Certificate ${action} successfully! Redirecting to records page in 3 seconds...`);
 
             // Determine the correct redirect URL based on record type
             const redirectUrls = {
@@ -341,10 +356,35 @@ class CertificateFormHandler {
 
             const redirectUrl = redirectUrls[this.formType] || '/iscan/admin/dashboard.php';
 
-            // Redirect after 3 seconds
-            setTimeout(() => {
-                window.location.href = redirectUrl;
-            }, 3000);
+            if (typeof Notiflix !== 'undefined' && Notiflix.Report) {
+                Notiflix.Report.success(
+                    'Success!',
+                    `Certificate ${action} successfully! Redirecting to records page...`,
+                    'Okay',
+                    () => {
+                        window.location.href = redirectUrl;
+                    },
+                    {
+                        width: '360px',
+                        borderRadius: '12px',
+                        svgSize: '80px',
+                        messageMaxLength: 500,
+                        plainText: false,
+                        backOverlay: true,
+                    }
+                );
+
+                // Auto-redirect after 3 seconds
+                setTimeout(() => {
+                    window.location.href = redirectUrl;
+                }, 3000);
+            } else {
+                this.showAlert('success', `Certificate ${action} successfully! Redirecting to records page in 3 seconds...`);
+
+                setTimeout(() => {
+                    window.location.href = redirectUrl;
+                }, 3000);
+            }
         }
     }
 
@@ -480,7 +520,23 @@ class CertificateFormHandler {
 
         const fileURL = URL.createObjectURL(file);
         this.pdfPreview.src = fileURL;
-        this.pdfPreview.style.display = 'block';
+
+        // Hide upload area and show preview area
+        const uploadArea = document.getElementById('pdfUploadArea');
+        const previewArea = document.getElementById('pdfPreviewArea');
+        const pdfFileName = document.getElementById('pdfFileName');
+
+        if (uploadArea) {
+            uploadArea.classList.add('hidden');
+        }
+
+        if (previewArea) {
+            previewArea.classList.remove('hidden');
+        }
+
+        if (pdfFileName) {
+            pdfFileName.textContent = file.name;
+        }
     }
 
     /**
@@ -489,7 +545,23 @@ class CertificateFormHandler {
     clearPDFPreview() {
         if (this.pdfPreview) {
             this.pdfPreview.src = '';
-            this.pdfPreview.style.display = 'none';
+        }
+
+        // Show upload area and hide preview area
+        const uploadArea = document.getElementById('pdfUploadArea');
+        const previewArea = document.getElementById('pdfPreviewArea');
+        const pdfFileName = document.getElementById('pdfFileName');
+
+        if (uploadArea) {
+            uploadArea.classList.remove('hidden');
+        }
+
+        if (previewArea) {
+            previewArea.classList.add('hidden');
+        }
+
+        if (pdfFileName) {
+            pdfFileName.textContent = '';
         }
     }
 
@@ -621,9 +693,12 @@ class CertificateFormHandler {
         const autoSaveKey = `cert_form_autosave_${this.formType}`;
         let autoSaveTimeout;
 
-        // Load autosaved data
+        // Check if we're in edit mode
+        const isEditMode = this.form.querySelector('input[name="record_id"]')?.value;
+
+        // Load autosaved data ONLY if NOT in edit mode
         const savedData = localStorage.getItem(autoSaveKey);
-        if (savedData) {
+        if (savedData && !isEditMode) {
             try {
                 const data = JSON.parse(savedData);
 
@@ -669,15 +744,20 @@ class CertificateFormHandler {
             } catch (e) {
                 console.error('Error restoring autosaved data:', e);
             }
+        } else if (savedData && isEditMode) {
+            // In edit mode, silently clear any autosaved data to prevent confusion
+            localStorage.removeItem(autoSaveKey);
         }
 
-        // Autosave on input
-        this.form.addEventListener('input', () => {
-            clearTimeout(autoSaveTimeout);
-            autoSaveTimeout = setTimeout(() => {
-                this.saveFormData(autoSaveKey);
-            }, 2000); // Save after 2 seconds of inactivity
-        });
+        // Autosave on input ONLY if NOT in edit mode
+        if (!isEditMode) {
+            this.form.addEventListener('input', () => {
+                clearTimeout(autoSaveTimeout);
+                autoSaveTimeout = setTimeout(() => {
+                    this.saveFormData(autoSaveKey);
+                }, 2000); // Save after 2 seconds of inactivity
+            });
+        }
     }
 
     /**
@@ -726,14 +806,14 @@ class CertificateFormHandler {
             formChanged = true;
         });
 
-        // Intercept all link clicks (internal and external) to show Notiflix confirmation
+        // Intercept all link clicks - use capture phase to catch early
         document.addEventListener('click', (e) => {
             const link = e.target.closest('a');
 
             // Check if it's a link and there are unsaved changes
             if (link && link.href && formChanged && !this.isSubmitting) {
                 e.preventDefault();
-                e.stopPropagation();
+                e.stopImmediatePropagation();
 
                 const targetUrl = link.href;
 
@@ -746,7 +826,10 @@ class CertificateFormHandler {
                         () => {
                             // User confirmed - clear flag and navigate
                             formChanged = false;
-                            window.location.href = targetUrl;
+                            // Use a small delay to ensure flag is cleared before navigation
+                            setTimeout(() => {
+                                window.location.href = targetUrl;
+                            }, 50);
                         },
                         () => {
                             // User chose to stay - do nothing
@@ -765,19 +848,218 @@ class CertificateFormHandler {
                     // Fallback to native confirm
                     if (confirm('You have unsaved changes. Are you sure you want to leave this page?')) {
                         formChanged = false;
-                        window.location.href = targetUrl;
+                        setTimeout(() => {
+                            window.location.href = targetUrl;
+                        }, 50);
                     }
                 }
             }
-        });
-
-        // NO beforeunload handler - we handle all navigation via click interception
-        // The native browser "Leave site?" dialog cannot be customized, so we remove it completely
+        }, true); // Use capture phase
 
         // Clear flag on successful submission
         this.form.addEventListener('submit', () => {
             formChanged = false;
         });
+    }
+
+    /**
+     * Setup registry number duplicate check
+     */
+    setupRegistryNumberCheck() {
+        const registryNoInput = this.form.querySelector('[name="registry_no"]');
+        if (!registryNoInput) {
+            console.warn('⚠️ Registry number input field not found in form');
+            return;
+        }
+
+        console.log('✅ Registry number duplicate check initialized for:', this.formType);
+
+        let checkTimeout;
+        let lastCheckedValue = '';
+
+        // Check on blur (immediate)
+        registryNoInput.addEventListener('blur', async () => {
+            const registryNo = registryNoInput.value.trim();
+            console.log('🔍 Blur event triggered, registry value:', registryNo);
+
+            if (!registryNo) {
+                // Clear validation if empty
+                registryNoInput.classList.remove('is-invalid');
+                registryNoInput.setAttribute('aria-invalid', 'false');
+                return;
+            }
+
+            // Skip if same value already checked
+            if (registryNo === lastCheckedValue) {
+                console.log('⏭️ Skipping check - already validated:', registryNo);
+                return;
+            }
+
+            lastCheckedValue = registryNo;
+            const isEditMode = this.form.querySelector('input[name="record_id"]')?.value;
+            console.log('🚀 Calling duplicate check - Edit mode:', !!isEditMode);
+            await this.checkDuplicateRegistry(registryNo, isEditMode, true);
+        });
+
+        // Also check on input with debounce for real-time feedback
+        registryNoInput.addEventListener('input', () => {
+            const registryNo = registryNoInput.value.trim();
+
+            if (!registryNo) {
+                // Clear validation if empty
+                registryNoInput.classList.remove('is-invalid');
+                registryNoInput.setAttribute('aria-invalid', 'false');
+                return;
+            }
+
+            // Clear previous timeout
+            clearTimeout(checkTimeout);
+
+            // Check after typing stops for 800ms
+            checkTimeout = setTimeout(async () => {
+                if (registryNo === lastCheckedValue) {
+                    console.log('⏭️ Skipping input check - already validated:', registryNo);
+                    return; // Skip if already checked
+                }
+
+                console.log('⌨️ Input debounce triggered for:', registryNo);
+                lastCheckedValue = registryNo;
+                const isEditMode = this.form.querySelector('input[name="record_id"]')?.value;
+                await this.checkDuplicateRegistry(registryNo, isEditMode, true);
+            }, 800);
+        });
+    }
+
+    /**
+     * Check if registry number already exists
+     * @param {string} registryNo - The registry number to check
+     * @param {string} recordId - Current record ID (for edit mode)
+     * @param {boolean} showWarningOnly - If true, only show warning without blocking
+     * @returns {boolean} - True if duplicate found, false otherwise
+     */
+    async checkDuplicateRegistry(registryNo, recordId = null, showWarningOnly = false) {
+        if (!registryNo) return false;
+
+        try {
+            const formData = new FormData();
+            formData.append('registry_no', registryNo);
+            formData.append('record_type', this.formType);
+            if (recordId) {
+                formData.append('record_id', recordId);
+            }
+
+            console.log('Checking duplicate registry:', {
+                registryNo,
+                formType: this.formType,
+                recordId,
+                showWarningOnly
+            });
+
+            const response = await fetch('../api/check_duplicate_registry.php', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            console.log('Duplicate check response:', data);
+
+            if (data.data && data.data.exists) {
+                // Duplicate found
+                console.log('❌ DUPLICATE FOUND:', registryNo, 'Record ID:', data.data.record_id);
+                const registryInput = this.form.querySelector('[name="registry_no"]');
+
+                if (showWarningOnly) {
+                    // Just show a warning notification on blur
+                    console.log('⚠️ Attempting to show warning notification...');
+                    console.log('Notiflix available:', typeof Notiflix !== 'undefined');
+                    console.log('Notiflix.Notify available:', typeof Notiflix !== 'undefined' && !!Notiflix.Notify);
+
+                    if (typeof Notiflix !== 'undefined' && Notiflix.Notify) {
+                        console.log('✅ Showing Notiflix warning notification');
+                        Notiflix.Notify.warning(
+                            `Registry number "${registryNo}" already exists in the records.`,
+                            {
+                                timeout: 4000,
+                                position: 'right-top',
+                            }
+                        );
+                    } else {
+                        console.error('❌ Notiflix.Notify is NOT available!');
+                        alert(`Warning: Registry number "${registryNo}" already exists in the records.`);
+                    }
+
+                    // Mark field as invalid
+                    if (registryInput) {
+                        registryInput.classList.add('is-invalid');
+                        registryInput.setAttribute('aria-invalid', 'true');
+                        console.log('🔴 Marked input field as invalid');
+                    }
+                } else {
+                    // Show blocking alert on form submission
+                    console.log('🚫 Attempting to show blocking alert...');
+                    console.log('Notiflix available:', typeof Notiflix !== 'undefined');
+                    console.log('Notiflix.Report available:', typeof Notiflix !== 'undefined' && !!Notiflix.Report);
+
+                    if (typeof Notiflix !== 'undefined' && Notiflix.Report) {
+                        console.log('✅ Showing Notiflix report dialog');
+                        Notiflix.Report.warning(
+                            'Duplicate Registry Number',
+                            `The registry number "${registryNo}" already exists in the records. Please use a different registry number or leave it blank for auto-generation.`,
+                            'Okay',
+                            () => {
+                                // Focus on the registry number field
+                                if (registryInput) {
+                                    registryInput.focus();
+                                    registryInput.select();
+                                }
+                            },
+                            {
+                                width: '400px',
+                                borderRadius: '12px',
+                                svgSize: '80px',
+                                messageMaxLength: 500,
+                                plainText: false,
+                                backOverlay: true,
+                            }
+                        );
+                    } else {
+                        console.error('❌ Notiflix.Report is NOT available! Using fallback alert.');
+                        this.showAlert('warning', `Registry number "${registryNo}" already exists in the records. Please use a different registry number.`);
+                        if (registryInput) {
+                            registryInput.focus();
+                            registryInput.select();
+                        }
+                    }
+
+                    // Mark field as invalid
+                    if (registryInput) {
+                        registryInput.classList.add('is-invalid');
+                        registryInput.setAttribute('aria-invalid', 'true');
+                        console.log('🔴 Marked input field as invalid');
+                    }
+                }
+
+                return true; // Duplicate found
+            } else {
+                // No duplicate - clear any invalid state
+                console.log('✅ No duplicate found for:', registryNo);
+                const registryInput = this.form.querySelector('[name="registry_no"]');
+                if (registryInput) {
+                    registryInput.classList.remove('is-invalid');
+                    registryInput.setAttribute('aria-invalid', 'false');
+                    console.log('✅ Cleared invalid state from input field');
+                }
+                return false;
+            }
+
+        } catch (error) {
+            console.error('Error checking duplicate registry:', error);
+            // Don't block submission on network error
+            if (typeof Notiflix !== 'undefined' && Notiflix.Notify) {
+                Notiflix.Notify.failure('Unable to verify registry number. Please try again.');
+            }
+            return false;
+        }
     }
 }
 

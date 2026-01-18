@@ -68,6 +68,15 @@ try {
         exit;
     }
 
+    // Validate registry number if provided
+    if (!empty($registry_no)) {
+        // Check if registry number already exists
+        if (record_exists($pdo, 'certificate_of_marriage', 'registry_no', $registry_no)) {
+            echo json_encode(['success' => false, 'message' => 'Registry number already exists.']);
+            exit;
+        }
+    }
+
     // Validate PDF file upload
     if (!isset($_FILES['pdf_file']) || $_FILES['pdf_file']['error'] !== UPLOAD_ERR_OK) {
         echo json_encode(['success' => false, 'message' => 'PDF file is required.']);
