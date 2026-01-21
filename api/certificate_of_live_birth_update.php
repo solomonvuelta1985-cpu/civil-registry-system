@@ -42,6 +42,7 @@ try {
     $child_middle_name = sanitize_input($_POST['child_middle_name'] ?? null);
     $child_last_name = sanitize_input($_POST['child_last_name'] ?? '');
     $child_date_of_birth = sanitize_input($_POST['child_date_of_birth'] ?? '');
+    $place_type = sanitize_input($_POST['place_type'] ?? '');
     $child_place_of_birth = sanitize_input($_POST['child_place_of_birth'] ?? '');
     $child_sex = sanitize_input($_POST['child_sex'] ?? '');
     $legitimacy_status = sanitize_input($_POST['legitimacy_status'] ?? '');
@@ -107,6 +108,10 @@ try {
 
     if (empty($child_date_of_birth)) {
         $errors[] = "Child's date of birth is required.";
+    }
+
+    if (empty($place_type)) {
+        $errors[] = "Place type is required.";
     }
 
     if (empty($child_place_of_birth)) {
@@ -186,6 +191,7 @@ try {
                     child_middle_name = :child_middle_name,
                     child_last_name = :child_last_name,
                     child_date_of_birth = :child_date_of_birth,
+                    place_type = :place_type,
                     child_place_of_birth = :child_place_of_birth,
                     child_sex = :child_sex,
                     legitimacy_status = :legitimacy_status,
@@ -216,6 +222,7 @@ try {
             ':child_middle_name' => $child_middle_name,
             ':child_last_name' => $child_last_name,
             ':child_date_of_birth' => $child_date_of_birth,
+            ':place_type' => $place_type,
             ':child_place_of_birth' => $child_place_of_birth,
             ':child_sex' => $child_sex,
             ':legitimacy_status' => $legitimacy_status,

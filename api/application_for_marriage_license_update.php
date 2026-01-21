@@ -85,6 +85,16 @@ try {
     $bride_mother_citizenship = sanitize_input($_POST['bride_mother_citizenship'] ?? '');
     $bride_mother_residence = sanitize_input($_POST['bride_mother_residence'] ?? '');
 
+    // Validate registry number if changed (exclude current record from duplicate check)
+    if (!empty($registry_no) && $registry_no !== $existing_record['registry_no']) {
+        $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM application_for_marriage_license WHERE registry_no = :registry_no AND id != :id AND status = 'Active'");
+        $stmt_check->execute([':registry_no' => $registry_no, ':id' => $record_id]);
+        if ($stmt_check->fetchColumn() > 0) {
+            echo json_encode(['success' => false, 'message' => 'Registry number already exists.']);
+            exit;
+        }
+    }
+
     // Validation: Required fields
     if (empty($date_of_application) ||
         empty($groom_first_name) || empty($groom_last_name) ||

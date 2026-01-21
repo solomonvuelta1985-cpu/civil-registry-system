@@ -74,6 +74,16 @@ try {
     $place_of_marriage = sanitize_input($_POST['place_of_marriage'] ?? '');
     $nature_of_solemnization = sanitize_input($_POST['nature_of_solemnization'] ?? '');
 
+    // Validate registry number if changed (exclude current record from duplicate check)
+    if (!empty($registry_no) && $registry_no !== $existing_record['registry_no']) {
+        $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM certificate_of_marriage WHERE registry_no = :registry_no AND id != :id AND status = 'Active'");
+        $stmt_check->execute([':registry_no' => $registry_no, ':id' => $record_id]);
+        if ($stmt_check->fetchColumn() > 0) {
+            echo json_encode(['success' => false, 'message' => 'Registry number already exists.']);
+            exit;
+        }
+    }
+
     // Validation: Required fields
     if (empty($date_of_registration) || empty($husband_first_name) || empty($husband_last_name) ||
         empty($husband_date_of_birth) || empty($husband_place_of_birth) || empty($husband_residence) ||
