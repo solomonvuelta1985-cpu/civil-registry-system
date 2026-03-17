@@ -21,6 +21,7 @@ class TesseractOCR {
 
     /**
      * Detect Tesseract installation path (cross-platform: Linux/Synology NAS + Windows/XAMPP)
+     * Returns null if not found (graceful degradation for shared hosting)
      */
     private function detectTesseractPath() {
         $possiblePaths = [
@@ -41,7 +42,16 @@ class TesseractOCR {
             }
         }
 
-        throw new Exception('Tesseract not found. Windows: install from https://github.com/UB-Mannheim/tesseract/wiki — Synology: opkg install tesseract-ocr');
+        // Return null instead of throwing - allows graceful degradation
+        return null;
+    }
+
+    /**
+     * Check if Tesseract OCR is available on this server
+     * @return bool
+     */
+    public function isAvailable() {
+        return $this->tesseractPath !== null;
     }
 
     /**
@@ -51,6 +61,22 @@ class TesseractOCR {
      * @return array - OCR results
      */
     public function processPDF($pdfPath, $selectedPages = null) {
+        // Check if Tesseract is available
+        if (!$this->isAvailable()) {
+            return [
+                'success' => false,
+                'error' => 'OCR service unavailable on this server',
+                'error_code' => 'TESSERACT_NOT_INSTALLED',
+                'suggestions' => [
+                    'Use browser-based OCR (slower but works without server installation)',
+                    'Process documents on local XAMPP with Tesseract installed, then upload',
+                    'Enter data manually',
+                    'Contact your hosting provider about Tesseract installation',
+                    'Consider upgrading to VPS for full OCR support'
+                ]
+            ];
+        }
+
         $startTime = microtime(true);
 
         // Calculate file hash for caching (include page selection in hash)

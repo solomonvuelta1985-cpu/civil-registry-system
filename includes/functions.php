@@ -60,6 +60,14 @@ function validate_file_upload($file) {
         $errors[] = "Invalid file format. File must be a PDF.";
     }
 
+    // Deep PDF structure check (magic bytes + EOF marker)
+    if (empty($errors)) {
+        $integrity_errors = validate_pdf_integrity($file['tmp_name']);
+        if (!empty($integrity_errors)) {
+            $errors = array_merge($errors, $integrity_errors);
+        }
+    }
+
     return $errors;
 }
 
@@ -101,9 +109,10 @@ function upload_file($file, $type = null, $year = null) {
         // Return relative path (e.g., birth/2026/cert_xxx.pdf)
         $relative_path = $sub_dir . $new_filename;
         return [
-            'success' => true,
+            'success'  => true,
             'filename' => $relative_path,
-            'path' => $upload_path
+            'path'     => $upload_path,
+            'hash'     => compute_file_hash($upload_path),
         ];
     } else {
         return ['success' => false, 'errors' => ['Failed to move uploaded file.']];
@@ -120,6 +129,77 @@ function delete_file($filename) {
         return unlink($file_path);
     }
     return false;
+}
+
+/**
+ * Validate PDF structure via magic bytes and EOF marker.
+ * Called on the PHP temp file BEFORE move_uploaded_file().
+ *
+ * @param  string $tmp_path  Path to temp file ($_FILES[...]['tmp_name'])
+ * @return array             Empty array = valid; non-empty = error messages
+ */
+function validate_pdf_integrity(string $tmp_path): array {
+    $errors = [];
+
+    if (!file_exists($tmp_path) || !is_readable($tmp_path)) {
+        $errors[] = 'Uploaded file is not accessible.';
+        return $errors;
+    }
+
+    // Check magic bytes — every valid PDF starts with "%PDF-"
+    $handle = fopen($tmp_path, 'rb');
+    $header = fread($handle, 5);
+    fclose($handle);
+
+    if ($header !== '%PDF-') {
+        $errors[] = 'The uploaded file is not a valid PDF (missing PDF header).';
+        return $errors; // No point checking EOF on a non-PDF
+    }
+
+    // Check EOF marker — truncated PDFs are missing "%%EOF"
+    $size   = filesize($tmp_path);
+    $handle = fopen($tmp_path, 'rb');
+    fseek($handle, max(0, $size - 1024));
+    $tail = fread($handle, 1024);
+    fclose($handle);
+
+    if (strpos($tail, '%%EOF') === false) {
+        $errors[] = 'The PDF appears to be incomplete or truncated (missing EOF marker).';
+    }
+
+    return $errors;
+}
+
+/**
+ * Compute SHA-256 hash of a file on disk.
+ * Called AFTER move_uploaded_file() to fingerprint the stored file.
+ *
+ * @param  string $filepath  Absolute path to the file
+ * @return string            64-character hex string, or empty string on failure
+ */
+function compute_file_hash(string $filepath): string {
+    if (!file_exists($filepath)) return '';
+    return hash_file('sha256', $filepath) ?: '';
+}
+
+/**
+ * Move an existing PDF to the backup directory instead of deleting it.
+ * Used by update endpoints to preserve the old version before replacing.
+ *
+ * @param  string       $relative_path  Relative path under UPLOAD_DIR (e.g. birth/2026/cert_xxx.pdf)
+ * @return string|false                 Backup relative path on success, false on failure
+ */
+function backup_pdf_file(string $relative_path): string|false {
+    $src = UPLOAD_DIR . $relative_path;
+    if (!file_exists($src)) return false;
+
+    $info       = pathinfo($relative_path);
+    $backup_rel = 'backup/' . $info['dirname'] . '/'
+                . $info['filename'] . '_' . time() . '.bak.pdf';
+    $dest       = UPLOAD_DIR . $backup_rel;
+
+    @mkdir(dirname($dest), 0755, true);
+    return rename($src, $dest) ? $backup_rel : false;
 }
 
 /**

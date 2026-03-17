@@ -163,12 +163,13 @@ function logSecurityEvent($event_type, $severity, $details, $user_id = null) {
             ':user_id' => $user_id,
             ':ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
             ':user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
-            ':details' => $details
+            ':details' => is_array($details) ? json_encode($details) : $details
         ]);
 
         // Also log to error log for critical events
         if ($severity === 'CRITICAL' || $severity === 'HIGH') {
-            error_log("SECURITY [{$severity}] {$event_type}: {$details}");
+            $details_str = is_array($details) ? json_encode($details) : $details;
+            error_log("SECURITY [{$severity}] {$event_type}: {$details_str}");
         }
 
     } catch (PDOException $e) {
