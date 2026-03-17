@@ -112,6 +112,7 @@ try {
 
     $pdf_filename = $upload_result['filename'];
     $pdf_filepath = $upload_result['path'];
+    $pdf_hash     = $upload_result['hash'] ?? null;
     $date_of_birth = date('Y-m-d', strtotime($date_of_birth));
     $date_of_death = date('Y-m-d', strtotime($date_of_death));
 
@@ -141,6 +142,7 @@ try {
                     mother_citizenship,
                     pdf_filename,
                     pdf_filepath,
+                    pdf_hash,
                     created_at,
                     status
                 ) VALUES (
@@ -164,6 +166,7 @@ try {
                     :mother_citizenship,
                     :pdf_filename,
                     :pdf_filepath,
+                    :pdf_hash,
                     NOW(),
                     'Active'
                 )";
@@ -190,7 +193,8 @@ try {
             ':mother_last_name' => $mother_last_name,
             ':mother_citizenship' => $mother_citizenship ?: null,
             ':pdf_filename' => $pdf_filename,
-            ':pdf_filepath' => $pdf_filepath
+            ':pdf_filepath' => $pdf_filepath,
+            ':pdf_hash'     => $pdf_hash
         ]);
 
         $inserted_id = $pdo->lastInsertId();

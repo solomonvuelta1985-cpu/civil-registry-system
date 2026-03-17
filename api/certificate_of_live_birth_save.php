@@ -171,6 +171,7 @@ try {
 
     $pdf_filename = $upload_result['filename'];
     $pdf_filepath = $upload_result['path'];
+    $pdf_hash     = $upload_result['hash'] ?? null;
 
     // Convert child date of birth format
     if (!empty($child_date_of_birth)) {
@@ -220,6 +221,7 @@ try {
                     place_of_marriage,
                     pdf_filename,
                     pdf_filepath,
+                    pdf_hash,
                     created_at,
                     status
                 ) VALUES (
@@ -251,6 +253,7 @@ try {
                     :place_of_marriage,
                     :pdf_filename,
                     :pdf_filepath,
+                    :pdf_hash,
                     NOW(),
                     'Active'
                 )";
@@ -285,7 +288,8 @@ try {
             ':date_of_marriage' => $date_of_marriage,
             ':place_of_marriage' => $place_of_marriage,
             ':pdf_filename' => $pdf_filename,
-            ':pdf_filepath' => $pdf_filepath
+            ':pdf_filepath' => $pdf_filepath,
+            ':pdf_hash'     => $pdf_hash
         ]);
 
         $inserted_id = $pdo->lastInsertId();

@@ -146,6 +146,7 @@ try {
     // Handle PDF file upload (optional for update)
     $pdf_filename = $existing_record['pdf_filename'];
     $pdf_filepath = $existing_record['pdf_filepath'];
+    $pdf_hash     = $existing_record['pdf_hash'] ?? null;
     $old_pdf_filename = null;
 
     // Convert date format to MySQL date format
@@ -164,12 +165,13 @@ try {
             if (!$upload_result['success']) {
                 $errors = array_merge($errors, $upload_result['errors']);
             } else {
-                // Mark old file for deletion
+                // Mark old file for backup
                 $old_pdf_filename = $existing_record['pdf_filename'];
 
                 // Use new file
                 $pdf_filename = $upload_result['filename'];
                 $pdf_filepath = $upload_result['path'];
+                $pdf_hash     = $upload_result['hash'] ?? null;
             }
         }
     }
@@ -231,6 +233,7 @@ try {
                     place_of_marriage = :place_of_marriage,
                     pdf_filename = :pdf_filename,
                     pdf_filepath = :pdf_filepath,
+                    pdf_hash = :pdf_hash,
                     updated_at = NOW(),
                     updated_by = :updated_by
                 WHERE id = :id";
@@ -266,8 +269,9 @@ try {
             ':place_of_marriage' => $place_of_marriage,
             ':pdf_filename' => $pdf_filename,
             ':pdf_filepath' => $pdf_filepath,
-            ':updated_by' => $_SESSION['user_id'] ?? null,
-            ':id' => $record_id
+            ':pdf_hash'     => $pdf_hash,
+            ':updated_by'   => $_SESSION['user_id'] ?? null,
+            ':id'           => $record_id
         ]);
 
         // Log activity
@@ -281,9 +285,22 @@ try {
         // Commit transaction
         $pdo->commit();
 
-        // Delete old PDF file if new one was uploaded
+        // Backup old PDF file instead of deleting it
         if ($old_pdf_filename) {
-            delete_file($old_pdf_filename);
+            $backup_path = backup_pdf_file($old_pdf_filename);
+            if ($backup_path) {
+                $bkpStmt = $pdo->prepare(
+                    "INSERT INTO pdf_backups (cert_type, record_id, original_path, backup_path, file_hash, backed_up_by)
+                     VALUES ('birth', :rid, :orig, :bkp, :hash, :uid)"
+                );
+                $bkpStmt->execute([
+                    ':rid'  => $record_id,
+                    ':orig' => $old_pdf_filename,
+                    ':bkp'  => $backup_path,
+                    ':hash' => $existing_record['pdf_hash'] ?? null,
+                    ':uid'  => $_SESSION['user_id'] ?? null,
+                ]);
+            }
         }
 
         // Prepare success response

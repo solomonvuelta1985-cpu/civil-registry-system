@@ -93,6 +93,7 @@ try {
 
     $unique_filename = $upload_result['filename'];
     $upload_path = $upload_result['path'];
+    $pdf_hash = $upload_result['hash'] ?? null;
 
     // Insert into database
     $sql = "INSERT INTO certificate_of_marriage (
@@ -106,7 +107,7 @@ try {
         wife_father_name, wife_father_residence,
         wife_mother_name, wife_mother_residence,
         date_of_marriage, place_of_marriage, nature_of_solemnization,
-        pdf_filename, pdf_filepath,
+        pdf_filename, pdf_filepath, pdf_hash,
         status, created_by
     ) VALUES (
         :registry_no, :date_of_registration,
@@ -119,7 +120,7 @@ try {
         :wife_father_name, :wife_father_residence,
         :wife_mother_name, :wife_mother_residence,
         :date_of_marriage, :place_of_marriage, :nature_of_solemnization,
-        :pdf_filename, :pdf_filepath,
+        :pdf_filename, :pdf_filepath, :pdf_hash,
         'Active', :created_by
     )";
 
@@ -157,7 +158,8 @@ try {
         ':nature_of_solemnization' => $nature_of_solemnization,
         ':pdf_filename' => $unique_filename,
         ':pdf_filepath' => $upload_path,
-        ':created_by' => $created_by
+        ':pdf_hash'     => $pdf_hash,
+        ':created_by'   => $created_by
     ];
 
     if ($stmt->execute($params)) {
