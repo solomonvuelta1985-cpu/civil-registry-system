@@ -9,6 +9,7 @@ require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 // Check authentication
 if (!isLoggedIn()) {
@@ -105,6 +106,50 @@ if (!is_file($real_path)) {
     http_response_code(404);
     echo 'File not found';
     exit;
+}
+
+// PDF integrity check — verify stored hash matches file on disk
+$table_map = [
+    'birth'            => 'certificate_of_live_birth',
+    'death'            => 'certificate_of_death',
+    'marriage'         => 'certificate_of_marriage',
+    'marriage_license' => 'application_for_marriage_license',
+];
+
+if (isset($table_map[$type])) {
+    try {
+        $tbl  = $table_map[$type];
+        $stmt = $pdo->prepare(
+            "SELECT pdf_hash FROM {$tbl}
+              WHERE pdf_filename = :fn
+                AND status != 'Deleted'
+              LIMIT 1"
+        );
+        $stmt->execute([':fn' => $file]);
+        $stored_hash = $stmt->fetchColumn();
+
+        if ($stored_hash) {
+            $actual_hash = hash_file('sha256', $real_path);
+            if (!hash_equals($stored_hash, $actual_hash)) {
+                error_log("PDF_INTEGRITY_FAILURE: {$real_path} stored={$stored_hash} actual={$actual_hash}");
+                if (function_exists('logSecurityEvent')) {
+                    logSecurityEvent('PDF_INTEGRITY_FAILURE', 'HIGH', $_SESSION['user_id'] ?? null,
+                        json_encode(['file' => basename($real_path), 'type' => $type]));
+                }
+                http_response_code(409);
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success'       => false,
+                    'message'       => 'PDF integrity check failed — this file may be corrupted.',
+                    'recovery_hint' => 'Go to Admin → PDF Backup Manager to restore a previous version.',
+                ]);
+                exit;
+            }
+        }
+    } catch (PDOException $e) {
+        error_log('serve_pdf hash check error: ' . $e->getMessage());
+        // Non-fatal: serve the file even if hash check fails due to DB error
+    }
 }
 
 // Serve the PDF
