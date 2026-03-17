@@ -135,8 +135,8 @@ function getWorkflowRecords($pdo, $state, $type) {
     <title>Workflow Dashboard - iScan</title>
 
     <!-- Notiflix - Modern Notification Library -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notiflix@3.2.6/dist/notiflix-3.2.6.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/notiflix@3.2.6/dist/notiflix-3.2.6.min.js"></script>
+    <link rel="stylesheet" href="<?= asset_url('notiflix_css') ?>">
+    <script src="<?= asset_url('notiflix_js') ?>"></script>
     <script src="../assets/js/notiflix-config.js"></script>
 
     <style>

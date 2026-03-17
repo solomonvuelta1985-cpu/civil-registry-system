@@ -113,7 +113,7 @@ function getQualityMetrics($pdo) {
     <title>Analytics Dashboard - iScan</title>
 
     <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="<?= asset_url('chartjs') ?>"></script>
 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }

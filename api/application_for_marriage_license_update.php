@@ -46,6 +46,9 @@ try {
     $groom_date_of_birth = sanitize_input($_POST['groom_date_of_birth'] ?? '');
     $groom_place_of_birth = sanitize_input($_POST['groom_place_of_birth'] ?? '');
     $groom_citizenship = sanitize_input($_POST['groom_citizenship'] ?? '');
+    if ($groom_citizenship === 'Other') {
+        $groom_citizenship = sanitize_input($_POST['groom_citizenship_other'] ?? '');
+    }
     $groom_residence = sanitize_input($_POST['groom_residence'] ?? '');
 
     // Groom's Father Information
@@ -53,6 +56,9 @@ try {
     $groom_father_middle_name = sanitize_input($_POST['groom_father_middle_name'] ?? '');
     $groom_father_last_name = sanitize_input($_POST['groom_father_last_name'] ?? '');
     $groom_father_citizenship = sanitize_input($_POST['groom_father_citizenship'] ?? '');
+    if ($groom_father_citizenship === 'Other') {
+        $groom_father_citizenship = sanitize_input($_POST['groom_father_citizenship_other'] ?? '');
+    }
     $groom_father_residence = sanitize_input($_POST['groom_father_residence'] ?? '');
 
     // Groom's Mother Information
@@ -60,6 +66,9 @@ try {
     $groom_mother_middle_name = sanitize_input($_POST['groom_mother_middle_name'] ?? '');
     $groom_mother_last_name = sanitize_input($_POST['groom_mother_last_name'] ?? '');
     $groom_mother_citizenship = sanitize_input($_POST['groom_mother_citizenship'] ?? '');
+    if ($groom_mother_citizenship === 'Other') {
+        $groom_mother_citizenship = sanitize_input($_POST['groom_mother_citizenship_other'] ?? '');
+    }
     $groom_mother_residence = sanitize_input($_POST['groom_mother_residence'] ?? '');
 
     // Bride's Information
@@ -69,6 +78,9 @@ try {
     $bride_date_of_birth = sanitize_input($_POST['bride_date_of_birth'] ?? '');
     $bride_place_of_birth = sanitize_input($_POST['bride_place_of_birth'] ?? '');
     $bride_citizenship = sanitize_input($_POST['bride_citizenship'] ?? '');
+    if ($bride_citizenship === 'Other') {
+        $bride_citizenship = sanitize_input($_POST['bride_citizenship_other'] ?? '');
+    }
     $bride_residence = sanitize_input($_POST['bride_residence'] ?? '');
 
     // Bride's Father Information
@@ -76,6 +88,9 @@ try {
     $bride_father_middle_name = sanitize_input($_POST['bride_father_middle_name'] ?? '');
     $bride_father_last_name = sanitize_input($_POST['bride_father_last_name'] ?? '');
     $bride_father_citizenship = sanitize_input($_POST['bride_father_citizenship'] ?? '');
+    if ($bride_father_citizenship === 'Other') {
+        $bride_father_citizenship = sanitize_input($_POST['bride_father_citizenship_other'] ?? '');
+    }
     $bride_father_residence = sanitize_input($_POST['bride_father_residence'] ?? '');
 
     // Bride's Mother Information
@@ -83,17 +98,10 @@ try {
     $bride_mother_middle_name = sanitize_input($_POST['bride_mother_middle_name'] ?? '');
     $bride_mother_last_name = sanitize_input($_POST['bride_mother_last_name'] ?? '');
     $bride_mother_citizenship = sanitize_input($_POST['bride_mother_citizenship'] ?? '');
-    $bride_mother_residence = sanitize_input($_POST['bride_mother_residence'] ?? '');
-
-    // Validate registry number if changed (exclude current record from duplicate check)
-    if (!empty($registry_no) && $registry_no !== $existing_record['registry_no']) {
-        $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM application_for_marriage_license WHERE registry_no = :registry_no AND id != :id AND status = 'Active'");
-        $stmt_check->execute([':registry_no' => $registry_no, ':id' => $record_id]);
-        if ($stmt_check->fetchColumn() > 0) {
-            echo json_encode(['success' => false, 'message' => 'Registry number already exists.']);
-            exit;
-        }
+    if ($bride_mother_citizenship === 'Other') {
+        $bride_mother_citizenship = sanitize_input($_POST['bride_mother_citizenship_other'] ?? '');
     }
+    $bride_mother_residence = sanitize_input($_POST['bride_mother_residence'] ?? '');
 
     // Validation: Required fields
     if (empty($date_of_application) ||
@@ -112,51 +120,22 @@ try {
     $pdf_filepath = $existing_record['pdf_filepath'];
 
     if (isset($_FILES['pdf_file']) && $_FILES['pdf_file']['error'] === UPLOAD_ERR_OK) {
-        $pdf_file = $_FILES['pdf_file'];
+        // Upload new file into organized folder: marriage_license/{year}/
+        $reg_year = date('Y', strtotime($date_of_application));
+        $upload_result = upload_file($_FILES['pdf_file'], 'marriage_license', $reg_year);
 
-        // Validate file type
-        $allowed_types = ['application/pdf'];
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mime_type = finfo_file($finfo, $pdf_file['tmp_name']);
-        finfo_close($finfo);
-
-        if (!in_array($mime_type, $allowed_types)) {
-            echo json_encode(['success' => false, 'message' => 'Only PDF files are allowed.']);
+        if (!$upload_result['success']) {
+            echo json_encode(['success' => false, 'message' => implode(' ', $upload_result['errors'])]);
             exit;
         }
 
-        // Validate file size (10MB max)
-        $max_size = 10 * 1024 * 1024; // 10MB
-        if ($pdf_file['size'] > $max_size) {
-            echo json_encode(['success' => false, 'message' => 'File size exceeds 10MB limit.']);
-            exit;
+        // Delete old PDF file
+        if (!empty($existing_record['pdf_filename'])) {
+            delete_file($existing_record['pdf_filename']);
         }
 
-        // Generate unique filename
-        $file_extension = 'pdf';
-        $unique_filename = 'marriage_license_' . date('Ymd_His') . '_' . uniqid() . '.' . $file_extension;
-        $upload_dir = '../uploads/';
-
-        // Create upload directory if it doesn't exist
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0755, true);
-        }
-
-        $upload_path = $upload_dir . $unique_filename;
-
-        // Move uploaded file
-        if (move_uploaded_file($pdf_file['tmp_name'], $upload_path)) {
-            // Delete old PDF file
-            if (!empty($existing_record['pdf_filepath']) && file_exists($existing_record['pdf_filepath'])) {
-                unlink($existing_record['pdf_filepath']);
-            }
-
-            $pdf_filename = $unique_filename;
-            $pdf_filepath = $upload_path;
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Failed to upload PDF file.']);
-            exit;
-        }
+        $pdf_filename = $upload_result['filename'];
+        $pdf_filepath = $upload_result['path'];
     }
 
     // Update database

@@ -34,6 +34,10 @@ try {
     $husband_date_of_birth = sanitize_input($_POST['husband_date_of_birth'] ?? '');
     $husband_place_of_birth = sanitize_input($_POST['husband_place_of_birth'] ?? '');
     $husband_residence = sanitize_input($_POST['husband_residence'] ?? '');
+    $husband_citizenship = sanitize_input($_POST['husband_citizenship'] ?? null);
+    if ($husband_citizenship === 'Other') {
+        $husband_citizenship = sanitize_input($_POST['husband_citizenship_other'] ?? null);
+    }
     $husband_father_name = sanitize_input($_POST['husband_father_name'] ?? '');
     $husband_father_residence = sanitize_input($_POST['husband_father_residence'] ?? '');
     $husband_mother_name = sanitize_input($_POST['husband_mother_name'] ?? '');
@@ -46,6 +50,10 @@ try {
     $wife_date_of_birth = sanitize_input($_POST['wife_date_of_birth'] ?? '');
     $wife_place_of_birth = sanitize_input($_POST['wife_place_of_birth'] ?? '');
     $wife_residence = sanitize_input($_POST['wife_residence'] ?? '');
+    $wife_citizenship = sanitize_input($_POST['wife_citizenship'] ?? null);
+    if ($wife_citizenship === 'Other') {
+        $wife_citizenship = sanitize_input($_POST['wife_citizenship_other'] ?? null);
+    }
     $wife_father_name = sanitize_input($_POST['wife_father_name'] ?? '');
     $wife_father_residence = sanitize_input($_POST['wife_father_residence'] ?? '');
     $wife_mother_name = sanitize_input($_POST['wife_mother_name'] ?? '');
@@ -68,68 +76,33 @@ try {
         exit;
     }
 
-    // Validate registry number if provided
-    if (!empty($registry_no)) {
-        // Check if registry number already exists
-        if (record_exists($pdo, 'certificate_of_marriage', 'registry_no', $registry_no)) {
-            echo json_encode(['success' => false, 'message' => 'Registry number already exists.']);
-            exit;
-        }
-    }
-
     // Validate PDF file upload
     if (!isset($_FILES['pdf_file']) || $_FILES['pdf_file']['error'] !== UPLOAD_ERR_OK) {
         echo json_encode(['success' => false, 'message' => 'PDF file is required.']);
         exit;
     }
 
-    $pdf_file = $_FILES['pdf_file'];
+    // Upload PDF file into organized folder: marriage/{year}/
+    $reg_year = date('Y', strtotime($date_of_registration));
+    $upload_result = upload_file($_FILES['pdf_file'], 'marriage', $reg_year);
 
-    // Validate file type
-    $allowed_types = ['application/pdf'];
-    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-    $mime_type = finfo_file($finfo, $pdf_file['tmp_name']);
-    finfo_close($finfo);
-
-    if (!in_array($mime_type, $allowed_types)) {
-        echo json_encode(['success' => false, 'message' => 'Only PDF files are allowed.']);
+    if (!$upload_result['success']) {
+        echo json_encode(['success' => false, 'message' => implode(' ', $upload_result['errors'])]);
         exit;
     }
 
-    // Validate file size (10MB max)
-    $max_size = 10 * 1024 * 1024; // 10MB
-    if ($pdf_file['size'] > $max_size) {
-        echo json_encode(['success' => false, 'message' => 'File size exceeds 10MB limit.']);
-        exit;
-    }
-
-    // Generate unique filename
-    $file_extension = 'pdf';
-    $unique_filename = 'marriage_' . date('Ymd_His') . '_' . uniqid() . '.' . $file_extension;
-    $upload_dir = '../uploads/';
-
-    // Create upload directory if it doesn't exist
-    if (!is_dir($upload_dir)) {
-        mkdir($upload_dir, 0755, true);
-    }
-
-    $upload_path = $upload_dir . $unique_filename;
-
-    // Move uploaded file
-    if (!move_uploaded_file($pdf_file['tmp_name'], $upload_path)) {
-        echo json_encode(['success' => false, 'message' => 'Failed to upload PDF file.']);
-        exit;
-    }
+    $unique_filename = $upload_result['filename'];
+    $upload_path = $upload_result['path'];
 
     // Insert into database
     $sql = "INSERT INTO certificate_of_marriage (
         registry_no, date_of_registration,
         husband_first_name, husband_middle_name, husband_last_name,
-        husband_date_of_birth, husband_place_of_birth, husband_residence,
+        husband_date_of_birth, husband_place_of_birth, husband_residence, husband_citizenship,
         husband_father_name, husband_father_residence,
         husband_mother_name, husband_mother_residence,
         wife_first_name, wife_middle_name, wife_last_name,
-        wife_date_of_birth, wife_place_of_birth, wife_residence,
+        wife_date_of_birth, wife_place_of_birth, wife_residence, wife_citizenship,
         wife_father_name, wife_father_residence,
         wife_mother_name, wife_mother_residence,
         date_of_marriage, place_of_marriage, nature_of_solemnization,
@@ -138,11 +111,11 @@ try {
     ) VALUES (
         :registry_no, :date_of_registration,
         :husband_first_name, :husband_middle_name, :husband_last_name,
-        :husband_date_of_birth, :husband_place_of_birth, :husband_residence,
+        :husband_date_of_birth, :husband_place_of_birth, :husband_residence, :husband_citizenship,
         :husband_father_name, :husband_father_residence,
         :husband_mother_name, :husband_mother_residence,
         :wife_first_name, :wife_middle_name, :wife_last_name,
-        :wife_date_of_birth, :wife_place_of_birth, :wife_residence,
+        :wife_date_of_birth, :wife_place_of_birth, :wife_residence, :wife_citizenship,
         :wife_father_name, :wife_father_residence,
         :wife_mother_name, :wife_mother_residence,
         :date_of_marriage, :place_of_marriage, :nature_of_solemnization,
@@ -163,6 +136,7 @@ try {
         ':husband_date_of_birth' => $husband_date_of_birth,
         ':husband_place_of_birth' => $husband_place_of_birth,
         ':husband_residence' => $husband_residence,
+        ':husband_citizenship' => $husband_citizenship ?: null,
         ':husband_father_name' => $husband_father_name ?: null,
         ':husband_father_residence' => $husband_father_residence ?: null,
         ':husband_mother_name' => $husband_mother_name ?: null,
@@ -173,6 +147,7 @@ try {
         ':wife_date_of_birth' => $wife_date_of_birth,
         ':wife_place_of_birth' => $wife_place_of_birth,
         ':wife_residence' => $wife_residence,
+        ':wife_citizenship' => $wife_citizenship ?: null,
         ':wife_father_name' => $wife_father_name ?: null,
         ':wife_father_residence' => $wife_father_residence ?: null,
         ':wife_mother_name' => $wife_mother_name ?: null,
@@ -197,9 +172,7 @@ try {
         ]);
     } else {
         // Delete uploaded file if database insert fails
-        if (file_exists($upload_path)) {
-            unlink($upload_path);
-        }
+        delete_file($unique_filename);
         echo json_encode(['success' => false, 'message' => 'Failed to save record to database.']);
     }
 

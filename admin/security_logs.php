@@ -114,8 +114,8 @@ $event_types = $pdo->query($event_types_sql)->fetchAll(PDO::FETCH_COLUMN);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Security Logs - <?php echo APP_SHORT_NAME; ?></title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <?= google_fonts_tag('Inter:wght@300;400;500;600;700') ?>
+    <script src="<?= asset_url('lucide') ?>"></script>
     <style>
         * {
             margin: 0;

@@ -473,12 +473,10 @@ $user_first_name = explode(' ', $user_name)[0];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reports & Analytics - CRDMS</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <?= google_fonts_tag('Inter:wght@400;500;600;700;800') ?>
+    <link rel="stylesheet" href="<?= asset_url('fontawesome_css') ?>">
+    <script src="<?= asset_url('lucide') ?>"></script>
+    <script src="<?= asset_url('chartjs') ?>"></script>
 
     <!-- Shared Sidebar Styles -->
     <link rel="stylesheet" href="../assets/css/sidebar.css">

@@ -45,11 +45,27 @@ function setSecurityHeaders($options = []) {
 function buildContentSecurityPolicy($custom = []) {
     $defaults = [
         'default-src' => ["'self'"],
-        'script-src' => ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        'style-src' => ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        'font-src' => ["'self'", "https://fonts.gstatic.com"],
+        'script-src' => [
+            "'self'", "'unsafe-inline'",
+            "https://fonts.googleapis.com",
+            "https://cdnjs.cloudflare.com",
+            "https://cdn.jsdelivr.net",
+            "https://unpkg.com",
+        ],
+        'style-src' => [
+            "'self'", "'unsafe-inline'",
+            "https://fonts.googleapis.com",
+            "https://cdnjs.cloudflare.com",
+            "https://cdn.jsdelivr.net",
+        ],
+        'font-src' => [
+            "'self'",
+            "https://fonts.gstatic.com",
+            "https://cdnjs.cloudflare.com",
+        ],
         'img-src' => ["'self'", "data:", "https:"],
-        'connect-src' => ["'self'"],
+        'connect-src' => ["'self'", "https://unpkg.com"],
+        'worker-src' => ["'self'", "blob:", "https://cdnjs.cloudflare.com"],
         'frame-ancestors' => ["'self'"],
         'base-uri' => ["'self'"],
         'form-action' => ["'self'"]

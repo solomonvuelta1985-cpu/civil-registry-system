@@ -37,24 +37,24 @@ try {
     $father_first_name = sanitize_input($_POST['father_first_name'] ?? null);
     $father_middle_name = sanitize_input($_POST['father_middle_name'] ?? null);
     $father_last_name = sanitize_input($_POST['father_last_name'] ?? null);
+    $father_citizenship = sanitize_input($_POST['father_citizenship'] ?? null);
+    if ($father_citizenship === 'Other') {
+        $father_citizenship = sanitize_input($_POST['father_citizenship_other'] ?? null);
+    }
 
     // Mother's information
     $mother_first_name = sanitize_input($_POST['mother_first_name'] ?? null);
     $mother_middle_name = sanitize_input($_POST['mother_middle_name'] ?? null);
     $mother_last_name = sanitize_input($_POST['mother_last_name'] ?? null);
+    $mother_citizenship = sanitize_input($_POST['mother_citizenship'] ?? null);
+    if ($mother_citizenship === 'Other') {
+        $mother_citizenship = sanitize_input($_POST['mother_citizenship_other'] ?? null);
+    }
 
     $add_new = isset($_POST['add_new']) && $_POST['add_new'] === '1';
 
     // Validation
     $errors = [];
-
-    // Validate registry number if provided
-    if (!empty($registry_no)) {
-        // Check if registry number already exists
-        if (record_exists($pdo, 'certificate_of_death', 'registry_no', $registry_no)) {
-            $errors[] = "Registry number already exists.";
-        }
-    }
 
     if (empty($date_of_registration)) {
         $errors[] = "Date of registration is required.";
@@ -99,8 +99,12 @@ try {
         json_response(false, implode(' ', $errors), null, 400);
     }
 
-    // Upload PDF file
-    $upload_result = upload_file($_FILES['pdf_file']);
+    // Convert date formats
+    $date_of_registration = date('Y-m-d', strtotime($date_of_registration));
+
+    // Upload PDF file into organized folder: death/{year}/
+    $reg_year = date('Y', strtotime($date_of_registration));
+    $upload_result = upload_file($_FILES['pdf_file'], 'death', $reg_year);
 
     if (!$upload_result['success']) {
         json_response(false, implode(' ', $upload_result['errors']), null, 400);
@@ -108,9 +112,6 @@ try {
 
     $pdf_filename = $upload_result['filename'];
     $pdf_filepath = $upload_result['path'];
-
-    // Convert date formats
-    $date_of_registration = date('Y-m-d', strtotime($date_of_registration));
     $date_of_birth = date('Y-m-d', strtotime($date_of_birth));
     $date_of_death = date('Y-m-d', strtotime($date_of_death));
 
@@ -133,9 +134,11 @@ try {
                     father_first_name,
                     father_middle_name,
                     father_last_name,
+                    father_citizenship,
                     mother_first_name,
                     mother_middle_name,
                     mother_last_name,
+                    mother_citizenship,
                     pdf_filename,
                     pdf_filepath,
                     created_at,
@@ -154,9 +157,11 @@ try {
                     :father_first_name,
                     :father_middle_name,
                     :father_last_name,
+                    :father_citizenship,
                     :mother_first_name,
                     :mother_middle_name,
                     :mother_last_name,
+                    :mother_citizenship,
                     :pdf_filename,
                     :pdf_filepath,
                     NOW(),
@@ -179,9 +184,11 @@ try {
             ':father_first_name' => $father_first_name,
             ':father_middle_name' => $father_middle_name,
             ':father_last_name' => $father_last_name,
+            ':father_citizenship' => $father_citizenship ?: null,
             ':mother_first_name' => $mother_first_name,
             ':mother_middle_name' => $mother_middle_name,
             ':mother_last_name' => $mother_last_name,
+            ':mother_citizenship' => $mother_citizenship ?: null,
             ':pdf_filename' => $pdf_filename,
             ':pdf_filepath' => $pdf_filepath
         ]);

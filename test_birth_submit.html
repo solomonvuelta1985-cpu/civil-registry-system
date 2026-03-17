@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Birth Certificate Submit</title>
+</head>
+<body>
+    <h1>Test Birth Certificate Submission</h1>
+    <button onclick="testSubmit()">Test Submit</button>
+    <div id="result"></div>
+
+    <script>
+        async function testSubmit() {
+            const formData = new FormData();
+
+            // Add all required fields
+            formData.append('registry_no', 'TEST-2026-001');
+            formData.append('date_of_registration', '2026-01-21');
+            formData.append('child_first_name', 'Test');
+            formData.append('child_middle_name', 'Middle');
+            formData.append('child_last_name', 'Child');
+            formData.append('child_date_of_birth', '2026-01-01');
+            formData.append('place_type', 'Barangay');
+            formData.append('child_place_of_birth', 'Masical');
+            formData.append('child_sex', 'Male');
+            formData.append('legitimacy_status', 'Legitimate');
+            formData.append('type_of_birth', 'Single');
+            formData.append('mother_first_name', 'Test');
+            formData.append('mother_last_name', 'Mother');
+            formData.append('father_first_name', 'Test');
+            formData.append('father_last_name', 'Father');
+
+            // Create a fake PDF file
+            const pdfBlob = new Blob(['test pdf content'], { type: 'application/pdf' });
+            formData.append('pdf_file', pdfBlob, 'test.pdf');
+
+            console.log('Submitting test data...');
+            console.log('place_type:', formData.get('place_type'));
+            console.log('child_place_of_birth:', formData.get('child_place_of_birth'));
+
+            try {
+                const response = await fetch('api/certificate_of_live_birth_save.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                console.log('Response:', result);
+                document.getElementById('result').innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = '<pre>Error: ' + error.message + '</pre>';
+            }
+        }
+    </script>
+</body>
+</html>

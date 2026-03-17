@@ -20,13 +20,19 @@ class TesseractOCR {
     }
 
     /**
-     * Detect Tesseract installation path on Windows
+     * Detect Tesseract installation path (cross-platform: Linux/Synology NAS + Windows/XAMPP)
      */
     private function detectTesseractPath() {
         $possiblePaths = [
+            // Linux / Synology NAS paths (checked first on Linux)
+            '/usr/bin/tesseract',
+            '/usr/local/bin/tesseract',
+            '/opt/homebrew/bin/tesseract',
+            '/opt/entware/bin/tesseract',
+            // Windows / XAMPP paths
             'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',
             'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe',
-            'tesseract' // If in PATH
+            'tesseract' // If in PATH (works on both platforms)
         ];
 
         foreach ($possiblePaths as $path) {
@@ -35,7 +41,7 @@ class TesseractOCR {
             }
         }
 
-        throw new Exception('Tesseract not found. Please install Tesseract OCR.');
+        throw new Exception('Tesseract not found. Windows: install from https://github.com/UB-Mannheim/tesseract/wiki — Synology: opkg install tesseract-ocr');
     }
 
     /**

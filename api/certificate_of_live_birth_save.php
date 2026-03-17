@@ -4,21 +4,37 @@
  * Handles form submission and saves data to database
  */
 
+// Enable error logging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('log_errors', 1);
+
 // Include configuration and functions
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+
+// Log that the file was accessed
+error_log("=== Birth Certificate Save API Called ===");
+error_log("Request Method: " . $_SERVER['REQUEST_METHOD']);
+error_log("POST Data: " . print_r($_POST, true));
+error_log("FILES Data: " . print_r($_FILES, true));
 
 // Set JSON response header
 header('Content-Type: application/json');
 
 // Only allow POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    error_log("ERROR: Invalid request method - " . $_SERVER['REQUEST_METHOD']);
     json_response(false, 'Invalid request method.', null, 405);
 }
 
 try {
     // Sanitize input data
     $registry_no = sanitize_input($_POST['registry_no'] ?? '');
+    // Convert empty registry_no to NULL to avoid unique constraint issues
+    if (empty($registry_no)) {
+        $registry_no = null;
+    }
     $date_of_registration = sanitize_input($_POST['date_of_registration'] ?? '');
 
     // Child information
@@ -26,8 +42,11 @@ try {
     $child_middle_name = sanitize_input($_POST['child_middle_name'] ?? null);
     $child_last_name = sanitize_input($_POST['child_last_name'] ?? '');
     $child_date_of_birth = sanitize_input($_POST['child_date_of_birth'] ?? '');
+    $time_of_birth = sanitize_input($_POST['time_of_birth'] ?? null);
     $place_type = sanitize_input($_POST['place_type'] ?? '');
     $child_place_of_birth = sanitize_input($_POST['child_place_of_birth'] ?? '');
+    $barangay = sanitize_input($_POST['barangay'] ?? '');
+
     $child_sex = sanitize_input($_POST['child_sex'] ?? '');
     $legitimacy_status = sanitize_input($_POST['legitimacy_status'] ?? '');
 
@@ -40,11 +59,19 @@ try {
     $mother_first_name = sanitize_input($_POST['mother_first_name'] ?? '');
     $mother_middle_name = sanitize_input($_POST['mother_middle_name'] ?? null);
     $mother_last_name = sanitize_input($_POST['mother_last_name'] ?? '');
+    $mother_citizenship = sanitize_input($_POST['mother_citizenship'] ?? null);
+    if ($mother_citizenship === 'Other') {
+        $mother_citizenship = sanitize_input($_POST['mother_citizenship_other'] ?? null);
+    }
 
     // Father's information
     $father_first_name = sanitize_input($_POST['father_first_name'] ?? null);
     $father_middle_name = sanitize_input($_POST['father_middle_name'] ?? null);
     $father_last_name = sanitize_input($_POST['father_last_name'] ?? null);
+    $father_citizenship = sanitize_input($_POST['father_citizenship'] ?? null);
+    if ($father_citizenship === 'Other') {
+        $father_citizenship = sanitize_input($_POST['father_citizenship_other'] ?? null);
+    }
 
     // Marriage information
     $date_of_marriage = sanitize_input($_POST['date_of_marriage'] ?? null);
@@ -55,11 +82,12 @@ try {
     // Validation
     $errors = [];
 
-    // Validate registry number if provided
-    if (!empty($registry_no)) {
-        // Check if registry number already exists
-        if (record_exists($pdo, 'certificate_of_live_birth', 'registry_no', $registry_no)) {
-            $errors[] = "Registry number already exists.";
+    // Validate registry number format if provided (optional but must match format if provided)
+    if (!empty($registry_no) && $registry_no !== null) {
+        // Validate format: XXXX-XXXX or XX-XXXXXX
+        if (!preg_match('/^\d{2,4}-\d{4,6}$/', $registry_no)) {
+            $errors[] = "Registry number must be in format XXXX-XXXX or XX-XXXXXX (e.g., 2014-1423 or 99-123456).";
+            error_log("Registry number format validation failed: " . $registry_no);
         }
     }
 
@@ -98,8 +126,13 @@ try {
         $errors[] = "Place type is required.";
     }
 
-    if (empty($child_place_of_birth)) {
-        $errors[] = "Child's place of birth (Barangay/Hospital) is required.";
+    // child_place_of_birth is required only for Hospital/Clinic and Barangay Health Center
+    if (in_array($place_type, ['Hospital/Clinic', 'Barangay Health Center']) && empty($child_place_of_birth)) {
+        $errors[] = "Child's place of birth (location) is required for the selected place type.";
+    }
+
+    if (empty($barangay)) {
+        $errors[] = "Barangay is required.";
     }
 
     if (empty($child_sex)) {
@@ -125,8 +158,12 @@ try {
         json_response(false, implode(' ', $errors), null, 400);
     }
 
-    // Upload PDF file
-    $upload_result = upload_file($_FILES['pdf_file']);
+    // Convert date format to MySQL date format
+    $date_of_registration = date('Y-m-d', strtotime($date_of_registration));
+
+    // Upload PDF file into organized folder: birth/{year}/
+    $reg_year = date('Y', strtotime($date_of_registration));
+    $upload_result = upload_file($_FILES['pdf_file'], 'birth', $reg_year);
 
     if (!$upload_result['success']) {
         json_response(false, implode(' ', $upload_result['errors']), null, 400);
@@ -134,9 +171,6 @@ try {
 
     $pdf_filename = $upload_result['filename'];
     $pdf_filepath = $upload_result['path'];
-
-    // Convert date format to MySQL date format
-    $date_of_registration = date('Y-m-d', strtotime($date_of_registration));
 
     // Convert child date of birth format
     if (!empty($child_date_of_birth)) {
@@ -164,8 +198,10 @@ try {
                     child_middle_name,
                     child_last_name,
                     child_date_of_birth,
+                    time_of_birth,
                     place_type,
                     child_place_of_birth,
+                    barangay,
                     child_sex,
                     legitimacy_status,
                     type_of_birth,
@@ -175,9 +211,11 @@ try {
                     mother_first_name,
                     mother_middle_name,
                     mother_last_name,
+                    mother_citizenship,
                     father_first_name,
                     father_middle_name,
                     father_last_name,
+                    father_citizenship,
                     date_of_marriage,
                     place_of_marriage,
                     pdf_filename,
@@ -191,8 +229,10 @@ try {
                     :child_middle_name,
                     :child_last_name,
                     :child_date_of_birth,
+                    :time_of_birth,
                     :place_type,
                     :child_place_of_birth,
+                    :barangay,
                     :child_sex,
                     :legitimacy_status,
                     :type_of_birth,
@@ -202,9 +242,11 @@ try {
                     :mother_first_name,
                     :mother_middle_name,
                     :mother_last_name,
+                    :mother_citizenship,
                     :father_first_name,
                     :father_middle_name,
                     :father_last_name,
+                    :father_citizenship,
                     :date_of_marriage,
                     :place_of_marriage,
                     :pdf_filename,
@@ -222,8 +264,10 @@ try {
             ':child_middle_name' => $child_middle_name,
             ':child_last_name' => $child_last_name,
             ':child_date_of_birth' => $child_date_of_birth,
+            ':time_of_birth' => !empty($time_of_birth) ? $time_of_birth : null,
             ':place_type' => $place_type,
-            ':child_place_of_birth' => $child_place_of_birth,
+            ':child_place_of_birth' => !empty($child_place_of_birth) ? $child_place_of_birth : null,
+            ':barangay' => $barangay,
             ':child_sex' => $child_sex,
             ':legitimacy_status' => $legitimacy_status,
             ':type_of_birth' => $type_of_birth,
@@ -233,9 +277,11 @@ try {
             ':mother_first_name' => $mother_first_name,
             ':mother_middle_name' => $mother_middle_name,
             ':mother_last_name' => $mother_last_name,
+            ':mother_citizenship' => $mother_citizenship,
             ':father_first_name' => $father_first_name,
             ':father_middle_name' => $father_middle_name,
             ':father_last_name' => $father_last_name,
+            ':father_citizenship' => $father_citizenship,
             ':date_of_marriage' => $date_of_marriage,
             ':place_of_marriage' => $place_of_marriage,
             ':pdf_filename' => $pdf_filename,

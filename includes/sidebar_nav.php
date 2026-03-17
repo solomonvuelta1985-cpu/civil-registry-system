@@ -97,6 +97,11 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </a>
         </li>
         <li>
+            <a href="../admin/devices.php" class="<?php echo $current_page == 'devices.php' ? 'active' : ''; ?>" title="Registered Devices — Device Lock Security">
+                <i data-lucide="monitor-check"></i> <span>Devices</span>
+            </a>
+        </li>
+        <li>
             <a href="../admin/settings.php" class="<?php echo $current_page == 'settings.php' ? 'active' : ''; ?>" title="System Configuration">
                 <i data-lucide="settings"></i> <span>Settings</span>
             </a>

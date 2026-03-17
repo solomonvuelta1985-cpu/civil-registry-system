@@ -38,7 +38,6 @@ class CertificateFormHandler {
         this.setupResetConfirmation();
         this.setupAutoSave();
         this.setupBeforeUnload();
-        this.setupRegistryNumberCheck();
     }
 
     /**
@@ -195,8 +194,13 @@ class CertificateFormHandler {
      * Submit the form
      */
     async submitForm(addNew = false) {
+        console.log('=== submitForm called ===');
+        console.log('addNew:', addNew);
+        console.log('isSubmitting:', this.isSubmitting);
+
         // Prevent double submission
         if (this.isSubmitting) {
+            console.log('Form already submitting, returning');
             return;
         }
 
@@ -213,10 +217,21 @@ class CertificateFormHandler {
         const action = isEditMode ? 'update' : 'submit';
         const confirmMessage = `Are you sure you want to ${action} this ${certificateType} record?`;
 
+        console.log('certificateType:', certificateType);
+        console.log('isEditMode:', isEditMode);
+        console.log('confirmMessage:', confirmMessage);
+
         // Function to actually submit the form
         const doSubmit = async () => {
+            console.log('=== doSubmit() started ===');
+
             // Validate all fields
-            if (!this.form.checkValidity()) {
+            console.log('Checking form validity...');
+            const isValid = this.form.checkValidity();
+            console.log('Form is valid:', isValid);
+
+            if (!isValid) {
+                console.log('❌ Form validation failed!');
                 this.form.reportValidity();
 
                 // Validate all fields to show error messages
@@ -231,38 +246,61 @@ class CertificateFormHandler {
                 return;
             }
 
-            // Check for duplicate registry number before submitting
-            const registryNoInput = this.form.querySelector('[name="registry_no"]');
-            if (registryNoInput && registryNoInput.value.trim()) {
-                const isDuplicate = await this.checkDuplicateRegistry(registryNoInput.value.trim(), isEditMode);
-                if (isDuplicate) {
-                    return; // Stop submission if duplicate found
-                }
-            }
-
+            console.log('✅ Form validation passed');
+            console.log('✅ Proceeding with form submission...');
             this.isSubmitting = true;
 
             // Show loading state
+            console.log('Setting loading state...');
             this.setButtonLoading(this.submitButtons.save, true);
             this.showLoadingOverlay(true);
             if (typeof Notiflix !== 'undefined') {
                 Notiflix.Loading.circle('Submitting certificate...');
             }
 
+            // Enable any disabled fields that have values (for cascading dropdowns)
+            console.log('Enabling disabled fields with values...');
+            const disabledFields = this.form.querySelectorAll('input:disabled, select:disabled, textarea:disabled');
+            const fieldsToReEnable = [];
+            disabledFields.forEach(field => {
+                if (field.value && field.value.trim() !== '') {
+                    console.log('Enabling field:', field.name, 'with value:', field.value);
+                    field.disabled = false;
+                    fieldsToReEnable.push(field);
+                }
+            });
+
             // Prepare form data
+            console.log('Creating FormData...');
             const formData = new FormData(this.form);
+            console.log('FormData entries:', Array.from(formData.entries()));
+
+            // CRITICAL DEBUG: Check if place_type and child_place_of_birth are in FormData
+            console.log('🔍 CRITICAL CHECK:');
+            console.log('place_type in FormData:', formData.get('place_type'));
+            console.log('child_place_of_birth in FormData:', formData.get('child_place_of_birth'));
+
+            // Re-disable fields after FormData is created
+            fieldsToReEnable.forEach(field => {
+                field.disabled = true;
+            });
 
             // Determine which endpoint to use based on edit mode
             const isEditMode = this.form.querySelector('input[name="record_id"]')?.value;
             const endpoint = isEditMode ? this.updateEndpoint : this.apiEndpoint;
+            console.log('Using endpoint:', endpoint);
+            console.log('Is edit mode:', !!isEditMode);
 
             try {
+                console.log('Sending POST request to:', endpoint);
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     body: formData
                 });
 
+                console.log('Response received, status:', response.status);
                 const data = await response.json();
+                console.log('Response data:', data);
 
                 if (data.success) {
                     this.handleSuccess(data.message, addNew);
@@ -283,13 +321,19 @@ class CertificateFormHandler {
         };
 
         // Show Notiflix confirmation
+        console.log('Checking Notiflix availability...');
+        console.log('typeof Notiflix:', typeof Notiflix);
+        console.log('Notiflix.Confirm:', Notiflix?.Confirm);
+
         if (typeof Notiflix !== 'undefined' && Notiflix.Confirm) {
+            console.log('Showing Notiflix confirmation dialog...');
             Notiflix.Confirm.show(
                 'Confirm Submission',
                 confirmMessage,
                 isEditMode ? 'Update' : 'Submit',
                 'Cancel',
                 () => {
+                    console.log('User clicked Submit - calling doSubmit()');
                     doSubmit();
                 },
                 () => {
@@ -303,6 +347,7 @@ class CertificateFormHandler {
                     titleColor: '#111827',
                 }
             );
+            console.log('Notiflix.Confirm.show() called');
         } else {
             // Fallback to native confirm
             console.warn('Notiflix not loaded, using native confirm dialog');
@@ -330,8 +375,22 @@ class CertificateFormHandler {
                 this.showAlert('success', `${message} Ready to create another record.`);
             }
 
+            // Save context fields before reset (municipality, province, etc.)
+            const contextFields = {};
+            const contextFieldNames = ['municipality', 'province'];
+            contextFieldNames.forEach(name => {
+                const field = this.form.elements[name];
+                if (field) contextFields[name] = field.value;
+            });
+
             // Reset form
             this.form.reset();
+
+            // Restore context fields after reset
+            Object.keys(contextFields).forEach(name => {
+                const field = this.form.elements[name];
+                if (field) field.value = contextFields[name];
+            });
 
             // Clear validation states
             this.form.querySelectorAll('.is-valid, .is-invalid').forEach(el => {
@@ -862,205 +921,6 @@ class CertificateFormHandler {
         });
     }
 
-    /**
-     * Setup registry number duplicate check
-     */
-    setupRegistryNumberCheck() {
-        const registryNoInput = this.form.querySelector('[name="registry_no"]');
-        if (!registryNoInput) {
-            console.warn('⚠️ Registry number input field not found in form');
-            return;
-        }
-
-        console.log('✅ Registry number duplicate check initialized for:', this.formType);
-
-        let checkTimeout;
-        let lastCheckedValue = '';
-
-        // Check on blur (immediate)
-        registryNoInput.addEventListener('blur', async () => {
-            const registryNo = registryNoInput.value.trim();
-            console.log('🔍 Blur event triggered, registry value:', registryNo);
-
-            if (!registryNo) {
-                // Clear validation if empty
-                registryNoInput.classList.remove('is-invalid');
-                registryNoInput.setAttribute('aria-invalid', 'false');
-                return;
-            }
-
-            // Skip if same value already checked
-            if (registryNo === lastCheckedValue) {
-                console.log('⏭️ Skipping check - already validated:', registryNo);
-                return;
-            }
-
-            lastCheckedValue = registryNo;
-            const isEditMode = this.form.querySelector('input[name="record_id"]')?.value;
-            console.log('🚀 Calling duplicate check - Edit mode:', !!isEditMode);
-            await this.checkDuplicateRegistry(registryNo, isEditMode, true);
-        });
-
-        // Also check on input with debounce for real-time feedback
-        registryNoInput.addEventListener('input', () => {
-            const registryNo = registryNoInput.value.trim();
-
-            if (!registryNo) {
-                // Clear validation if empty
-                registryNoInput.classList.remove('is-invalid');
-                registryNoInput.setAttribute('aria-invalid', 'false');
-                return;
-            }
-
-            // Clear previous timeout
-            clearTimeout(checkTimeout);
-
-            // Check after typing stops for 800ms
-            checkTimeout = setTimeout(async () => {
-                if (registryNo === lastCheckedValue) {
-                    console.log('⏭️ Skipping input check - already validated:', registryNo);
-                    return; // Skip if already checked
-                }
-
-                console.log('⌨️ Input debounce triggered for:', registryNo);
-                lastCheckedValue = registryNo;
-                const isEditMode = this.form.querySelector('input[name="record_id"]')?.value;
-                await this.checkDuplicateRegistry(registryNo, isEditMode, true);
-            }, 800);
-        });
-    }
-
-    /**
-     * Check if registry number already exists
-     * @param {string} registryNo - The registry number to check
-     * @param {string} recordId - Current record ID (for edit mode)
-     * @param {boolean} showWarningOnly - If true, only show warning without blocking
-     * @returns {boolean} - True if duplicate found, false otherwise
-     */
-    async checkDuplicateRegistry(registryNo, recordId = null, showWarningOnly = false) {
-        if (!registryNo) return false;
-
-        try {
-            const formData = new FormData();
-            formData.append('registry_no', registryNo);
-            formData.append('record_type', this.formType);
-            if (recordId) {
-                formData.append('record_id', recordId);
-            }
-
-            console.log('Checking duplicate registry:', {
-                registryNo,
-                formType: this.formType,
-                recordId,
-                showWarningOnly
-            });
-
-            const response = await fetch('../api/check_duplicate_registry.php', {
-                method: 'POST',
-                body: formData
-            });
-
-            const data = await response.json();
-            console.log('Duplicate check response:', data);
-
-            if (data.data && data.data.exists) {
-                // Duplicate found
-                console.log('❌ DUPLICATE FOUND:', registryNo, 'Record ID:', data.data.record_id);
-                const registryInput = this.form.querySelector('[name="registry_no"]');
-
-                if (showWarningOnly) {
-                    // Just show a warning notification on blur
-                    console.log('⚠️ Attempting to show warning notification...');
-                    console.log('Notiflix available:', typeof Notiflix !== 'undefined');
-                    console.log('Notiflix.Notify available:', typeof Notiflix !== 'undefined' && !!Notiflix.Notify);
-
-                    if (typeof Notiflix !== 'undefined' && Notiflix.Notify) {
-                        console.log('✅ Showing Notiflix warning notification');
-                        Notiflix.Notify.warning(
-                            `Registry number "${registryNo}" already exists in the records.`,
-                            {
-                                timeout: 4000,
-                                position: 'right-top',
-                            }
-                        );
-                    } else {
-                        console.error('❌ Notiflix.Notify is NOT available!');
-                        alert(`Warning: Registry number "${registryNo}" already exists in the records.`);
-                    }
-
-                    // Mark field as invalid
-                    if (registryInput) {
-                        registryInput.classList.add('is-invalid');
-                        registryInput.setAttribute('aria-invalid', 'true');
-                        console.log('🔴 Marked input field as invalid');
-                    }
-                } else {
-                    // Show blocking alert on form submission
-                    console.log('🚫 Attempting to show blocking alert...');
-                    console.log('Notiflix available:', typeof Notiflix !== 'undefined');
-                    console.log('Notiflix.Report available:', typeof Notiflix !== 'undefined' && !!Notiflix.Report);
-
-                    if (typeof Notiflix !== 'undefined' && Notiflix.Report) {
-                        console.log('✅ Showing Notiflix report dialog');
-                        Notiflix.Report.warning(
-                            'Duplicate Registry Number',
-                            `The registry number "${registryNo}" already exists in the records. Please use a different registry number or leave it blank for auto-generation.`,
-                            'Okay',
-                            () => {
-                                // Focus on the registry number field
-                                if (registryInput) {
-                                    registryInput.focus();
-                                    registryInput.select();
-                                }
-                            },
-                            {
-                                width: '400px',
-                                borderRadius: '12px',
-                                svgSize: '80px',
-                                messageMaxLength: 500,
-                                plainText: false,
-                                backOverlay: true,
-                            }
-                        );
-                    } else {
-                        console.error('❌ Notiflix.Report is NOT available! Using fallback alert.');
-                        this.showAlert('warning', `Registry number "${registryNo}" already exists in the records. Please use a different registry number.`);
-                        if (registryInput) {
-                            registryInput.focus();
-                            registryInput.select();
-                        }
-                    }
-
-                    // Mark field as invalid
-                    if (registryInput) {
-                        registryInput.classList.add('is-invalid');
-                        registryInput.setAttribute('aria-invalid', 'true');
-                        console.log('🔴 Marked input field as invalid');
-                    }
-                }
-
-                return true; // Duplicate found
-            } else {
-                // No duplicate - clear any invalid state
-                console.log('✅ No duplicate found for:', registryNo);
-                const registryInput = this.form.querySelector('[name="registry_no"]');
-                if (registryInput) {
-                    registryInput.classList.remove('is-invalid');
-                    registryInput.setAttribute('aria-invalid', 'false');
-                    console.log('✅ Cleared invalid state from input field');
-                }
-                return false;
-            }
-
-        } catch (error) {
-            console.error('Error checking duplicate registry:', error);
-            // Don't block submission on network error
-            if (typeof Notiflix !== 'undefined' && Notiflix.Notify) {
-                Notiflix.Notify.failure('Unable to verify registry number. Please try again.');
-            }
-            return false;
-        }
-    }
 }
 
 // Export for use in other scripts

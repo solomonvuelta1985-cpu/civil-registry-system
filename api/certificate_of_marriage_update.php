@@ -52,6 +52,10 @@ try {
     $husband_date_of_birth = sanitize_input($_POST['husband_date_of_birth'] ?? '');
     $husband_place_of_birth = sanitize_input($_POST['husband_place_of_birth'] ?? '');
     $husband_residence = sanitize_input($_POST['husband_residence'] ?? '');
+    $husband_citizenship = sanitize_input($_POST['husband_citizenship'] ?? null);
+    if ($husband_citizenship === 'Other') {
+        $husband_citizenship = sanitize_input($_POST['husband_citizenship_other'] ?? null);
+    }
     $husband_father_name = sanitize_input($_POST['husband_father_name'] ?? '');
     $husband_father_residence = sanitize_input($_POST['husband_father_residence'] ?? '');
     $husband_mother_name = sanitize_input($_POST['husband_mother_name'] ?? '');
@@ -64,6 +68,10 @@ try {
     $wife_date_of_birth = sanitize_input($_POST['wife_date_of_birth'] ?? '');
     $wife_place_of_birth = sanitize_input($_POST['wife_place_of_birth'] ?? '');
     $wife_residence = sanitize_input($_POST['wife_residence'] ?? '');
+    $wife_citizenship = sanitize_input($_POST['wife_citizenship'] ?? null);
+    if ($wife_citizenship === 'Other') {
+        $wife_citizenship = sanitize_input($_POST['wife_citizenship_other'] ?? null);
+    }
     $wife_father_name = sanitize_input($_POST['wife_father_name'] ?? '');
     $wife_father_residence = sanitize_input($_POST['wife_father_residence'] ?? '');
     $wife_mother_name = sanitize_input($_POST['wife_mother_name'] ?? '');
@@ -73,16 +81,6 @@ try {
     $date_of_marriage = sanitize_input($_POST['date_of_marriage'] ?? '');
     $place_of_marriage = sanitize_input($_POST['place_of_marriage'] ?? '');
     $nature_of_solemnization = sanitize_input($_POST['nature_of_solemnization'] ?? '');
-
-    // Validate registry number if changed (exclude current record from duplicate check)
-    if (!empty($registry_no) && $registry_no !== $existing_record['registry_no']) {
-        $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM certificate_of_marriage WHERE registry_no = :registry_no AND id != :id AND status = 'Active'");
-        $stmt_check->execute([':registry_no' => $registry_no, ':id' => $record_id]);
-        if ($stmt_check->fetchColumn() > 0) {
-            echo json_encode(['success' => false, 'message' => 'Registry number already exists.']);
-            exit;
-        }
-    }
 
     // Validation: Required fields
     if (empty($date_of_registration) || empty($husband_first_name) || empty($husband_last_name) ||
@@ -99,51 +97,22 @@ try {
     $pdf_filepath = $existing_record['pdf_filepath'];
 
     if (isset($_FILES['pdf_file']) && $_FILES['pdf_file']['error'] === UPLOAD_ERR_OK) {
-        $pdf_file = $_FILES['pdf_file'];
+        // Upload new file into organized folder: marriage/{year}/
+        $reg_year = date('Y', strtotime($date_of_registration));
+        $upload_result = upload_file($_FILES['pdf_file'], 'marriage', $reg_year);
 
-        // Validate file type
-        $allowed_types = ['application/pdf'];
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mime_type = finfo_file($finfo, $pdf_file['tmp_name']);
-        finfo_close($finfo);
-
-        if (!in_array($mime_type, $allowed_types)) {
-            echo json_encode(['success' => false, 'message' => 'Only PDF files are allowed.']);
+        if (!$upload_result['success']) {
+            echo json_encode(['success' => false, 'message' => implode(' ', $upload_result['errors'])]);
             exit;
         }
 
-        // Validate file size (10MB max)
-        $max_size = 10 * 1024 * 1024; // 10MB
-        if ($pdf_file['size'] > $max_size) {
-            echo json_encode(['success' => false, 'message' => 'File size exceeds 10MB limit.']);
-            exit;
+        // Delete old PDF file
+        if (!empty($existing_record['pdf_filename'])) {
+            delete_file($existing_record['pdf_filename']);
         }
 
-        // Generate unique filename
-        $file_extension = 'pdf';
-        $unique_filename = 'marriage_' . date('Ymd_His') . '_' . uniqid() . '.' . $file_extension;
-        $upload_dir = '../uploads/';
-
-        // Create upload directory if it doesn't exist
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0755, true);
-        }
-
-        $upload_path = $upload_dir . $unique_filename;
-
-        // Move uploaded file
-        if (move_uploaded_file($pdf_file['tmp_name'], $upload_path)) {
-            // Delete old PDF file
-            if (!empty($existing_record['pdf_filepath']) && file_exists($existing_record['pdf_filepath'])) {
-                unlink($existing_record['pdf_filepath']);
-            }
-
-            $pdf_filename = $unique_filename;
-            $pdf_filepath = $upload_path;
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Failed to upload PDF file.']);
-            exit;
-        }
+        $pdf_filename = $upload_result['filename'];
+        $pdf_filepath = $upload_result['path'];
     }
 
     // Update database
@@ -156,6 +125,7 @@ try {
         husband_date_of_birth = :husband_date_of_birth,
         husband_place_of_birth = :husband_place_of_birth,
         husband_residence = :husband_residence,
+        husband_citizenship = :husband_citizenship,
         husband_father_name = :husband_father_name,
         husband_father_residence = :husband_father_residence,
         husband_mother_name = :husband_mother_name,
@@ -166,6 +136,7 @@ try {
         wife_date_of_birth = :wife_date_of_birth,
         wife_place_of_birth = :wife_place_of_birth,
         wife_residence = :wife_residence,
+        wife_citizenship = :wife_citizenship,
         wife_father_name = :wife_father_name,
         wife_father_residence = :wife_father_residence,
         wife_mother_name = :wife_mother_name,
@@ -191,6 +162,7 @@ try {
         ':husband_date_of_birth' => $husband_date_of_birth,
         ':husband_place_of_birth' => $husband_place_of_birth,
         ':husband_residence' => $husband_residence,
+        ':husband_citizenship' => $husband_citizenship ?: null,
         ':husband_father_name' => $husband_father_name ?: null,
         ':husband_father_residence' => $husband_father_residence ?: null,
         ':husband_mother_name' => $husband_mother_name ?: null,
@@ -201,6 +173,7 @@ try {
         ':wife_date_of_birth' => $wife_date_of_birth,
         ':wife_place_of_birth' => $wife_place_of_birth,
         ':wife_residence' => $wife_residence,
+        ':wife_citizenship' => $wife_citizenship ?: null,
         ':wife_father_name' => $wife_father_name ?: null,
         ':wife_father_residence' => $wife_father_residence ?: null,
         ':wife_mother_name' => $wife_mother_name ?: null,

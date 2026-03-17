@@ -118,9 +118,9 @@ $field_groups = $certificate_type === 'birth' ? $birth_fields : $marriage_fields
     <title>PDF Comparison Viewer - <?= ucfirst($certificate_type) ?> Certificate #<?= $certificate_id ?></title>
 
     <!-- PDF.js -->
-    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+    <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '<?= asset_url("pdfjs_worker") ?>';
     </script>
 
     <style>
@@ -627,7 +627,7 @@ $field_groups = $certificate_type === 'birth' ? $birth_fields : $marriage_fields
 
         <?php if ($pdf_info && file_exists('../' . $pdf_info['file_path'])): ?>
         // Load PDF
-        const pdfUrl = '../<?= $pdf_info['file_path'] ?>';
+        const pdfUrl = '../api/serve_pdf.php?file=<?= urlencode($pdf_info['file_name']) ?>';
 
         pdfjsLib.getDocument(pdfUrl).promise.then(function(pdf) {
             pdfDoc = pdf;

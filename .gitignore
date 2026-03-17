@@ -65,6 +65,9 @@ yarn-error.log
 dist/
 build/
 
+# Vendor assets (downloaded by download_assets.sh — do not commit binaries)
+assets/vendor/
+
 # Test files
 tests/
 phpunit.xml

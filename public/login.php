@@ -5,6 +5,7 @@ require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
 require_once '../includes/security_headers.php';
+require_once '../includes/device_auth.php';
 
 // Set security headers
 setSecurityHeaders();
@@ -34,6 +35,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($error)) {
+        // ── Device Lock Check (before credential validation) ──────────────
+        if (isDeviceLockEnabled()) {
+            $device_fp = trim($_POST['device_fingerprint'] ?? '');
+            if (empty($device_fp) || !checkDeviceRegistered($device_fp)) {
+                logSecurityEvent('DEVICE_BLOCKED', 'HIGH', null,
+                    json_encode([
+                        'fp_prefix'        => substr($device_fp, 0, 16),
+                        'attempted_user'   => sanitize_input($_POST['username'] ?? ''),
+                        'ip'               => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                    ]));
+                header('Location: device_blocked.php');
+                exit;
+            }
+            // Device is registered — record the visit
+            updateDeviceLastSeen($device_fp, $_SERVER['REMOTE_ADDR'] ?? '');
+        }
+        // ─────────────────────────────────────────────────────────────────
+
         $username = sanitize_input($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
 
@@ -95,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Civil Registry Document Management System (CRDMS)</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <?= google_fonts_tag('Poppins:wght@300;400;500;600;700') ?>
     <style>
         * {
             margin: 0;
@@ -602,6 +621,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php if (ENABLE_CSRF_PROTECTION): ?>
                         <?php echo csrfTokenField(); ?>
                     <?php endif; ?>
+                    <!-- Device fingerprint — filled by JS before submit -->
+                    <input type="hidden" name="device_fingerprint" id="deviceFingerprintInput">
                     <div class="input-group">
                         <input type="text" name="username" class="form-input" placeholder="Username"
                                value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>" required autofocus>
@@ -633,14 +654,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 
+    <script src="../assets/js/device-fingerprint.js"></script>
     <script>
-        // Form submission with loading state
+        // Form submission — capture device fingerprint before submitting
         const loginForm = document.getElementById('loginForm');
-        const loginBtn = document.getElementById('loginBtn');
+        const loginBtn  = document.getElementById('loginBtn');
 
-        loginForm.addEventListener('submit', function() {
+        loginForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
             loginBtn.disabled = true;
             loginBtn.innerHTML = '<span class="spinner"></span> Signing In...';
+
+            // Collect device fingerprint (async — canvas + WebGL rendering)
+            try {
+                const fp = await window.DeviceFingerprint.get();
+                document.getElementById('deviceFingerprintInput').value = fp;
+            } catch (err) {
+                document.getElementById('deviceFingerprintInput').value = '';
+            }
+
+            // Now submit the form with the fingerprint filled in
+            loginForm.submit();
         });
 
         // Mouse parallax effect on hexagons

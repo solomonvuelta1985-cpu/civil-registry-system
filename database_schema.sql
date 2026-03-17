@@ -34,11 +34,13 @@ CREATE TABLE IF NOT EXISTS certificate_of_live_birth (
     mother_first_name VARCHAR(100) NOT NULL,
     mother_middle_name VARCHAR(100) NULL,
     mother_last_name VARCHAR(100) NOT NULL,
+    mother_citizenship VARCHAR(100) NULL,
 
     -- Father's Information
     father_first_name VARCHAR(100) NULL,
     father_middle_name VARCHAR(100) NULL,
     father_last_name VARCHAR(100) NULL,
+    father_citizenship VARCHAR(100) NULL,
 
     -- Marriage Information
     date_of_marriage DATE NULL,
@@ -159,6 +161,25 @@ SELECT
     SUM(CASE WHEN DATE(date_of_registration) = CURDATE() THEN 1 ELSE 0 END) AS today_registrations,
     SUM(CASE WHEN MONTH(date_of_registration) = MONTH(CURDATE()) AND YEAR(date_of_registration) = YEAR(CURDATE()) THEN 1 ELSE 0 END) AS this_month_registrations
 FROM certificate_of_live_birth;
+
+-- ============================================
+-- Registered Devices (Device Lock Security)
+-- ============================================
+CREATE TABLE IF NOT EXISTS registered_devices (
+    id INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    device_name VARCHAR(100) NOT NULL,
+    fingerprint_hash CHAR(64) NOT NULL,
+    registered_by INT(11) UNSIGNED NOT NULL,
+    registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at TIMESTAMP NULL,
+    last_seen_ip VARCHAR(45) NULL,
+    status ENUM('Active', 'Revoked') DEFAULT 'Active',
+    notes TEXT NULL,
+    UNIQUE KEY uniq_fingerprint (fingerprint_hash),
+    INDEX idx_status (status),
+    INDEX idx_registered_by (registered_by)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Registered device fingerprints for device-lock security';
 
 -- ============================================
 -- End of Schema

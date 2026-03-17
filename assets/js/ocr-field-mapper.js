@@ -21,9 +21,11 @@ class OCRFieldMapper {
             'mother_first_name': 'mother_first_name',
             'mother_middle_name': 'mother_middle_name',
             'mother_last_name': 'mother_last_name',
+            'mother_citizenship': 'mother_citizenship',
             'father_first_name': 'father_first_name',
             'father_middle_name': 'father_middle_name',
-            'father_last_name': 'father_last_name'
+            'father_last_name': 'father_last_name',
+            'father_citizenship': 'father_citizenship'
         };
 
         // Month name to number mapping
@@ -75,6 +77,11 @@ class OCRFieldMapper {
             try {
                 // Convert value based on field type
                 const convertedValue = this.convertValue(value, formField);
+
+                // Special handling for child_place_of_birth (cascading dropdown)
+                if (formFieldId === 'child_place_of_birth' && convertedValue) {
+                    this.handlePlaceOfBirthCascade(convertedValue);
+                }
 
                 // Set the value
                 formField.value = convertedValue;
@@ -261,6 +268,78 @@ class OCRFieldMapper {
     extractNumber(value) {
         const match = String(value).match(/\d+(\.\d+)?/);
         return match ? match[0] : value;
+    }
+
+    /**
+     * Handle place_type and child_place_of_birth cascading dropdown
+     * Determines if location is a barangay or hospital and sets both fields
+     */
+    handlePlaceOfBirthCascade(location) {
+        console.log('🏥 Handling place of birth cascade for:', location);
+
+        const barangays = [
+            'Adaoag', 'Agaman (Proper)', 'Agaman Norte', 'Agaman Sur', 'Alba', 'Annayatan',
+            'Asassi', 'Asinga-Via', 'Awallan', 'Bacagan', 'Bagunot', 'Barsat East',
+            'Barsat West', 'Bitag Grande', 'Bitag Pequeño', 'Bunugan', 'C. Verzosa (Valley Cove)',
+            'Canagatan', 'Carupian', 'Catugay', 'Dabbac Grande', 'Dalin', 'Dalla',
+            'Hacienda Intal', 'Ibulo', 'Imurung', 'J. Pallagao', 'Lasilat', 'Mabini',
+            'Masical', 'Mocag', 'Nangalinan', 'Poblacion (Centro)', 'Remus', 'San Antonio',
+            'San Francisco', 'San Isidro', 'San Jose', 'San Miguel', 'San Vicente',
+            'Santa Margarita', 'Santor', 'Taguing', 'Taguntungan', 'Tallang', 'Taytay',
+            'Temblique', 'Tungel'
+        ];
+
+        const hospitals = [
+            'Baggao District Hospital',
+            'Municipal Health Office'
+        ];
+
+        const placeTypeField = document.getElementById('place_type');
+        const placeOfBirthField = document.getElementById('child_place_of_birth');
+
+        if (!placeTypeField || !placeOfBirthField) {
+            console.warn('⚠️ Place type or place of birth field not found');
+            return;
+        }
+
+        // Check if it's a barangay
+        const matchedBarangay = barangays.find(b =>
+            b.toUpperCase() === location.toUpperCase() ||
+            location.toUpperCase().includes(b.toUpperCase())
+        );
+
+        // Check if it's a hospital
+        const matchedHospital = hospitals.find(h =>
+            h.toUpperCase() === location.toUpperCase() ||
+            location.toUpperCase().includes(h.toUpperCase())
+        );
+
+        // Also try to set the barangay field
+        const barangayField = document.getElementById('barangay');
+
+        if (matchedHospital) {
+            console.log('✅ Detected as Hospital/Clinic:', matchedHospital);
+            placeTypeField.value = 'Hospital/Clinic';
+            placeTypeField.dispatchEvent(new Event('change', { bubbles: true }));
+
+            setTimeout(() => {
+                placeOfBirthField.value = matchedHospital;
+                placeOfBirthField.dispatchEvent(new Event('change', { bubbles: true }));
+            }, 400);
+        } else if (matchedBarangay) {
+            console.log('✅ Detected as Home birth in barangay:', matchedBarangay);
+            placeTypeField.value = 'Home';
+            placeTypeField.dispatchEvent(new Event('change', { bubbles: true }));
+
+            // Set barangay field
+            if (barangayField) {
+                barangayField.value = matchedBarangay;
+                barangayField.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        } else {
+            console.warn('⚠️ Location not recognized as barangay or hospital:', location);
+            placeTypeField.value = '';
+        }
     }
 }
 

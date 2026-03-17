@@ -119,6 +119,7 @@ $record_configs = [
             ['label' => 'Sex', 'field' => 'child_sex', 'sortable' => true],
             ['label' => 'Father', 'field' => 'father_name', 'sortable' => true, 'sort_field' => 'father_first_name'],
             ['label' => 'Mother', 'field' => 'mother_name', 'sortable' => true, 'sort_field' => 'mother_first_name'],
+            ['label' => 'Place', 'field' => 'child_place_of_birth', 'sortable' => true],
             ['label' => 'Registration Date', 'field' => 'date_of_registration', 'sortable' => true, 'type' => 'date']
         ],
         'filters' => [
@@ -126,7 +127,56 @@ $record_configs = [
             ['name' => 'birth_date_to', 'label' => 'Birth Date To', 'type' => 'date', 'field' => 'child_date_of_birth', 'operator' => '<='],
             ['name' => 'reg_date_from', 'label' => 'Registration Date From', 'type' => 'date', 'field' => 'date_of_registration', 'operator' => '>='],
             ['name' => 'reg_date_to', 'label' => 'Registration Date To', 'type' => 'date', 'field' => 'date_of_registration', 'operator' => '<='],
-            ['name' => 'child_sex', 'label' => 'Sex', 'type' => 'text', 'field' => 'child_sex', 'operator' => 'LIKE']
+            [
+                'name' => 'place_type',
+                'label' => 'Place Type',
+                'type' => 'select',
+                'field' => 'place_type',
+                'operator' => '=',
+                'options' => [
+                    '' => 'All',
+                    'Barangay' => 'Barangay',
+                    'Hospital' => 'Hospital'
+                ]
+            ],
+            [
+                'name' => 'child_place_of_birth',
+                'label' => 'Location',
+                'type' => 'select',
+                'field' => 'child_place_of_birth',
+                'operator' => '=',
+                'dependent_on' => 'place_type',
+                'options' => [
+                    '' => 'All Locations',
+                    'Barangay' => [
+                        'Adaoag', 'Agaman (Proper)', 'Agaman Norte', 'Agaman Sur', 'Alba', 'Annayatan',
+                        'Asassi', 'Asinga-Via', 'Awallan', 'Bacagan', 'Bagunot', 'Barsat East',
+                        'Barsat West', 'Bitag Grande', 'Bitag Pequeño', 'Bunugan', 'C. Verzosa (Valley Cove)',
+                        'Canagatan', 'Carupian', 'Catugay', 'Dabbac Grande', 'Dalin', 'Dalla',
+                        'Hacienda Intal', 'Ibulo', 'Imurung', 'J. Pallagao', 'Lasilat', 'Mabini',
+                        'Masical', 'Mocag', 'Nangalinan', 'Poblacion (Centro)', 'Remus', 'San Antonio',
+                        'San Francisco', 'San Isidro', 'San Jose', 'San Miguel', 'San Vicente',
+                        'Santa Margarita', 'Santor', 'Taguing', 'Taguntungan', 'Tallang', 'Taytay',
+                        'Temblique', 'Tungel'
+                    ],
+                    'Hospital' => [
+                        'Baggao District Hospital',
+                        'Municipal Health Office'
+                    ]
+                ]
+            ],
+            [
+                'name' => 'child_sex',
+                'label' => 'Sex',
+                'type' => 'select',
+                'field' => 'child_sex',
+                'operator' => '=',
+                'options' => [
+                    '' => 'All',
+                    'Male' => 'Male',
+                    'Female' => 'Female'
+                ]
+            ]
         ]
     ],
     'death' => [
@@ -429,20 +479,18 @@ function get_field_value($record, $field, $type = 'text') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($config['title']); ?> - Civil Registry</title>
 
-    <!-- Google Fonts - Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Google Fonts (online only; system fonts used when OFFLINE_MODE=true) -->
+    <?= google_fonts_tag('Inter:wght@300;400;500;600;700') ?>
 
     <!-- Font Awesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="<?= asset_url('fontawesome_css') ?>">
 
     <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="<?= asset_url('lucide') ?>"></script>
 
     <!-- Notiflix - Modern Notification Library -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notiflix@3.2.6/dist/notiflix-3.2.6.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/notiflix@3.2.6/dist/notiflix-3.2.6.min.js"></script>
+    <link rel="stylesheet" href="<?= asset_url('notiflix_css') ?>">
+    <script src="<?= asset_url('notiflix_js') ?>"></script>
     <script src="../assets/js/notiflix-config.js"></script>
 
     <!-- Shared Sidebar Styles -->
@@ -452,18 +500,18 @@ function get_field_value($record, $field, $type = 'text') {
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css">
 
     <!-- PDF.js Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>
         // Configure PDF.js worker
         if (typeof pdfjsLib !== 'undefined') {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            pdfjsLib.GlobalWorkerOptions.workerSrc = '<?= asset_url("pdfjs_worker") ?>';
         }
     </script>
 
     <style>
         /* ========================================
-           MODERN CLEAN DESIGN - 2026 STANDARDS
-           No gradients, minimal styling, professional
+           CORPORATE MODERN DESIGN - PROFESSIONAL & CLEAN
+           Light colors, excellent typography, proper spacing
            ======================================== */
 
         /* Reset & Base */
@@ -473,75 +521,84 @@ function get_field_value($record, $field, $type = 'text') {
             box-sizing: border-box;
         }
 
+        /* Font loaded via <link> in <head> — see google_fonts_tag() */
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background-color: #F9FAFB;
-            color: #111827;
-            font-size: clamp(0.8rem, 1.5vw, 0.875rem);
-            line-height: 1.5;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #F8FAFC;
+            color: #1E293B;
+            font-size: 15px;
+            line-height: 1.6;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            letter-spacing: -0.011em;
         }
 
         :root {
-            /* Base Colors - Flat, No Gradients */
+            /* Base Colors - Light & Professional */
             --bg-primary: #FFFFFF;
-            --bg-secondary: #F9FAFB;
-            --bg-tertiary: #F3F4F6;
+            --bg-secondary: #F8FAFC;
+            --bg-tertiary: #F1F5F9;
+            --bg-accent: #EFF6FF;
 
-            /* Text Colors */
-            --text-primary: #111827;
-            --text-secondary: #6B7280;
-            --text-tertiary: #9CA3AF;
+            /* Text Colors - Refined Hierarchy */
+            --text-primary: #0F172A;
+            --text-secondary: #475569;
+            --text-tertiary: #94A3B8;
+            --text-muted: #CBD5E1;
 
-            /* Border Colors */
-            --border-light: #F3F4F6;
-            --border-medium: #E5E7EB;
-            --border-strong: #D1D5DB;
+            /* Border Colors - Subtle */
+            --border-light: #F1F5F9;
+            --border-medium: #E2E8F0;
+            --border-strong: #CBD5E1;
 
-            /* Action Colors - Flat */
-            --primary: #3B82F6;
-            --primary-hover: #2563EB;
-            --primary-light: #EFF6FF;
+            /* Action Colors - Professional Palette */
+            --primary: #2563EB;
+            --primary-hover: #1D4ED8;
+            --primary-light: #DBEAFE;
+            --primary-lighter: #EFF6FF;
 
-            --success: #10B981;
-            --success-hover: #059669;
+            --success: #059669;
+            --success-hover: #047857;
             --success-light: #D1FAE5;
 
-            --warning: #F59E0B;
-            --warning-hover: #D97706;
+            --warning: #D97706;
+            --warning-hover: #B45309;
             --warning-light: #FEF3C7;
 
-            --danger: #EF4444;
-            --danger-hover: #DC2626;
+            --danger: #DC2626;
+            --danger-hover: #B91C1C;
             --danger-light: #FEE2E2;
 
-            /* Spacing */
-            --spacing-xs: 8px;
+            /* Spacing System - Enhanced */
+            --spacing-xs: 6px;
             --spacing-sm: 12px;
-            --spacing-md: 16px;
-            --spacing-lg: 24px;
-            --spacing-xl: 32px;
+            --spacing-md: 20px;
+            --spacing-lg: 32px;
+            --spacing-xl: 48px;
+            --spacing-2xl: 64px;
 
-            /* Border Radius */
-            --radius-sm: 6px;
-            --radius-md: 8px;
-            --radius-lg: 12px;
+            /* Border Radius - Consistent */
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
 
-            /* Shadows - Minimal */
-            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.1);
-            --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.07);
+            /* Shadows - Refined */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+            --shadow-md: 0 2px 8px 0 rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 8px 24px 0 rgba(0, 0, 0, 0.08);
+            --shadow-xl: 0 16px 40px 0 rgba(0, 0, 0, 0.1);
         }
 
-        /* Page Layout */
+        /* Page Layout - Enhanced Spacing */
         .page-container {
-            padding: var(--spacing-xl);
+            padding: var(--spacing-xl) var(--spacing-lg);
             max-width: 1600px;
             margin: 0 auto;
         }
 
-        /* Header */
+        /* Header - Better Hierarchy */
         .page-header {
             margin-bottom: var(--spacing-xl);
             display: flex;
@@ -549,37 +606,49 @@ function get_field_value($record, $field, $type = 'text') {
             align-items: center;
             flex-wrap: wrap;
             gap: var(--spacing-md);
+            padding-bottom: var(--spacing-md);
+            border-bottom: 2px solid var(--border-light);
         }
 
         .page-title {
-            font-size: 28px;
+            font-size: 32px;
             font-weight: 700;
             color: var(--text-primary);
             display: flex;
             align-items: center;
-            gap: var(--spacing-sm);
-            letter-spacing: -0.02em;
+            gap: 16px;
+            letter-spacing: -0.025em;
+            line-height: 1.2;
         }
 
         .page-title [data-lucide] {
             color: var(--primary);
-            width: 28px;
-            height: 28px;
+            width: 32px;
+            height: 32px;
+            stroke-width: 2;
         }
 
-        /* Buttons - Clean Flat Design */
+        /* Buttons - Professional Design */
         .btn {
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: var(--radius-md);
-            font-size: 14px;
-            font-weight: 500;
+            font-size: 15px;
+            font-weight: 600;
             border: none;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
-            gap: var(--spacing-xs);
+            gap: 10px;
             text-decoration: none;
-            transition: all 0.15s ease;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            letter-spacing: -0.01em;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn [data-lucide] {
+            width: 18px;
+            height: 18px;
+            stroke-width: 2.5;
         }
 
         .btn-primary {
@@ -589,6 +658,12 @@ function get_field_value($record, $field, $type = 'text') {
 
         .btn-primary:hover {
             background-color: var(--primary-hover);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
         }
 
         .btn-success {
@@ -598,6 +673,8 @@ function get_field_value($record, $field, $type = 'text') {
 
         .btn-success:hover {
             background-color: var(--success-hover);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
         }
 
         .btn-warning {
@@ -607,6 +684,8 @@ function get_field_value($record, $field, $type = 'text') {
 
         .btn-warning:hover {
             background-color: var(--warning-hover);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
         }
 
         .btn-danger {
@@ -616,34 +695,49 @@ function get_field_value($record, $field, $type = 'text') {
 
         .btn-danger:hover {
             background-color: var(--danger-hover);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
         }
 
         .btn-sm {
-            padding: 7px 12px;
-            font-size: 13px;
+            padding: 8px 14px;
+            font-size: 14px;
+            gap: 6px;
+        }
+
+        .btn-sm [data-lucide] {
+            width: 16px;
+            height: 16px;
         }
 
         .btn-outline {
             background: var(--bg-primary);
-            border: 1px solid var(--border-medium);
+            border: 1.5px solid var(--border-medium);
             color: var(--text-secondary);
+            box-shadow: none;
         }
 
         .btn-outline:hover {
             background: var(--bg-tertiary);
-            border-color: var(--border-strong);
-            color: var(--text-primary);
+            border-color: var(--primary);
+            color: var(--primary);
+            box-shadow: var(--shadow-sm);
         }
 
-        /* Search & Filter - Clean Spacing */
+        /* Search & Filter - Enhanced Professional Design */
         .search-section {
             margin-bottom: var(--spacing-lg);
+            background: var(--bg-primary);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
         }
 
         .search-form {
             display: flex;
             gap: var(--spacing-sm);
-            margin-bottom: var(--spacing-md);
+            margin-bottom: 0;
             align-items: stretch;
         }
 
@@ -654,31 +748,38 @@ function get_field_value($record, $field, $type = 'text') {
 
         .search-input {
             width: 100%;
-            padding: 12px var(--spacing-md) 12px 44px;
-            border: 1px solid var(--border-medium);
+            padding: 14px var(--spacing-md) 14px 48px;
+            border: 1.5px solid var(--border-medium);
             border-radius: var(--radius-md);
-            font-size: 14px;
-            background-color: var(--bg-primary);
-            transition: all 0.15s ease;
+            font-size: 15px;
+            background-color: var(--bg-secondary);
+            transition: all 0.2s ease;
             font-family: inherit;
+            font-weight: 400;
+            color: var(--text-primary);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-tertiary);
+            font-weight: 400;
         }
 
         .search-input:focus {
             outline: none;
             border-color: var(--primary);
             background-color: var(--bg-primary);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
         }
 
         .search-input-wrapper::before {
             content: '';
             position: absolute;
-            left: 18px;
+            left: 16px;
             top: 50%;
             transform: translateY(-50%);
             width: 20px;
             height: 20px;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
             background-size: contain;
             background-repeat: no-repeat;
             pointer-events: none;
@@ -687,22 +788,28 @@ function get_field_value($record, $field, $type = 'text') {
         .filter-toggle-btn {
             display: inline-flex;
             align-items: center;
-            gap: var(--spacing-xs);
+            gap: 8px;
             color: var(--text-secondary);
-            background: var(--bg-primary);
-            border: 1px solid var(--border-medium);
-            padding: 12px var(--spacing-lg);
+            background: var(--bg-secondary);
+            border: 1.5px solid var(--border-medium);
+            padding: 14px 20px;
             border-radius: var(--radius-md);
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.15s ease;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .filter-toggle-btn [data-lucide] {
+            width: 18px;
+            height: 18px;
+            stroke-width: 2.5;
         }
 
         .filter-toggle-btn:hover {
             background: var(--bg-tertiary);
-            border-color: var(--border-strong);
-            color: var(--text-primary);
+            border-color: var(--primary);
+            color: var(--primary);
         }
 
         .filter-toggle-btn.active {
@@ -713,11 +820,7 @@ function get_field_value($record, $field, $type = 'text') {
 
         .advanced-filters {
             display: none;
-            padding: 0;
-            background: transparent;
-            border-radius: 0;
-            border: none;
-            margin-bottom: var(--spacing-lg);
+            margin-top: var(--spacing-md);
         }
 
         .advanced-filters.show {
@@ -726,36 +829,52 @@ function get_field_value($record, $field, $type = 'text') {
 
         .filter-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: var(--spacing-sm);
-            margin-bottom: 0;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--spacing-md);
             padding: var(--spacing-md);
-            background: var(--bg-primary);
-            border: 1px solid var(--border-medium);
+            background: var(--bg-secondary);
+            border: 1.5px solid var(--border-light);
             border-radius: var(--radius-md);
         }
+
+        /* Ensure Place Type and Location are on the same row */
+        .filter-group[data-filter-name="birth_date_from"] { grid-column: 1; }
+        .filter-group[data-filter-name="birth_date_to"] { grid-column: 2; }
+        .filter-group[data-filter-name="reg_date_from"] { grid-column: 3; }
+        .filter-group[data-filter-name="reg_date_to"] { grid-column: 4; }
+        .filter-group[data-filter-name="place_type"] { grid-column: 1; }
+        .filter-group[data-filter-name="child_place_of_birth"] { grid-column: 2; }
+        .filter-group[data-filter-name="child_sex"] { grid-column: 3; }
 
         .filter-group {
             display: flex;
             flex-direction: column;
-            gap: var(--spacing-xs);
+            gap: 8px;
         }
 
         .filter-group label {
             font-size: 13px;
             font-weight: 600;
             color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
         }
 
         .filter-group input,
         .filter-group select {
-            padding: 10px var(--spacing-sm);
-            border: 1px solid var(--border-medium);
-            border-radius: var(--radius-md);
-            font-size: 14px;
+            padding: 12px 14px;
+            border: 1.5px solid var(--border-medium);
+            border-radius: var(--radius-sm);
+            font-size: 15px;
             background-color: var(--bg-primary);
-            transition: all 0.15s ease;
+            transition: all 0.2s ease;
             font-family: inherit;
+            color: var(--text-primary);
+            font-weight: 400;
+        }
+
+        .filter-group input::placeholder {
+            color: var(--text-tertiary);
         }
 
         .filter-group input:focus,
@@ -763,7 +882,43 @@ function get_field_value($record, $field, $type = 'text') {
             outline: none;
             border-color: var(--primary);
             background-color: var(--bg-primary);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
+        }
+
+        /* Professional Select Dropdown Styling */
+        .filter-group select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 18px;
+            padding-right: 40px;
+            cursor: pointer;
+        }
+
+        .filter-group select:hover {
+            border-color: var(--border-strong);
+        }
+
+        .filter-group select:focus {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563EB' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+        }
+
+        /* Disabled Select Dropdown */
+        .filter-group select:disabled {
+            background-color: var(--bg-tertiary);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            opacity: 0.6;
+            border-color: var(--border-light);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23CBD5E1' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+        }
+
+        /* Hide dependent filter groups when parent is not selected */
+        .filter-group.dependent-hidden {
+            display: none;
         }
 
         .filter-actions {
@@ -776,28 +931,30 @@ function get_field_value($record, $field, $type = 'text') {
         .filter-badge {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
-            background: var(--primary);
-            color: #FFFFFF;
-            padding: 3px 10px;
-            border-radius: 12px;
+            justify-content: center;
+            background: #FFFFFF;
+            color: var(--primary);
+            padding: 2px 8px;
+            border-radius: 6px;
             font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.02em;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            margin-left: 4px;
         }
 
-        /* Table - Modern Clean Design, NO GRADIENTS, NO EXTRA BOXES */
+        /* Table - Professional Corporate Design */
         .table-container {
             background: var(--bg-primary);
-            border-radius: 0;
-            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-lg);
+            border: 1.5px solid var(--border-light);
             overflow: hidden;
-            box-shadow: none;
+            box-shadow: var(--shadow-md);
         }
 
         .records-table {
             width: 100%;
             border-collapse: collapse;
+            table-layout: fixed;
         }
 
         .records-table thead {
@@ -808,105 +965,149 @@ function get_field_value($record, $field, $type = 'text') {
         }
 
         .records-table th {
-            padding: 14px var(--spacing-lg);
+            padding: 10px 6px;
             text-align: left;
-            font-weight: 600;
-            color: var(--text-secondary);
-            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-size: 11px;
             letter-spacing: 0.02em;
-            border-bottom: 1px solid var(--border-medium);
-            white-space: nowrap;
+            text-transform: uppercase;
+            border-bottom: 2px solid var(--border-medium);
+            white-space: normal;
+            word-wrap: break-word;
         }
 
         .records-table th.sortable {
             cursor: pointer;
             user-select: none;
-            transition: all 0.15s ease;
+            transition: all 0.2s ease;
         }
 
         .records-table th.sortable:hover {
             background-color: var(--bg-tertiary);
-            color: var(--text-primary);
+            color: var(--primary);
         }
 
         .records-table th.sortable a {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
             color: inherit;
             text-decoration: none;
         }
 
         .records-table th.sortable.active {
-            background-color: var(--primary-light);
+            background-color: var(--primary-lighter);
             color: var(--primary);
         }
 
         .sort-icon {
-            opacity: 0.4;
-            transition: opacity 0.15s;
+            opacity: 0.3;
+            transition: all 0.2s ease;
             width: 16px;
             height: 16px;
         }
 
-        .records-table th.sortable:hover .sort-icon,
+        .records-table th.sortable:hover .sort-icon {
+            opacity: 0.6;
+        }
+
         .records-table th.sortable.active .sort-icon {
             opacity: 1;
+        }
+
+        /* Row Number Column Styles */
+        .records-table th.row-number-header,
+        .records-table td.row-number {
+            width: 50px;
+            text-align: center;
+            font-weight: 700;
+            border-right: 2px solid var(--border-medium);
+            background: var(--bg-secondary);
+        }
+
+        .records-table th.row-number-header {
+            font-size: 12px;
+            letter-spacing: 0.08em;
+        }
+
+        .records-table td.row-number {
+            color: var(--text-tertiary);
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .records-table tbody tr:hover td.row-number {
+            background: var(--primary-lighter);
+            color: var(--primary);
         }
 
         .table-controls {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: var(--spacing-md) var(--spacing-lg);
+            padding: var(--spacing-md) var(--spacing-md);
             background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border-medium);
+            border-bottom: 2px solid var(--border-light);
         }
 
         .table-controls-left {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 20px;
         }
 
         .table-controls-right {
             color: var(--text-secondary);
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 500;
         }
 
         .per-page-selector {
             display: flex;
             align-items: center;
-            gap: var(--spacing-xs);
-            font-size: 13px;
+            gap: 10px;
+            font-size: 14px;
             color: var(--text-secondary);
             font-weight: 500;
         }
 
+        .per-page-selector label {
+            font-weight: 600;
+        }
+
         .per-page-selector select {
-            padding: 6px var(--spacing-sm);
-            border: 1px solid var(--border-medium);
+            padding: 8px 14px;
+            border: 1.5px solid var(--border-medium);
             border-radius: var(--radius-sm);
-            font-size: 13px;
+            font-size: 14px;
             cursor: pointer;
             background-color: var(--bg-primary);
-            font-weight: 500;
-            transition: all 0.15s ease;
+            font-weight: 600;
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+        }
+
+        .per-page-selector select:hover {
+            border-color: var(--primary);
         }
 
         .per-page-selector select:focus {
             outline: none;
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
         }
 
         .records-table td {
-            padding: 16px var(--spacing-lg);
+            padding: 10px 6px;
             border-bottom: 1px solid var(--border-light);
-            font-size: 14px;
+            font-size: 13px;
             color: var(--text-primary);
-            line-height: 1.5;
+            line-height: 1.4;
+            font-weight: 400;
+            white-space: normal;
+            word-wrap: break-word;
+            max-width: 150px;
         }
 
         .records-table tbody {
@@ -914,11 +1115,31 @@ function get_field_value($record, $field, $type = 'text') {
         }
 
         .records-table tbody tr {
-            transition: background-color 0.15s ease;
+            transition: all 0.2s ease;
+        }
+
+        /* Zebra striping for better readability */
+        .records-table tbody tr:nth-child(even) {
+            background-color: var(--bg-secondary);
+        }
+
+        .records-table tbody tr:nth-child(odd) {
+            background-color: var(--bg-primary);
         }
 
         .records-table tbody tr:hover {
-            background-color: var(--bg-secondary);
+            background-color: var(--bg-accent);
+        }
+
+        .records-table tbody tr.row-active,
+        .records-table tbody tr.row-active:nth-child(even),
+        .records-table tbody tr.row-active:nth-child(odd) {
+            background-color: var(--primary-lighter);
+        }
+
+        .records-table tbody tr.row-active td.row-number {
+            background: var(--primary-lighter);
+            color: var(--primary);
         }
 
         .records-table tbody tr:last-child td {
@@ -928,32 +1149,125 @@ function get_field_value($record, $field, $type = 'text') {
         .action-buttons {
             display: flex;
             gap: 6px;
+            justify-content: center;
         }
 
-        /* Pagination - Clean Design, NO CARD BOX */
+        /* Action column should not shrink */
+        .records-table th:last-child,
+        .records-table td:last-child {
+            width: 80px;
+            min-width: 80px;
+            max-width: 80px;
+            white-space: nowrap;
+            text-align: center;
+        }
+
+        /* Dropdown Action Menu */
+        .action-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .action-dropdown-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .action-dropdown-btn:hover {
+            background: var(--primary-hover);
+        }
+
+        .action-dropdown-menu {
+            display: none;
+            position: absolute;
+            background: white;
+            border: 1.5px solid var(--border-medium);
+            border-radius: var(--radius-sm);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 150px;
+            z-index: 9999;
+        }
+
+        .action-dropdown.active .action-dropdown-menu {
+            display: block;
+        }
+
+        .action-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            font-size: 14px;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .action-dropdown-item:hover {
+            background: var(--bg-secondary);
+        }
+
+        .action-dropdown-item:first-child {
+            border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+        }
+
+        .action-dropdown-item:last-child {
+            border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+        }
+
+        .action-dropdown-item.view-action {
+            color: #059669;
+        }
+
+        .action-dropdown-item.edit-action {
+            color: var(--primary);
+        }
+
+        .action-dropdown-item.delete-action {
+            color: #DC2626;
+        }
+
+        .action-dropdown-item svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Pagination - Professional Design */
         .pagination {
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 6px;
-            padding: var(--spacing-lg) 0;
-            margin-top: var(--spacing-lg);
-            background: transparent;
-            border-radius: 0;
-            border: none;
+            gap: 8px;
+            padding: var(--spacing-xl) 0 var(--spacing-lg) 0;
+            margin-top: var(--spacing-md);
         }
 
         .pagination-btn {
-            min-width: 40px;
-            height: 40px;
+            min-width: 44px;
+            height: 44px;
             padding: 0;
-            border: 2px solid var(--border-medium);
+            border: 1.5px solid var(--border-medium);
             background: var(--bg-primary);
             border-radius: var(--radius-md);
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s ease;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -962,29 +1276,33 @@ function get_field_value($record, $field, $type = 'text') {
             box-shadow: var(--shadow-sm);
         }
 
+        .pagination-btn [data-lucide] {
+            width: 18px;
+            height: 18px;
+            stroke-width: 2.5;
+        }
+
         .pagination-btn:hover:not(.disabled):not(.active) {
-            background: var(--primary-light);
+            background: var(--primary-lighter);
             border-color: var(--primary);
             color: var(--primary);
-            transform: translateY(-1px);
+            transform: translateY(-2px);
             box-shadow: var(--shadow-md);
         }
 
         .pagination-btn.disabled {
-            opacity: 0.3;
+            opacity: 0.25;
             cursor: not-allowed;
             pointer-events: none;
             background: var(--bg-tertiary);
         }
 
         .pagination-btn.active {
-            background: #3B82F6 !important;
             background: var(--primary) !important;
             color: #FFFFFF !important;
-            border-color: #3B82F6 !important;
             border-color: var(--primary) !important;
             font-weight: 700 !important;
-            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3) !important;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
             cursor: default !important;
             pointer-events: none !important;
         }
@@ -992,48 +1310,57 @@ function get_field_value($record, $field, $type = 'text') {
         .pagination-info {
             display: inline-flex;
             align-items: center;
-            gap: var(--spacing-xs);
+            gap: 8px;
             padding: 0 var(--spacing-md);
             font-size: 14px;
-            color: var(--text-secondary);
+            color: var(--text-tertiary);
             font-weight: 500;
         }
 
         .pagination-divider {
             width: 1px;
-            height: 20px;
+            height: 24px;
             background: var(--border-medium);
-            margin: 0 var(--spacing-xs);
+            margin: 0 8px;
         }
 
         .no-records {
             text-align: center;
-            padding: 60px var(--spacing-lg);
+            padding: var(--spacing-2xl) var(--spacing-lg);
             color: var(--text-tertiary);
         }
 
-        .no-records i {
+        .no-records [data-lucide] {
             margin-bottom: var(--spacing-md);
+            color: var(--text-muted);
         }
 
         .no-records p {
-            margin: var(--spacing-xs) 0;
-            font-size: 14px;
+            margin: 10px 0;
+            font-size: 16px;
             font-weight: 500;
             color: var(--text-secondary);
+            line-height: 1.6;
         }
 
-        /* Alert - Clean Design */
+        .no-records p:first-of-type {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Alert - Professional Design */
         .alert {
-            padding: var(--spacing-md) var(--spacing-lg);
-            border-radius: var(--radius-md);
-            margin-bottom: var(--spacing-xl);
+            padding: var(--spacing-md) var(--spacing-md);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--spacing-lg);
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: var(--spacing-sm);
-            border-left: 3px solid transparent;
+            border-left: 4px solid transparent;
             font-weight: 500;
-            font-size: 14px;
+            font-size: 15px;
+            box-shadow: var(--shadow-sm);
         }
 
         .alert-success {
@@ -1050,24 +1377,25 @@ function get_field_value($record, $field, $type = 'text') {
 
         .alert [data-lucide] {
             flex-shrink: 0;
-            width: 18px;
-            height: 18px;
+            width: 20px;
+            height: 20px;
+            margin-top: 2px;
         }
 
         /* Record Stats Badge - Removed for minimal design */
 
         /* Remove stat cards - keeping design minimal as requested */
 
-        /* Skeleton Loading Styles */
+        /* Skeleton Loading Styles - Professional */
         .skeleton {
             background: linear-gradient(
                 90deg,
-                #E5E7EB 0%,
-                #F3F4F6 50%,
-                #E5E7EB 100%
+                #E2E8F0 0%,
+                #F1F5F9 50%,
+                #E2E8F0 100%
             );
             background-size: 200% 100%;
-            animation: skeleton-loading 1.5s ease-in-out infinite;
+            animation: skeleton-loading 1.8s ease-in-out infinite;
             border-radius: var(--radius-sm);
             height: 20px;
             width: 100%;
@@ -1083,19 +1411,21 @@ function get_field_value($record, $field, $type = 'text') {
         }
 
         .skeleton-row {
-            height: 60px;
+            height: 64px;
             margin-bottom: 1px;
         }
 
         .skeleton-input {
-            height: 42px;
+            height: 48px;
             width: 100%;
+            border-radius: var(--radius-md);
         }
 
         .skeleton-text {
-            height: 18px;
+            height: 20px;
             width: 85%;
             margin: 0;
+            border-radius: 6px;
         }
 
         .skeleton-text.short {
@@ -1117,8 +1447,8 @@ function get_field_value($record, $field, $type = 'text') {
 
         /* Skeleton in table cells */
         .records-table td .skeleton {
-            height: 18px;
-            border-radius: 4px;
+            height: 20px;
+            border-radius: 6px;
         }
 
         /* Skeleton variations for different column widths */
@@ -1189,23 +1519,104 @@ function get_field_value($record, $field, $type = 'text') {
         }
 
         /* Responsive - Page Specific */
+        @media (max-width: 1200px) {
+            .filter-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            /* Adjust grid positions for 2-column layout */
+            .filter-group[data-filter-name="birth_date_from"] { grid-column: 1; grid-row: 1; }
+            .filter-group[data-filter-name="birth_date_to"] { grid-column: 2; grid-row: 1; }
+            .filter-group[data-filter-name="reg_date_from"] { grid-column: 1; grid-row: 2; }
+            .filter-group[data-filter-name="reg_date_to"] { grid-column: 2; grid-row: 2; }
+            .filter-group[data-filter-name="place_type"] { grid-column: 1; grid-row: 3; }
+            .filter-group[data-filter-name="child_place_of_birth"] { grid-column: 2; grid-row: 3; }
+            .filter-group[data-filter-name="child_sex"] { grid-column: 1; grid-row: 4; }
+        }
+
+        @media (max-width: 1024px) {
+            .page-container {
+                padding: var(--spacing-lg) var(--spacing-md);
+            }
+        }
+
         @media (max-width: 768px) {
+            .page-title {
+                font-size: 26px;
+            }
+
+            .page-title [data-lucide] {
+                width: 26px;
+                height: 26px;
+            }
+
             .page-header {
                 flex-direction: column;
                 align-items: flex-start;
-                gap: 15px;
+                gap: var(--spacing-md);
+                padding-bottom: var(--spacing-md);
+            }
+
+            .search-section {
+                padding: var(--spacing-sm);
             }
 
             .search-form {
                 flex-direction: column;
             }
 
+            .filter-grid {
+                grid-template-columns: 1fr;
+                gap: var(--spacing-sm);
+            }
+
+            /* Reset grid positions for single column */
+            .filter-group[data-filter-name="birth_date_from"],
+            .filter-group[data-filter-name="birth_date_to"],
+            .filter-group[data-filter-name="reg_date_from"],
+            .filter-group[data-filter-name="reg_date_to"],
+            .filter-group[data-filter-name="place_type"],
+            .filter-group[data-filter-name="child_place_of_birth"],
+            .filter-group[data-filter-name="child_sex"] {
+                grid-column: 1;
+                grid-row: auto;
+            }
+
             .table-container {
                 overflow-x: auto;
+                border-radius: var(--radius-md);
             }
 
             .records-table {
                 min-width: 800px;
+            }
+
+            .records-table th,
+            .records-table td {
+                padding: 14px var(--spacing-sm);
+                font-size: 14px;
+            }
+
+            .pagination {
+                gap: 6px;
+                padding: var(--spacing-lg) 0;
+            }
+
+            .pagination-btn {
+                min-width: 40px;
+                height: 40px;
+                font-size: 14px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .page-container {
+                padding: var(--spacing-md) var(--spacing-sm);
+            }
+
+            .btn {
+                padding: 10px 16px;
+                font-size: 14px;
             }
         }
     </style>
@@ -1285,18 +1696,68 @@ function get_field_value($record, $field, $type = 'text') {
 
                         <div class="filter-grid">
                             <?php foreach ($config['filters'] as $filter): ?>
-                            <div class="filter-group">
+                            <?php
+                            // Check if this is a dependent filter and if parent has no value
+                            $is_dependent = isset($filter['dependent_on']);
+                            $parent_has_value = $is_dependent && !empty($_GET[$filter['dependent_on']] ?? '');
+                            $should_hide = $is_dependent && !$parent_has_value;
+                            ?>
+                            <div class="filter-group <?php echo $should_hide ? 'dependent-hidden' : ''; ?>"
+                                 data-filter-name="<?php echo $filter['name']; ?>"
+                                 <?php echo $is_dependent ? 'data-dependent-on="' . $filter['dependent_on'] . '"' : ''; ?>>
                                 <label for="<?php echo $filter['name']; ?>"><?php echo htmlspecialchars($filter['label']); ?></label>
-                                <input
-                                    type="<?php echo $filter['type']; ?>"
-                                    id="<?php echo $filter['name']; ?>"
-                                    name="<?php echo $filter['name']; ?>"
-                                    <?php if ($filter['type'] === 'text'): ?>
-                                    placeholder="Enter <?php echo strtolower($filter['label']); ?>..."
+                                <?php if ($filter['type'] === 'select'): ?>
+                                    <?php if ($is_dependent): ?>
+                                        <!-- Cascading/Dependent Dropdown -->
+                                        <select
+                                            id="<?php echo $filter['name']; ?>"
+                                            name="<?php echo $filter['name']; ?>"
+                                            onchange="this.form.submit()"
+                                            data-dependent-on="<?php echo $filter['dependent_on']; ?>"
+                                            <?php echo !$parent_has_value ? 'disabled' : ''; ?>
+                                        >
+                                            <option value=""><?php echo $filter['options']['']; ?></option>
+                                            <?php
+                                            // Get the parent filter value
+                                            $parent_value = $_GET[$filter['dependent_on']] ?? '';
+
+                                            // If parent has a value, show options for that category
+                                            if (!empty($parent_value) && isset($filter['options'][$parent_value]) && is_array($filter['options'][$parent_value])) {
+                                                foreach ($filter['options'][$parent_value] as $location) {
+                                                    $selected = (isset($_GET[$filter['name']]) && $_GET[$filter['name']] === $location) ? 'selected' : '';
+                                                    echo "<option value=\"" . htmlspecialchars($location) . "\" $selected>" . htmlspecialchars($location) . "</option>";
+                                                }
+                                            }
+                                            ?>
+                                        </select>
+                                    <?php else: ?>
+                                        <!-- Regular Dropdown -->
+                                        <select
+                                            id="<?php echo $filter['name']; ?>"
+                                            name="<?php echo $filter['name']; ?>"
+                                            onchange="this.form.submit()"
+                                        >
+                                            <?php foreach ($filter['options'] as $value => $label): ?>
+                                                <?php if (!is_array($label)): ?>
+                                                    <option value="<?php echo htmlspecialchars($value); ?>" <?php echo (isset($_GET[$filter['name']]) && $_GET[$filter['name']] == $value) ? 'selected' : ''; ?>>
+                                                        <?php echo htmlspecialchars($label); ?>
+                                                    </option>
+                                                <?php endif; ?>
+                                            <?php endforeach; ?>
+                                        </select>
                                     <?php endif; ?>
-                                    value="<?php echo htmlspecialchars($_GET[$filter['name']] ?? ''); ?>"
-                                    onchange="this.form.submit()"
-                                >
+                                <?php else: ?>
+                                    <input
+                                        type="<?php echo $filter['type']; ?>"
+                                        id="<?php echo $filter['name']; ?>"
+                                        name="<?php echo $filter['name']; ?>"
+                                        <?php if ($filter['type'] === 'text'): ?>
+                                        placeholder="Enter <?php echo strtolower($filter['label']); ?>..."
+                                        <?php endif; ?>
+                                        value="<?php echo htmlspecialchars($_GET[$filter['name']] ?? ''); ?>"
+                                        onchange="this.form.submit()"
+                                    >
+                                <?php endif; ?>
                             </div>
                             <?php endforeach; ?>
                         </div>
@@ -1329,6 +1790,7 @@ function get_field_value($record, $field, $type = 'text') {
                 <table class="records-table">
                     <thead>
                         <tr>
+                            <th class="row-number-header">#</th>
                             <?php foreach ($config['table_columns'] as $column): ?>
                             <?php if ($column['sortable']): ?>
                             <?php
@@ -1349,37 +1811,45 @@ function get_field_value($record, $field, $type = 'text') {
                         </tr>
                     </thead>
                     <tbody id="recordsTableBody" style="opacity: 0;">
-                        <?php foreach ($records as $record): ?>
+                        <?php
+                        $row_number = $offset + 1; // Start from the current offset
+                        foreach ($records as $record):
+                        ?>
                         <tr>
+                            <td class="row-number"><?php echo $row_number++; ?></td>
                             <?php foreach ($config['table_columns'] as $column): ?>
                             <td><?php echo get_field_value($record, $column['field'], $column['type'] ?? 'text'); ?></td>
                             <?php endforeach; ?>
                             <td>
-                                <div class="action-buttons">
-                                    <!-- View Record Button - Opens Modal -->
-                                    <button onclick="recordPreviewModal.open(<?php echo $record['id']; ?>, '<?php echo $record_type; ?>')"
-                                            class="btn btn-success btn-sm"
-                                            title="View Record">
-                                        <i data-lucide="file-text"></i>
+                                <?php
+                                $edit_permission = str_replace('_view', '_edit', $required_permission);
+                                $delete_permission = str_replace('_view', '_delete', $required_permission);
+                                ?>
+                                <div class="action-dropdown">
+                                    <button class="action-dropdown-btn" onclick="toggleActionDropdown(event, this)">
+                                        <i data-lucide="more-vertical" style="width: 16px; height: 16px;"></i>
                                     </button>
-                                    <?php
-                                    $edit_permission = str_replace('_view', '_edit', $required_permission);
-                                    $delete_permission = str_replace('_view', '_delete', $required_permission);
-                                    ?>
-                                    <?php if (hasPermission($edit_permission)): ?>
-                                    <button onclick="editRecord(<?php echo $record['id']; ?>, '<?php echo $config['entry_form']; ?>', <?php echo htmlspecialchars(json_encode($record), ENT_QUOTES, 'UTF-8'); ?>)"
-                                       class="btn btn-primary btn-sm"
-                                       title="Edit">
-                                        <i data-lucide="pen-line"></i>
-                                    </button>
-                                    <?php endif; ?>
-                                    <?php if (hasPermission($delete_permission)): ?>
-                                    <button onclick="deleteRecord(<?php echo $record['id']; ?>, <?php echo htmlspecialchars(json_encode($record), ENT_QUOTES, 'UTF-8'); ?>)"
-                                            class="btn btn-danger btn-sm"
-                                            title="Delete">
-                                        <i data-lucide="x-circle"></i>
-                                    </button>
-                                    <?php endif; ?>
+                                    <div class="action-dropdown-menu">
+                                        <button class="action-dropdown-item view-action"
+                                                onclick="recordPreviewModal.open(<?php echo $record['id']; ?>, '<?php echo $record_type; ?>'); closeAllDropdowns();">
+                                            <i data-lucide="file-text"></i>
+                                            <span>View</span>
+                                        </button>
+                                        <?php if (hasPermission($edit_permission)): ?>
+                                        <button class="action-dropdown-item edit-action"
+                                                onclick="editRecord(<?php echo $record['id']; ?>, '<?php echo $config['entry_form']; ?>', <?php echo htmlspecialchars(json_encode($record), ENT_QUOTES, 'UTF-8'); ?>); closeAllDropdowns();">
+                                            <i data-lucide="pen-line"></i>
+                                            <span>Edit</span>
+                                        </button>
+                                        <?php endif; ?>
+                                        <?php if (hasPermission($delete_permission)): ?>
+                                        <button class="action-dropdown-item delete-action"
+                                                onclick="deleteRecord(<?php echo $record['id']; ?>, <?php echo htmlspecialchars(json_encode($record), ENT_QUOTES, 'UTF-8'); ?>); closeAllDropdowns();">
+                                            <i data-lucide="x-circle"></i>
+                                            <span>Delete</span>
+                                        </button>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                             </td>
                         </tr>
@@ -1516,7 +1986,101 @@ function get_field_value($record, $field, $type = 'text') {
             if (filtersExpanded === 'true' || hasActiveFilters) {
                 document.getElementById('advancedFilters').classList.add('show');
             }
+
+            // Initialize cascading dropdowns for birth records
+            <?php if ($record_type === 'birth'): ?>
+            initializeCascadingFilters();
+            <?php endif; ?>
         });
+
+        // Cascading Filter Logic for Birth Records
+        function initializeCascadingFilters() {
+            const placeTypeSelect = document.getElementById('place_type');
+            const locationSelect = document.getElementById('child_place_of_birth');
+            const locationGroup = locationSelect ? locationSelect.closest('.filter-group') : null;
+
+            if (!placeTypeSelect || !locationSelect || !locationGroup) return;
+
+            // Define location options
+            const locationOptions = {
+                'Barangay': [
+                    'Adaoag', 'Agaman (Proper)', 'Agaman Norte', 'Agaman Sur', 'Alba', 'Annayatan',
+                    'Asassi', 'Asinga-Via', 'Awallan', 'Bacagan', 'Bagunot', 'Barsat East',
+                    'Barsat West', 'Bitag Grande', 'Bitag Pequeño', 'Bunugan', 'C. Verzosa (Valley Cove)',
+                    'Canagatan', 'Carupian', 'Catugay', 'Dabbac Grande', 'Dalin', 'Dalla',
+                    'Hacienda Intal', 'Ibulo', 'Imurung', 'J. Pallagao', 'Lasilat', 'Mabini',
+                    'Masical', 'Mocag', 'Nangalinan', 'Poblacion (Centro)', 'Remus', 'San Antonio',
+                    'San Francisco', 'San Isidro', 'San Jose', 'San Miguel', 'San Vicente',
+                    'Santa Margarita', 'Santor', 'Taguing', 'Taguntungan', 'Tallang', 'Taytay',
+                    'Temblique', 'Tungel'
+                ],
+                'Hospital': [
+                    'Baggao District Hospital',
+                    'Municipal Health Office'
+                ]
+            };
+
+            // Handle place type change
+            placeTypeSelect.addEventListener('change', function() {
+                const selectedType = this.value;
+                const locationLabel = locationGroup.querySelector('label[for="child_place_of_birth"]');
+
+                // Reset location dropdown
+                locationSelect.innerHTML = '<option value="">All Locations</option>';
+                locationSelect.value = '';
+
+                if (selectedType && locationOptions[selectedType]) {
+                    // Show the location filter group
+                    locationGroup.classList.remove('dependent-hidden');
+
+                    // Populate with new options
+                    locationOptions[selectedType].forEach(location => {
+                        const option = document.createElement('option');
+                        option.value = location;
+                        option.textContent = location;
+                        locationSelect.appendChild(option);
+                    });
+
+                    // Enable the location dropdown
+                    locationSelect.disabled = false;
+
+                    // Update label dynamically
+                    if (locationLabel) {
+                        const labelText = selectedType === 'Barangay' ? 'Barangay' : 'Hospital';
+                        locationLabel.textContent = labelText;
+                    }
+                } else {
+                    // Hide and disable the location filter group
+                    locationGroup.classList.add('dependent-hidden');
+                    locationSelect.disabled = true;
+
+                    // Reset label
+                    if (locationLabel) {
+                        locationLabel.textContent = 'Location';
+                    }
+                }
+
+                // Submit form to apply the filter
+                this.form.submit();
+            });
+
+            // Initialize on page load - set proper state
+            const initialPlaceType = placeTypeSelect.value;
+            if (!initialPlaceType || initialPlaceType === '') {
+                locationGroup.classList.add('dependent-hidden');
+                locationSelect.disabled = true;
+            } else {
+                locationGroup.classList.remove('dependent-hidden');
+                locationSelect.disabled = false;
+
+                // Update label based on initial value
+                const locationLabel = locationGroup.querySelector('label[for="child_place_of_birth"]');
+                if (locationLabel && initialPlaceType) {
+                    const labelText = initialPlaceType === 'Barangay' ? 'Barangay' : 'Hospital';
+                    locationLabel.textContent = labelText;
+                }
+            }
+        }
 
         // Clear all filters
         function clearFilters() {
@@ -1538,6 +2102,76 @@ function get_field_value($record, $field, $type = 'text') {
             url.searchParams.delete('page'); // Reset to page 1
             window.location.href = url.toString();
         }
+
+        // Toggle action dropdown
+        function toggleActionDropdown(event, button) {
+            event.stopPropagation();
+            const dropdown = button.closest('.action-dropdown');
+            const menu = dropdown.querySelector('.action-dropdown-menu');
+            const isActive = dropdown.classList.contains('active');
+
+            // Close all dropdowns
+            closeAllDropdowns();
+
+            // Toggle current dropdown
+            if (!isActive) {
+                const rect = button.getBoundingClientRect();
+                const menuWidth = 150;
+                const menuHeight = 130; // ~3 items × 42px + borders
+                const scrollX = window.pageXOffset;
+                const scrollY = window.pageYOffset;
+
+                // Use document-level coordinates so the menu scrolls with the page
+                menu.style.position = 'absolute';
+                menu.style.left = Math.max(4, rect.right + scrollX - menuWidth) + 'px';
+
+                const spaceBelow = window.innerHeight - rect.bottom;
+                menu.style.top = spaceBelow >= menuHeight + 8
+                    ? (rect.bottom + scrollY + 4) + 'px'
+                    : (rect.top + scrollY - menuHeight - 4) + 'px';
+
+                menu.style.display = 'block';
+
+                // Move menu to <body> to escape overflow: hidden on .table-container
+                menu._dropdownOwner = dropdown;
+                document.body.appendChild(menu);
+
+                dropdown.classList.add('active');
+
+                // Highlight the row so users know which record the menu belongs to
+                const row = button.closest('tr');
+                if (row) row.classList.add('row-active');
+            }
+        }
+
+        // Close all dropdowns
+        function closeAllDropdowns() {
+            // Return any portaled menus back to their original parent
+            document.querySelectorAll('body > .action-dropdown-menu').forEach(menu => {
+                if (menu._dropdownOwner) {
+                    menu._dropdownOwner.appendChild(menu);
+                    menu._dropdownOwner = null;
+                }
+                menu.style.display = '';
+                menu.style.top = '';
+                menu.style.left = '';
+                menu.style.position = '';
+            });
+            document.querySelectorAll('.action-dropdown.active').forEach(dropdown => {
+                dropdown.classList.remove('active');
+            });
+            // Remove row highlight
+            document.querySelectorAll('.records-table tbody tr.row-active').forEach(row => {
+                row.classList.remove('row-active');
+            });
+        }
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.action-dropdown')) {
+                closeAllDropdowns();
+            }
+        });
 
         // Delete record function
         function deleteRecord(id, recordData = null) {
@@ -1861,14 +2495,15 @@ function get_field_value($record, $field, $type = 'text') {
             if (hasData) {
                 // Show skeleton briefly, then fade in real content
                 const columns = <?php echo json_encode($config['table_columns']); ?>;
-                const numColumns = columns.length + 1;
+                const numColumns = columns.length + 2; // +1 for row number, +1 for actions
 
                 // Create skeleton rows
                 let skeletonHTML = '';
                 for (let i = 0; i < Math.min(<?php echo $records_per_page; ?>, 10); i++) {
                     skeletonHTML += '<tr class="skeleton-loading-row">';
                     for (let j = 0; j < numColumns; j++) {
-                        skeletonHTML += '<td><div class="skeleton skeleton-text"></div></td>';
+                        const cellClass = j === 0 ? 'row-number' : '';
+                        skeletonHTML += `<td class="${cellClass}"><div class="skeleton skeleton-text"></div></td>`;
                     }
                     skeletonHTML += '</tr>';
                 }
@@ -1908,14 +2543,15 @@ function get_field_value($record, $field, $type = 'text') {
             if (!recordsTable) return;
 
             const columns = <?php echo json_encode($config['table_columns']); ?>;
-            const numColumns = columns.length + 1; // +1 for Actions column
+            const numColumns = columns.length + 2; // +1 for row number, +1 for Actions column
             const numRows = <?php echo $records_per_page; ?>;
 
             let skeletonHTML = '';
             for (let i = 0; i < Math.min(numRows, 10); i++) {
                 skeletonHTML += '<tr>';
                 for (let j = 0; j < numColumns; j++) {
-                    skeletonHTML += '<td><div class="skeleton skeleton-text"></div></td>';
+                    const cellClass = j === 0 ? 'row-number' : '';
+                    skeletonHTML += `<td class="${cellClass}"><div class="skeleton skeleton-text"></div></td>`;
                 }
                 skeletonHTML += '</tr>';
             }
@@ -1968,8 +2604,8 @@ function get_field_value($record, $field, $type = 'text') {
                 `;
             } else {
                 let html = '';
-                records.forEach(record => {
-                    html += buildTableRow(record);
+                records.forEach((record, index) => {
+                    html += buildTableRow(record, pagination.from + index);
                 });
                 recordsTable.innerHTML = html;
             }
@@ -1986,9 +2622,12 @@ function get_field_value($record, $field, $type = 'text') {
         }
 
         // Build table row HTML based on record type
-        function buildTableRow(record) {
+        function buildTableRow(record, rowNumber) {
             const columns = <?php echo json_encode($config['table_columns']); ?>;
             let html = '<tr>';
+
+            // Add row number cell
+            html += `<td class="row-number">${rowNumber}</td>`;
 
             // Build cells for each column
             columns.forEach(column => {
@@ -1996,13 +2635,18 @@ function get_field_value($record, $field, $type = 'text') {
                 html += `<td>${value}</td>`;
             });
 
-            // Actions column
-            html += '<td><div class="action-buttons">';
-
-            // View Record Button - Opens Modal
-            html += `<button onclick="recordPreviewModal.open(${record.id}, '${recordType}')" class="btn btn-success btn-sm" title="View Record">
-                <i data-lucide="file-text"></i>
-            </button>`;
+            // Actions column with dropdown
+            const recordDataJson = JSON.stringify(record).replace(/"/g, '&quot;');
+            html += `<td>
+                <div class="action-dropdown">
+                    <button class="action-dropdown-btn" onclick="toggleActionDropdown(event, this)">
+                        <i data-lucide="more-vertical" style="width: 16px; height: 16px;"></i>
+                    </button>
+                    <div class="action-dropdown-menu">
+                        <button class="action-dropdown-item view-action" onclick="recordPreviewModal.open(${record.id}, '${recordType}'); closeAllDropdowns();">
+                            <i data-lucide="file-text"></i>
+                            <span>View</span>
+                        </button>`;
 
             <?php
             $edit_permission = str_replace('_view', '_edit', $required_permission);
@@ -2010,20 +2654,22 @@ function get_field_value($record, $field, $type = 'text') {
             ?>
 
             <?php if (hasPermission($edit_permission)): ?>
-            const recordDataEdit = JSON.stringify(record).replace(/"/g, '&quot;');
-            html += `<button onclick='editRecord(${record.id}, "<?php echo $config['entry_form']; ?>", JSON.parse("${recordDataEdit}"))' class="btn btn-primary btn-sm" title="Edit">
-                <i data-lucide="pen-line"></i>
-            </button>`;
+            html += `<button class="action-dropdown-item edit-action" onclick='editRecord(${record.id}, "<?php echo $config['entry_form']; ?>", JSON.parse("${recordDataJson}")); closeAllDropdowns();'>
+                            <i data-lucide="pen-line"></i>
+                            <span>Edit</span>
+                        </button>`;
             <?php endif; ?>
 
             <?php if (hasPermission($delete_permission)): ?>
-            const recordDataDelete = JSON.stringify(record).replace(/"/g, '&quot;');
-            html += `<button onclick='deleteRecord(${record.id}, JSON.parse("${recordDataDelete}"))' class="btn btn-danger btn-sm" title="Delete">
-                <i data-lucide="x-circle"></i>
-            </button>`;
+            html += `<button class="action-dropdown-item delete-action" onclick='deleteRecord(${record.id}, JSON.parse("${recordDataJson}")); closeAllDropdowns();'>
+                            <i data-lucide="x-circle"></i>
+                            <span>Delete</span>
+                        </button>`;
             <?php endif; ?>
 
-            html += '</div></td>';
+            html += `</div>
+                </div>
+            </td>`;
             html += '</tr>';
 
             return html;

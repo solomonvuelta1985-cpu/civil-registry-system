@@ -212,7 +212,7 @@ class RecordPreviewModal {
 
                 // Load PDF if available
                 if (data.record.pdf_filename) {
-                    await this.loadPDF(`../uploads/${data.record.pdf_filename}`);
+                    await this.loadPDF(`../api/serve_pdf.php?file=${encodeURIComponent(data.record.pdf_filename)}`);
                 } else {
                     this.showPDFError('No PDF available for this record');
                 }
@@ -246,10 +246,7 @@ class RecordPreviewModal {
         const statusClass = record.status === 'Active' ? 'active' : 'pending';
         const statusIcon = record.status === 'Active' ? 'check-circle' : 'clock';
 
-        document.getElementById('modalRecordTitle').innerHTML = `
-            <i data-lucide="file-text"></i>
-            <span>${titleMap[this.currentRecordType] || 'Record Preview'}</span>
-        `;
+        document.getElementById('modalRecordTitle').textContent = titleMap[this.currentRecordType] || 'Record Preview';
 
         document.getElementById('modalRecordSubtitle').innerHTML = `
             Registry No. ${record.registry_no || 'N/A'}
@@ -298,12 +295,16 @@ class RecordPreviewModal {
                 </div>
                 <div class="record-detail-row">
                     <span class="record-detail-label">Date of Birth</span>
-                    <span class="record-detail-value">${this.formatDate(record.child_date_of_birth)}</span>
+                    <span class="record-detail-value">${this.formatDate(record.child_date_of_birth)}${record.time_of_birth ? ' at ' + record.time_of_birth : ''}</span>
                 </div>
                 <div class="record-detail-row">
                     <span class="record-detail-label">Place of Birth</span>
                     <span class="record-detail-value">${this.formatValue(record.child_place_of_birth)}</span>
                 </div>
+                ${record.barangay ? `<div class="record-detail-row">
+                    <span class="record-detail-label">Barangay</span>
+                    <span class="record-detail-value">${this.formatValue(record.barangay)}</span>
+                </div>` : ''}
                 <div class="record-detail-row">
                     <span class="record-detail-label">Sex</span>
                     <span class="record-detail-value">${this.formatValue(record.child_sex)}</span>
@@ -857,7 +858,7 @@ class RecordPreviewModal {
 
     printRecord() {
         if (this.currentRecord && this.currentRecord.pdf_filename) {
-            const pdfUrl = `../uploads/${this.currentRecord.pdf_filename}`;
+            const pdfUrl = `../api/serve_pdf.php?file=${encodeURIComponent(this.currentRecord.pdf_filename)}`;
             window.open(pdfUrl, '_blank');
         }
     }
@@ -865,8 +866,8 @@ class RecordPreviewModal {
     downloadRecord() {
         if (this.currentRecord && this.currentRecord.pdf_filename) {
             const link = document.createElement('a');
-            link.href = `../uploads/${this.currentRecord.pdf_filename}`;
-            link.download = this.currentRecord.pdf_filename;
+            link.href = `../api/serve_pdf.php?file=${encodeURIComponent(this.currentRecord.pdf_filename)}`;
+            link.download = this.currentRecord.pdf_filename.split('/').pop();
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);

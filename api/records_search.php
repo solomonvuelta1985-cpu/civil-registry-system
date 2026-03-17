@@ -44,7 +44,7 @@ if (!hasPermission($permission_map[$record_type])) {
 // Get configuration based on record type
 $configs = [
     'marriage' => [
-        'table' => 'marriage_records',
+        'table' => 'certificate_of_marriage',
         'search_fields' => [
             'registry_no',
             'husband_first_name', 'husband_middle_name', 'husband_last_name',
@@ -56,27 +56,34 @@ $configs = [
                      'place_of_marriage', 'pdf_filename']
     ],
     'birth' => [
-        'table' => 'birth_records',
+        'table' => 'certificate_of_live_birth',
         'search_fields' => [
             'registry_no',
             'child_first_name', 'child_middle_name', 'child_last_name',
             'father_first_name', 'father_middle_name', 'father_last_name',
             'mother_first_name', 'mother_middle_name', 'mother_last_name',
-            'place_of_birth'
+            'child_place_of_birth', 'barangay'
         ],
         'columns' => ['id', 'registry_no', 'child_first_name', 'child_middle_name', 'child_last_name',
-                     'child_date_of_birth', 'child_sex', 'father_first_name', 'father_middle_name', 'father_last_name',
-                     'mother_first_name', 'mother_middle_name', 'mother_last_name', 'date_of_registration', 'pdf_filename']
+                     'child_date_of_birth', 'time_of_birth', 'child_sex', 'barangay',
+                     'father_first_name', 'father_middle_name', 'father_last_name',
+                     'father_citizenship', 'mother_first_name', 'mother_middle_name', 'mother_last_name',
+                     'mother_citizenship', 'date_of_registration', 'pdf_filename']
     ],
     'death' => [
-        'table' => 'death_records',
+        'table' => 'certificate_of_death',
         'search_fields' => [
             'registry_no',
             'deceased_first_name', 'deceased_middle_name', 'deceased_last_name',
-            'place_of_death'
+            'father_first_name', 'father_middle_name', 'father_last_name',
+            'mother_first_name', 'mother_middle_name', 'mother_last_name',
+            'place_of_death', 'occupation'
         ],
         'columns' => ['id', 'registry_no', 'deceased_first_name', 'deceased_middle_name', 'deceased_last_name',
-                     'date_of_death', 'age_at_death', 'place_of_death', 'date_of_registration', 'pdf_filename']
+                     'date_of_birth', 'date_of_death', 'age', 'occupation', 'place_of_death',
+                     'father_first_name', 'father_middle_name', 'father_last_name',
+                     'mother_first_name', 'mother_middle_name', 'mother_last_name',
+                     'date_of_registration', 'pdf_filename']
     ]
 ];
 
@@ -96,12 +103,14 @@ try {
             $params[$param_name] = "%{$search}%";
             $search_index++;
         }
-        $search_query = " WHERE " . implode(' OR ', $search_conditions);
+        $search_query = " AND (" . implode(' OR ', $search_conditions) . ")";
     }
 
+    $base_where = " WHERE status = 'Active'";
+
     // Get total count
-    $count_query = "SELECT COUNT(*) as total FROM {$config['table']}{$search_query}";
-    $count_stmt = $conn->prepare($count_query);
+    $count_query = "SELECT COUNT(*) as total FROM {$config['table']}{$base_where}{$search_query}";
+    $count_stmt = $pdo->prepare($count_query);
     if (!empty($params)) {
         foreach ($params as $key => $value) {
             $count_stmt->bindValue($key, $value, PDO::PARAM_STR);
@@ -116,11 +125,11 @@ try {
 
     // Get records
     $columns_str = implode(', ', $config['columns']);
-    $query = "SELECT {$columns_str} FROM {$config['table']}{$search_query}
+    $query = "SELECT {$columns_str} FROM {$config['table']}{$base_where}{$search_query}
               ORDER BY id DESC
               LIMIT {$per_page} OFFSET {$offset}";
 
-    $stmt = $conn->prepare($query);
+    $stmt = $pdo->prepare($query);
     if (!empty($params)) {
         foreach ($params as $key => $value) {
             $stmt->bindValue($key, $value, PDO::PARAM_STR);

@@ -56,20 +56,18 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Death Certificate - Civil Registry System</title>
 
-    <!-- Google Fonts - Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Google Fonts (online only; system fonts used when OFFLINE_MODE=true) -->
+    <?= google_fonts_tag('Inter:wght@300;400;500;600;700') ?>
 
     <!-- Font Awesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="<?= asset_url('fontawesome_css') ?>">
 
     <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="<?= asset_url('lucide') ?>"></script>
 
     <!-- Notiflix - Modern Notification Library -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notiflix@3.2.6/dist/notiflix-3.2.6.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/notiflix@3.2.6/dist/notiflix-3.2.6.min.js"></script>
+    <link rel="stylesheet" href="<?= asset_url('notiflix_css') ?>">
+    <script src="<?= asset_url('notiflix_js') ?>"></script>
     <script src="../assets/js/notiflix-config.js"></script>
 
     <!-- Shared Sidebar Styles -->
@@ -1394,6 +1392,30 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 >
                             </div>
                         </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="father_citizenship">Citizenship</label>
+                                <?php
+                                $citizenship_options = ['Filipino', 'American', 'Chinese', 'Japanese', 'Korean', 'British', 'Australian', 'Canadian', 'Indian', 'Other'];
+                                $father_cit_val = $edit_mode ? ($record['father_citizenship'] ?? '') : '';
+                                $father_cit_is_other = $father_cit_val !== '' && !in_array($father_cit_val, array_diff($citizenship_options, ['Other']));
+                                ?>
+                                <select id="father_citizenship" name="father_citizenship">
+                                    <option value="">-- Select Citizenship --</option>
+                                    <?php foreach ($citizenship_options as $opt):
+                                        $sel = ($father_cit_is_other && $opt === 'Other') || (!$father_cit_is_other && $father_cit_val === $opt) ? 'selected' : '';
+                                    ?>
+                                    <option value="<?php echo $opt; ?>" <?php echo $sel; ?>><?php echo $opt; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="father_citizenship_other_group" style="display: <?php echo $father_cit_is_other ? 'block' : 'none'; ?>;">
+                                <label for="father_citizenship_other">Specify Citizenship</label>
+                                <input type="text" id="father_citizenship_other" name="father_citizenship_other" placeholder="Please specify" value="<?php echo $father_cit_is_other ? htmlspecialchars($father_cit_val) : ''; ?>">
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Mother's Information Section -->
@@ -1443,6 +1465,29 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                     placeholder="Enter last name"
                                     value="<?php echo $edit_mode ? htmlspecialchars($record['mother_last_name'] ?? '') : ''; ?>"
                                 >
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="mother_citizenship">Citizenship</label>
+                                <?php
+                                $mother_cit_val = $edit_mode ? ($record['mother_citizenship'] ?? '') : '';
+                                $mother_cit_is_other = $mother_cit_val !== '' && !in_array($mother_cit_val, array_diff($citizenship_options, ['Other']));
+                                ?>
+                                <select id="mother_citizenship" name="mother_citizenship">
+                                    <option value="">-- Select Citizenship --</option>
+                                    <?php foreach ($citizenship_options as $opt):
+                                        $sel = ($mother_cit_is_other && $opt === 'Other') || (!$mother_cit_is_other && $mother_cit_val === $opt) ? 'selected' : '';
+                                    ?>
+                                    <option value="<?php echo $opt; ?>" <?php echo $sel; ?>><?php echo $opt; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="mother_citizenship_other_group" style="display: <?php echo $mother_cit_is_other ? 'block' : 'none'; ?>;">
+                                <label for="mother_citizenship_other">Specify Citizenship</label>
+                                <input type="text" id="mother_citizenship_other" name="mother_citizenship_other" placeholder="Please specify" value="<?php echo $mother_cit_is_other ? htmlspecialchars($mother_cit_val) : ''; ?>">
                             </div>
                         </div>
                     </div>
@@ -1497,11 +1542,11 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 
                     <?php if ($edit_mode && !empty($record['pdf_filename'])): ?>
                     <div class="pdf-preview-container">
-                        <iframe id="pdfPreview" src="../uploads/<?php echo htmlspecialchars($record['pdf_filename']); ?>"></iframe>
+                        <iframe id="pdfPreview" src="../api/serve_pdf.php?file=<?php echo urlencode($record['pdf_filename']); ?>"></iframe>
                     </div>
                     <div class="pdf-info">
                         <i data-lucide="info"></i>
-                        <span>Current File: <span class="pdf-filename"><?php echo htmlspecialchars($record['pdf_filename']); ?></span></span>
+                        <span>Current File: <span class="pdf-filename"><?php echo htmlspecialchars(basename($record['pdf_filename'])); ?></span></span>
                     </div>
                     <?php else: ?>
                     <div id="pdfUploadArea" class="pdf-upload-area">
@@ -1582,6 +1627,23 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
             document.getElementById('date_of_birth').addEventListener('change', calculateAge);
             document.getElementById('date_of_death').addEventListener('change', calculateAge);
         });
+
+        // Citizenship "Other" toggle handlers
+        (function() {
+            ['father_citizenship', 'mother_citizenship'].forEach(function(fieldId) {
+                const select = document.getElementById(fieldId);
+                const otherGroup = document.getElementById(fieldId + '_other_group');
+                if (select && otherGroup) {
+                    select.addEventListener('change', function() {
+                        otherGroup.style.display = this.value === 'Other' ? 'block' : 'none';
+                        if (this.value !== 'Other') {
+                            const otherInput = document.getElementById(fieldId + '_other');
+                            if (otherInput) otherInput.value = '';
+                        }
+                    });
+                }
+            });
+        })();
     </script>
 
     <?php include '../includes/sidebar_scripts.php'; ?>
@@ -1595,9 +1657,9 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
     <script src="../assets/js/ocr-server-client.js"></script>
 
     <!-- Browser OCR (Fallback) -->
-    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';</script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script src="<?= asset_url('pdfjs') ?>"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = '<?= asset_url("pdfjs_worker") ?>';</script>
+    <script src="<?= asset_url('tesseractjs') ?>"></script>
     <script src="../assets/js/ocr-processor.js"></script>
 
     <!-- Core OCR Integration -->

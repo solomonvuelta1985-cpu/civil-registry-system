@@ -56,20 +56,18 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Application for Marriage License - Civil Registry System</title>
 
-    <!-- Google Fonts - Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Google Fonts (online only; system fonts used when OFFLINE_MODE=true) -->
+    <?= google_fonts_tag('Inter:wght@300;400;500;600;700') ?>
 
     <!-- Font Awesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="<?= asset_url('fontawesome_css') ?>">
 
     <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="<?= asset_url('lucide') ?>"></script>
 
     <!-- Notiflix - Modern Notification Library -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notiflix@3.2.6/dist/notiflix-3.2.6.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/notiflix@3.2.6/dist/notiflix-3.2.6.min.js"></script>
+    <link rel="stylesheet" href="<?= asset_url('notiflix_css') ?>">
+    <script src="<?= asset_url('notiflix_js') ?>"></script>
     <script src="../assets/js/notiflix-config.js"></script>
 
     <!-- Shared Sidebar Styles -->
@@ -1296,14 +1294,24 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 <label for="groom_citizenship">
                                     Citizenship <span class="required">*</span>
                                 </label>
-                                <input
-                                    type="text"
-                                    id="groom_citizenship"
-                                    name="groom_citizenship"
-                                    required
-                                    placeholder="Enter citizenship"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_citizenship']) : ''; ?>"
-                                >
+                                <?php
+                                $citizenship_options = ['Filipino', 'American', 'Chinese', 'Japanese', 'Korean', 'British', 'Australian', 'Canadian', 'Indian', 'Other'];
+                                $groom_cit_val = $edit_mode ? ($record['groom_citizenship'] ?? '') : '';
+                                $groom_cit_is_other = $groom_cit_val !== '' && !in_array($groom_cit_val, array_diff($citizenship_options, ['Other']));
+                                ?>
+                                <select id="groom_citizenship" name="groom_citizenship" required>
+                                    <option value="">-- Select Citizenship --</option>
+                                    <?php foreach ($citizenship_options as $opt):
+                                        $sel = ($groom_cit_is_other && $opt === 'Other') || (!$groom_cit_is_other && $groom_cit_val === $opt) ? 'selected' : '';
+                                    ?>
+                                    <option value="<?php echo $opt; ?>" <?php echo $sel; ?>><?php echo $opt; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="groom_citizenship_other_group" style="display: <?php echo $groom_cit_is_other ? 'block' : 'none'; ?>;">
+                                <label for="groom_citizenship_other">Specify Citizenship</label>
+                                <input type="text" id="groom_citizenship_other" name="groom_citizenship_other" placeholder="Please specify" value="<?php echo $groom_cit_is_other ? htmlspecialchars($groom_cit_val) : ''; ?>">
                             </div>
 
                             <div class="form-group">
@@ -1359,13 +1367,23 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="groom_father_citizenship">Citizenship</label>
-                                <input
-                                    type="text"
-                                    id="groom_father_citizenship"
-                                    name="groom_father_citizenship"
-                                    placeholder="Enter citizenship"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_father_citizenship'] ?? '') : ''; ?>"
-                                >
+                                <?php
+                                $gf_cit_val = $edit_mode ? ($record['groom_father_citizenship'] ?? '') : '';
+                                $gf_cit_is_other = $gf_cit_val !== '' && !in_array($gf_cit_val, array_diff($citizenship_options, ['Other']));
+                                ?>
+                                <select id="groom_father_citizenship" name="groom_father_citizenship">
+                                    <option value="">-- Select Citizenship --</option>
+                                    <?php foreach ($citizenship_options as $opt):
+                                        $sel = ($gf_cit_is_other && $opt === 'Other') || (!$gf_cit_is_other && $gf_cit_val === $opt) ? 'selected' : '';
+                                    ?>
+                                    <option value="<?php echo $opt; ?>" <?php echo $sel; ?>><?php echo $opt; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="groom_father_citizenship_other_group" style="display: <?php echo $gf_cit_is_other ? 'block' : 'none'; ?>;">
+                                <label for="groom_father_citizenship_other">Specify Citizenship</label>
+                                <input type="text" id="groom_father_citizenship_other" name="groom_father_citizenship_other" placeholder="Please specify" value="<?php echo $gf_cit_is_other ? htmlspecialchars($gf_cit_val) : ''; ?>">
                             </div>
                             <div class="form-group">
                                 <label for="groom_father_residence">Residence</label>
@@ -1417,13 +1435,23 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="groom_mother_citizenship">Citizenship</label>
-                                <input
-                                    type="text"
-                                    id="groom_mother_citizenship"
-                                    name="groom_mother_citizenship"
-                                    placeholder="Enter citizenship"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_mother_citizenship'] ?? '') : ''; ?>"
-                                >
+                                <?php
+                                $gm_cit_val = $edit_mode ? ($record['groom_mother_citizenship'] ?? '') : '';
+                                $gm_cit_is_other = $gm_cit_val !== '' && !in_array($gm_cit_val, array_diff($citizenship_options, ['Other']));
+                                ?>
+                                <select id="groom_mother_citizenship" name="groom_mother_citizenship">
+                                    <option value="">-- Select Citizenship --</option>
+                                    <?php foreach ($citizenship_options as $opt):
+                                        $sel = ($gm_cit_is_other && $opt === 'Other') || (!$gm_cit_is_other && $gm_cit_val === $opt) ? 'selected' : '';
+                                    ?>
+                                    <option value="<?php echo $opt; ?>" <?php echo $sel; ?>><?php echo $opt; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="groom_mother_citizenship_other_group" style="display: <?php echo $gm_cit_is_other ? 'block' : 'none'; ?>;">
+                                <label for="groom_mother_citizenship_other">Specify Citizenship</label>
+                                <input type="text" id="groom_mother_citizenship_other" name="groom_mother_citizenship_other" placeholder="Please specify" value="<?php echo $gm_cit_is_other ? htmlspecialchars($gm_cit_val) : ''; ?>">
                             </div>
                             <div class="form-group">
                                 <label for="groom_mother_residence">Residence</label>
@@ -1524,16 +1552,24 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 <label for="bride_citizenship">
                                     Citizenship <span class="required">*</span>
                                 </label>
-                                <input
-                                    type="text"
-                                    id="bride_citizenship"
-                                    name="bride_citizenship"
-                                    required
-                                    placeholder="Enter citizenship"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_citizenship']) : ''; ?>"
-                                >
+                                <?php
+                                $bride_cit_val = $edit_mode ? ($record['bride_citizenship'] ?? '') : '';
+                                $bride_cit_is_other = $bride_cit_val !== '' && !in_array($bride_cit_val, array_diff($citizenship_options, ['Other']));
+                                ?>
+                                <select id="bride_citizenship" name="bride_citizenship" required>
+                                    <option value="">-- Select Citizenship --</option>
+                                    <?php foreach ($citizenship_options as $opt):
+                                        $sel = ($bride_cit_is_other && $opt === 'Other') || (!$bride_cit_is_other && $bride_cit_val === $opt) ? 'selected' : '';
+                                    ?>
+                                    <option value="<?php echo $opt; ?>" <?php echo $sel; ?>><?php echo $opt; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                             </div>
 
+                            <div class="form-group" id="bride_citizenship_other_group" style="display: <?php echo $bride_cit_is_other ? 'block' : 'none'; ?>;">
+                                <label for="bride_citizenship_other">Specify Citizenship</label>
+                                <input type="text" id="bride_citizenship_other" name="bride_citizenship_other" placeholder="Please specify" value="<?php echo $bride_cit_is_other ? htmlspecialchars($bride_cit_val) : ''; ?>">
+                            </div>
                             <div class="form-group">
                                 <label for="bride_residence">
                                     Residence <span class="required">*</span>
@@ -1587,13 +1623,23 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="bride_father_citizenship">Citizenship</label>
-                                <input
-                                    type="text"
-                                    id="bride_father_citizenship"
-                                    name="bride_father_citizenship"
-                                    placeholder="Enter citizenship"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_father_citizenship'] ?? '') : ''; ?>"
-                                >
+                                <?php
+                                $bf_cit_val = $edit_mode ? ($record['bride_father_citizenship'] ?? '') : '';
+                                $bf_cit_is_other = $bf_cit_val !== '' && !in_array($bf_cit_val, array_diff($citizenship_options, ['Other']));
+                                ?>
+                                <select id="bride_father_citizenship" name="bride_father_citizenship">
+                                    <option value="">-- Select Citizenship --</option>
+                                    <?php foreach ($citizenship_options as $opt):
+                                        $sel = ($bf_cit_is_other && $opt === 'Other') || (!$bf_cit_is_other && $bf_cit_val === $opt) ? 'selected' : '';
+                                    ?>
+                                    <option value="<?php echo $opt; ?>" <?php echo $sel; ?>><?php echo $opt; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="bride_father_citizenship_other_group" style="display: <?php echo $bf_cit_is_other ? 'block' : 'none'; ?>;">
+                                <label for="bride_father_citizenship_other">Specify Citizenship</label>
+                                <input type="text" id="bride_father_citizenship_other" name="bride_father_citizenship_other" placeholder="Please specify" value="<?php echo $bf_cit_is_other ? htmlspecialchars($bf_cit_val) : ''; ?>">
                             </div>
                             <div class="form-group">
                                 <label for="bride_father_residence">Residence</label>
@@ -1645,13 +1691,23 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="bride_mother_citizenship">Citizenship</label>
-                                <input
-                                    type="text"
-                                    id="bride_mother_citizenship"
-                                    name="bride_mother_citizenship"
-                                    placeholder="Enter citizenship"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_mother_citizenship'] ?? '') : ''; ?>"
-                                >
+                                <?php
+                                $bm_cit_val = $edit_mode ? ($record['bride_mother_citizenship'] ?? '') : '';
+                                $bm_cit_is_other = $bm_cit_val !== '' && !in_array($bm_cit_val, array_diff($citizenship_options, ['Other']));
+                                ?>
+                                <select id="bride_mother_citizenship" name="bride_mother_citizenship">
+                                    <option value="">-- Select Citizenship --</option>
+                                    <?php foreach ($citizenship_options as $opt):
+                                        $sel = ($bm_cit_is_other && $opt === 'Other') || (!$bm_cit_is_other && $bm_cit_val === $opt) ? 'selected' : '';
+                                    ?>
+                                    <option value="<?php echo $opt; ?>" <?php echo $sel; ?>><?php echo $opt; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="bride_mother_citizenship_other_group" style="display: <?php echo $bm_cit_is_other ? 'block' : 'none'; ?>;">
+                                <label for="bride_mother_citizenship_other">Specify Citizenship</label>
+                                <input type="text" id="bride_mother_citizenship_other" name="bride_mother_citizenship_other" placeholder="Please specify" value="<?php echo $bm_cit_is_other ? htmlspecialchars($bm_cit_val) : ''; ?>">
                             </div>
                             <div class="form-group">
                                 <label for="bride_mother_residence">Residence</label>
@@ -1733,11 +1789,11 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 
                     <?php if ($edit_mode && !empty($record['pdf_filename'])): ?>
                     <div class="pdf-preview-container">
-                        <iframe id="pdfPreview" src="../uploads/<?php echo htmlspecialchars($record['pdf_filename']); ?>"></iframe>
+                        <iframe id="pdfPreview" src="../api/serve_pdf.php?file=<?php echo urlencode($record['pdf_filename']); ?>"></iframe>
                     </div>
                     <div class="pdf-info">
                         <i data-lucide="info"></i>
-                        <span>Current File: <span class="pdf-filename"><?php echo htmlspecialchars($record['pdf_filename']); ?></span></span>
+                        <span>Current File: <span class="pdf-filename"><?php echo htmlspecialchars(basename($record['pdf_filename'])); ?></span></span>
                     </div>
                     <?php else: ?>
                     <div id="pdfUploadArea" class="pdf-upload-area">
@@ -1782,6 +1838,31 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
             apiEndpoint: '../api/application_for_marriage_license_save.php',
             updateEndpoint: '../api/application_for_marriage_license_update.php'
         });
+
+        // Citizenship "Other" toggle handlers
+        (function() {
+            const citizenshipFields = [
+                'groom_citizenship',
+                'groom_father_citizenship',
+                'groom_mother_citizenship',
+                'bride_citizenship',
+                'bride_father_citizenship',
+                'bride_mother_citizenship'
+            ];
+            citizenshipFields.forEach(function(fieldId) {
+                const select = document.getElementById(fieldId);
+                const otherGroup = document.getElementById(fieldId + '_other_group');
+                if (select && otherGroup) {
+                    select.addEventListener('change', function() {
+                        otherGroup.style.display = this.value === 'Other' ? 'block' : 'none';
+                        if (this.value !== 'Other') {
+                            const otherInput = document.getElementById(fieldId + '_other');
+                            if (otherInput) otherInput.value = '';
+                        }
+                    });
+                }
+            });
+        })();
     </script>
 
     <?php include '../includes/sidebar_scripts.php'; ?>
@@ -1798,9 +1879,9 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
     <script src="../assets/js/ocr-server-client.js"></script>
 
     <!-- Browser OCR (Fallback) -->
-    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';</script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script src="<?= asset_url('pdfjs') ?>"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = '<?= asset_url("pdfjs_worker") ?>';</script>
+    <script src="<?= asset_url('tesseractjs') ?>"></script>
     <script src="../assets/js/ocr-processor.js"></script>
 
     <!-- Core OCR Integration -->

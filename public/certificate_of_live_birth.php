@@ -56,20 +56,18 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Birth Certificate - Civil Registry System</title>
 
-    <!-- Google Fonts - Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Google Fonts (online only; system fonts used when OFFLINE_MODE=true) -->
+    <?= google_fonts_tag('Inter:wght@300;400;500;600;700') ?>
 
     <!-- Font Awesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="<?= asset_url('fontawesome_css') ?>">
 
     <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="<?= asset_url('lucide') ?>"></script>
 
     <!-- Notiflix - Modern Notification Library -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notiflix@3.2.6/dist/notiflix-3.2.6.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/notiflix@3.2.6/dist/notiflix-3.2.6.min.js"></script>
+    <link rel="stylesheet" href="<?= asset_url('notiflix_css') ?>">
+    <script src="<?= asset_url('notiflix_js') ?>"></script>
     <script src="../assets/js/notiflix-config.js"></script>
 
     <!-- Shared Sidebar Styles -->
@@ -145,7 +143,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         .form-type-indicator {
             background: #ffffff;
             padding: clamp(12px, 2vw, 16px) clamp(15px, 2.5vw, 20px);
-            margin: 0 0 clamp(15px, 2.5vw, 20px) 0;
+            margin: 0;
             display: flex;
             align-items: center;
             gap: clamp(12px, 2vw, 16px);
@@ -375,6 +373,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         input[type="text"],
         input[type="datetime-local"],
         input[type="date"],
+        input[type="time"],
         select,
         textarea {
             width: 100%;
@@ -391,6 +390,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         input[type="text"]:focus,
         input[type="datetime-local"]:focus,
         input[type="date"]:focus,
+        input[type="time"]:focus,
         select:focus,
         textarea:focus {
             outline: none;
@@ -948,6 +948,243 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         }
 
         /* ========================================
+           FORM PROGRESS INDICATOR (Sticky Corporate)
+           ======================================== */
+        .form-progress-bar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: #ffffff;
+            padding: 0;
+            margin: 0 0 clamp(15px, 2.5vw, 20px) 0;
+            border-bottom: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .form-progress-bar.is-stuck {
+            background: #1e293b;
+            border-bottom-color: transparent;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        }
+
+        .progress-top-row {
+            display: flex;
+            align-items: center;
+            padding: clamp(10px, 1.5vw, 14px) clamp(15px, 2.5vw, 20px);
+            gap: clamp(10px, 1.5vw, 16px);
+        }
+
+        .form-progress {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            flex: 1;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .form-progress::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* --- Step styles --- */
+        .progress-step {
+            display: flex;
+            align-items: center;
+            gap: clamp(8px, 1vw, 10px);
+            padding: 0 clamp(10px, 1.5vw, 16px);
+            font-size: clamp(0.72rem, 1.2vw, 0.8rem);
+            font-weight: 500;
+            color: #94a3b8;
+            background: transparent;
+            border: none;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: color 0.25s ease;
+            flex-shrink: 0;
+            position: relative;
+            height: clamp(32px, 4vw, 36px);
+        }
+
+        .progress-step:hover {
+            color: #64748b;
+        }
+
+        .progress-step.active {
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+        .progress-step.completed {
+            color: #1e293b;
+        }
+
+        .progress-step .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: clamp(22px, 2.8vw, 26px);
+            height: clamp(22px, 2.8vw, 26px);
+            border-radius: 50%;
+            font-size: clamp(0.65rem, 1.1vw, 0.72rem);
+            font-weight: 600;
+            border: 2px solid #d1d5db;
+            background: #ffffff;
+            color: #9ca3af;
+            transition: all 0.25s ease;
+        }
+
+        .progress-step.active .step-number {
+            border-color: #3b82f6;
+            background: #3b82f6;
+            color: #ffffff;
+        }
+
+        .progress-step.completed .step-number {
+            border-color: #1e40af;
+            background: #1e40af;
+            color: #ffffff;
+            font-size: 0;
+        }
+
+        .progress-step.completed .step-number::after {
+            content: '\2713';
+            font-size: clamp(0.65rem, 1vw, 0.72rem);
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .progress-connector {
+            width: clamp(24px, 3.5vw, 40px);
+            height: 0;
+            border-top: 1px dashed #d1d5db;
+            flex-shrink: 0;
+            transition: all 0.3s ease;
+        }
+
+        .progress-connector.completed {
+            border-top-style: solid;
+            border-top-color: #1e40af;
+            border-top-width: 2px;
+        }
+
+        .progress-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            padding-left: clamp(14px, 2vw, 20px);
+            flex-shrink: 0;
+        }
+
+        .progress-percent-label {
+            font-size: clamp(0.62rem, 1vw, 0.7rem);
+            font-weight: 500;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .progress-percent {
+            font-size: clamp(0.78rem, 1.3vw, 0.88rem);
+            font-weight: 700;
+            color: #1e293b;
+            font-variant-numeric: tabular-nums;
+            min-width: 32px;
+            text-align: right;
+        }
+
+        /* Overall progress bar at bottom edge */
+        .progress-overall {
+            height: 2px;
+            background: #e2e8f0;
+            overflow: hidden;
+        }
+
+        .progress-overall-fill {
+            height: 100%;
+            background: #1e40af;
+            transition: width 0.4s ease;
+            width: 0%;
+        }
+
+        /* --- Stuck (dark) overrides --- */
+        .form-progress-bar.is-stuck .progress-step {
+            color: #64748b;
+        }
+        .form-progress-bar.is-stuck .progress-step:hover {
+            color: #cbd5e1;
+        }
+        .form-progress-bar.is-stuck .progress-step.active {
+            color: #ffffff;
+        }
+        .form-progress-bar.is-stuck .progress-step.completed {
+            color: #93c5fd;
+        }
+        .form-progress-bar.is-stuck .step-number {
+            border-color: #475569;
+            background: transparent;
+            color: #64748b;
+        }
+        .form-progress-bar.is-stuck .progress-step.active .step-number {
+            border-color: #3b82f6;
+            background: #3b82f6;
+            color: #ffffff;
+        }
+        .form-progress-bar.is-stuck .progress-step.completed .step-number {
+            border-color: #3b82f6;
+            background: #3b82f6;
+            color: #ffffff;
+        }
+        .form-progress-bar.is-stuck .progress-connector {
+            border-top-color: #475569;
+        }
+        .form-progress-bar.is-stuck .progress-connector.completed {
+            border-top-color: #3b82f6;
+        }
+        .form-progress-bar.is-stuck .progress-percent {
+            color: #ffffff;
+        }
+        .form-progress-bar.is-stuck .progress-percent-label {
+            color: #64748b;
+        }
+        .form-progress-bar.is-stuck .progress-overall {
+            background: #334155;
+        }
+        .form-progress-bar.is-stuck .progress-overall-fill {
+            background: #3b82f6;
+        }
+
+        @media (max-width: 768px) {
+            .progress-top-row {
+                padding: 8px 12px;
+            }
+
+            .progress-step .step-label {
+                display: none;
+            }
+
+            .progress-step {
+                padding: 0 6px;
+                height: 30px;
+            }
+
+            .progress-connector {
+                width: 16px;
+            }
+
+            .progress-meta {
+                padding-left: 10px;
+                gap: 4px;
+            }
+
+            .progress-percent-label {
+                display: none;
+            }
+        }
+
+        /* ========================================
            HELPER TEXT
            ======================================== */
         .help-text {
@@ -1131,6 +1368,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
             input[type="text"],
             input[type="datetime-local"],
             input[type="date"],
+            input[type="time"],
             select,
             textarea {
                 font-size: 0.72rem;
@@ -1166,7 +1404,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                     </div>
                 </div>
 
-                <!-- Form Type Indicator -->
+                <!-- Form Type Indicator with Progress -->
                 <div class="form-type-indicator form-birth">
                     <div class="form-type-icon">
                         <i data-lucide="baby"></i>
@@ -1177,6 +1415,45 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                             <span class="form-type-badge"><?php echo $edit_mode ? 'Edit Mode' : 'Birth Record'; ?></span>
                         </h2>
                         <p class="form-type-subtitle"><?php echo $edit_mode ? 'Update the birth certificate information below' : 'Complete the form below to register a new birth certificate'; ?></p>
+                    </div>
+                </div>
+
+                <!-- Sticky Progress Bar -->
+                <div class="form-progress-bar" id="formProgressBar">
+                    <div class="progress-top-row">
+                        <div class="form-progress" id="formProgress">
+                            <div class="progress-step active" data-section="registry_section">
+                                <span class="step-number">1</span>
+                                <span class="step-label">Registry</span>
+                            </div>
+                            <div class="progress-connector"></div>
+                            <div class="progress-step" data-section="birth_section">
+                                <span class="step-number">2</span>
+                                <span class="step-label">Birth Info</span>
+                            </div>
+                            <div class="progress-connector"></div>
+                            <div class="progress-step" data-section="mother_section">
+                                <span class="step-number">3</span>
+                                <span class="step-label">Mother</span>
+                            </div>
+                            <div class="progress-connector"></div>
+                            <div class="progress-step" data-section="father_section">
+                                <span class="step-number">4</span>
+                                <span class="step-label">Father</span>
+                            </div>
+                            <div class="progress-connector"></div>
+                            <div class="progress-step" data-section="marriage_section">
+                                <span class="step-number">5</span>
+                                <span class="step-label">Marriage</span>
+                            </div>
+                        </div>
+                        <div class="progress-meta">
+                            <span class="progress-percent-label">Complete</span>
+                            <span class="progress-percent" id="progressPercent">0%</span>
+                        </div>
+                    </div>
+                    <div class="progress-overall">
+                        <div class="progress-overall-fill" id="progressOverallFill"></div>
                     </div>
                 </div>
 
@@ -1194,7 +1471,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                 <div class="form-column">
 
                     <!-- Registry Information Section -->
-                    <div class="form-section">
+                    <div class="form-section" id="registry_section">
                         <div class="section-header">
                             <h2 class="section-title">
                                 <i data-lucide="clipboard-list"></i>
@@ -1210,10 +1487,12 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 type="text"
                                 id="registry_no"
                                 name="registry_no"
-                                placeholder="Enter registry number (e.g., REG-2025-00001 or single digit)"
+                                placeholder="e.g., 2014-1423 or 99-123456 (optional)"
+                                pattern="^\d{2,4}-\d{4,6}$"
+                                title="Format: XXXX-XXXX or XX-XXXXXX (numbers and dash only)"
                                 value="<?php echo $edit_mode ? htmlspecialchars($record['registry_no']) : ''; ?>"
                             >
-                            <span class="help-text">Optional - Can be any format including single digit numbers</span>
+                            <span class="help-text">Optional - Format: XXXX-XXXX or XX-XXXXXX (e.g., 2014-1423 or 99-123456). Leave blank if the registry number has not yet been assigned by the Civil Registrar.</span>
                         </div>
 
                         <div class="form-group">
@@ -1273,18 +1552,33 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                             </div>
                         </div>
 
-                        <!-- Date of Birth -->
-                        <div class="form-group">
-                            <label for="child_date_of_birth">
-                                Child's Date of Birth <span class="required">*</span>
-                            </label>
-                            <input
-                                type="date"
-                                id="child_date_of_birth"
-                                name="child_date_of_birth"
-                                required
-                                value="<?php echo $edit_mode ? htmlspecialchars($record['child_date_of_birth'] ?? '') : ''; ?>"
-                            >
+                        <!-- Date and Time of Birth -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="child_date_of_birth">
+                                    Child's Date of Birth <span class="required">*</span>
+                                </label>
+                                <input
+                                    type="date"
+                                    id="child_date_of_birth"
+                                    name="child_date_of_birth"
+                                    required
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['child_date_of_birth'] ?? '') : ''; ?>"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="time_of_birth">
+                                    Time of Birth
+                                </label>
+                                <input
+                                    type="time"
+                                    id="time_of_birth"
+                                    name="time_of_birth"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['time_of_birth'] ?? '') : ''; ?>"
+                                >
+                                <span class="help-text">Optional - Enter time if available on the certificate</span>
+                            </div>
                         </div>
 
                         <!-- Place of Birth -->
@@ -1295,20 +1589,40 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 </label>
                                 <select id="place_type" name="place_type" required>
                                     <option value="">-- Select Place Type --</option>
-                                    <option value="Barangay" <?php echo ($edit_mode && isset($record['place_type']) && $record['place_type'] === 'Barangay') ? 'selected' : ''; ?>>Barangay</option>
-                                    <option value="Hospital" <?php echo ($edit_mode && isset($record['place_type']) && $record['place_type'] === 'Hospital') ? 'selected' : ''; ?>>Hospital</option>
+                                    <?php
+                                    $place_types = ['Hospital/Clinic', 'Home', 'Barangay Health Center', 'Other'];
+                                    foreach ($place_types as $pt) {
+                                        $selected = ($edit_mode && isset($record['place_type']) && $record['place_type'] === $pt) ? 'selected' : '';
+                                        echo "<option value=\"" . htmlspecialchars($pt) . "\" $selected>" . htmlspecialchars($pt) . "</option>";
+                                    }
+                                    ?>
                                 </select>
-                                <span class="help-text">Select whether the birth occurred in a barangay or hospital</span>
+                                <span class="help-text">Select where the birth occurred (hospital, home, health center, etc.)</span>
                             </div>
 
                             <div class="form-group" id="child_place_of_birth_group" style="display: <?php echo ($edit_mode && !empty($record['place_type'])) ? 'block' : 'none'; ?>;">
                                 <label for="child_place_of_birth">
                                     <span id="place_label">Location</span> <span class="required">*</span>
                                 </label>
-                                <select id="child_place_of_birth" name="child_place_of_birth" required <?php echo (!$edit_mode || empty($record['place_type'])) ? 'disabled' : ''; ?>>
+                                <select
+                                    id="child_place_of_birth"
+                                    name="child_place_of_birth"
+                                >
                                     <option value="">-- Select Location --</option>
                                 </select>
                                 <span class="help-text">Select the specific location where the child was born</span>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="barangay">
+                                    Barangay <span class="required">*</span>
+                                </label>
+                                <select id="barangay" name="barangay" required>
+                                    <option value="">-- Select Barangay --</option>
+                                </select>
+                                <span class="help-text">Select the barangay where the birth occurred</span>
                             </div>
 
                             <div class="form-group">
@@ -1344,7 +1658,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                     </div>
 
                     <!-- Birth Information Section -->
-                    <div class="form-section">
+                    <div class="form-section" id="birth_section">
                         <div class="section-header">
                             <h2 class="section-title">
                                 <i data-lucide="baby"></i>
@@ -1450,7 +1764,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                     </div>
 
                     <!-- Mother's Information Section -->
-                    <div class="form-section">
+                    <div class="form-section" id="mother_section">
                         <div class="section-header">
                             <h2 class="section-title">
                                 <i data-lucide="user"></i>
@@ -1499,11 +1813,43 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                     value="<?php echo $edit_mode ? htmlspecialchars($record['mother_last_name']) : ''; ?>"
                                 >
                             </div>
+
+                            <div class="form-group">
+                                <label for="mother_citizenship">
+                                    Citizenship
+                                </label>
+                                <?php
+                                $citizenship_options = ['Filipino', 'American', 'Chinese', 'Japanese', 'Korean', 'British', 'Australian', 'Canadian', 'Indian', 'Other'];
+                                $mother_cit_val = $edit_mode ? ($record['mother_citizenship'] ?? '') : '';
+                                $mother_cit_is_other = $mother_cit_val !== '' && !in_array($mother_cit_val, array_diff($citizenship_options, ['Other']));
+                                ?>
+                                <select id="mother_citizenship" name="mother_citizenship">
+                                    <option value="">-- Select Citizenship --</option>
+                                    <?php foreach ($citizenship_options as $opt):
+                                        $sel = ($mother_cit_is_other && $opt === 'Other') || (!$mother_cit_is_other && $mother_cit_val === $opt) ? 'selected' : '';
+                                    ?>
+                                    <option value="<?php echo $opt; ?>" <?php echo $sel; ?>><?php echo $opt; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="mother_citizenship_other_group" style="display: <?php echo $mother_cit_is_other ? 'block' : 'none'; ?>;">
+                                <label for="mother_citizenship_other">
+                                    Specify Citizenship
+                                </label>
+                                <input
+                                    type="text"
+                                    id="mother_citizenship_other"
+                                    name="mother_citizenship_other"
+                                    placeholder="Please specify"
+                                    value="<?php echo $mother_cit_is_other ? htmlspecialchars($mother_cit_val) : ''; ?>"
+                                >
+                            </div>
                         </div>
                     </div>
 
                     <!-- Father's Information Section -->
-                    <div class="form-section">
+                    <div class="form-section" id="father_section" style="<?php echo ($edit_mode && isset($record['legitimacy_status']) && $record['legitimacy_status'] === 'Illegitimate') ? 'display:none;' : ''; ?>">
                         <div class="section-header">
                             <h2 class="section-title">
                                 <i data-lucide="user-check"></i>
@@ -1550,11 +1896,42 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                     value="<?php echo $edit_mode ? htmlspecialchars($record['father_last_name'] ?? '') : ''; ?>"
                                 >
                             </div>
+
+                            <div class="form-group">
+                                <label for="father_citizenship">
+                                    Citizenship
+                                </label>
+                                <?php
+                                $father_cit_val = $edit_mode ? ($record['father_citizenship'] ?? '') : '';
+                                $father_cit_is_other = $father_cit_val !== '' && !in_array($father_cit_val, array_diff($citizenship_options, ['Other']));
+                                ?>
+                                <select id="father_citizenship" name="father_citizenship">
+                                    <option value="">-- Select Citizenship --</option>
+                                    <?php foreach ($citizenship_options as $opt):
+                                        $sel = ($father_cit_is_other && $opt === 'Other') || (!$father_cit_is_other && $father_cit_val === $opt) ? 'selected' : '';
+                                    ?>
+                                    <option value="<?php echo $opt; ?>" <?php echo $sel; ?>><?php echo $opt; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="father_citizenship_other_group" style="display: <?php echo $father_cit_is_other ? 'block' : 'none'; ?>;">
+                                <label for="father_citizenship_other">
+                                    Specify Citizenship
+                                </label>
+                                <input
+                                    type="text"
+                                    id="father_citizenship_other"
+                                    name="father_citizenship_other"
+                                    placeholder="Please specify"
+                                    value="<?php echo $father_cit_is_other ? htmlspecialchars($father_cit_val) : ''; ?>"
+                                >
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Marriage Information Section -->
-                    <div class="form-section">
+                    <!-- Marriage Information Section (hidden when illegitimate) -->
+                    <div class="form-section" id="marriage_section" style="<?php echo ($edit_mode && isset($record['legitimacy_status']) && $record['legitimacy_status'] === 'Illegitimate') ? 'display:none;' : ''; ?>">
                         <div class="section-header">
                             <h2 class="section-title">
                                 <i data-lucide="heart"></i>
@@ -1640,11 +2017,11 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 
                     <?php if ($edit_mode && !empty($record['pdf_filename'])): ?>
                     <div class="pdf-preview-container">
-                        <iframe id="pdfPreview" src="../uploads/<?php echo htmlspecialchars($record['pdf_filename']); ?>"></iframe>
+                        <iframe id="pdfPreview" src="../api/serve_pdf.php?file=<?php echo urlencode($record['pdf_filename']); ?>"></iframe>
                     </div>
                     <div class="pdf-info">
                         <i data-lucide="info"></i>
-                        <span>Current File: <span class="pdf-filename"><?php echo htmlspecialchars($record['pdf_filename']); ?></span></span>
+                        <span>Current File: <span class="pdf-filename"><?php echo htmlspecialchars(basename($record['pdf_filename'])); ?></span></span>
                     </div>
                     <?php else: ?>
                     <div id="pdfUploadArea" class="pdf-upload-area">
@@ -1688,7 +2065,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
             updateEndpoint: '../api/certificate_of_live_birth_update.php'
         });
 
-        // Place of Birth Cascading Dropdown Logic
+        // Barangay list for Baggao, Cagayan
         const barangays = [
             'Adaoag', 'Agaman (Proper)', 'Agaman Norte', 'Agaman Sur', 'Alba', 'Annayatan',
             'Asassi', 'Asinga-Via', 'Awallan', 'Bacagan', 'Bagunot', 'Barsat East',
@@ -1706,6 +2083,26 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
             'Municipal Health Office'
         ];
 
+        const healthCenters = [
+            'Baggao Rural Health Unit',
+            'Barangay Health Station'
+        ];
+
+        // Populate Barangay dropdown
+        const barangaySelect = document.getElementById('barangay');
+        barangays.forEach(brgy => {
+            const option = document.createElement('option');
+            option.value = brgy;
+            option.textContent = brgy;
+            barangaySelect.appendChild(option);
+        });
+
+        // Set barangay value in edit mode
+        <?php if ($edit_mode && !empty($record['barangay'])): ?>
+        barangaySelect.value = '<?php echo htmlspecialchars($record['barangay']); ?>';
+        <?php endif; ?>
+
+        // Place of Birth Cascading Dropdown Logic
         const placeTypeSelect = document.getElementById('place_type');
         const placeOfBirthGroup = document.getElementById('child_place_of_birth_group');
         const placeOfBirthSelect = document.getElementById('child_place_of_birth');
@@ -1715,34 +2112,27 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         placeTypeSelect.addEventListener('change', function() {
             const selectedType = this.value;
 
-            if (selectedType) {
-                // Show Notiflix loading indicator
+            if (selectedType && selectedType !== 'Home' && selectedType !== 'Other') {
+                placeOfBirthSelect.value = '';
+
                 Notiflix.Loading.pulse('Loading locations...', {
                     svgColor: '#0d6efd',
                     backgroundColor: 'rgba(0,0,0,0.8)',
                     messageColor: '#ffffff'
                 });
 
-                // Use setTimeout to show the loader briefly for better UX
                 setTimeout(() => {
-                    // Show the location dropdown
-                    placeOfBirthGroup.style.display = 'block';
-                    placeOfBirthSelect.disabled = false;
-
-                    // Clear existing options
                     placeOfBirthSelect.innerHTML = '<option value="">-- Select Location --</option>';
 
-                    // Populate based on selection
                     let locations = [];
-                    if (selectedType === 'Barangay') {
-                        locations = barangays;
-                        placeLabel.textContent = 'Barangay';
-                    } else if (selectedType === 'Hospital') {
+                    if (selectedType === 'Hospital/Clinic') {
                         locations = hospitals;
-                        placeLabel.textContent = 'Hospital';
+                        placeLabel.textContent = 'Hospital/Clinic';
+                    } else if (selectedType === 'Barangay Health Center') {
+                        locations = healthCenters;
+                        placeLabel.textContent = 'Health Center';
                     }
 
-                    // Add options
                     locations.forEach(location => {
                         const option = document.createElement('option');
                         option.value = location;
@@ -1750,54 +2140,245 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                         placeOfBirthSelect.appendChild(option);
                     });
 
-                    // Remove loading indicator
-                    Notiflix.Loading.remove();
+                    placeOfBirthGroup.style.display = 'block';
+                    placeOfBirthSelect.required = true;
 
-                    // Show success notification
-                    Notiflix.Notify.success(`${locations.length} ${selectedType === 'Barangay' ? 'barangays' : 'hospitals'} loaded successfully!`, {
+                    Notiflix.Loading.remove();
+                    Notiflix.Notify.success(`${locations.length} locations loaded!`, {
                         timeout: 2000,
                         position: 'right-top'
                     });
-                }, 300); // 300ms delay for smooth loading animation
-            } else {
-                // Hide the location dropdown
+                }, 300);
+            } else if (selectedType === 'Home' || selectedType === 'Other') {
+                // For Home/Other, hide location dropdown - barangay is enough
                 placeOfBirthGroup.style.display = 'none';
-                placeOfBirthSelect.disabled = true;
+                placeOfBirthSelect.required = false;
+                placeOfBirthSelect.value = '';
+                placeOfBirthSelect.innerHTML = '<option value="">-- Select Location --</option>';
+            } else {
+                placeOfBirthGroup.style.display = 'none';
+                placeOfBirthSelect.required = false;
+                placeOfBirthSelect.value = '';
                 placeOfBirthSelect.innerHTML = '<option value="">-- Select Location --</option>';
             }
         });
 
         // Handle edit mode - populate dropdowns if editing
         <?php if ($edit_mode && !empty($record['child_place_of_birth'])): ?>
-        document.addEventListener('DOMContentLoaded', function() {
+        (function() {
             const savedLocation = '<?php echo htmlspecialchars($record['child_place_of_birth']); ?>';
-            let savedPlaceType = '<?php echo htmlspecialchars($record['place_type'] ?? ''); ?>';
+            const savedPlaceType = '<?php echo htmlspecialchars($record['place_type'] ?? ''); ?>';
 
-            // Backward compatibility: If place_type is empty, try to determine it from the location
-            if (!savedPlaceType) {
-                if (barangays.includes(savedLocation)) {
-                    savedPlaceType = 'Barangay';
-                } else if (hospitals.includes(savedLocation)) {
-                    savedPlaceType = 'Hospital';
-                }
-            }
-
-            // Set the place type
-            if (savedPlaceType && placeTypeSelect.value === '') {
+            if (savedPlaceType && placeTypeSelect.value !== savedPlaceType) {
                 placeTypeSelect.value = savedPlaceType;
             }
 
-            // Trigger the change event to populate the second dropdown
             if (savedPlaceType) {
                 placeTypeSelect.dispatchEvent(new Event('change'));
-
-                // Set the saved value after options are populated
                 setTimeout(() => {
                     placeOfBirthSelect.value = savedLocation;
-                }, 100);
+                }, 450);
+            }
+        })();
+        <?php endif; ?>
+
+        // Legitimacy Status - Show/Hide Father & Marriage sections
+        const legitimacySelect = document.getElementById('legitimacy_status');
+        const fatherSection = document.getElementById('father_section');
+        const marriageSection = document.getElementById('marriage_section');
+        const fatherProgressStep = document.querySelector('.progress-step[data-section="father_section"]');
+        const marriageProgressStep = document.querySelector('.progress-step[data-section="marriage_section"]');
+
+        legitimacySelect.addEventListener('change', function() {
+            const isIllegitimate = this.value === 'Illegitimate';
+
+            if (isIllegitimate) {
+                // Hide father and marriage sections with animation
+                fatherSection.style.display = 'none';
+                marriageSection.style.display = 'none';
+
+                // Remove required from hidden fields
+                fatherSection.querySelectorAll('[required]').forEach(el => {
+                    el.removeAttribute('required');
+                    el.dataset.wasRequired = 'true';
+                });
+                marriageSection.querySelectorAll('[required]').forEach(el => {
+                    el.removeAttribute('required');
+                    el.dataset.wasRequired = 'true';
+                });
+
+                // Dim progress steps
+                if (fatherProgressStep) fatherProgressStep.style.opacity = '0.4';
+                if (marriageProgressStep) marriageProgressStep.style.opacity = '0.4';
+
+                Notiflix.Notify.info('Father and Marriage sections hidden for illegitimate status.', {
+                    timeout: 3000,
+                    position: 'right-top'
+                });
+            } else {
+                // Show father and marriage sections
+                fatherSection.style.display = '';
+                marriageSection.style.display = '';
+
+                // Restore required fields
+                fatherSection.querySelectorAll('[data-was-required]').forEach(el => {
+                    el.setAttribute('required', '');
+                    delete el.dataset.wasRequired;
+                });
+                marriageSection.querySelectorAll('[data-was-required]').forEach(el => {
+                    el.setAttribute('required', '');
+                    delete el.dataset.wasRequired;
+                });
+
+                // Restore progress steps
+                if (fatherProgressStep) fatherProgressStep.style.opacity = '';
+                if (marriageProgressStep) marriageProgressStep.style.opacity = '';
+            }
+
+            // Update progress indicator
+            updateFormProgress();
+        });
+
+        // Sticky detection for progress bar
+        (function() {
+            const progressBar = document.getElementById('formProgressBar');
+            if (!progressBar) return;
+
+            const observer = new IntersectionObserver(
+                ([entry]) => {
+                    progressBar.classList.toggle('is-stuck', !entry.isIntersecting);
+                },
+                { threshold: [1], rootMargin: '-1px 0px 0px 0px' }
+            );
+
+            // Create a sentinel element right before the progress bar
+            const sentinel = document.createElement('div');
+            sentinel.style.height = '1px';
+            sentinel.style.marginBottom = '-1px';
+            progressBar.parentNode.insertBefore(sentinel, progressBar);
+            observer.observe(sentinel);
+        })();
+
+        // Form Progress Indicator Logic
+        function updateFormProgress() {
+            const sections = document.querySelectorAll('.form-section[id]');
+            const steps = document.querySelectorAll('.progress-step');
+            const connectors = document.querySelectorAll('.progress-connector');
+
+            let totalFilledAll = 0;
+            let totalRequiredAll = 0;
+
+            sections.forEach((section, index) => {
+                if (section.style.display === 'none') return;
+
+                const step = steps[index];
+                const inputs = section.querySelectorAll('input[required], select[required]');
+                let filledCount = 0;
+                let totalCount = inputs.length;
+
+                inputs.forEach(input => {
+                    if (input.value && input.value.trim() !== '') {
+                        filledCount++;
+                    }
+                });
+
+                totalFilledAll += filledCount;
+                totalRequiredAll += totalCount;
+
+                if (step) {
+                    step.classList.remove('active', 'completed');
+                    if (totalCount > 0 && filledCount === totalCount) {
+                        step.classList.add('completed');
+                        if (connectors[index]) connectors[index].classList.add('completed');
+                    } else if (filledCount > 0) {
+                        step.classList.add('active');
+                    }
+                    if (connectors[index] && !(totalCount > 0 && filledCount === totalCount)) {
+                        connectors[index].classList.remove('completed');
+                    }
+                }
+            });
+
+            // Update overall progress bar
+            const percent = totalRequiredAll > 0 ? Math.round((totalFilledAll / totalRequiredAll) * 100) : 0;
+            const fillEl = document.getElementById('progressOverallFill');
+            const percentEl = document.getElementById('progressPercent');
+            if (fillEl) fillEl.style.width = percent + '%';
+            if (percentEl) percentEl.textContent = percent + '%';
+        }
+
+        // Click on progress step to scroll to section (offset for sticky bar)
+        document.querySelectorAll('.progress-step').forEach(step => {
+            step.addEventListener('click', function() {
+                const sectionId = this.dataset.section;
+                const section = document.getElementById(sectionId);
+                if (section && section.style.display !== 'none') {
+                    const progressBar = document.getElementById('formProgressBar');
+                    const offset = progressBar ? progressBar.offsetHeight + 10 : 0;
+                    const top = section.getBoundingClientRect().top + window.pageYOffset - offset;
+                    window.scrollTo({ top: top, behavior: 'smooth' });
+                }
+            });
+        });
+
+        // Listen for input changes to update progress
+        document.getElementById('certificateForm').addEventListener('input', updateFormProgress);
+        document.getElementById('certificateForm').addEventListener('change', updateFormProgress);
+
+        // Initial progress update
+        updateFormProgress();
+
+        // Type of Birth "Other" toggle
+        document.getElementById('type_of_birth').addEventListener('change', function() {
+            const otherGroup = document.getElementById('type_of_birth_other_group');
+            const otherInput = document.getElementById('type_of_birth_other');
+            if (this.value === 'Other') {
+                otherGroup.style.display = 'block';
+                otherInput.focus();
+            } else {
+                otherGroup.style.display = 'none';
+                otherInput.value = '';
             }
         });
-        <?php endif; ?>
+
+        // Birth Order "Other" toggle
+        document.getElementById('birth_order').addEventListener('change', function() {
+            const otherGroup = document.getElementById('birth_order_other_group');
+            const otherInput = document.getElementById('birth_order_other');
+            if (this.value === 'Other') {
+                otherGroup.style.display = 'block';
+                otherInput.focus();
+            } else {
+                otherGroup.style.display = 'none';
+                otherInput.value = '';
+            }
+        });
+
+        // Citizenship "Other" toggle — Mother
+        document.getElementById('mother_citizenship').addEventListener('change', function() {
+            const otherGroup = document.getElementById('mother_citizenship_other_group');
+            const otherInput = document.getElementById('mother_citizenship_other');
+            if (this.value === 'Other') {
+                otherGroup.style.display = 'block';
+                otherInput.focus();
+            } else {
+                otherGroup.style.display = 'none';
+                otherInput.value = '';
+            }
+        });
+
+        // Citizenship "Other" toggle — Father
+        document.getElementById('father_citizenship').addEventListener('change', function() {
+            const otherGroup = document.getElementById('father_citizenship_other_group');
+            const otherInput = document.getElementById('father_citizenship_other');
+            if (this.value === 'Other') {
+                otherGroup.style.display = 'block';
+                otherInput.focus();
+            } else {
+                otherGroup.style.display = 'none';
+                otherInput.value = '';
+            }
+        });
     </script>
 
     <?php include '../includes/sidebar_scripts.php'; ?>
@@ -1811,9 +2392,9 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
     <script src="../assets/js/ocr-server-client.js"></script>
 
     <!-- Browser OCR (Fallback) -->
-    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';</script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script src="<?= asset_url('pdfjs') ?>"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = '<?= asset_url("pdfjs_worker") ?>';</script>
+    <script src="<?= asset_url('tesseractjs') ?>"></script>
     <script src="../assets/js/ocr-processor.js"></script>
 
     <!-- Core OCR Integration -->

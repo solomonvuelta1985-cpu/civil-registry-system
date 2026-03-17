@@ -66,7 +66,7 @@ function validate_file_upload($file) {
 /**
  * Upload file to server
  */
-function upload_file($file, $custom_name = null) {
+function upload_file($file, $type = null, $year = null) {
     // Validate file first
     $validation_errors = validate_file_upload($file);
     if (!empty($validation_errors)) {
@@ -75,24 +75,34 @@ function upload_file($file, $custom_name = null) {
 
     // Generate unique filename
     $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-    if ($custom_name) {
-        $new_filename = $custom_name . '.' . $file_extension;
-    } else {
-        $new_filename = uniqid('cert_', true) . '_' . time() . '.' . $file_extension;
+    $new_filename = uniqid('cert_', true) . '_' . time() . '.' . $file_extension;
+
+    // Build subdirectory path: {type}/{year}/
+    $sub_dir = '';
+    if ($type) {
+        $allowed_types = ['birth', 'death', 'marriage', 'marriage_license'];
+        if (!in_array($type, $allowed_types)) {
+            return ['success' => false, 'errors' => ['Invalid certificate type for upload.']];
+        }
+        $year = $year ? (int)$year : (int)date('Y');
+        $sub_dir = $type . '/' . $year . '/';
     }
 
-    $upload_path = UPLOAD_DIR . $new_filename;
+    $target_dir = UPLOAD_DIR . $sub_dir;
+    $upload_path = $target_dir . $new_filename;
 
     // Create upload directory if it doesn't exist
-    if (!file_exists(UPLOAD_DIR)) {
-        mkdir(UPLOAD_DIR, 0755, true);
+    if (!file_exists($target_dir)) {
+        mkdir($target_dir, 0755, true);
     }
 
     // Move uploaded file
     if (move_uploaded_file($file['tmp_name'], $upload_path)) {
+        // Return relative path (e.g., birth/2026/cert_xxx.pdf)
+        $relative_path = $sub_dir . $new_filename;
         return [
             'success' => true,
-            'filename' => $new_filename,
+            'filename' => $relative_path,
             'path' => $upload_path
         ];
     } else {
@@ -102,6 +112,7 @@ function upload_file($file, $custom_name = null) {
 
 /**
  * Delete file from server
+ * Accepts relative path (e.g., birth/2026/cert_xxx.pdf) or legacy filename
  */
 function delete_file($filename) {
     $file_path = UPLOAD_DIR . $filename;
@@ -129,6 +140,11 @@ function format_datetime($datetime, $format = 'F d, Y h:i A') {
  * Generate JSON response
  */
 function json_response($success, $message, $data = null, $http_code = 200) {
+    // Clear any output buffers to ensure clean JSON
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
     http_response_code($http_code);
     header('Content-Type: application/json');
 
@@ -168,25 +184,6 @@ function validate_registry_number($registry_no) {
 function validate_date($date, $format = 'Y-m-d') {
     $d = DateTime::createFromFormat($format, $date);
     return $d && $d->format($format) === $date;
-}
-
-/**
- * Check if record exists
- */
-function record_exists($pdo, $table, $column, $value, $exclude_id = null) {
-    $sql = "SELECT COUNT(*) FROM {$table} WHERE {$column} = :value";
-    if ($exclude_id) {
-        $sql .= " AND id != :exclude_id";
-    }
-
-    $stmt = $pdo->prepare($sql);
-    $stmt->bindParam(':value', $value);
-    if ($exclude_id) {
-        $stmt->bindParam(':exclude_id', $exclude_id);
-    }
-    $stmt->execute();
-
-    return $stmt->fetchColumn() > 0;
 }
 
 /**
