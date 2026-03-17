@@ -474,6 +474,7 @@ $field_groups = $certificate_type === 'birth' ? $birth_fields : $marriage_fields
     </style>
 </head>
 <body>
+    <?php include '../includes/preloader.php'; ?>
     <div class="header">
         <div class="header-content">
             <div>

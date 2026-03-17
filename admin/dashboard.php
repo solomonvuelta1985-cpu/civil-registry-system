@@ -7,6 +7,7 @@
 require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/auth.php';
 
 // Optional: Check if user is authenticated
 // if (!isset($_SESSION['user_id'])) {
@@ -41,6 +42,14 @@ $monthly_chart_data = [];
 $certificate_distribution = [];
 
 try {
+    // PDF integrity issue count (last 30 days)
+    $stmt = $pdo->query(
+        "SELECT COUNT(*) as count FROM security_logs
+          WHERE event_type = 'PDF_INTEGRITY_FAILURE'
+            AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
+    );
+    $stats['pdf_integrity_issues'] = (int)($stmt->fetch()['count'] ?? 0);
+
     // Get total birth certificates
     $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_live_birth WHERE status = 'Active'");
     $stats['total_births'] = $stmt->fetch()['count'] ?? 0;
@@ -188,46 +197,6 @@ try {
         return strtotime($b['created_at']) - strtotime($a['created_at']);
     });
     $recent_activities = array_slice($recent_activities, 0, 10);
-
-    // Get archival/digitization progress statistics
-    $archival_stats = [
-        'total_legacy_records' => 0,
-        'digitized_records' => 0,
-        'pending_digitization' => 0,
-        'digitization_percentage' => 0
-    ];
-
-    // Count total records
-    $total_records = $stats['total_births'] + $stats['total_marriages'] + $stats['total_deaths'] + $stats['total_licenses'];
-
-    // Count digitized records (those with PDFs uploaded)
-    $stmt = $pdo->query("
-        SELECT COUNT(DISTINCT certificate_id) as count
-        FROM pdf_attachments
-        WHERE certificate_type = 'birth' AND is_current_version = 1
-    ");
-    $digitized_births = $stmt->fetch()['count'] ?? 0;
-
-    $stmt = $pdo->query("
-        SELECT COUNT(DISTINCT certificate_id) as count
-        FROM pdf_attachments
-        WHERE certificate_type = 'marriage' AND is_current_version = 1
-    ");
-    $digitized_marriages = $stmt->fetch()['count'] ?? 0;
-
-    $stmt = $pdo->query("
-        SELECT COUNT(DISTINCT certificate_id) as count
-        FROM pdf_attachments
-        WHERE certificate_type = 'death' AND is_current_version = 1
-    ");
-    $digitized_deaths = $stmt->fetch()['count'] ?? 0;
-
-    $archival_stats['digitized_records'] = $digitized_births + $digitized_marriages + $digitized_deaths;
-    $archival_stats['total_legacy_records'] = $total_records;
-    $archival_stats['pending_digitization'] = $total_records - $archival_stats['digitized_records'];
-    $archival_stats['digitization_percentage'] = $total_records > 0
-        ? round(($archival_stats['digitized_records'] / $total_records) * 100, 1)
-        : 0;
 
     // Get security stats (last login, failed attempts)
     $security_stats = [
@@ -1224,120 +1193,6 @@ $user_first_name = explode(' ', $user_name)[0];
             border-radius: 6px;
         }
 
-        /* System Highlights Alert Strip - Clean Design */
-        .system-highlights {
-            background: #fbbf24;
-            border-radius: 8px;
-            padding: 16px 20px;
-            margin-bottom: 24px;
-            box-shadow: none;
-            border: none;
-        }
-
-        .highlights-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 0;
-        }
-
-        .highlights-header i {
-            color: #ffffff;
-            font-size: 1rem;
-        }
-
-        .highlights-title {
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: #000000;
-            letter-spacing: 0;
-        }
-
-        .highlights-grid {
-            display: none;
-        }
-
-        /* Archival Progress Module - Clean Solid Blue */
-        .archival-progress-card {
-            background: #3b82f6;
-            border-radius: 8px;
-            padding: 20px;
-            color: #ffffff;
-            box-shadow: none;
-            margin-bottom: 24px;
-            border: none;
-        }
-
-        .archival-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-
-        .archival-header i {
-            font-size: 1.125rem;
-        }
-
-        .archival-title {
-            font-size: 0.9375rem;
-            font-weight: 600;
-            letter-spacing: 0;
-        }
-
-        .archival-stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-
-        .archival-stat-item {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 6px;
-            padding: 12px;
-            backdrop-filter: none;
-            border: none;
-        }
-
-        .archival-stat-label {
-            font-size: 0.6875rem;
-            opacity: 0.85;
-            margin-bottom: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
-            font-weight: 500;
-        }
-
-        .archival-stat-value {
-            font-size: 1.25rem;
-            font-weight: 700;
-            line-height: 1;
-        }
-
-        .archival-progress-bar {
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 6px;
-            height: 10px;
-            overflow: hidden;
-            margin-top: 6px;
-        }
-
-        .archival-progress-fill {
-            background: #ffffff;
-            height: 100%;
-            border-radius: 6px;
-            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: none;
-        }
-
-        .archival-progress-text {
-            font-size: 0.8125rem;
-            margin-top: 10px;
-            opacity: 0.9;
-            font-weight: 400;
-        }
-
         /* Security Status Card - Clean White Design */
         .security-status-card {
             background: #ffffff;
@@ -2147,6 +2002,176 @@ $user_first_name = explode(' ', $user_name)[0];
             transform: translateY(-1px);
         }
 
+        /* Wide modal for All Events / All Notes */
+        .modal-container-wide {
+            max-width: 800px;
+        }
+
+        .all-events-list, .all-notes-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .all-event-item, .all-note-item {
+            padding: 16px;
+            border-bottom: 1px solid #f1f5f9;
+            transition: background 0.15s ease;
+        }
+
+        .all-event-item:hover, .all-note-item:hover {
+            background: #f8fafc;
+        }
+
+        .all-event-item:last-child, .all-note-item:last-child {
+            border-bottom: none;
+        }
+
+        .all-item-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .all-item-title {
+            font-weight: 600;
+            font-size: 0.9375rem;
+            color: #0f172a;
+        }
+
+        .all-item-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .all-item-action-btn {
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1.5px solid #e2e8f0;
+            background: #ffffff;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .all-item-action-btn:hover {
+            border-color: #3b82f6;
+            color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        .all-item-action-btn.delete:hover {
+            border-color: #ef4444;
+            color: #ef4444;
+            background: #fef2f2;
+        }
+
+        .all-item-action-btn.pin {
+            color: #f59e0b;
+            border-color: #fcd34d;
+        }
+
+        .all-item-action-btn.pin:hover {
+            background: #fffbeb;
+        }
+
+        .all-item-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            font-size: 0.8125rem;
+            color: #64748b;
+        }
+
+        .all-item-meta i {
+            font-size: 0.75rem;
+        }
+
+        .all-item-description {
+            margin-top: 6px;
+            font-size: 0.8125rem;
+            color: #64748b;
+            line-height: 1.5;
+        }
+
+        .all-note-content-preview {
+            margin-top: 6px;
+            font-size: 0.8125rem;
+            color: #475569;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .all-item-pinned {
+            background: #fffbeb;
+            border-left: 3px solid #f59e0b;
+        }
+
+        .modal-filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .modal-filter-bar select {
+            padding: 6px 12px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.8125rem;
+            color: #334155;
+            background: #ffffff;
+        }
+
+        .modal-filter-bar select:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .modal-empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: #94a3b8;
+        }
+
+        .modal-empty-state i {
+            font-size: 3rem;
+            color: #cbd5e1;
+            margin-bottom: 16px;
+        }
+
+        .modal-empty-state p {
+            font-size: 0.9375rem;
+        }
+
+        .modal-loading {
+            text-align: center;
+            padding: 48px 20px;
+        }
+
+        .modal-loading i {
+            font-size: 2rem;
+            color: #3b82f6;
+        }
+
+        .modal-loading p {
+            margin-top: 16px;
+            color: #64748b;
+            font-size: 0.875rem;
+        }
+
         /* Event List in View Modal */
         .event-list {
             list-style: none;
@@ -2365,6 +2390,7 @@ $user_first_name = explode(' ', $user_name)[0];
     </style>
 </head>
 <body>
+    <?php include '../includes/preloader.php'; ?>
     <?php include '../includes/mobile_header.php'; ?>
     <?php include '../includes/sidebar_nav.php'; ?>
     <?php include '../includes/top_navbar.php'; ?>
@@ -2424,94 +2450,6 @@ $user_first_name = explode(' ', $user_name)[0];
                 <button class="date-range-btn" data-range="quarterly" aria-pressed="false">Quarterly</button>
                 <button class="date-range-btn" data-range="yearly" aria-pressed="false">Yearly</button>
             </div>
-        </div>
-
-        <!-- System Highlights Alert Strip -->
-        <div class="system-highlights">
-            <div class="highlights-header">
-                <i class="fas fa-bell"></i>
-                <span class="highlights-title">System Highlights - Requires Attention</span>
-            </div>
-            <div class="highlights-grid">
-                <div class="highlight-item">
-                    <div class="highlight-icon success">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <div class="highlight-content">
-                        <div class="highlight-label">Total Records</div>
-                        <div class="highlight-value"><?php echo number_format($stats['total_births'] + $stats['total_marriages'] + $stats['total_deaths'] + $stats['total_licenses']); ?></div>
-                    </div>
-                </div>
-                <div class="highlight-item">
-                    <div class="highlight-icon info">
-                        <i class="fas fa-calendar-day"></i>
-                    </div>
-                    <div class="highlight-content">
-                        <div class="highlight-label">This Month</div>
-                        <div class="highlight-value"><?php echo number_format($stats['this_month_births'] + $stats['this_month_marriages'] + $stats['this_month_deaths'] + $stats['this_month_licenses']); ?></div>
-                    </div>
-                </div>
-                <div class="highlight-item">
-                    <div class="highlight-icon warning">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                    <div class="highlight-content">
-                        <div class="highlight-label">Recent Activity</div>
-                        <div class="highlight-value"><?php echo count($recent_activities); ?></div>
-                    </div>
-                </div>
-                <div class="highlight-item">
-                    <div class="highlight-icon success">
-                        <i class="fas fa-database"></i>
-                    </div>
-                    <div class="highlight-content">
-                        <div class="highlight-label">System Status</div>
-                        <div class="highlight-value" style="font-size: 1rem; color: #22c55e;">Active</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Archival Progress Module -->
-        <div class="archival-progress-card" role="region" aria-label="Digitization progress">
-            <div class="archival-header">
-                <i class="fas fa-archive" aria-hidden="true"></i>
-                <h2 class="archival-title">Archival & Digitization Progress</h2>
-            </div>
-            <div class="archival-stats-grid">
-                <div class="archival-stat-item">
-                    <div class="archival-stat-label">Total Records</div>
-                    <div class="archival-stat-value"><?php echo number_format($archival_stats['total_legacy_records']); ?></div>
-                </div>
-                <div class="archival-stat-item">
-                    <div class="archival-stat-label">Digitized</div>
-                    <div class="archival-stat-value"><?php echo number_format($archival_stats['digitized_records']); ?></div>
-                </div>
-                <div class="archival-stat-item">
-                    <div class="archival-stat-label">Pending</div>
-                    <div class="archival-stat-value"><?php echo number_format($archival_stats['pending_digitization']); ?></div>
-                </div>
-                <div class="archival-stat-item">
-                    <div class="archival-stat-label">Progress</div>
-                    <div class="archival-stat-value"><?php echo $archival_stats['digitization_percentage']; ?>%</div>
-                </div>
-            </div>
-            <div class="archival-progress-bar" role="progressbar" aria-valuenow="<?php echo $archival_stats['digitization_percentage']; ?>" aria-valuemin="0" aria-valuemax="100" aria-label="Digitization progress">
-                <div class="archival-progress-fill" style="width: <?php echo $archival_stats['digitization_percentage']; ?>%"></div>
-            </div>
-            <p class="archival-progress-text">
-                <?php if ($archival_stats['digitization_percentage'] == 100): ?>
-                    <i class="fas fa-check-circle"></i> All records have been digitized!
-                <?php elseif ($archival_stats['digitization_percentage'] >= 75): ?>
-                    <i class="fas fa-thumbs-up"></i> Excellent progress! <?php echo $archival_stats['pending_digitization']; ?> records remaining.
-                <?php elseif ($archival_stats['digitization_percentage'] >= 50): ?>
-                    <i class="fas fa-chart-line"></i> Good progress! <?php echo $archival_stats['pending_digitization']; ?> records remaining.
-                <?php elseif ($archival_stats['digitization_percentage'] > 0): ?>
-                    <i class="fas fa-tasks"></i> Digitization in progress. <?php echo $archival_stats['pending_digitization']; ?> records remaining.
-                <?php else: ?>
-                    <i class="fas fa-info-circle"></i> Ready to start digitizing legacy records.
-                <?php endif; ?>
-            </p>
         </div>
 
         <!-- Security & System Status -->
@@ -2655,7 +2593,7 @@ $user_first_name = explode(' ', $user_name)[0];
                 </div>
 
                 <div style="text-align: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
-                    <a href="calendar.php" style="color: #3b82f6; font-size: 0.875rem; font-weight: 600; text-decoration: none;">
+                    <a href="javascript:void(0)" onclick="openAllEventsModal()" style="color: #3b82f6; font-size: 0.875rem; font-weight: 600; text-decoration: none; cursor: pointer;">
                         View Full Calendar <i class="fas fa-arrow-right"></i>
                     </a>
                 </div>
@@ -2718,13 +2656,37 @@ $user_first_name = explode(' ', $user_name)[0];
                         <?php endforeach; ?>
                     </ul>
                     <div style="text-align: center; margin-top: 16px;">
-                        <a href="notes.php" style="color: #3b82f6; font-size: 0.875rem; font-weight: 600; text-decoration: none;">
+                        <a href="javascript:void(0)" onclick="openAllNotesModal()" style="color: #3b82f6; font-size: 0.875rem; font-weight: 600; text-decoration: none; cursor: pointer;">
                             View All Notes <i class="fas fa-arrow-right"></i>
                         </a>
                     </div>
                 <?php endif; ?>
             </div>
         </div>
+
+        <!-- PDF Integrity Status Widget -->
+        <?php if (getUserRole() === 'Admin'): ?>
+        <div style="margin-bottom:20px;">
+            <a href="../admin/pdf_integrity_report.php" style="text-decoration:none;">
+                <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;border-radius:12px;background:<?= $stats['pdf_integrity_issues'] > 0 ? '#fff5f5' : '#f0fff4' ?>;border:1px solid <?= $stats['pdf_integrity_issues'] > 0 ? '#feb2b2' : '#9ae6b4' ?>;">
+                    <i data-lucide="<?= $stats['pdf_integrity_issues'] > 0 ? 'shield-alert' : 'shield-check' ?>"
+                       style="width:28px;height:28px;color:<?= $stats['pdf_integrity_issues'] > 0 ? '#c53030' : '#276749' ?>;flex-shrink:0;"></i>
+                    <div>
+                        <div style="font-weight:700;font-size:0.95rem;color:<?= $stats['pdf_integrity_issues'] > 0 ? '#c53030' : '#276749' ?>;">
+                            PDF Integrity:
+                            <?= $stats['pdf_integrity_issues'] > 0
+                                ? $stats['pdf_integrity_issues'] . ' issue(s) detected in the last 30 days'
+                                : 'All checks passed' ?>
+                        </div>
+                        <div style="font-size:0.82rem;color:#718096;margin-top:2px;">
+                            Click to view the full integrity report and restore backups
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" style="width:18px;height:18px;color:#a0aec0;margin-left:auto;"></i>
+                </div>
+            </a>
+        </div>
+        <?php endif; ?>
 
         <!-- Statistics Cards -->
         <div class="stats-grid">
@@ -3525,6 +3487,10 @@ $user_first_name = explode(' ', $user_name)[0];
             modal.classList.remove('active');
             document.body.style.overflow = 'auto';
             document.getElementById('noteForm').reset();
+            delete document.getElementById('noteForm').dataset.noteId;
+            document.getElementById('noteSubmitBtn').innerHTML = '<i class="fas fa-check"></i> Create Note';
+            const messageDiv = document.getElementById('noteFormMessage');
+            messageDiv.style.display = 'none';
         }
 
         // View Events Modal Functions
@@ -3556,7 +3522,7 @@ $user_first_name = explode(' ', $user_name)[0];
             noEventsMsg.style.display = 'none';
 
             try {
-                const response = await fetch(`api/calendar_events.php?start_date=${date}&end_date=${date}`);
+                const response = await fetch(`../api/calendar_events.php?start_date=${date}&end_date=${date}`);
                 const data = await response.json();
 
                 loading.style.display = 'none';
@@ -3626,7 +3592,7 @@ $user_first_name = explode(' ', $user_name)[0];
         // Edit Event Function
         async function editEvent(eventId) {
             try {
-                const response = await fetch(`api/calendar_events.php?id=${eventId}`);
+                const response = await fetch(`../api/calendar_events.php?id=${eventId}`);
                 const data = await response.json();
 
                 if (data.success && data.event) {
@@ -3662,7 +3628,7 @@ $user_first_name = explode(' ', $user_name)[0];
         async function confirmDeleteEvent(eventId, eventTitle) {
             if (confirm(`Are you sure you want to delete the event "${eventTitle}"?`)) {
                 try {
-                    const response = await fetch('api/calendar_events.php', {
+                    const response = await fetch('../api/calendar_events.php', {
                         method: 'DELETE',
                         headers: {
                             'Content-Type': 'application/json'
@@ -3705,7 +3671,7 @@ $user_first_name = explode(' ', $user_name)[0];
             };
 
             try {
-                const response = await fetch('api/calendar_events.php', {
+                const response = await fetch('../api/calendar_events.php', {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
@@ -3777,7 +3743,7 @@ $user_first_name = explode(' ', $user_name)[0];
             };
 
             try {
-                const response = await fetch('api/calendar_events.php', {
+                const response = await fetch('../api/calendar_events.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -3815,17 +3781,21 @@ $user_first_name = explode(' ', $user_name)[0];
             }
         }
 
-        // Submit Note Form via AJAX
+        // Submit Note Form via AJAX (handles both create and update)
         async function submitNoteForm(e) {
             e.preventDefault();
 
+            const noteForm = document.getElementById('noteForm');
+            const noteId = noteForm.dataset.noteId;
             const submitBtn = document.getElementById('noteSubmitBtn');
             const messageDiv = document.getElementById('noteFormMessage');
             const originalBtnText = submitBtn.innerHTML;
 
             // Disable button and show loading
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+            submitBtn.innerHTML = noteId
+                ? '<i class="fas fa-spinner fa-spin"></i> Updating...'
+                : '<i class="fas fa-spinner fa-spin"></i> Creating...';
 
             const formData = {
                 note_title: document.getElementById('note_title').value,
@@ -3834,9 +3804,13 @@ $user_first_name = explode(' ', $user_name)[0];
                 is_pinned: document.getElementById('is_pinned').checked ? '1' : '0'
             };
 
+            if (noteId) {
+                formData.note_id = noteId;
+            }
+
             try {
-                const response = await fetch('api/notes.php', {
-                    method: 'POST',
+                const response = await fetch('../api/notes.php', {
+                    method: noteId ? 'PUT' : 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
@@ -3858,7 +3832,7 @@ $user_first_name = explode(' ', $user_name)[0];
                         window.location.reload();
                     }, 1500);
                 } else {
-                    throw new Error(data.message || 'Failed to create note');
+                    throw new Error(data.message || (noteId ? 'Failed to update note' : 'Failed to create note'));
                 }
             } catch (error) {
                 // Show error message
@@ -4049,6 +4023,103 @@ $user_first_name = explode(' ', $user_name)[0];
         </div>
     </div>
 
+    <!-- All Events Modal -->
+    <div class="modal-overlay" id="allEventsModal">
+        <div class="modal-container modal-container-wide">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fas fa-calendar-alt"></i>
+                    All Events
+                </h2>
+                <button class="modal-close" onclick="closeAllEventsModal()" aria-label="Close modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 16px 24px;">
+                <div class="modal-filter-bar">
+                    <select id="allEventsFilterType" onchange="filterAllEvents()">
+                        <option value="all">All Types</option>
+                        <option value="registration">Registration</option>
+                        <option value="deadline">Deadline</option>
+                        <option value="maintenance">Maintenance</option>
+                        <option value="digitization">Digitization</option>
+                        <option value="meeting">Meeting</option>
+                        <option value="other">Other</option>
+                    </select>
+                    <select id="allEventsFilterPriority" onchange="filterAllEvents()">
+                        <option value="all">All Priorities</option>
+                        <option value="urgent">Urgent</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+                <div id="allEventsLoading" class="modal-loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading events...</p>
+                </div>
+                <ul class="all-events-list" id="allEventsList" style="display: none;"></ul>
+                <div id="allEventsEmpty" class="modal-empty-state" style="display: none;">
+                    <i class="fas fa-calendar-times"></i>
+                    <p>No events found</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn modal-btn-cancel" onclick="closeAllEventsModal()">
+                    <i class="fas fa-times"></i> Close
+                </button>
+                <button type="button" class="modal-btn modal-btn-primary" onclick="closeAllEventsModal(); openEventModal();">
+                    <i class="fas fa-plus"></i> Add Event
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- All Notes Modal -->
+    <div class="modal-overlay" id="allNotesModal">
+        <div class="modal-container modal-container-wide">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fas fa-sticky-note"></i>
+                    All Notes
+                </h2>
+                <button class="modal-close" onclick="closeAllNotesModal()" aria-label="Close modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 16px 24px;">
+                <div class="modal-filter-bar">
+                    <select id="allNotesFilterType" onchange="filterAllNotes()">
+                        <option value="all">All Types</option>
+                        <option value="operational">Operational</option>
+                        <option value="administrative">Administrative</option>
+                        <option value="technical">Technical</option>
+                        <option value="audit">Audit</option>
+                        <option value="compliance">Compliance</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div id="allNotesLoading" class="modal-loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading notes...</p>
+                </div>
+                <ul class="all-notes-list" id="allNotesList" style="display: none;"></ul>
+                <div id="allNotesEmpty" class="modal-empty-state" style="display: none;">
+                    <i class="fas fa-clipboard"></i>
+                    <p>No notes found</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn modal-btn-cancel" onclick="closeAllNotesModal()">
+                    <i class="fas fa-times"></i> Close
+                </button>
+                <button type="button" class="modal-btn modal-btn-primary" onclick="closeAllNotesModal(); openNoteModal();">
+                    <i class="fas fa-plus"></i> Add Note
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Attach event listeners to modals (must run after modals are in DOM)
 
@@ -4080,12 +4151,33 @@ $user_first_name = explode(' ', $user_name)[0];
             });
         }
 
+        // Close overlay listeners for All Events and All Notes modals
+        const allEventsModalEl = document.getElementById('allEventsModal');
+        if (allEventsModalEl) {
+            allEventsModalEl.addEventListener('click', (e) => {
+                if (e.target.id === 'allEventsModal') {
+                    closeAllEventsModal();
+                }
+            });
+        }
+
+        const allNotesModalEl = document.getElementById('allNotesModal');
+        if (allNotesModalEl) {
+            allNotesModalEl.addEventListener('click', (e) => {
+                if (e.target.id === 'allNotesModal') {
+                    closeAllNotesModal();
+                }
+            });
+        }
+
         // Close modals with Escape key
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 const eventModal = document.getElementById('eventModal');
                 const noteModal = document.getElementById('noteModal');
                 const viewEventsModal = document.getElementById('viewEventsModal');
+                const allEventsModal = document.getElementById('allEventsModal');
+                const allNotesModal = document.getElementById('allNotesModal');
 
                 if (eventModal && eventModal.classList.contains('active')) {
                     closeEventModal();
@@ -4096,8 +4188,299 @@ $user_first_name = explode(' ', $user_name)[0];
                 if (viewEventsModal && viewEventsModal.classList.contains('active')) {
                     closeViewEventsModal();
                 }
+                if (allEventsModal && allEventsModal.classList.contains('active')) {
+                    closeAllEventsModal();
+                }
+                if (allNotesModal && allNotesModal.classList.contains('active')) {
+                    closeAllNotesModal();
+                }
             }
         });
+
+        // ========== All Events Modal Functions ==========
+        let allEventsData = [];
+
+        async function openAllEventsModal() {
+            const modal = document.getElementById('allEventsModal');
+            const loading = document.getElementById('allEventsLoading');
+            const list = document.getElementById('allEventsList');
+            const empty = document.getElementById('allEventsEmpty');
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            loading.style.display = 'block';
+            list.style.display = 'none';
+            empty.style.display = 'none';
+
+            // Reset filters
+            document.getElementById('allEventsFilterType').value = 'all';
+            document.getElementById('allEventsFilterPriority').value = 'all';
+
+            try {
+                const response = await fetch('../api/calendar_events.php');
+                const data = await response.json();
+
+                loading.style.display = 'none';
+
+                if (data.success && data.events && data.events.length > 0) {
+                    allEventsData = data.events;
+                    renderAllEvents(allEventsData);
+                } else {
+                    allEventsData = [];
+                    empty.style.display = 'block';
+                }
+            } catch (error) {
+                loading.style.display = 'none';
+                empty.style.display = 'block';
+                console.error('Error fetching events:', error);
+            }
+        }
+
+        function closeAllEventsModal() {
+            const modal = document.getElementById('allEventsModal');
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        function renderAllEvents(events) {
+            const list = document.getElementById('allEventsList');
+            const empty = document.getElementById('allEventsEmpty');
+
+            if (events.length === 0) {
+                list.style.display = 'none';
+                empty.style.display = 'block';
+                return;
+            }
+
+            list.innerHTML = events.map(event => {
+                const dateObj = new Date(event.event_date + 'T00:00:00');
+                const dateStr = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                const timeStr = event.event_time ? formatTime(event.event_time) : '';
+
+                return `
+                    <li class="all-event-item">
+                        <div class="all-item-header">
+                            <div class="all-item-title">${escapeHtml(event.title)}</div>
+                            <div class="all-item-actions">
+                                <button class="all-item-action-btn" onclick="closeAllEventsModal(); editEvent(${event.id});">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                                <button class="all-item-action-btn delete" onclick="confirmDeleteEvent(${event.id}, '${escapeHtml(event.title)}')">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </div>
+                        </div>
+                        <div class="all-item-meta">
+                            <span class="event-type-badge">${event.event_type}</span>
+                            <span class="event-priority-badge ${event.priority}">${event.priority}</span>
+                            <span><i class="fas fa-calendar"></i> ${dateStr}</span>
+                            ${timeStr ? `<span><i class="fas fa-clock"></i> ${timeStr}</span>` : ''}
+                            ${event.created_by_name ? `<span><i class="fas fa-user"></i> ${escapeHtml(event.created_by_name)}</span>` : ''}
+                        </div>
+                        ${event.description ? `<div class="all-item-description">${escapeHtml(event.description)}</div>` : ''}
+                    </li>
+                `;
+            }).join('');
+
+            list.style.display = 'block';
+            empty.style.display = 'none';
+        }
+
+        function filterAllEvents() {
+            const typeFilter = document.getElementById('allEventsFilterType').value;
+            const priorityFilter = document.getElementById('allEventsFilterPriority').value;
+
+            let filtered = allEventsData;
+            if (typeFilter !== 'all') {
+                filtered = filtered.filter(e => e.event_type === typeFilter);
+            }
+            if (priorityFilter !== 'all') {
+                filtered = filtered.filter(e => e.priority === priorityFilter);
+            }
+            renderAllEvents(filtered);
+        }
+
+        // ========== All Notes Modal Functions ==========
+        let allNotesData = [];
+
+        async function openAllNotesModal() {
+            const modal = document.getElementById('allNotesModal');
+            const loading = document.getElementById('allNotesLoading');
+            const list = document.getElementById('allNotesList');
+            const empty = document.getElementById('allNotesEmpty');
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            loading.style.display = 'block';
+            list.style.display = 'none';
+            empty.style.display = 'none';
+
+            // Reset filter
+            document.getElementById('allNotesFilterType').value = 'all';
+
+            try {
+                const response = await fetch('../api/notes.php');
+                const data = await response.json();
+
+                loading.style.display = 'none';
+
+                if (data.success && data.notes && data.notes.length > 0) {
+                    allNotesData = data.notes;
+                    renderAllNotes(allNotesData);
+                } else {
+                    allNotesData = [];
+                    empty.style.display = 'block';
+                }
+            } catch (error) {
+                loading.style.display = 'none';
+                empty.style.display = 'block';
+                console.error('Error fetching notes:', error);
+            }
+        }
+
+        function closeAllNotesModal() {
+            const modal = document.getElementById('allNotesModal');
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        function renderAllNotes(notes) {
+            const list = document.getElementById('allNotesList');
+            const empty = document.getElementById('allNotesEmpty');
+
+            if (notes.length === 0) {
+                list.style.display = 'none';
+                empty.style.display = 'block';
+                return;
+            }
+
+            list.innerHTML = notes.map(note => {
+                const dateObj = new Date(note.created_at);
+                const dateStr = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                const isPinned = note.is_pinned == 1;
+                const pinnedClass = isPinned ? 'all-item-pinned' : '';
+                const contentPreview = note.content.length > 150 ? note.content.substring(0, 150) + '...' : note.content;
+
+                return `
+                    <li class="all-note-item ${pinnedClass}">
+                        <div class="all-item-header">
+                            <div class="all-item-title">
+                                ${isPinned ? '<i class="fas fa-thumbtack" style="color: #f59e0b; margin-right: 6px; font-size: 0.75rem;"></i>' : ''}
+                                ${escapeHtml(note.title)}
+                            </div>
+                            <div class="all-item-actions">
+                                <button class="all-item-action-btn pin" onclick="togglePinNote(${note.id})" title="${isPinned ? 'Unpin' : 'Pin to dashboard'}">
+                                    <i class="fas fa-thumbtack"></i> ${isPinned ? 'Unpin' : 'Pin'}
+                                </button>
+                                <button class="all-item-action-btn" onclick="closeAllNotesModal(); editNote(${note.id});">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                                <button class="all-item-action-btn delete" onclick="confirmDeleteNote(${note.id}, '${escapeHtml(note.title)}')">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </div>
+                        </div>
+                        <div class="all-note-content-preview">${escapeHtml(contentPreview)}</div>
+                        <div class="all-item-meta">
+                            <span class="note-type-badge">${note.note_type.replace('_', ' ')}</span>
+                            ${note.created_by_name ? `<span><i class="fas fa-user"></i> ${escapeHtml(note.created_by_name)}</span>` : ''}
+                            <span><i class="fas fa-clock"></i> ${dateStr}</span>
+                        </div>
+                    </li>
+                `;
+            }).join('');
+
+            list.style.display = 'block';
+            empty.style.display = 'none';
+        }
+
+        function filterAllNotes() {
+            const typeFilter = document.getElementById('allNotesFilterType').value;
+
+            let filtered = allNotesData;
+            if (typeFilter !== 'all') {
+                filtered = filtered.filter(n => n.note_type === typeFilter);
+            }
+            renderAllNotes(filtered);
+        }
+
+        // Edit Note Function
+        async function editNote(noteId) {
+            try {
+                const response = await fetch(`../api/notes.php?id=${noteId}`);
+                const data = await response.json();
+
+                if (data.success && data.note) {
+                    const note = data.note;
+
+                    document.getElementById('note_title').value = note.title;
+                    document.getElementById('note_type').value = note.note_type;
+                    document.getElementById('note_content').value = note.content;
+                    document.getElementById('is_pinned').checked = note.is_pinned == 1;
+
+                    // Store note ID for update
+                    document.getElementById('noteForm').dataset.noteId = noteId;
+
+                    // Change button text
+                    document.getElementById('noteSubmitBtn').innerHTML = '<i class="fas fa-save"></i> Update Note';
+
+                    openNoteModal();
+                } else {
+                    alert('Failed to load note data');
+                }
+            } catch (error) {
+                console.error('Error loading note:', error);
+                alert('Error loading note data');
+            }
+        }
+
+        // Delete Note Function
+        async function confirmDeleteNote(noteId, noteTitle) {
+            if (confirm(`Are you sure you want to delete the note "${noteTitle}"?`)) {
+                try {
+                    const response = await fetch('../api/notes.php', {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ note_id: noteId })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        alert('Note deleted successfully');
+                        window.location.reload();
+                    } else {
+                        alert('Failed to delete note: ' + data.message);
+                    }
+                } catch (error) {
+                    console.error('Error deleting note:', error);
+                    alert('Error deleting note');
+                }
+            }
+        }
+
+        // Toggle Pin Note Function
+        async function togglePinNote(noteId) {
+            try {
+                const response = await fetch('../api/notes.php?action=toggle_pin', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ note_id: noteId })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Refresh the modal
+                    openAllNotesModal();
+                } else {
+                    alert('Failed to toggle pin: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error toggling pin:', error);
+                alert('Error toggling pin status');
+            }
+        }
     </script>
 
     <?php include '../includes/sidebar_scripts.php'; ?>

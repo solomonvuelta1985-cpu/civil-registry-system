@@ -362,6 +362,7 @@ function getActiveBatches($pdo, $user_id) {
     </style>
 </head>
 <body>
+    <?php include '../includes/preloader.php'; ?>
     <div class="container">
         <header>
             <h1>📦 Batch Upload</h1>

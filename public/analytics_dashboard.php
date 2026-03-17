@@ -236,6 +236,7 @@ function getQualityMetrics($pdo) {
     </style>
 </head>
 <body>
+    <?php include '../includes/preloader.php'; ?>
     <div class="container">
         <header>
             <h1>📊 Analytics Dashboard</h1>

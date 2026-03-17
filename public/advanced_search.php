@@ -319,6 +319,7 @@ function performSearch($pdo, $params) {
     </style>
 </head>
 <body>
+    <?php include '../includes/preloader.php'; ?>
     <div class="container">
         <header>
             <h1>🔍 Advanced Search</h1>

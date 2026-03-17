@@ -304,6 +304,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body>
+    <?php include '../includes/preloader.php'; ?>
     <div class="container">
         <header>
             <h1>🔍 Error Log Viewer</h1>

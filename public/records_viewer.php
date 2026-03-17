@@ -593,25 +593,25 @@ function get_field_value($record, $field, $type = 'text') {
 
         /* Page Layout - Enhanced Spacing */
         .page-container {
-            padding: var(--spacing-xl) var(--spacing-lg);
+            padding: 24px var(--spacing-lg) var(--spacing-lg);
             max-width: 1600px;
             margin: 0 auto;
         }
 
         /* Header - Better Hierarchy */
         .page-header {
-            margin-bottom: var(--spacing-xl);
+            margin-bottom: 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
             gap: var(--spacing-md);
-            padding-bottom: var(--spacing-md);
+            padding-bottom: 12px;
             border-bottom: 2px solid var(--border-light);
         }
 
         .page-title {
-            font-size: 32px;
+            font-size: 26px;
             font-weight: 700;
             color: var(--text-primary);
             display: flex;
@@ -623,8 +623,8 @@ function get_field_value($record, $field, $type = 'text') {
 
         .page-title [data-lucide] {
             color: var(--primary);
-            width: 32px;
-            height: 32px;
+            width: 26px;
+            height: 26px;
             stroke-width: 2;
         }
 
@@ -726,9 +726,9 @@ function get_field_value($record, $field, $type = 'text') {
 
         /* Search & Filter - Enhanced Professional Design */
         .search-section {
-            margin-bottom: var(--spacing-lg);
+            margin-bottom: 16px;
             background: var(--bg-primary);
-            padding: var(--spacing-md);
+            padding: 16px;
             border-radius: var(--radius-lg);
             box-shadow: var(--shadow-sm);
             border: 1px solid var(--border-light);
@@ -748,7 +748,7 @@ function get_field_value($record, $field, $type = 'text') {
 
         .search-input {
             width: 100%;
-            padding: 14px var(--spacing-md) 14px 48px;
+            padding: 10px var(--spacing-md) 10px 48px;
             border: 1.5px solid var(--border-medium);
             border-radius: var(--radius-md);
             font-size: 15px;
@@ -792,7 +792,7 @@ function get_field_value($record, $field, $type = 'text') {
             color: var(--text-secondary);
             background: var(--bg-secondary);
             border: 1.5px solid var(--border-medium);
-            padding: 14px 20px;
+            padding: 10px 16px;
             border-radius: var(--radius-md);
             cursor: pointer;
             font-size: 15px;
@@ -820,7 +820,7 @@ function get_field_value($record, $field, $type = 'text') {
 
         .advanced-filters {
             display: none;
-            margin-top: var(--spacing-md);
+            margin-top: 12px;
         }
 
         .advanced-filters.show {
@@ -830,8 +830,8 @@ function get_field_value($record, $field, $type = 'text') {
         .filter-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: var(--spacing-md);
-            padding: var(--spacing-md);
+            gap: 14px;
+            padding: 14px;
             background: var(--bg-secondary);
             border: 1.5px solid var(--border-light);
             border-radius: var(--radius-md);
@@ -862,7 +862,7 @@ function get_field_value($record, $field, $type = 'text') {
 
         .filter-group input,
         .filter-group select {
-            padding: 12px 14px;
+            padding: 8px 12px;
             border: 1.5px solid var(--border-medium);
             border-radius: var(--radius-sm);
             font-size: 15px;
@@ -1046,7 +1046,7 @@ function get_field_value($record, $field, $type = 'text') {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: var(--spacing-md) var(--spacing-md);
+            padding: 12px 16px;
             background: var(--bg-secondary);
             border-bottom: 2px solid var(--border-light);
         }
@@ -1253,8 +1253,8 @@ function get_field_value($record, $field, $type = 'text') {
             justify-content: center;
             align-items: center;
             gap: 8px;
-            padding: var(--spacing-xl) 0 var(--spacing-lg) 0;
-            margin-top: var(--spacing-md);
+            padding: 16px 0;
+            margin-top: 8px;
         }
 
         .pagination-btn {
@@ -1622,6 +1622,7 @@ function get_field_value($record, $field, $type = 'text') {
     </style>
 </head>
 <body>
+    <?php include '../includes/preloader.php'; ?>
     <?php include '../includes/mobile_header.php'; ?>
 
     <?php include '../includes/sidebar_nav.php'; ?>
@@ -1962,6 +1963,21 @@ function get_field_value($record, $field, $type = 'text') {
 
             // Show skeleton loading on page load, then fade in real content
             initPageLoadSkeleton();
+        });
+
+        // Strip empty params from filter form before submit so the URL stays clean
+        document.addEventListener('DOMContentLoaded', function() {
+            const filterForm = document.getElementById('filterForm');
+            if (filterForm) {
+                filterForm.addEventListener('submit', function(e) {
+                    const inputs = filterForm.querySelectorAll('input[name], select[name]');
+                    inputs.forEach(function(input) {
+                        if (!input.value || (input.type === 'hidden' && input.name === 'type')) {
+                            input.removeAttribute('name');
+                        }
+                    });
+                });
+            }
         });
 
         // Toggle advanced filters

@@ -652,20 +652,36 @@ class RecordPreviewModal {
         `;
 
         try {
-            // Load PDF using PDF.js
+            // Fetch the PDF first to detect server-side integrity errors
+            const response = await fetch(url);
+            const contentType = response.headers.get('Content-Type') || '';
+
+            if (!response.ok || contentType.includes('application/json')) {
+                // Server returned an error (e.g. integrity failure = HTTP 409)
+                let errMsg = 'Failed to load PDF document.';
+                let recoveryHint = '';
+                try {
+                    const json = await response.json();
+                    errMsg       = json.message       || errMsg;
+                    recoveryHint = json.recovery_hint || '';
+                } catch (_) {}
+                this.showPDFError(errMsg, recoveryHint, response.status === 409);
+                return;
+            }
+
+            // PDF bytes loaded — hand to PDF.js as ArrayBuffer
+            const arrayBuffer = await response.arrayBuffer();
+
             if (typeof pdfjsLib === 'undefined') {
                 throw new Error('PDF.js library not loaded');
             }
 
-            const loadingTask = pdfjsLib.getDocument(url);
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
             this.pdfDoc = await loadingTask.promise;
             this.totalPages = this.pdfDoc.numPages;
 
             // Update page display
             document.getElementById('pdfTotalPages').textContent = this.totalPages;
-
-            // Render first page
-            await this.renderPage(1);
 
             // Show canvas wrapper
             container.innerHTML = '<div class="pdf-canvas-wrapper"><canvas id="recordPdfCanvas"></canvas></div>';
@@ -676,7 +692,7 @@ class RecordPreviewModal {
 
         } catch (error) {
             console.error('Error loading PDF:', error);
-            this.showPDFError('Failed to load PDF document');
+            this.showPDFError('Failed to load PDF document.');
         }
     }
 
@@ -754,12 +770,33 @@ class RecordPreviewModal {
         `;
     }
 
-    showPDFError(message) {
+    showPDFError(message, recoveryHint = '', isCorruption = false) {
         const container = document.getElementById('pdfPreviewContainer');
+
+        const icon       = isCorruption ? 'fa-shield-alt' : 'fa-file-excel';
+        const iconColor  = isCorruption ? '#ef4444' : '#6b7280';
+        const hintHtml   = recoveryHint
+            ? `<p class="pdf-error-hint" style="font-size:.85rem;color:#6b7280;margin-top:.5rem;">${this.escapeHtml(recoveryHint)}</p>`
+            : '';
+        const adminLink  = isCorruption
+            ? `<div style="margin-top:1rem;display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap;">
+                 <a href="../admin/pdf_integrity_report.php" target="_blank"
+                    style="display:inline-flex;align-items:center;gap:.3rem;padding:.4rem .9rem;background:#ef4444;color:#fff;border-radius:6px;font-size:.82rem;font-weight:600;text-decoration:none;">
+                    <i class="fas fa-shield-alt" style="font-size:.8rem;"></i> PDF Integrity Report
+                 </a>
+                 <a href="../admin/pdf_backup_manager.php" target="_blank"
+                    style="display:inline-flex;align-items:center;gap:.3rem;padding:.4rem .9rem;background:#3b82f6;color:#fff;border-radius:6px;font-size:.82rem;font-weight:600;text-decoration:none;">
+                    <i class="fas fa-archive" style="font-size:.8rem;"></i> PDF Backup Manager
+                 </a>
+               </div>`
+            : '';
+
         container.innerHTML = `
-            <div class="pdf-error">
-                <i class="fas fa-file-excel"></i>
-                <p>${this.escapeHtml(message)}</p>
+            <div class="pdf-error" style="padding:2rem 1rem;text-align:center;">
+                <i class="fas ${icon}" style="font-size:2.5rem;color:${iconColor};margin-bottom:1rem;display:block;"></i>
+                <p style="font-weight:600;color:#374151;margin:0;">${this.escapeHtml(message)}</p>
+                ${hintHtml}
+                ${adminLink}
             </div>
         `;
     }

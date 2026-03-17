@@ -391,6 +391,7 @@ function getWorkflowRecords($pdo, $state, $type) {
     </style>
 </head>
 <body>
+    <?php include '../includes/preloader.php'; ?>
     <div class="container">
         <header>
             <h1>📋 Workflow Dashboard</h1>

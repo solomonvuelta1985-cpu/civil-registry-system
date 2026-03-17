@@ -1470,6 +1470,7 @@ $user_first_name = explode(' ', $user_name)[0];
     </style>
 </head>
 <body>
+    <?php include '../includes/preloader.php'; ?>
     <?php include '../includes/mobile_header.php'; ?>
     <?php include '../includes/sidebar_nav.php'; ?>
     <?php include '../includes/top_navbar.php'; ?>
