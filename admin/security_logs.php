@@ -471,6 +471,7 @@ $event_types = $pdo->query($event_types_sql)->fetchAll(PDO::FETCH_COLUMN);
     </style>
 </head>
 <body>
+    <?php include '../includes/preloader.php'; ?>
     <div class="container">
         <div class="page-header">
             <h1>

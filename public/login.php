@@ -557,6 +557,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body>
+    <?php include '../includes/preloader.php'; ?>
     <div class="container">
         <!-- Left Panel - Brand Section -->
         <div class="left-panel" id="leftPanel">

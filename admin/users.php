@@ -670,6 +670,7 @@ $can_delete = hasPermission('users_delete');
     </style>
 </head>
 <body>
+    <?php include '../includes/preloader.php'; ?>
     <!-- Mobile Header -->
     <div class="mobile-header">
         <div class="mobile-header-content">

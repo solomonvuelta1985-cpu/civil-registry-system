@@ -46,8 +46,6 @@ $csrfMeta     = csrfTokenMeta();
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', 'Segoe UI', Arial, sans-serif; background: #f4f6f9; color: #1a202c; }
 
-        .main-content { margin-left: 260px; padding: 28px; min-height: 100vh; }
-
         .page-header { margin-bottom: 24px; }
         .page-header h1 { font-size: 1.6rem; font-weight: 700; color: #1a202c; }
         .page-header p  { color: #718096; font-size: 0.95rem; margin-top: 4px; }
@@ -169,11 +167,12 @@ $csrfMeta     = csrfTokenMeta();
     </style>
 </head>
 <body>
+<?php include '../includes/preloader.php'; ?>
 
 <?php require_once '../includes/top_navbar.php'; ?>
 <?php require_once '../includes/sidebar_nav.php'; ?>
 
-<div class="main-content">
+<div class="content">
 
     <div class="page-header">
         <h1><i data-lucide="monitor-check" style="display:inline;vertical-align:middle;margin-right:8px;"></i>Registered Devices</h1>
