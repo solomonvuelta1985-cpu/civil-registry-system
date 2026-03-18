@@ -23,7 +23,6 @@ class CertificateFormHandler {
 
     init() {
         if (!this.form) {
-            console.error('Certificate form not found');
             return;
         }
 
@@ -35,7 +34,9 @@ class CertificateFormHandler {
         this.setupFormSubmission();
         this.setupPDFUpload();
         this.setupPDFToggle();
+        this.setupPDFModal();
         this.setupResetConfirmation();
+        this.setupCancelEdit();
         this.setupAutoSave();
         this.setupBeforeUnload();
     }
@@ -44,13 +45,7 @@ class CertificateFormHandler {
      * Check if Notiflix is available
      */
     checkNotiflixAvailability() {
-        if (typeof Notiflix === 'undefined') {
-            console.warn('⚠️ Notiflix library not loaded. Falling back to native dialogs.');
-        } else if (!Notiflix.Confirm || !Notiflix.Notify) {
-            console.warn('⚠️ Notiflix modules incomplete. Some features may not work.');
-        } else {
-            console.log('✅ Notiflix library loaded successfully');
-        }
+        // Silently check - no console output in production
     }
 
     cacheElements() {
@@ -59,6 +54,7 @@ class CertificateFormHandler {
         this.submitButtons.saveAndNew = this.form.querySelector('[data-action="save-and-new"]');
         this.submitButtons.reset = this.form.querySelector('[type="reset"]');
         this.submitButtons.back = this.form.querySelector('[data-action="back"]');
+        this.submitButtons.cancelEdit = this.form.closest('.content')?.querySelector('[data-action="cancel-edit"]') || document.querySelector('[data-action="cancel-edit"]');
 
         // Cache other elements
         this.alertContainer = document.getElementById('alertContainer');
@@ -194,13 +190,8 @@ class CertificateFormHandler {
      * Submit the form
      */
     async submitForm(addNew = false) {
-        console.log('=== submitForm called ===');
-        console.log('addNew:', addNew);
-        console.log('isSubmitting:', this.isSubmitting);
-
         // Prevent double submission
         if (this.isSubmitting) {
-            console.log('Form already submitting, returning');
             return;
         }
 
@@ -217,21 +208,12 @@ class CertificateFormHandler {
         const action = isEditMode ? 'update' : 'submit';
         const confirmMessage = `Are you sure you want to ${action} this ${certificateType} record?`;
 
-        console.log('certificateType:', certificateType);
-        console.log('isEditMode:', isEditMode);
-        console.log('confirmMessage:', confirmMessage);
-
         // Function to actually submit the form
         const doSubmit = async () => {
-            console.log('=== doSubmit() started ===');
-
             // Validate all fields
-            console.log('Checking form validity...');
             const isValid = this.form.checkValidity();
-            console.log('Form is valid:', isValid);
 
             if (!isValid) {
-                console.log('❌ Form validation failed!');
                 this.form.reportValidity();
 
                 // Validate all fields to show error messages
@@ -246,12 +228,9 @@ class CertificateFormHandler {
                 return;
             }
 
-            console.log('✅ Form validation passed');
-            console.log('✅ Proceeding with form submission...');
             this.isSubmitting = true;
 
             // Show loading state
-            console.log('Setting loading state...');
             this.setButtonLoading(this.submitButtons.save, true);
             this.showLoadingOverlay(true);
             if (typeof Notiflix !== 'undefined') {
@@ -259,26 +238,25 @@ class CertificateFormHandler {
             }
 
             // Enable any disabled fields that have values (for cascading dropdowns)
-            console.log('Enabling disabled fields with values...');
             const disabledFields = this.form.querySelectorAll('input:disabled, select:disabled, textarea:disabled');
             const fieldsToReEnable = [];
             disabledFields.forEach(field => {
                 if (field.value && field.value.trim() !== '') {
-                    console.log('Enabling field:', field.name, 'with value:', field.value);
                     field.disabled = false;
                     fieldsToReEnable.push(field);
                 }
             });
 
             // Prepare form data
-            console.log('Creating FormData...');
             const formData = new FormData(this.form);
-            console.log('FormData entries:', Array.from(formData.entries()));
 
-            // CRITICAL DEBUG: Check if place_type and child_place_of_birth are in FormData
-            console.log('🔍 CRITICAL CHECK:');
-            console.log('place_type in FormData:', formData.get('place_type'));
-            console.log('child_place_of_birth in FormData:', formData.get('child_place_of_birth'));
+            // Append CSRF token from meta tag (if not already in form)
+            if (!formData.has('csrf_token')) {
+                const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                if (csrfMeta) {
+                    formData.append('csrf_token', csrfMeta.content);
+                }
+            }
 
             // Re-disable fields after FormData is created
             fieldsToReEnable.forEach(field => {
@@ -288,19 +266,14 @@ class CertificateFormHandler {
             // Determine which endpoint to use based on edit mode
             const isEditMode = this.form.querySelector('input[name="record_id"]')?.value;
             const endpoint = isEditMode ? this.updateEndpoint : this.apiEndpoint;
-            console.log('Using endpoint:', endpoint);
-            console.log('Is edit mode:', !!isEditMode);
 
             try {
-                console.log('Sending POST request to:', endpoint);
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     body: formData
                 });
 
-                console.log('Response received, status:', response.status);
                 const data = await response.json();
-                console.log('Response data:', data);
 
                 if (data.success) {
                     this.handleSuccess(data.message, addNew);
@@ -308,7 +281,6 @@ class CertificateFormHandler {
                 this.handleError(data.message || 'An error occurred while saving the record.');
             }
             } catch (error) {
-                console.error('Form submission error:', error);
                 this.handleError('Network connection failed. Please check your connection and try again.');
             } finally {
                 this.isSubmitting = false;
@@ -321,24 +293,17 @@ class CertificateFormHandler {
         };
 
         // Show Notiflix confirmation
-        console.log('Checking Notiflix availability...');
-        console.log('typeof Notiflix:', typeof Notiflix);
-        console.log('Notiflix.Confirm:', Notiflix?.Confirm);
-
         if (typeof Notiflix !== 'undefined' && Notiflix.Confirm) {
-            console.log('Showing Notiflix confirmation dialog...');
             Notiflix.Confirm.show(
                 'Confirm Submission',
                 confirmMessage,
                 isEditMode ? 'Update' : 'Submit',
                 'Cancel',
                 () => {
-                    console.log('User clicked Submit - calling doSubmit()');
                     doSubmit();
                 },
                 () => {
                     // User cancelled - do nothing
-                    console.log('Form submission cancelled by user');
                 },
                 {
                     width: '360px',
@@ -347,10 +312,8 @@ class CertificateFormHandler {
                     titleColor: '#111827',
                 }
             );
-            console.log('Notiflix.Confirm.show() called');
         } else {
             // Fallback to native confirm
-            console.warn('Notiflix not loaded, using native confirm dialog');
             if (!confirm(confirmMessage)) {
                 return;
             }
@@ -542,6 +505,14 @@ class CertificateFormHandler {
     setupPDFUpload() {
         if (!this.pdfFileInput) return;
 
+        // Make the upload area clickable to trigger file input
+        const uploadArea = document.getElementById('pdfUploadArea');
+        if (uploadArea) {
+            uploadArea.addEventListener('click', () => {
+                this.pdfFileInput.click();
+            });
+        }
+
         this.pdfFileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
 
@@ -595,6 +566,28 @@ class CertificateFormHandler {
 
         if (pdfFileName) {
             pdfFileName.textContent = file.name;
+        }
+
+        // Make the new preview container clickable for modal
+        if (previewArea) {
+            const container = previewArea.querySelector('.pdf-preview-container');
+            if (container && !container.dataset.modalBound) {
+                container.style.cursor = 'pointer';
+                container.title = 'Click to view PDF in full screen';
+                container.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const iframe = container.querySelector('iframe');
+                    if (iframe && iframe.src) {
+                        const modalFrame = document.getElementById('pdfViewerModalFrame');
+                        if (modalFrame && this.pdfModal) {
+                            modalFrame.src = iframe.src;
+                            this.pdfModal.classList.add('open');
+                            document.body.style.overflow = 'hidden';
+                        }
+                    }
+                });
+                container.dataset.modalBound = 'true';
+            }
         }
     }
 
@@ -688,6 +681,72 @@ class CertificateFormHandler {
     }
 
     /**
+     * Setup PDF modal viewer
+     */
+    setupPDFModal() {
+        // Create modal dynamically
+        const modal = document.createElement('div');
+        modal.id = 'pdfViewerModal';
+        modal.className = 'pdf-viewer-modal';
+        modal.innerHTML = `
+            <div class="pdf-viewer-modal-content">
+                <div class="pdf-viewer-modal-header">
+                    <span class="pdf-viewer-modal-title">PDF Viewer</span>
+                    <button type="button" class="pdf-viewer-modal-close" title="Close">&times;</button>
+                </div>
+                <div class="pdf-viewer-modal-body">
+                    <iframe id="pdfViewerModalFrame" src=""></iframe>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        const modalFrame = document.getElementById('pdfViewerModalFrame');
+        const closeBtn = modal.querySelector('.pdf-viewer-modal-close');
+
+        // Close handlers
+        closeBtn.addEventListener('click', () => this.closePDFModal());
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) this.closePDFModal();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal.classList.contains('open')) {
+                this.closePDFModal();
+            }
+        });
+
+        // Click on PDF preview containers to open modal
+        const previewContainers = document.querySelectorAll('.pdf-preview-container');
+        previewContainers.forEach(container => {
+            container.style.cursor = 'pointer';
+            container.title = 'Click to view PDF in full screen';
+            container.addEventListener('click', (e) => {
+                e.preventDefault();
+                const iframe = container.querySelector('iframe');
+                if (iframe && iframe.src) {
+                    modalFrame.src = iframe.src;
+                    modal.classList.add('open');
+                    document.body.style.overflow = 'hidden';
+                }
+            });
+        });
+
+        this.pdfModal = modal;
+    }
+
+    /**
+     * Close PDF modal
+     */
+    closePDFModal() {
+        if (this.pdfModal) {
+            this.pdfModal.classList.remove('open');
+            document.body.style.overflow = '';
+            const frame = document.getElementById('pdfViewerModalFrame');
+            if (frame) frame.src = '';
+        }
+    }
+
+    /**
      * Setup reset confirmation
      */
     setupResetConfirmation() {
@@ -726,7 +785,6 @@ class CertificateFormHandler {
                     },
                     () => {
                         // User cancelled - do nothing
-                        console.log('Form reset cancelled by user');
                     },
                     {
                         width: '360px',
@@ -737,9 +795,44 @@ class CertificateFormHandler {
                 );
             } else {
                 // Fallback to native confirm
-                console.warn('Notiflix not loaded for reset confirmation, using native confirm dialog');
                 if (confirm('Are you sure you want to reset the form? All unsaved data will be lost.')) {
                     resetForm();
+                }
+            }
+        });
+    }
+
+    /**
+     * Setup cancel edit button
+     */
+    setupCancelEdit() {
+        if (!this.submitButtons.cancelEdit) return;
+
+        this.submitButtons.cancelEdit.addEventListener('click', (e) => {
+            e.preventDefault();
+            const backBtn = document.querySelector('[data-action="back"]');
+            const backUrl = backBtn ? backBtn.href : '../admin/dashboard.php';
+
+            if (typeof Notiflix !== 'undefined' && Notiflix.Confirm) {
+                Notiflix.Confirm.show(
+                    'Cancel Editing',
+                    'Are you sure you want to cancel? Any unsaved changes will be lost.',
+                    'Yes, Cancel',
+                    'Continue Editing',
+                    () => {
+                        window.location.href = backUrl;
+                    },
+                    () => {},
+                    {
+                        width: '360px',
+                        borderRadius: '12px',
+                        titleColor: '#F59E0B',
+                        okButtonBackground: '#F59E0B',
+                    }
+                );
+            } else {
+                if (confirm('Are you sure you want to cancel? Any unsaved changes will be lost.')) {
+                    window.location.href = backUrl;
                 }
             }
         });
@@ -801,7 +894,7 @@ class CertificateFormHandler {
                     }
                 }
             } catch (e) {
-                console.error('Error restoring autosaved data:', e);
+                // Silently handle autosave restore errors
             }
         } else if (savedData && isEditMode) {
             // In edit mode, silently clear any autosaved data to prevent confusion
@@ -843,6 +936,7 @@ class CertificateFormHandler {
             const input = this.form.elements[name];
             if (input) {
                 input.value = data[name];
+                input.dispatchEvent(new Event('change', { bubbles: true }));
             }
         });
     }

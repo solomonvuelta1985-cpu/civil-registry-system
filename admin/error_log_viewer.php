@@ -5,15 +5,13 @@
  * Admin access only
  */
 
+require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/auth.php';
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-// Check admin access (you can enhance this with proper role checking)
-$current_user_role = $_SESSION['user_role'] ?? 'Admin';
+// Require admin access
+requireAdmin();
 
 $log_file = __DIR__ . '/../logs/php_errors.log';
 $lines_to_show = isset($_GET['lines']) ? (int)$_GET['lines'] : 100;

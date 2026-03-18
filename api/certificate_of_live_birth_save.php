@@ -4,27 +4,21 @@
  * Handles form submission and saves data to database
  */
 
-// Enable error logging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-ini_set('log_errors', 1);
-
 // Include configuration and functions
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
-
-// Log that the file was accessed
-error_log("=== Birth Certificate Save API Called ===");
-error_log("Request Method: " . $_SERVER['REQUEST_METHOD']);
-error_log("POST Data: " . print_r($_POST, true));
-error_log("FILES Data: " . print_r($_FILES, true));
+require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 // Set JSON response header
 header('Content-Type: application/json');
 
+// Authentication & CSRF
+requireAuth();
+requireCSRFToken();
+
 // Only allow POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    error_log("ERROR: Invalid request method - " . $_SERVER['REQUEST_METHOD']);
     json_response(false, 'Invalid request method.', null, 405);
 }
 
@@ -143,6 +137,27 @@ try {
         $errors[] = "Legitimacy status is required.";
     }
 
+    // Validate field lengths against database column limits
+    $length_errors = validate_field_lengths([
+        'Registry number'      => [$registry_no, 100],
+        'Place type'           => [$place_type, 100],
+        'Child first name'     => [$child_first_name, 100],
+        'Child middle name'    => [$child_middle_name, 100],
+        'Child last name'      => [$child_last_name, 100],
+        'Place of birth'       => [$child_place_of_birth, 255],
+        'Barangay'             => [$barangay, 255],
+        'Mother first name'    => [$mother_first_name, 100],
+        'Mother middle name'   => [$mother_middle_name, 100],
+        'Mother last name'     => [$mother_last_name, 100],
+        'Mother citizenship'   => [$mother_citizenship, 100],
+        'Father first name'    => [$father_first_name, 100],
+        'Father middle name'   => [$father_middle_name, 100],
+        'Father last name'     => [$father_last_name, 100],
+        'Father citizenship'   => [$father_citizenship, 100],
+        'Place of marriage'    => [$place_of_marriage, 255],
+    ]);
+    $errors = array_merge($errors, $length_errors);
+
     // Validate PDF file upload
     if (!isset($_FILES['pdf_file']) || $_FILES['pdf_file']['error'] === UPLOAD_ERR_NO_FILE) {
         $errors[] = "PDF certificate is required.";
@@ -158,8 +173,11 @@ try {
         json_response(false, implode(' ', $errors), null, 400);
     }
 
-    // Convert date format to MySQL date format
-    $date_of_registration = date('Y-m-d', strtotime($date_of_registration));
+    // Convert date format to MySQL date format (safe — returns null on invalid)
+    $date_of_registration = safe_date_convert($date_of_registration);
+    if ($date_of_registration === null) {
+        json_response(false, 'Invalid date of registration.', null, 400);
+    }
 
     // Upload PDF file into organized folder: birth/{year}/
     $reg_year = date('Y', strtotime($date_of_registration));
@@ -173,19 +191,11 @@ try {
     $pdf_filepath = $upload_result['path'];
     $pdf_hash     = $upload_result['hash'] ?? null;
 
-    // Convert child date of birth format
-    if (!empty($child_date_of_birth)) {
-        $child_date_of_birth = date('Y-m-d', strtotime($child_date_of_birth));
-    } else {
-        $child_date_of_birth = null;
-    }
+    // Convert child date of birth format (safe)
+    $child_date_of_birth = safe_date_convert($child_date_of_birth);
 
-    // Convert date format if provided
-    if (!empty($date_of_marriage)) {
-        $date_of_marriage = date('Y-m-d', strtotime($date_of_marriage));
-    } else {
-        $date_of_marriage = null;
-    }
+    // Convert marriage date if provided (safe)
+    $date_of_marriage = safe_date_convert($date_of_marriage);
 
     // Begin transaction
     $pdo->beginTransaction();
@@ -328,7 +338,12 @@ try {
         // Log error
         error_log("Database Insert Error: " . $e->getMessage());
 
-        json_response(false, 'Database error occurred. Please try again.', null, 500);
+        // Friendly message for duplicate registry number
+        if ($e->getCode() == 23000 && strpos($e->getMessage(), 'uniq_registry_no') !== false) {
+            json_response(false, 'Registry number already exists. Please use a unique registry number.', null, 409);
+        } else {
+            json_response(false, 'Database error occurred. Please try again.', null, 500);
+        }
     }
 
 } catch (Exception $e) {

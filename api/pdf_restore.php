@@ -118,10 +118,9 @@ try {
         logSecurityEvent('PDF_RESTORED', 'MEDIUM', $_SESSION['user_id'] ?? null,
             json_encode(['backup_id' => $backup_id, 'cert_type' => $backup['cert_type'], 'record_id' => $backup['record_id']]));
     }
-    if (function_exists('logActivity')) {
-        logActivity($_SESSION['user_id'] ?? null, 'PDF_RESTORE',
-            'Restored PDF backup ID ' . $backup_id . ' for ' . $backup['cert_type'] . ' record ' . $backup['record_id']);
-    }
+    log_activity($pdo, 'PDF_RESTORE',
+        'Restored PDF backup ID ' . $backup_id . ' for ' . $backup['cert_type'] . ' record ' . $backup['record_id'],
+        $_SESSION['user_id'] ?? null);
 
     echo json_encode([
         'success'  => true,

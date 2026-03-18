@@ -9,17 +9,16 @@ header('Content-Type: application/json');
 
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
-// Optional: Check authentication
-// if (!isLoggedIn()) {
-//     echo json_encode(['success' => false, 'message' => 'Unauthorized access.']);
-//     exit;
-// }
+// Authentication & CSRF
+requireAuth();
+requireCSRFToken();
 
 // Validate request method
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
-    exit;
+    json_response(false, 'Invalid request method.', null, 405);
 }
 
 try {
@@ -27,8 +26,7 @@ try {
     $record_id = sanitize_input($_POST['record_id'] ?? '');
 
     if (empty($record_id)) {
-        echo json_encode(['success' => false, 'message' => 'Record ID is required.']);
-        exit;
+        json_response(false, 'Record ID is required.', null, 400);
     }
 
     // Fetch existing record
@@ -37,8 +35,7 @@ try {
     $existing_record = $stmt->fetch();
 
     if (!$existing_record) {
-        echo json_encode(['success' => false, 'message' => 'Record not found.']);
-        exit;
+        json_response(false, 'Record not found.', null, 404);
     }
 
     // Sanitize and validate input
@@ -88,8 +85,25 @@ try {
         empty($wife_first_name) || empty($wife_last_name) ||
         empty($wife_date_of_birth) || empty($wife_place_of_birth) || empty($wife_residence) ||
         empty($date_of_marriage) || empty($place_of_marriage) || empty($nature_of_solemnization)) {
-        echo json_encode(['success' => false, 'message' => 'Please fill in all required fields.']);
-        exit;
+        json_response(false, 'Please fill in all required fields.', null, 400);
+    }
+
+    // Convert date formats
+    $date_of_registration = safe_date_convert($date_of_registration);
+    if ($date_of_registration === null) {
+        json_response(false, 'Invalid date of registration.', null, 400);
+    }
+    $husband_date_of_birth = safe_date_convert($husband_date_of_birth);
+    if ($husband_date_of_birth === null) {
+        json_response(false, 'Invalid husband date of birth.', null, 400);
+    }
+    $wife_date_of_birth = safe_date_convert($wife_date_of_birth);
+    if ($wife_date_of_birth === null) {
+        json_response(false, 'Invalid wife date of birth.', null, 400);
+    }
+    $date_of_marriage = safe_date_convert($date_of_marriage);
+    if ($date_of_marriage === null) {
+        json_response(false, 'Invalid date of marriage.', null, 400);
     }
 
     // Handle PDF file upload (optional for update)
@@ -104,8 +118,7 @@ try {
         $upload_result = upload_file($_FILES['pdf_file'], 'marriage', $reg_year);
 
         if (!$upload_result['success']) {
-            echo json_encode(['success' => false, 'message' => implode(' ', $upload_result['errors'])]);
-            exit;
+            json_response(false, implode(' ', $upload_result['errors']), null, 400);
         }
 
         // Mark old file for backup (done after update)
@@ -117,6 +130,8 @@ try {
     }
 
     // Update database
+    $pdo->beginTransaction();
+
     $sql = "UPDATE certificate_of_marriage SET
         registry_no = :registry_no,
         date_of_registration = :date_of_registration,
@@ -190,37 +205,43 @@ try {
         ':id'           => $record_id
     ];
 
-    if ($stmt->execute($params)) {
-        // Backup old PDF instead of deleting it
-        if ($old_pdf_filename) {
-            $backup_path = backup_pdf_file($old_pdf_filename);
-            if ($backup_path) {
-                $bkpStmt = $pdo->prepare(
-                    "INSERT INTO pdf_backups (cert_type, record_id, original_path, backup_path, file_hash, backed_up_by)
-                     VALUES ('marriage', :rid, :orig, :bkp, :hash, :uid)"
-                );
-                $bkpStmt->execute([
-                    ':rid'  => $record_id,
-                    ':orig' => $old_pdf_filename,
-                    ':bkp'  => $backup_path,
-                    ':hash' => $existing_record['pdf_hash'] ?? null,
-                    ':uid'  => $_SESSION['user_id'] ?? null,
-                ]);
-            }
-        }
-        echo json_encode([
-            'success' => true,
-            'message' => 'Marriage certificate updated successfully!',
-            'record_id' => $record_id
-        ]);
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Failed to update record.']);
+    if (!$stmt->execute($params)) {
+        $pdo->rollBack();
+        json_response(false, 'Failed to update record.', null, 500);
     }
 
+    // Backup old PDF instead of deleting it
+    if ($old_pdf_filename) {
+        $backup_path = backup_pdf_file($old_pdf_filename);
+        if ($backup_path) {
+            $bkpStmt = $pdo->prepare(
+                "INSERT INTO pdf_backups (cert_type, record_id, original_path, backup_path, file_hash, backed_up_by)
+                 VALUES ('marriage', :rid, :orig, :bkp, :hash, :uid)"
+            );
+            $bkpStmt->execute([
+                ':rid'  => $record_id,
+                ':orig' => $old_pdf_filename,
+                ':bkp'  => $backup_path,
+                ':hash' => $existing_record['pdf_hash'] ?? null,
+                ':uid'  => $_SESSION['user_id'] ?? null,
+            ]);
+        }
+    }
+
+    $pdo->commit();
+
+    json_response(true, 'Marriage certificate updated successfully!', ['record_id' => $record_id]);
+
 } catch (PDOException $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     error_log("Database Error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'Database error occurred.']);
+    json_response(false, 'Database error occurred.', null, 500);
 } catch (Exception $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     error_log("Error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'An error occurred while processing your request.']);
+    json_response(false, 'An error occurred while processing your request.', null, 500);
 }

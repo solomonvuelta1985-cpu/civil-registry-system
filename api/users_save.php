@@ -8,6 +8,7 @@ header('Content-Type: application/json');
 
 require_once '../includes/session_config.php';
 require_once '../includes/config.php';
+require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 
 // Check authentication and permission
@@ -109,7 +110,7 @@ try {
     $user_id = $pdo->lastInsertId();
 
     // Log activity
-    logActivity('create', 'users', $user_id, "Created user: {$input['username']}");
+    log_activity($pdo, 'create', "Created user: {$input['username']}", $user_id);
 
     echo json_encode([
         'success' => true,

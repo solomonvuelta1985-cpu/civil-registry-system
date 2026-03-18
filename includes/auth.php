@@ -46,25 +46,29 @@ function getUsername() {
  * Check if user has a specific permission
  */
 function hasPermission($permission_name) {
-    global $pdo;
-
     if (!isLoggedIn()) {
         return false;
     }
 
-    $role = getUserRole();
-
     // Admin has all permissions
-    if ($role === 'Admin') {
+    if (getUserRole() === 'Admin') {
         return true;
     }
 
+    // Check cached permissions in session (loaded at login)
+    $permissions = $_SESSION['permissions'] ?? null;
+    if ($permissions !== null) {
+        return in_array($permission_name, $permissions, true);
+    }
+
+    // Fallback: query database if session cache is missing (e.g. old sessions)
+    global $pdo;
     try {
         $sql = "SELECT COUNT(*) as count FROM role_permissions rp
                 JOIN permissions p ON rp.permission_id = p.id
                 WHERE rp.role = :role AND p.name = :permission";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([':role' => $role, ':permission' => $permission_name]);
+        $stmt->execute([':role' => getUserRole(), ':permission' => $permission_name]);
         $result = $stmt->fetch();
         return $result['count'] > 0;
     } catch (PDOException $e) {
@@ -210,6 +214,10 @@ function setUserSession($user) {
     $_SESSION['user_role'] = $user['role'];
     $_SESSION['full_name'] = $user['full_name'];
     $_SESSION['email'] = $user['email'] ?? '';
+
+    // Cache permissions in session to avoid DB queries on every page load
+    $perms = getRolePermissions($user['role']);
+    $_SESSION['permissions'] = array_column($perms, 'name');
 }
 
 /**
@@ -220,29 +228,5 @@ function logoutUser() {
     session_destroy();
 }
 
-/**
- * Log activity
- */
-function logActivity($action, $module, $record_id = null, $details = null) {
-    global $pdo;
-
-    if (!isLoggedIn()) {
-        return;
-    }
-
-    try {
-        $sql = "INSERT INTO activity_logs (user_id, action, module, record_id, details, ip_address, created_at)
-                VALUES (:user_id, :action, :module, :record_id, :details, :ip_address, NOW())";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            ':user_id' => getUserId(),
-            ':action' => $action,
-            ':module' => $module,
-            ':record_id' => $record_id,
-            ':details' => $details,
-            ':ip_address' => $_SERVER['REMOTE_ADDR'] ?? null
-        ]);
-    } catch (PDOException $e) {
-        // Silently fail - don't break the application for logging errors
-    }
-}
+// NOTE: Activity logging is handled by log_activity() in includes/functions.php.
+// Use: log_activity($pdo, $action, $details, $user_id)

@@ -62,7 +62,7 @@ if ($existing) {
 $success = registerDevice($fingerprint, $deviceName, $userId, $notes);
 
 if ($success) {
-    logActivity($userId, 'DEVICE_REGISTERED', 'Device "' . $deviceName . '" registered (fp: ' . substr($fingerprint, 0, 16) . '...)');
+    log_activity($pdo, 'DEVICE_REGISTERED', 'Device "' . $deviceName . '" registered (fp: ' . substr($fingerprint, 0, 16) . '...)', $userId);
     logSecurityEvent('DEVICE_REGISTERED', 'LOW', $userId, [
         'device_name'    => $deviceName,
         'fp_prefix'      => substr($fingerprint, 0, 16),

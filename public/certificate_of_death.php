@@ -8,6 +8,7 @@
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 // Check authentication
 if (!isLoggedIn()) {
@@ -54,6 +55,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?= csrfTokenMeta() ?>
     <title>Death Certificate - Civil Registry System</title>
 
     <!-- Google Fonts (online only; system fonts used when OFFLINE_MODE=true) -->
@@ -702,11 +704,11 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                 if (section.style.display === 'none') return;
 
                 const step = steps[index];
-                const inputs = section.querySelectorAll('input[required], select[required]');
+                const requiredInputs = section.querySelectorAll('input[required], select[required]');
                 let filledCount = 0;
-                let totalCount = inputs.length;
+                let totalCount = requiredInputs.length;
 
-                inputs.forEach(input => {
+                requiredInputs.forEach(input => {
                     if (input.value && input.value.trim() !== '') {
                         filledCount++;
                     }
@@ -715,15 +717,26 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                 totalFilledAll += filledCount;
                 totalRequiredAll += totalCount;
 
+                // For sections with no required fields, check if any field is filled
+                let sectionHasData = false;
+                if (totalCount === 0) {
+                    const allInputs = section.querySelectorAll('input, select, textarea');
+                    allInputs.forEach(input => {
+                        if (input.value && input.value.trim() !== '' && input.type !== 'hidden') {
+                            sectionHasData = true;
+                        }
+                    });
+                }
+
                 if (step) {
                     step.classList.remove('active', 'completed');
-                    if (totalCount > 0 && filledCount === totalCount) {
+                    if ((totalCount > 0 && filledCount === totalCount) || (totalCount === 0 && sectionHasData)) {
                         step.classList.add('completed');
                         if (connectors[index]) connectors[index].classList.add('completed');
                     } else if (filledCount > 0) {
                         step.classList.add('active');
                     }
-                    if (connectors[index] && !(totalCount > 0 && filledCount === totalCount)) {
+                    if (connectors[index] && !((totalCount > 0 && filledCount === totalCount) || (totalCount === 0 && sectionHasData))) {
                         connectors[index].classList.remove('completed');
                     }
                 }

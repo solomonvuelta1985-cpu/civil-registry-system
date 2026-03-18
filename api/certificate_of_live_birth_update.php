@@ -7,9 +7,15 @@
 // Include configuration and functions
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 // Set JSON response header
 header('Content-Type: application/json');
+
+// Authentication & CSRF
+requireAuth();
+requireCSRFToken();
 
 // Only allow POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -150,7 +156,10 @@ try {
     $old_pdf_filename = null;
 
     // Convert date format to MySQL date format
-    $date_of_registration = date('Y-m-d', strtotime($date_of_registration));
+    $date_of_registration = safe_date_convert($date_of_registration);
+    if ($date_of_registration === null) {
+        $errors[] = "Invalid date of registration.";
+    }
 
     if (isset($_FILES['pdf_file']) && $_FILES['pdf_file']['error'] !== UPLOAD_ERR_NO_FILE) {
         // Validate new file
@@ -187,17 +196,16 @@ try {
 
     // Convert child date of birth format
     if (!empty($child_date_of_birth)) {
-        $child_date_of_birth = date('Y-m-d', strtotime($child_date_of_birth));
+        $child_date_of_birth = safe_date_convert($child_date_of_birth);
+        if ($child_date_of_birth === null) {
+            json_response(false, 'Invalid child date of birth.', null, 400);
+        }
     } else {
         $child_date_of_birth = null;
     }
 
     // Convert date format if provided
-    if (!empty($date_of_marriage)) {
-        $date_of_marriage = date('Y-m-d', strtotime($date_of_marriage));
-    } else {
-        $date_of_marriage = null;
-    }
+    $date_of_marriage = !empty($date_of_marriage) ? safe_date_convert($date_of_marriage) : null;
 
     // Begin transaction
     $pdo->beginTransaction();
@@ -282,10 +290,7 @@ try {
             $_SESSION['user_id'] ?? null
         );
 
-        // Commit transaction
-        $pdo->commit();
-
-        // Backup old PDF file instead of deleting it
+        // Backup old PDF file instead of deleting it (inside transaction for atomicity)
         if ($old_pdf_filename) {
             $backup_path = backup_pdf_file($old_pdf_filename);
             if ($backup_path) {
@@ -302,6 +307,9 @@ try {
                 ]);
             }
         }
+
+        // Commit transaction
+        $pdo->commit();
 
         // Prepare success response
         $response_data = [

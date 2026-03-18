@@ -9,11 +9,16 @@ header('Content-Type: application/json');
 
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/auth.php';
+require_once '../includes/security.php';
+
+// Authentication & CSRF
+requireAuth();
+requireCSRFToken();
 
 // Validate request method
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
-    exit;
+    json_response(false, 'Invalid request method.', null, 405);
 }
 
 try {
@@ -21,8 +26,7 @@ try {
     $record_id = sanitize_input($_POST['record_id'] ?? '');
 
     if (empty($record_id)) {
-        echo json_encode(['success' => false, 'message' => 'Record ID is required.']);
-        exit;
+        json_response(false, 'Record ID is required.', null, 400);
     }
 
     // Fetch existing record
@@ -31,8 +35,7 @@ try {
     $existing_record = $stmt->fetch();
 
     if (!$existing_record) {
-        echo json_encode(['success' => false, 'message' => 'Record not found.']);
-        exit;
+        json_response(false, 'Record not found.', null, 404);
     }
 
     // Sanitize and validate input
@@ -111,8 +114,21 @@ try {
         empty($bride_first_name) || empty($bride_last_name) ||
         empty($bride_date_of_birth) || empty($bride_place_of_birth) ||
         empty($bride_citizenship) || empty($bride_residence)) {
-        echo json_encode(['success' => false, 'message' => 'Please fill in all required fields.']);
-        exit;
+        json_response(false, 'Please fill in all required fields.', null, 400);
+    }
+
+    // Convert date formats
+    $date_of_application = safe_date_convert($date_of_application);
+    if ($date_of_application === null) {
+        json_response(false, 'Invalid date of application.', null, 400);
+    }
+    $groom_date_of_birth = safe_date_convert($groom_date_of_birth);
+    if ($groom_date_of_birth === null) {
+        json_response(false, 'Invalid groom date of birth.', null, 400);
+    }
+    $bride_date_of_birth = safe_date_convert($bride_date_of_birth);
+    if ($bride_date_of_birth === null) {
+        json_response(false, 'Invalid bride date of birth.', null, 400);
     }
 
     // Handle PDF file upload (optional for update)
@@ -127,8 +143,7 @@ try {
         $upload_result = upload_file($_FILES['pdf_file'], 'marriage_license', $reg_year);
 
         if (!$upload_result['success']) {
-            echo json_encode(['success' => false, 'message' => implode(' ', $upload_result['errors'])]);
-            exit;
+            json_response(false, implode(' ', $upload_result['errors']), null, 400);
         }
 
         // Mark old file for backup (done after update)
@@ -183,6 +198,8 @@ try {
         updated_by = :updated_by
     WHERE id = :id";
 
+    $pdo->beginTransaction();
+
     $stmt = $pdo->prepare($sql);
 
     $updated_by = $_SESSION['user_id'] ?? 1;
@@ -231,37 +248,40 @@ try {
         ':id'           => $record_id
     ];
 
-    if ($stmt->execute($params)) {
-        // Backup old PDF instead of deleting it
-        if ($old_pdf_filename) {
-            $backup_path = backup_pdf_file($old_pdf_filename);
-            if ($backup_path) {
-                $bkpStmt = $pdo->prepare(
-                    "INSERT INTO pdf_backups (cert_type, record_id, original_path, backup_path, file_hash, backed_up_by)
-                     VALUES ('marriage_license', :rid, :orig, :bkp, :hash, :uid)"
-                );
-                $bkpStmt->execute([
-                    ':rid'  => $record_id,
-                    ':orig' => $old_pdf_filename,
-                    ':bkp'  => $backup_path,
-                    ':hash' => $existing_record['pdf_hash'] ?? null,
-                    ':uid'  => $_SESSION['user_id'] ?? null,
-                ]);
-            }
+    $stmt->execute($params);
+
+    // Backup old PDF instead of deleting it
+    if ($old_pdf_filename) {
+        $backup_path = backup_pdf_file($old_pdf_filename);
+        if ($backup_path) {
+            $bkpStmt = $pdo->prepare(
+                "INSERT INTO pdf_backups (cert_type, record_id, original_path, backup_path, file_hash, backed_up_by)
+                 VALUES ('marriage_license', :rid, :orig, :bkp, :hash, :uid)"
+            );
+            $bkpStmt->execute([
+                ':rid'  => $record_id,
+                ':orig' => $old_pdf_filename,
+                ':bkp'  => $backup_path,
+                ':hash' => $existing_record['pdf_hash'] ?? null,
+                ':uid'  => $_SESSION['user_id'] ?? null,
+            ]);
         }
-        echo json_encode([
-            'success' => true,
-            'message' => 'Marriage license application updated successfully!',
-            'record_id' => $record_id
-        ]);
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Failed to update record.']);
     }
 
+    $pdo->commit();
+
+    json_response(true, 'Marriage license application updated successfully!', ['record_id' => $record_id]);
+
 } catch (PDOException $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     error_log("Database Error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'Database error occurred.']);
+    json_response(false, 'Database error occurred.', null, 500);
 } catch (Exception $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     error_log("Error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'An error occurred while processing your request.']);
+    json_response(false, 'An error occurred while processing your request.', null, 500);
 }

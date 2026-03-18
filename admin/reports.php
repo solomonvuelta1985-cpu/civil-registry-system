@@ -7,6 +7,10 @@
 require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/auth.php';
+
+// Require authentication
+requireAuth();
 
 // =====================================================
 // GET FILTER PARAMETERS FROM URL

@@ -9,13 +9,8 @@ require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 
-// Optional: Check if user is authenticated
-// if (!isset($_SESSION['user_id'])) {
-//     header('Location: ../public/login.php');
-//     exit;
-// }
-
-// $pdo is now available from config.php
+// Require authentication
+requireAuth();
 
 // Initialize statistics
 $stats = [
@@ -50,103 +45,83 @@ try {
     );
     $stats['pdf_integrity_issues'] = (int)($stmt->fetch()['count'] ?? 0);
 
-    // Get total birth certificates
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_live_birth WHERE status = 'Active'");
-    $stats['total_births'] = $stmt->fetch()['count'] ?? 0;
+    // ── Single query for ALL totals, this month, and last month counts ──
+    $combined_sql = "
+        SELECT
+            cert_type,
+            COUNT(*) AS total,
+            SUM(CASE WHEN YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE()) THEN 1 ELSE 0 END) AS this_month,
+            SUM(CASE WHEN YEAR(created_at) = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
+                      AND MONTH(created_at) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH)) THEN 1 ELSE 0 END) AS last_month
+        FROM (
+            SELECT 'birth' AS cert_type, created_at FROM certificate_of_live_birth WHERE status = 'Active'
+            UNION ALL
+            SELECT 'marriage', created_at FROM certificate_of_marriage WHERE status = 'Active'
+            UNION ALL
+            SELECT 'death', created_at FROM certificate_of_death WHERE status = 'Active'
+            UNION ALL
+            SELECT 'license', created_at FROM application_for_marriage_license WHERE status = 'Active'
+        ) combined
+        GROUP BY cert_type
+    ";
+    $rows = $pdo->query($combined_sql)->fetchAll(PDO::FETCH_ASSOC);
 
-    // Get total marriage certificates
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_marriage WHERE status = 'Active'");
-    $stats['total_marriages'] = $stmt->fetch()['count'] ?? 0;
-
-    // Get total death certificates
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_death WHERE status = 'Active'");
-    $stats['total_deaths'] = $stmt->fetch()['count'] ?? 0;
-
-    // Get total marriage licenses
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM application_for_marriage_license WHERE status = 'Active'");
-    $stats['total_licenses'] = $stmt->fetch()['count'] ?? 0;
-
-    // Get this month's birth certificates
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_live_birth WHERE status = 'Active' AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    $stats['this_month_births'] = (int)($result['count'] ?? 0);
-
-    // Get this month's marriage certificates
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_marriage WHERE status = 'Active' AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    $stats['this_month_marriages'] = (int)($result['count'] ?? 0);
-
-    // Get this month's death certificates
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_death WHERE status = 'Active' AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    $stats['this_month_deaths'] = (int)($result['count'] ?? 0);
-
-    // Get this month's marriage licenses
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM application_for_marriage_license WHERE status = 'Active' AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    $stats['this_month_licenses'] = (int)($result['count'] ?? 0);
-
-    // Get last month's statistics for trend
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_live_birth WHERE status = 'Active' AND MONTH(created_at) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH)) AND YEAR(created_at) = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))");
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    $stats['last_month_births'] = (int)($result['count'] ?? 0);
-
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_marriage WHERE status = 'Active' AND MONTH(created_at) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH)) AND YEAR(created_at) = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))");
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    $stats['last_month_marriages'] = (int)($result['count'] ?? 0);
-
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM certificate_of_death WHERE status = 'Active' AND MONTH(created_at) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH)) AND YEAR(created_at) = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))");
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    $stats['last_month_deaths'] = (int)($result['count'] ?? 0);
-
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM application_for_marriage_license WHERE status = 'Active' AND MONTH(created_at) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH)) AND YEAR(created_at) = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))");
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    $stats['last_month_licenses'] = (int)($result['count'] ?? 0);
+    foreach ($rows as $row) {
+        $type = $row['cert_type'];
+        $map = ['birth' => 'births', 'marriage' => 'marriages', 'death' => 'deaths', 'license' => 'licenses'];
+        $key = $map[$type] ?? $type;
+        $stats["total_{$key}"] = (int)$row['total'];
+        $stats["this_month_{$key}"] = (int)$row['this_month'];
+        $stats["last_month_{$key}"] = (int)$row['last_month'];
+    }
 
     // Calculate trends
-    $stats['birth_trend'] = $stats['last_month_births'] > 0
-        ? round((($stats['this_month_births'] - $stats['last_month_births']) / $stats['last_month_births']) * 100)
-        : ($stats['this_month_births'] > 0 ? 100 : 0);
+    foreach (['births', 'marriages', 'deaths', 'licenses'] as $key) {
+        $trend_key = str_replace('s', '', $key) . '_trend'; // birth_trend, marriage_trend, etc.
+        if ($key === 'licenses') $trend_key = 'license_trend';
+        $this_m = $stats["this_month_{$key}"] ?? 0;
+        $last_m = $stats["last_month_{$key}"] ?? 0;
+        $stats[$trend_key] = $last_m > 0
+            ? round((($this_m - $last_m) / $last_m) * 100)
+            : ($this_m > 0 ? 100 : 0);
+    }
 
-    $stats['marriage_trend'] = $stats['last_month_marriages'] > 0
-        ? round((($stats['this_month_marriages'] - $stats['last_month_marriages']) / $stats['last_month_marriages']) * 100)
-        : ($stats['this_month_marriages'] > 0 ? 100 : 0);
+    // ── Single query for chart data (last 6 months) ──
+    $six_months_ago = date('Y-m-01', strtotime('-5 months'));
+    $chart_sql = "
+        SELECT cert_type, DATE_FORMAT(created_at, '%Y-%m') AS ym, COUNT(*) AS cnt
+        FROM (
+            SELECT 'birth' AS cert_type, created_at FROM certificate_of_live_birth WHERE status = 'Active' AND created_at >= :start
+            UNION ALL
+            SELECT 'marriage', created_at FROM certificate_of_marriage WHERE status = 'Active' AND created_at >= :start2
+            UNION ALL
+            SELECT 'death', created_at FROM certificate_of_death WHERE status = 'Active' AND created_at >= :start3
+            UNION ALL
+            SELECT 'license', created_at FROM application_for_marriage_license WHERE status = 'Active' AND created_at >= :start4
+        ) combined
+        GROUP BY cert_type, ym
+        ORDER BY ym
+    ";
+    $chart_stmt = $pdo->prepare($chart_sql);
+    $chart_stmt->execute([':start' => $six_months_ago, ':start2' => $six_months_ago, ':start3' => $six_months_ago, ':start4' => $six_months_ago]);
+    $chart_rows = $chart_stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $stats['death_trend'] = $stats['last_month_deaths'] > 0
-        ? round((($stats['this_month_deaths'] - $stats['last_month_deaths']) / $stats['last_month_deaths']) * 100)
-        : ($stats['this_month_deaths'] > 0 ? 100 : 0);
+    // Build lookup: chart_lookup['2026-03']['birth'] = 5
+    $chart_lookup = [];
+    foreach ($chart_rows as $row) {
+        $chart_lookup[$row['ym']][$row['cert_type']] = (int)$row['cnt'];
+    }
 
-    $stats['license_trend'] = $stats['last_month_licenses'] > 0
-        ? round((($stats['this_month_licenses'] - $stats['last_month_licenses']) / $stats['last_month_licenses']) * 100)
-        : ($stats['this_month_licenses'] > 0 ? 100 : 0);
-
-    // Get monthly data for chart (last 6 months)
+    // Build monthly_chart_data array
     for ($i = 5; $i >= 0; $i--) {
-        $month = date('Y-m', strtotime("-$i months"));
+        $ym = date('Y-m', strtotime("-$i months"));
         $month_label = date('M', strtotime("-$i months"));
-
-        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM certificate_of_live_birth WHERE status = 'Active' AND DATE_FORMAT(created_at, '%Y-%m') = ?");
-        $stmt->execute([$month]);
-        $births = $stmt->fetch()['count'] ?? 0;
-
-        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM certificate_of_marriage WHERE status = 'Active' AND DATE_FORMAT(created_at, '%Y-%m') = ?");
-        $stmt->execute([$month]);
-        $marriages = $stmt->fetch()['count'] ?? 0;
-
-        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM certificate_of_death WHERE status = 'Active' AND DATE_FORMAT(created_at, '%Y-%m') = ?");
-        $stmt->execute([$month]);
-        $deaths = $stmt->fetch()['count'] ?? 0;
-
-        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM application_for_marriage_license WHERE status = 'Active' AND DATE_FORMAT(created_at, '%Y-%m') = ?");
-        $stmt->execute([$month]);
-        $licenses = $stmt->fetch()['count'] ?? 0;
-
         $monthly_chart_data[] = [
             'month' => $month_label,
-            'births' => $births,
-            'marriages' => $marriages,
-            'deaths' => $deaths,
-            'licenses' => $licenses
+            'births' => $chart_lookup[$ym]['birth'] ?? 0,
+            'marriages' => $chart_lookup[$ym]['marriage'] ?? 0,
+            'deaths' => $chart_lookup[$ym]['death'] ?? 0,
+            'licenses' => $chart_lookup[$ym]['license'] ?? 0
         ];
     }
 

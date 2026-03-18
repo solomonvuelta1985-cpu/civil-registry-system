@@ -59,10 +59,9 @@ try {
             ->execute($deleted_ids);
     }
 
-    if (function_exists('logActivity')) {
-        logActivity($_SESSION['user_id'] ?? null, 'PDF_BACKUP_CLEANUP',
-            "Cleaned {$deleted_files} backup files older than {$days} days, freed " . round($freed_bytes / 1024 / 1024, 2) . ' MB');
-    }
+    log_activity($pdo, 'PDF_BACKUP_CLEANUP',
+        "Cleaned {$deleted_files} backup files older than {$days} days, freed " . round($freed_bytes / 1024 / 1024, 2) . ' MB',
+        $_SESSION['user_id'] ?? null);
 
     echo json_encode([
         'success'       => true,

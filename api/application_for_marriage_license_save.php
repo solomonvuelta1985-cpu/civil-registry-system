@@ -9,11 +9,16 @@ header('Content-Type: application/json');
 
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/auth.php';
+require_once '../includes/security.php';
+
+// Authentication & CSRF
+requireAuth();
+requireCSRFToken();
 
 // Validate request method
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
-    exit;
+    json_response(false, 'Invalid request method.', null, 405);
 }
 
 try {
@@ -95,23 +100,62 @@ try {
         empty($bride_first_name) || empty($bride_last_name) ||
         empty($bride_date_of_birth) || empty($bride_place_of_birth) ||
         empty($bride_citizenship) || empty($bride_residence)) {
-        echo json_encode(['success' => false, 'message' => 'Please fill in all required fields.']);
-        exit;
+        json_response(false, 'Please fill in all required fields.', null, 400);
+    }
+
+    // Validate field lengths against database column limits
+    $length_errors = validate_field_lengths([
+        'Registry number'              => [$registry_no, 100],
+        'Groom first name'             => [$groom_first_name, 100],
+        'Groom middle name'            => [$groom_middle_name, 100],
+        'Groom last name'              => [$groom_last_name, 100],
+        'Groom place of birth'         => [$groom_place_of_birth, 255],
+        'Groom citizenship'            => [$groom_citizenship, 100],
+        'Groom father first name'      => [$groom_father_first_name, 100],
+        'Groom father middle name'     => [$groom_father_middle_name, 100],
+        'Groom father last name'       => [$groom_father_last_name, 100],
+        'Groom father citizenship'     => [$groom_father_citizenship, 100],
+        'Groom mother first name'      => [$groom_mother_first_name, 100],
+        'Groom mother middle name'     => [$groom_mother_middle_name, 100],
+        'Groom mother last name'       => [$groom_mother_last_name, 100],
+        'Groom mother citizenship'     => [$groom_mother_citizenship, 100],
+        'Bride first name'             => [$bride_first_name, 100],
+        'Bride middle name'            => [$bride_middle_name, 100],
+        'Bride last name'              => [$bride_last_name, 100],
+        'Bride place of birth'         => [$bride_place_of_birth, 255],
+        'Bride citizenship'            => [$bride_citizenship, 100],
+        'Bride father first name'      => [$bride_father_first_name, 100],
+        'Bride father middle name'     => [$bride_father_middle_name, 100],
+        'Bride father last name'       => [$bride_father_last_name, 100],
+        'Bride father citizenship'     => [$bride_father_citizenship, 100],
+        'Bride mother first name'      => [$bride_mother_first_name, 100],
+        'Bride mother middle name'     => [$bride_mother_middle_name, 100],
+        'Bride mother last name'       => [$bride_mother_last_name, 100],
+        'Bride mother citizenship'     => [$bride_mother_citizenship, 100],
+    ]);
+    if (!empty($length_errors)) {
+        json_response(false, implode(' ', $length_errors), null, 400);
     }
 
     // Validate PDF file upload
     if (!isset($_FILES['pdf_file']) || $_FILES['pdf_file']['error'] !== UPLOAD_ERR_OK) {
-        echo json_encode(['success' => false, 'message' => 'PDF file is required.']);
-        exit;
+        json_response(false, 'PDF file is required.', null, 400);
     }
 
+    // Convert date formats safely (returns null on invalid dates)
+    $date_of_application = safe_date_convert($date_of_application);
+    if ($date_of_application === null) {
+        json_response(false, 'Invalid date of application.', null, 400);
+    }
+    $groom_date_of_birth = safe_date_convert($groom_date_of_birth);
+    $bride_date_of_birth = safe_date_convert($bride_date_of_birth);
+
     // Upload PDF file into organized folder: marriage_license/{year}/
-    $reg_year = !empty($date_of_application) ? date('Y', strtotime($date_of_application)) : date('Y');
+    $reg_year = date('Y', strtotime($date_of_application));
     $upload_result = upload_file($_FILES['pdf_file'], 'marriage_license', $reg_year);
 
     if (!$upload_result['success']) {
-        echo json_encode(['success' => false, 'message' => implode(' ', $upload_result['errors'])]);
-        exit;
+        json_response(false, implode(' ', $upload_result['errors']), null, 400);
     }
 
     $unique_filename = $upload_result['filename'];
@@ -152,6 +196,8 @@ try {
         :pdf_filename, :pdf_filepath, :pdf_hash,
         'Active', :created_by
     )";
+
+    $pdo->beginTransaction();
 
     $stmt = $pdo->prepare($sql);
 
@@ -200,23 +246,21 @@ try {
         ':created_by'   => $created_by
     ];
 
-    if ($stmt->execute($params)) {
-        $message = $add_new
-            ? 'Marriage license application saved successfully! You can add another record.'
-            : 'Marriage license application saved successfully!';
+    $stmt->execute($params);
 
-        echo json_encode([
-            'success' => true,
-            'message' => $message,
-            'record_id' => $pdo->lastInsertId()
-        ]);
-    } else {
-        // Delete uploaded file if database insert fails
-        delete_file($unique_filename);
-        echo json_encode(['success' => false, 'message' => 'Failed to save record to database.']);
-    }
+    $new_id = $pdo->lastInsertId();
+    $pdo->commit();
+
+    $message = $add_new
+        ? 'Marriage license application saved successfully! You can add another record.'
+        : 'Marriage license application saved successfully!';
+
+    json_response(true, $message, ['record_id' => $new_id], 201);
 
 } catch (PDOException $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     error_log("Database Error: " . $e->getMessage());
 
     // Delete uploaded file if there was an error
@@ -224,8 +268,15 @@ try {
         delete_file($unique_filename);
     }
 
-    echo json_encode(['success' => false, 'message' => 'Database error occurred.']);
+    if ($e->getCode() == 23000 && strpos($e->getMessage(), 'uniq_registry_no') !== false) {
+        json_response(false, 'Registry number already exists. Please use a unique registry number.', null, 409);
+    } else {
+        json_response(false, 'Database error occurred.', null, 500);
+    }
 } catch (Exception $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     error_log("Error: " . $e->getMessage());
 
     // Delete uploaded file if there was an error
@@ -233,5 +284,5 @@ try {
         delete_file($unique_filename);
     }
 
-    echo json_encode(['success' => false, 'message' => 'An error occurred while processing your request.']);
+    json_response(false, 'An error occurred while processing your request.', null, 500);
 }

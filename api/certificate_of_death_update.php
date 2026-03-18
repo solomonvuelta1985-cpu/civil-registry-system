@@ -7,9 +7,15 @@
 // Include configuration and functions
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 // Set JSON response header
 header('Content-Type: application/json');
+
+// Authentication & CSRF
+requireAuth();
+requireCSRFToken();
 
 // Only allow POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -101,7 +107,10 @@ try {
     $old_pdf_filename = null;
 
     // Convert date formats
-    $date_of_registration = date('Y-m-d', strtotime($date_of_registration));
+    $date_of_registration = safe_date_convert($date_of_registration);
+    if ($date_of_registration === null) {
+        $errors[] = "Invalid date of registration.";
+    }
 
     if (isset($_FILES['pdf_file']) && $_FILES['pdf_file']['error'] !== UPLOAD_ERR_NO_FILE) {
         $file_errors = validate_file_upload($_FILES['pdf_file']);
@@ -129,8 +138,14 @@ try {
     if (!empty($errors)) {
         json_response(false, implode(' ', $errors), null, 400);
     }
-    $date_of_birth = date('Y-m-d', strtotime($date_of_birth));
-    $date_of_death = date('Y-m-d', strtotime($date_of_death));
+    $date_of_birth = safe_date_convert($date_of_birth);
+    if ($date_of_birth === null) {
+        json_response(false, 'Invalid date of birth.', null, 400);
+    }
+    $date_of_death = safe_date_convert($date_of_death);
+    if ($date_of_death === null) {
+        json_response(false, 'Invalid date of death.', null, 400);
+    }
 
     // Begin transaction
     $pdo->beginTransaction();

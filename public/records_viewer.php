@@ -1042,6 +1042,18 @@ function get_field_value($record, $field, $type = 'text') {
             color: var(--primary);
         }
 
+        .record-name-link {
+            color: #0d6efd;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.15s;
+        }
+
+        .record-name-link:hover {
+            color: #0a58ca;
+            text-decoration: underline;
+        }
+
         .table-controls {
             display: flex;
             justify-content: space-between;
@@ -1818,8 +1830,13 @@ function get_field_value($record, $field, $type = 'text') {
                         ?>
                         <tr>
                             <td class="row-number"><?php echo $row_number++; ?></td>
-                            <?php foreach ($config['table_columns'] as $column): ?>
-                            <td><?php echo get_field_value($record, $column['field'], $column['type'] ?? 'text'); ?></td>
+                            <?php
+                            $name_fields = ['child_name', 'husband_name', 'wife_name', 'deceased_name', 'groom_name', 'bride_name'];
+                            foreach ($config['table_columns'] as $column):
+                                $value = get_field_value($record, $column['field'], $column['type'] ?? 'text');
+                                $is_name = in_array($column['field'], $name_fields);
+                            ?>
+                            <td><?php if ($is_name): ?><a href="javascript:void(0)" class="record-name-link" onclick="recordPreviewModal.open(<?php echo $record['id']; ?>, '<?php echo $record_type; ?>')"><?php echo $value; ?></a><?php else: echo $value; endif; ?></td>
                             <?php endforeach; ?>
                             <td>
                                 <?php
@@ -2646,9 +2663,14 @@ function get_field_value($record, $field, $type = 'text') {
             html += `<td class="row-number">${rowNumber}</td>`;
 
             // Build cells for each column
+            const nameFields = ['child_name', 'husband_name', 'wife_name', 'deceased_name', 'groom_name', 'bride_name'];
             columns.forEach(column => {
                 const value = getFieldValue(record, column.field, column.type || 'text');
-                html += `<td>${value}</td>`;
+                if (nameFields.includes(column.field)) {
+                    html += `<td><a href="javascript:void(0)" class="record-name-link" onclick="recordPreviewModal.open(${record.id}, '${recordType}')">${value}</a></td>`;
+                } else {
+                    html += `<td>${value}</td>`;
+                }
             });
 
             // Actions column with dropdown

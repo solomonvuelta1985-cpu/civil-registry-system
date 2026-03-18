@@ -7,9 +7,15 @@
 // Include configuration and functions
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 // Set JSON response header
 header('Content-Type: application/json');
+
+// Authentication & CSRF
+requireAuth();
+requireCSRFToken();
 
 // Only allow POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -84,6 +90,23 @@ try {
         $errors[] = "Place of death is required.";
     }
 
+    // Validate field lengths against database column limits
+    $length_errors = validate_field_lengths([
+        'Registry number'       => [$registry_no, 100],
+        'Deceased first name'   => [$deceased_first_name, 100],
+        'Deceased middle name'  => [$deceased_middle_name, 100],
+        'Deceased last name'    => [$deceased_last_name, 100],
+        'Occupation'            => [$occupation, 100],
+        'Place of death'        => [$place_of_death, 255],
+        'Father first name'     => [$father_first_name, 100],
+        'Father middle name'    => [$father_middle_name, 100],
+        'Father last name'      => [$father_last_name, 100],
+        'Mother first name'     => [$mother_first_name, 100],
+        'Mother middle name'    => [$mother_middle_name, 100],
+        'Mother last name'      => [$mother_last_name, 100],
+    ]);
+    $errors = array_merge($errors, $length_errors);
+
     // Validate PDF file upload
     if (!isset($_FILES['pdf_file']) || $_FILES['pdf_file']['error'] === UPLOAD_ERR_NO_FILE) {
         $errors[] = "PDF certificate is required.";
@@ -99,8 +122,11 @@ try {
         json_response(false, implode(' ', $errors), null, 400);
     }
 
-    // Convert date formats
-    $date_of_registration = date('Y-m-d', strtotime($date_of_registration));
+    // Convert date formats safely (returns null on invalid dates)
+    $date_of_registration = safe_date_convert($date_of_registration);
+    if ($date_of_registration === null) {
+        json_response(false, 'Invalid date of registration.', null, 400);
+    }
 
     // Upload PDF file into organized folder: death/{year}/
     $reg_year = date('Y', strtotime($date_of_registration));
@@ -113,8 +139,8 @@ try {
     $pdf_filename = $upload_result['filename'];
     $pdf_filepath = $upload_result['path'];
     $pdf_hash     = $upload_result['hash'] ?? null;
-    $date_of_birth = date('Y-m-d', strtotime($date_of_birth));
-    $date_of_death = date('Y-m-d', strtotime($date_of_death));
+    $date_of_birth = safe_date_convert($date_of_birth);
+    $date_of_death = safe_date_convert($date_of_death);
 
     // Begin transaction
     $pdo->beginTransaction();
@@ -233,7 +259,11 @@ try {
         // Log error
         error_log("Database Insert Error: " . $e->getMessage());
 
-        json_response(false, 'Database error occurred. Please try again.', null, 500);
+        if ($e->getCode() == 23000 && strpos($e->getMessage(), 'uniq_registry_no') !== false) {
+            json_response(false, 'Registry number already exists. Please use a unique registry number.', null, 409);
+        } else {
+            json_response(false, 'Database error occurred. Please try again.', null, 500);
+        }
     }
 
 } catch (Exception $e) {

@@ -8,6 +8,7 @@ header('Content-Type: application/json');
 
 require_once '../includes/session_config.php';
 require_once '../includes/config.php';
+require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 
 // Check authentication and permission
@@ -62,7 +63,7 @@ try {
     $stmt->execute([':id' => $user_id]);
 
     // Log activity
-    logActivity('delete', 'users', $user_id, "Deleted user: {$existing_user['username']}");
+    log_activity($pdo, 'delete', "Deleted user: {$existing_user['username']}", $user_id);
 
     echo json_encode([
         'success' => true,

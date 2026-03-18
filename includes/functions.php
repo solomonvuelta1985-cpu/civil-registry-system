@@ -4,22 +4,29 @@
  */
 
 /**
- * Sanitize input data
+ * Sanitize input data for database storage.
+ * NOTE: Does NOT apply htmlspecialchars — that belongs on OUTPUT (use escape_html).
+ * Prepared statements already prevent SQL injection.
  */
 function sanitize_input($data) {
     if (is_array($data)) {
         return array_map('sanitize_input', $data);
     }
 
-    // Handle null values - return empty string or null based on preference
     if ($data === null) {
         return null;
     }
 
     $data = trim($data);
-    $data = stripslashes($data);
-    $data = htmlspecialchars($data, ENT_QUOTES, 'UTF-8');
     return $data;
+}
+
+/**
+ * Escape data for safe HTML output.
+ * Use this when displaying user data in HTML templates.
+ */
+function escape_html($data) {
+    return htmlspecialchars($data ?? '', ENT_QUOTES, 'UTF-8');
 }
 
 /**
@@ -259,7 +266,8 @@ function validate_registry_number($registry_no) {
 }
 
 /**
- * Validate date
+ * Validate date format.
+ * Returns true if the date string matches the expected format.
  */
 function validate_date($date, $format = 'Y-m-d') {
     $d = DateTime::createFromFormat($format, $date);
@@ -267,17 +275,67 @@ function validate_date($date, $format = 'Y-m-d') {
 }
 
 /**
- * Log activity
+ * Safely convert a date string to Y-m-d format.
+ * Returns the converted date, or null if invalid.
+ * Use this instead of bare strtotime() to avoid silent 1970-01-01 bugs.
+ */
+function safe_date_convert($date_string, $output_format = 'Y-m-d') {
+    if (empty($date_string)) {
+        return null;
+    }
+    $ts = strtotime($date_string);
+    if ($ts === false || $ts < 0) {
+        return null;
+    }
+    return date($output_format, $ts);
+}
+
+/**
+ * Validate that a string does not exceed the database column length.
+ * Returns true if valid, false if too long.
+ */
+function validate_string_length($value, $max_length, $field_name = 'Field') {
+    if ($value === null) return true;
+    if (mb_strlen($value, 'UTF-8') > $max_length) {
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Validate multiple fields against their database column length limits.
+ * Returns an array of error messages (empty if all valid).
+ *
+ * Usage:
+ *   $errors = validate_field_lengths([
+ *       'Child first name' => [$child_first_name, 100],
+ *       'Place of birth'   => [$child_place_of_birth, 255],
+ *   ]);
+ */
+function validate_field_lengths(array $fields) {
+    $errors = [];
+    foreach ($fields as $label => [$value, $max]) {
+        if (!validate_string_length($value, $max, $label)) {
+            $errors[] = "{$label} must not exceed {$max} characters.";
+        }
+    }
+    return $errors;
+}
+
+/**
+ * Log activity to the activity_logs table.
+ * Unified function — use this everywhere instead of the auth.php version.
  */
 function log_activity($pdo, $action, $details, $user_id = null) {
     try {
-        $sql = "INSERT INTO activity_logs (user_id, action, details, created_at)
-                VALUES (:user_id, :action, :details, NOW())";
+        $sql = "INSERT INTO activity_logs (user_id, action, details, ip_address, created_at)
+                VALUES (:user_id, :action, :details, :ip_address, NOW())";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             ':user_id' => $user_id,
             ':action' => $action,
-            ':details' => $details
+            ':details' => $details,
+            ':ip_address' => $_SERVER['REMOTE_ADDR'] ?? null
         ]);
         return true;
     } catch (PDOException $e) {

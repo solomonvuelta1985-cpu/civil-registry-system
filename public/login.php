@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         setUserSession($user);
 
                         // Log the login activity
-                        logActivity('login', 'auth', $user['id'], 'User logged in');
+                        log_activity($pdo, 'login', 'User logged in', $user['id']);
                         logSecurityEvent('LOGIN_SUCCESS', 'LOW', "Successful login for user: {$username}", $user['id']);
 
                         header('Location: ../admin/dashboard.php');
@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 if ($user) {
                     setUserSession($user);
-                    logActivity('login', 'auth', $user['id'], 'User logged in');
+                    log_activity($pdo, 'login', 'User logged in', $user['id']);
                     logSecurityEvent('LOGIN_SUCCESS', 'LOW', "Successful login for user: {$username}", $user['id']);
                     header('Location: ../admin/dashboard.php');
                     exit;

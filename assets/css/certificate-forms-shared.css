@@ -1311,6 +1311,79 @@ input[type="file"]:hover {
     word-break: break-all;
 }
 
+/* PDF Viewer Modal */
+.pdf-viewer-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.pdf-viewer-modal.open {
+    display: flex;
+}
+
+.pdf-viewer-modal-content {
+    background: #fff;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 1000px;
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.pdf-viewer-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: #1f2937;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.pdf-viewer-modal-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.pdf-viewer-modal-close {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    opacity: 0.8;
+    transition: opacity 0.15s;
+}
+
+.pdf-viewer-modal-close:hover {
+    opacity: 1;
+}
+
+.pdf-viewer-modal-body {
+    flex: 1;
+    overflow: hidden;
+}
+
+.pdf-viewer-modal-body iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
 /* ========================================
    SCANNER BUTTON
    ======================================== */
@@ -1547,7 +1620,7 @@ input[type="file"]:hover {
 }
 
 .progress-connector.completed {
-    border-top-style: solid;
+    border-top-style: dashed;
     border-top-color: #1e40af;
     border-top-width: 2px;
 }

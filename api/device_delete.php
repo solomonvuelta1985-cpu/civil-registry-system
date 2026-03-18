@@ -53,7 +53,7 @@ if ($action === 'reactivate') {
 }
 
 if ($success) {
-    logActivity($userId, $eventMsg, 'Device ID ' . $deviceId . ' ' . $label);
+    log_activity($pdo, $eventMsg, 'Device ID ' . $deviceId . ' ' . $label, $userId);
     logSecurityEvent($eventMsg, 'MEDIUM', $userId, ['device_id' => $deviceId]);
     echo json_encode(['success' => true, 'message' => 'Device ' . $label . ' successfully']);
 } else {
