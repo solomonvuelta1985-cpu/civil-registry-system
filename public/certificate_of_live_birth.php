@@ -542,13 +542,34 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                         </div>
                     </div>
 
+                    <?php
+                    $father_is_not_stated = $edit_mode
+                        && ($record['legitimacy_status'] ?? '') === 'Illegitimate'
+                        && ($record['father_first_name'] ?? '') === 'Not Stated';
+                    $show_not_stated_container = $edit_mode && ($record['legitimacy_status'] ?? '') === 'Illegitimate';
+                    ?>
+
                     <!-- Father's Information Section -->
-                    <div class="form-section" id="father_section" style="<?php echo ($edit_mode && isset($record['legitimacy_status']) && $record['legitimacy_status'] === 'Illegitimate') ? 'display:none;' : ''; ?>">
+                    <div class="form-section" id="father_section">
                         <div class="section-header">
                             <h2 class="section-title">
                                 <i data-lucide="user-check"></i>
                                 Father's Name
                             </h2>
+                        </div>
+
+                        <!-- "Not Stated" checkbox (shown only for Illegitimate status) -->
+                        <div id="father_not_stated_container" style="<?php echo $show_not_stated_container ? '' : 'display:none;'; ?> margin-bottom:1rem; padding:0.75rem 1rem; background:var(--bg-secondary, #f8f9fa); border-radius:6px; border:1px solid var(--border-color, #e0e0e0);">
+                            <label style="display:flex; align-items:center; gap:0.625rem; cursor:pointer; font-weight:500; font-size:0.9rem;">
+                                <input
+                                    type="checkbox"
+                                    id="father_not_stated_checkbox"
+                                    name="father_not_stated"
+                                    style="width:1rem; height:1rem; cursor:pointer;"
+                                    <?php echo $father_is_not_stated ? 'checked' : ''; ?>
+                                >
+                                Father's information not stated
+                            </label>
                         </div>
 
                         <div class="form-row">
@@ -560,9 +581,19 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                     type="text"
                                     id="father_first_name"
                                     name="father_first_name"
+                                    class="father-input-field"
                                     placeholder="Enter first name"
                                     value="<?php echo $edit_mode ? htmlspecialchars($record['father_first_name'] ?? '') : ''; ?>"
+                                    <?php echo $father_is_not_stated ? 'disabled style="display:none;"' : ''; ?>
                                 >
+                                <select
+                                    class="father-not-stated-select"
+                                    name="father_first_name"
+                                    style="<?php echo $father_is_not_stated ? '' : 'display:none;'; ?>"
+                                    <?php echo $father_is_not_stated ? '' : 'disabled'; ?>
+                                >
+                                    <option value="Not Stated" selected>Not Stated</option>
+                                </select>
                             </div>
 
                             <div class="form-group">
@@ -573,9 +604,19 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                     type="text"
                                     id="father_middle_name"
                                     name="father_middle_name"
+                                    class="father-input-field"
                                     placeholder="Enter middle name"
                                     value="<?php echo $edit_mode ? htmlspecialchars($record['father_middle_name'] ?? '') : ''; ?>"
+                                    <?php echo $father_is_not_stated ? 'disabled style="display:none;"' : ''; ?>
                                 >
+                                <select
+                                    class="father-not-stated-select"
+                                    name="father_middle_name"
+                                    style="<?php echo $father_is_not_stated ? '' : 'display:none;'; ?>"
+                                    <?php echo $father_is_not_stated ? '' : 'disabled'; ?>
+                                >
+                                    <option value="Not Stated" selected>Not Stated</option>
+                                </select>
                             </div>
 
                             <div class="form-group">
@@ -586,9 +627,19 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                     type="text"
                                     id="father_last_name"
                                     name="father_last_name"
+                                    class="father-input-field"
                                     placeholder="Enter last name"
                                     value="<?php echo $edit_mode ? htmlspecialchars($record['father_last_name'] ?? '') : ''; ?>"
+                                    <?php echo $father_is_not_stated ? 'disabled style="display:none;"' : ''; ?>
                                 >
+                                <select
+                                    class="father-not-stated-select"
+                                    name="father_last_name"
+                                    style="<?php echo $father_is_not_stated ? '' : 'display:none;'; ?>"
+                                    <?php echo $father_is_not_stated ? '' : 'disabled'; ?>
+                                >
+                                    <option value="Not Stated" selected>Not Stated</option>
+                                </select>
                             </div>
 
                             <div class="form-group">
@@ -599,13 +650,26 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 $father_cit_val = $edit_mode ? ($record['father_citizenship'] ?? '') : '';
                                 $father_cit_is_other = $father_cit_val !== '' && !in_array($father_cit_val, array_diff($citizenship_options, ['Other']));
                                 ?>
-                                <select id="father_citizenship" name="father_citizenship">
+                                <select
+                                    id="father_citizenship"
+                                    name="father_citizenship"
+                                    class="father-input-field"
+                                    <?php echo $father_is_not_stated ? 'disabled style="display:none;"' : ''; ?>
+                                >
                                     <option value="">-- Select Citizenship --</option>
                                     <?php foreach ($citizenship_options as $opt):
                                         $sel = ($father_cit_is_other && $opt === 'Other') || (!$father_cit_is_other && $father_cit_val === $opt) ? 'selected' : '';
                                     ?>
                                     <option value="<?php echo $opt; ?>" <?php echo $sel; ?>><?php echo $opt; ?></option>
                                     <?php endforeach; ?>
+                                </select>
+                                <select
+                                    class="father-not-stated-select"
+                                    name="father_citizenship"
+                                    style="<?php echo $father_is_not_stated ? '' : 'display:none;'; ?>"
+                                    <?php echo $father_is_not_stated ? '' : 'disabled'; ?>
+                                >
+                                    <option value="Not Stated" selected>Not Stated</option>
                                 </select>
                             </div>
 
@@ -624,8 +688,8 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                         </div>
                     </div>
 
-                    <!-- Marriage Information Section (hidden when illegitimate) -->
-                    <div class="form-section" id="marriage_section" style="<?php echo ($edit_mode && isset($record['legitimacy_status']) && $record['legitimacy_status'] === 'Illegitimate') ? 'display:none;' : ''; ?>">
+                    <!-- Marriage Information Section -->
+                    <div class="form-section" id="marriage_section">
                         <div class="section-header">
                             <h2 class="section-title">
                                 <i data-lucide="heart"></i>
@@ -642,8 +706,18 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                     type="date"
                                     id="date_of_marriage"
                                     name="date_of_marriage"
+                                    class="marriage-input-field"
                                     value="<?php echo $edit_mode ? htmlspecialchars($record['date_of_marriage'] ?? '') : ''; ?>"
+                                    <?php echo $father_is_not_stated ? 'disabled style="display:none;"' : ''; ?>
                                 >
+                                <select
+                                    class="marriage-not-stated-select"
+                                    name="date_of_marriage"
+                                    style="<?php echo $father_is_not_stated ? '' : 'display:none;'; ?>"
+                                    <?php echo $father_is_not_stated ? '' : 'disabled'; ?>
+                                >
+                                    <option value="Not Married" selected>Not Married</option>
+                                </select>
                             </div>
 
                             <div class="form-group">
@@ -654,9 +728,19 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                     type="text"
                                     id="place_of_marriage"
                                     name="place_of_marriage"
+                                    class="marriage-input-field"
                                     placeholder="Enter place of marriage"
                                     value="<?php echo $edit_mode ? htmlspecialchars($record['place_of_marriage'] ?? '') : ''; ?>"
+                                    <?php echo $father_is_not_stated ? 'disabled style="display:none;"' : ''; ?>
                                 >
+                                <select
+                                    class="marriage-not-stated-select"
+                                    name="place_of_marriage"
+                                    style="<?php echo $father_is_not_stated ? '' : 'display:none;'; ?>"
+                                    <?php echo $father_is_not_stated ? '' : 'disabled'; ?>
+                                >
+                                    <option value="Not Married" selected>Not Married</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -876,60 +960,68 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         })();
         <?php endif; ?>
 
-        // Legitimacy Status - Show/Hide Father & Marriage sections
+        // Legitimacy Status - Father & Marriage sections always visible; toggle "Not Stated" checkbox
         const legitimacySelect = document.getElementById('legitimacy_status');
-        const fatherSection = document.getElementById('father_section');
-        const marriageSection = document.getElementById('marriage_section');
         const fatherProgressStep = document.querySelector('.progress-step[data-section="father_section"]');
         const marriageProgressStep = document.querySelector('.progress-step[data-section="marriage_section"]');
 
         legitimacySelect.addEventListener('change', function() {
             const isIllegitimate = this.value === 'Illegitimate';
+            const notStatedContainer = document.getElementById('father_not_stated_container');
+            const notStatedCb = document.getElementById('father_not_stated_checkbox');
 
             if (isIllegitimate) {
-                // Hide father and marriage sections with animation
-                fatherSection.style.display = 'none';
-                marriageSection.style.display = 'none';
-
-                // Remove required from hidden fields
-                fatherSection.querySelectorAll('[required]').forEach(el => {
-                    el.removeAttribute('required');
-                    el.dataset.wasRequired = 'true';
-                });
-                marriageSection.querySelectorAll('[required]').forEach(el => {
-                    el.removeAttribute('required');
-                    el.dataset.wasRequired = 'true';
-                });
-
-                // Dim progress steps
-                if (fatherProgressStep) fatherProgressStep.style.opacity = '0.4';
-                if (marriageProgressStep) marriageProgressStep.style.opacity = '0.4';
-
-                Notiflix.Notify.info('Father and Marriage sections hidden for illegitimate status.', {
+                // Show the "Not Stated" checkbox option
+                notStatedContainer.style.display = '';
+                if (fatherProgressStep) fatherProgressStep.style.opacity = '';
+                if (marriageProgressStep) marriageProgressStep.style.opacity = '';
+                Notiflix.Notify.info('Father information may be marked as "Not Stated" if unknown.', {
                     timeout: 3000,
                     position: 'right-top'
                 });
             } else {
-                // Show father and marriage sections
-                fatherSection.style.display = '';
-                marriageSection.style.display = '';
-
-                // Restore required fields
-                fatherSection.querySelectorAll('[data-was-required]').forEach(el => {
-                    el.setAttribute('required', '');
-                    delete el.dataset.wasRequired;
-                });
-                marriageSection.querySelectorAll('[data-was-required]').forEach(el => {
-                    el.setAttribute('required', '');
-                    delete el.dataset.wasRequired;
-                });
-
-                // Restore progress steps
+                // Hide and reset the "Not Stated" checkbox
+                notStatedContainer.style.display = 'none';
+                if (notStatedCb.checked) {
+                    notStatedCb.checked = false;
+                    notStatedCb.dispatchEvent(new Event('change'));
+                }
                 if (fatherProgressStep) fatherProgressStep.style.opacity = '';
                 if (marriageProgressStep) marriageProgressStep.style.opacity = '';
             }
 
-            // Update progress indicator
+            updateFormProgress();
+        });
+
+        // "Father Not Stated" checkbox — toggle inputs vs Not Stated/Not Married selects
+        const fatherNotStatedCb = document.getElementById('father_not_stated_checkbox');
+        fatherNotStatedCb.addEventListener('change', function() {
+            const checked = this.checked;
+
+            // Father fields: disable inputs, show Not Stated selects (or vice versa)
+            document.querySelectorAll('.father-input-field').forEach(el => {
+                el.disabled = checked;
+                el.style.display = checked ? 'none' : '';
+            });
+            document.querySelectorAll('.father-not-stated-select').forEach(el => {
+                el.style.display = checked ? '' : 'none';
+                el.disabled = !checked;
+            });
+
+            // Marriage fields: disable inputs, show Not Married selects (or vice versa)
+            document.querySelectorAll('.marriage-input-field').forEach(el => {
+                el.disabled = checked;
+                el.style.display = checked ? 'none' : '';
+            });
+            document.querySelectorAll('.marriage-not-stated-select').forEach(el => {
+                el.style.display = checked ? '' : 'none';
+                el.disabled = !checked;
+            });
+
+            // Always hide the "specify citizenship" extra field when not stated
+            const otherGroup = document.getElementById('father_citizenship_other_group');
+            if (checked) otherGroup.style.display = 'none';
+
             updateFormProgress();
         });
 
