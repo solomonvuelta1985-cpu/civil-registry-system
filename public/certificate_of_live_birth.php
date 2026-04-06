@@ -697,6 +697,25 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                             </h2>
                         </div>
 
+                        <?php
+                        $marriage_dom_val = $edit_mode ? ($record['date_of_marriage'] ?? '') : '';
+                        $marriage_is_others = $edit_mode && in_array($marriage_dom_val, ['Not Married', "Don't Know", 'Forgotten']);
+                        ?>
+
+                        <!-- "Others" checkbox (always visible) -->
+                        <div id="marriage_others_container" style="margin-bottom:1rem; padding:0.75rem 1rem; background:var(--bg-secondary, #f8f9fa); border-radius:6px; border:1px solid var(--border-color, #e0e0e0);">
+                            <label style="display:flex; align-items:center; gap:0.625rem; cursor:pointer; font-weight:500; font-size:0.9rem;">
+                                <input
+                                    type="checkbox"
+                                    id="marriage_others_checkbox"
+                                    name="marriage_others"
+                                    style="width:1rem; height:1rem; cursor:pointer;"
+                                    <?php echo $marriage_is_others ? 'checked' : ''; ?>
+                                >
+                                Others
+                            </label>
+                        </div>
+
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="date_of_marriage">
@@ -707,16 +726,18 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                     id="date_of_marriage"
                                     name="date_of_marriage"
                                     class="marriage-input-field"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['date_of_marriage'] ?? '') : ''; ?>"
-                                    <?php echo $father_is_not_stated ? 'disabled style="display:none;"' : ''; ?>
+                                    value="<?php echo (!$marriage_is_others && $edit_mode) ? htmlspecialchars($marriage_dom_val) : ''; ?>"
+                                    <?php echo $marriage_is_others ? 'disabled style="display:none;"' : ''; ?>
                                 >
                                 <select
-                                    class="marriage-not-stated-select"
+                                    class="marriage-others-select"
                                     name="date_of_marriage"
-                                    style="<?php echo $father_is_not_stated ? '' : 'display:none;'; ?>"
-                                    <?php echo $father_is_not_stated ? '' : 'disabled'; ?>
+                                    style="<?php echo $marriage_is_others ? '' : 'display:none;'; ?>"
+                                    <?php echo $marriage_is_others ? '' : 'disabled'; ?>
                                 >
-                                    <option value="Not Married" selected>Not Married</option>
+                                    <option value="Not Married" <?php echo $marriage_dom_val === 'Not Married' ? 'selected' : ''; ?>>Not Married</option>
+                                    <option value="Don't Know" <?php echo $marriage_dom_val === "Don't Know" ? 'selected' : ''; ?>>Don't Know</option>
+                                    <option value="Forgotten" <?php echo $marriage_dom_val === 'Forgotten' ? 'selected' : ''; ?>>Forgotten</option>
                                 </select>
                             </div>
 
@@ -730,16 +751,16 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                     name="place_of_marriage"
                                     class="marriage-input-field"
                                     placeholder="Enter place of marriage"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['place_of_marriage'] ?? '') : ''; ?>"
-                                    <?php echo $father_is_not_stated ? 'disabled style="display:none;"' : ''; ?>
+                                    value="<?php echo (!$marriage_is_others && $edit_mode) ? htmlspecialchars($record['place_of_marriage'] ?? '') : ''; ?>"
+                                    <?php echo $marriage_is_others ? 'disabled style="display:none;"' : ''; ?>
                                 >
                                 <select
-                                    class="marriage-not-stated-select"
+                                    class="marriage-others-select"
                                     name="place_of_marriage"
-                                    style="<?php echo $father_is_not_stated ? '' : 'display:none;'; ?>"
-                                    <?php echo $father_is_not_stated ? '' : 'disabled'; ?>
+                                    style="<?php echo $marriage_is_others ? '' : 'display:none;'; ?>"
+                                    <?php echo $marriage_is_others ? '' : 'disabled'; ?>
                                 >
-                                    <option value="Not Married" selected>Not Married</option>
+                                    <option value="Not Applicable" selected>Not Applicable</option>
                                 </select>
                             </div>
                         </div>
@@ -993,7 +1014,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
             updateFormProgress();
         });
 
-        // "Father Not Stated" checkbox — toggle inputs vs Not Stated/Not Married selects
+        // "Father Not Stated" checkbox — toggle father inputs vs Not Stated selects
         const fatherNotStatedCb = document.getElementById('father_not_stated_checkbox');
         fatherNotStatedCb.addEventListener('change', function() {
             const checked = this.checked;
@@ -1008,19 +1029,26 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                 el.disabled = !checked;
             });
 
-            // Marriage fields: disable inputs, show Not Married selects (or vice versa)
+            // Always hide the "specify citizenship" extra field when not stated
+            const otherGroup = document.getElementById('father_citizenship_other_group');
+            if (checked) otherGroup.style.display = 'none';
+
+            updateFormProgress();
+        });
+
+        // "Marriage Others" checkbox — toggle marriage inputs vs Others selects (always available)
+        const marriageOthersCb = document.getElementById('marriage_others_checkbox');
+        marriageOthersCb.addEventListener('change', function() {
+            const checked = this.checked;
+
             document.querySelectorAll('.marriage-input-field').forEach(el => {
                 el.disabled = checked;
                 el.style.display = checked ? 'none' : '';
             });
-            document.querySelectorAll('.marriage-not-stated-select').forEach(el => {
+            document.querySelectorAll('.marriage-others-select').forEach(el => {
                 el.style.display = checked ? '' : 'none';
                 el.disabled = !checked;
             });
-
-            // Always hide the "specify citizenship" extra field when not stated
-            const otherGroup = document.getElementById('father_citizenship_other_group');
-            if (checked) otherGroup.style.display = 'none';
 
             updateFormProgress();
         });
