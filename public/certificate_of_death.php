@@ -606,6 +606,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
     </div> <!-- Close content -->
 
     <!-- Shared Certificate Form Handler -->
+    <script>window.APP_BASE = '<?= rtrim(BASE_URL, '/') ?>';</script>
     <script src="../assets/js/certificate-form-handler.js"></script>
 
     <!-- Death Certificate Specific Logic -->

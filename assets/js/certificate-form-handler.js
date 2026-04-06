@@ -369,14 +369,15 @@ class CertificateFormHandler {
             const action = isUpdate ? 'updated' : 'created';
 
             // Determine the correct redirect URL based on record type
+            const base = window.APP_BASE || '';
             const redirectUrls = {
-                'birth': '/iscan/public/birth_records.php',
-                'marriage': '/iscan/public/marriage_records.php',
-                'death': '/iscan/public/death_records.php',
-                'marriage_license': '/iscan/public/marriage_license_records.php'
+                'birth': base + '/public/birth_records.php',
+                'marriage': base + '/public/marriage_records.php',
+                'death': base + '/public/death_records.php',
+                'marriage_license': base + '/public/marriage_license_records.php'
             };
 
-            const redirectUrl = redirectUrls[this.formType] || '/iscan/admin/dashboard.php';
+            const redirectUrl = redirectUrls[this.formType] || base + '/admin/dashboard.php';
 
             if (typeof Notiflix !== 'undefined' && Notiflix.Report) {
                 Notiflix.Report.success(
