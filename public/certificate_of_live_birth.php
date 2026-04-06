@@ -1100,12 +1100,18 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                 totalFilledAll += filledCount;
                 totalRequiredAll += totalCount;
 
-                // For sections with no required fields, check if any field is filled
+                // For sections with no required fields, check if any visible, enabled field is filled
                 let sectionHasData = false;
                 if (totalCount === 0) {
                     const allInputs = section.querySelectorAll('input, select, textarea');
                     allInputs.forEach(input => {
-                        if (input.value && input.value.trim() !== '' && input.type !== 'hidden') {
+                        if (
+                            input.type === 'hidden' ||
+                            input.disabled ||
+                            input.style.display === 'none' ||
+                            (input.type === 'checkbox' && !input.checked)
+                        ) return;
+                        if (input.value && input.value.trim() !== '') {
                             sectionHasData = true;
                         }
                     });
