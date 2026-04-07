@@ -38,6 +38,7 @@ try {
     $date_of_birth = sanitize_input($_POST['date_of_birth'] ?? '');
     $date_of_death = sanitize_input($_POST['date_of_death'] ?? '');
     $age = sanitize_input($_POST['age'] ?? '');
+    $sex = sanitize_input($_POST['sex'] ?? '');
     $occupation = sanitize_input($_POST['occupation'] ?? null);
 
     // Place of death
@@ -84,6 +85,12 @@ try {
 
     if (empty($age)) {
         $errors[] = "Age is required.";
+    }
+
+    if (empty($sex)) {
+        $errors[] = "Sex is required.";
+    } elseif (!in_array($sex, ['Male', 'Female'], true)) {
+        $errors[] = "Sex must be either Male or Female.";
     }
 
     if (empty($place_of_death)) {
@@ -157,6 +164,7 @@ try {
                     deceased_first_name,
                     deceased_middle_name,
                     deceased_last_name,
+                    sex,
                     date_of_birth,
                     date_of_death,
                     age,
@@ -181,6 +189,7 @@ try {
                     :deceased_first_name,
                     :deceased_middle_name,
                     :deceased_last_name,
+                    :sex,
                     :date_of_birth,
                     :date_of_death,
                     :age,
@@ -209,6 +218,7 @@ try {
             ':deceased_first_name' => $deceased_first_name,
             ':deceased_middle_name' => $deceased_middle_name,
             ':deceased_last_name' => $deceased_last_name,
+            ':sex' => $sex,
             ':date_of_birth' => $date_of_birth,
             ':date_of_death' => $date_of_death,
             ':age' => $age,

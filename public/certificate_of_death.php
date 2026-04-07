@@ -309,17 +309,35 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                             </div>
                         </div>
 
-                        <div class="form-group">
-                            <label for="occupation">
-                                Occupation
-                            </label>
-                            <input
-                                type="text"
-                                id="occupation"
-                                name="occupation"
-                                placeholder="Enter occupation"
-                                value="<?php echo $edit_mode ? htmlspecialchars($record['occupation'] ?? '') : ''; ?>"
-                            >
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="sex">
+                                    Sex <span class="required">*</span>
+                                </label>
+                                <select id="sex" name="sex" required>
+                                    <option value="">-- Select Sex --</option>
+                                    <?php
+                                    $sexes = ['Male', 'Female'];
+                                    foreach ($sexes as $sex_opt) {
+                                        $selected = ($edit_mode && isset($record['sex']) && $record['sex'] === $sex_opt) ? 'selected' : '';
+                                        echo "<option value=\"$sex_opt\" $selected>$sex_opt</option>";
+                                    }
+                                    ?>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="occupation">
+                                    Occupation
+                                </label>
+                                <input
+                                    type="text"
+                                    id="occupation"
+                                    name="occupation"
+                                    placeholder="Enter occupation"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['occupation'] ?? '') : ''; ?>"
+                                >
+                            </div>
                         </div>
                     </div>
 
