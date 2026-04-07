@@ -14,7 +14,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
     <ul class="sidebar-menu">
         <!-- Dashboard Section -->
-        <li class="sidebar-heading">Overview</li>
+        <li class="sidebar-heading">Dashboard</li>
         <li>
             <a href="../admin/dashboard.php" class="<?php echo ($current_page == 'dashboard.php' || $current_page == 'dashboard_modern.php') ? 'active' : ''; ?>" title="Dashboard Overview">
                 <i data-lucide="layout-grid"></i> <span>Dashboard</span>
@@ -23,7 +23,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
         <!-- Registration Section -->
         <li class="sidebar-divider"></li>
-        <li class="sidebar-heading">Register</li>
+        <li class="sidebar-heading">Registration</li>
         <li>
             <a href="../public/certificate_of_live_birth.php" class="<?php echo $current_page == 'certificate_of_live_birth.php' ? 'active' : ''; ?>" title="Register Birth Certificate">
                 <i data-lucide="file-text"></i> <span>Birth Certificate</span>
@@ -69,17 +69,45 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </a>
         </li>
 
-        <!-- Reports & Analytics Section -->
+        <!-- Archives & Trash Section -->
         <li class="sidebar-divider"></li>
-        <li class="sidebar-heading">Analytics</li>
+        <li class="sidebar-heading">Archives & Trash</li>
+        <li>
+            <a href="../admin/archives.php" class="<?php echo $current_page == 'archives.php' ? 'active' : ''; ?>" title="Archived Records">
+                <i data-lucide="archive"></i> <span>Archives</span>
+            </a>
+        </li>
+        <li>
+            <a href="../public/trash.php" class="<?php echo $current_page == 'trash.php' ? 'active' : ''; ?>" title="View, Restore & Permanently Delete Records">
+                <i data-lucide="trash-2"></i> <span>Trash</span>
+            </a>
+        </li>
+
+        <!-- Reports Section -->
+        <li class="sidebar-divider"></li>
+        <li class="sidebar-heading">Reports</li>
         <li>
             <a href="../admin/reports.php" class="<?php echo $current_page == 'reports.php' ? 'active' : ''; ?>" title="Generate & View Reports">
                 <i data-lucide="bar-chart-3"></i> <span>Reports</span>
             </a>
         </li>
+
+        <!-- Maintenance Section -->
+        <li class="sidebar-divider"></li>
+        <li class="sidebar-heading">Maintenance</li>
         <li>
-            <a href="../admin/archives.php" class="<?php echo $current_page == 'archives.php' ? 'active' : ''; ?>" title="Archived Records">
-                <i data-lucide="archive"></i> <span>Archives</span>
+            <a href="../admin/devices.php" class="<?php echo $current_page == 'devices.php' ? 'active' : ''; ?>" title="Registered Devices">
+                <i data-lucide="monitor"></i> <span>Devices</span>
+            </a>
+        </li>
+        <li>
+            <a href="../admin/pdf_integrity_report.php" class="<?php echo $current_page == 'pdf_integrity_report.php' ? 'active' : ''; ?>" title="PDF Integrity Report">
+                <i data-lucide="file-check"></i> <span>PDF Integrity</span>
+            </a>
+        </li>
+        <li>
+            <a href="../admin/pdf_backup_manager.php" class="<?php echo $current_page == 'pdf_backup_manager.php' ? 'active' : ''; ?>" title="PDF Backup Manager">
+                <i data-lucide="hard-drive"></i> <span>PDF Backups</span>
             </a>
         </li>
 
@@ -94,21 +122,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <li>
             <a href="../admin/security_logs.php" class="<?php echo $current_page == 'security_logs.php' ? 'active' : ''; ?>" title="Security Event Logs">
                 <i data-lucide="shield"></i> <span>Security Logs</span>
-            </a>
-        </li>
-        <li>
-            <a href="../admin/devices.php" class="<?php echo $current_page == 'devices.php' ? 'active' : ''; ?>" title="Registered Devices">
-                <i data-lucide="monitor"></i> <span>Devices</span>
-            </a>
-        </li>
-        <li>
-            <a href="../admin/pdf_integrity_report.php" class="<?php echo $current_page == 'pdf_integrity_report.php' ? 'active' : ''; ?>" title="PDF Integrity Report">
-                <i data-lucide="file-check"></i> <span>PDF Integrity</span>
-            </a>
-        </li>
-        <li>
-            <a href="../admin/pdf_backup_manager.php" class="<?php echo $current_page == 'pdf_backup_manager.php' ? 'active' : ''; ?>" title="PDF Backup Manager">
-                <i data-lucide="hard-drive"></i> <span>PDF Backups</span>
             </a>
         </li>
         <li>
