@@ -254,6 +254,16 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                             </div>
                         </div>
 
+                        <?php
+                        $manual_age_mode = $edit_mode && empty($record['date_of_birth']) && !empty($record['age']);
+                        ?>
+                        <div style="margin-bottom:1rem; padding:0.75rem 1rem; background:var(--bg-secondary, #f8f9fa); border-radius:6px; border:1px solid var(--border-color, #e0e0e0);">
+                            <label style="display:flex; align-items:center; gap:0.625rem; cursor:pointer; font-weight:500; font-size:0.9rem;">
+                                <input type="checkbox" id="manual_age_toggle" name="manual_age_toggle" style="width:1rem; height:1rem; cursor:pointer;" <?php echo $manual_age_mode ? 'checked' : ''; ?>>
+                                Others (Date of Birth unknown &mdash; enter age manually)
+                            </label>
+                        </div>
+
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="date_of_birth">
@@ -263,7 +273,8 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                     type="date"
                                     id="date_of_birth"
                                     name="date_of_birth"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['date_of_birth']) : ''; ?>"
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['date_of_birth'] ?? '') : ''; ?>"
+                                    <?php echo $manual_age_mode ? 'disabled style="background-color: #e9ecef;"' : ''; ?>
                                 >
                             </div>
 
@@ -289,12 +300,12 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                     id="age"
                                     name="age"
                                     required
-                                    readonly
-                                    placeholder="Auto-calculated"
+                                    <?php echo $manual_age_mode ? '' : 'readonly'; ?>
+                                    placeholder="<?php echo $manual_age_mode ? 'Enter age manually' : 'Auto-calculated'; ?>"
                                     value="<?php echo $edit_mode ? htmlspecialchars($record['age']) : ''; ?>"
-                                    style="background-color: #e9ecef; cursor: not-allowed;"
+                                    style="<?php echo $manual_age_mode ? '' : 'background-color: #e9ecef; cursor: not-allowed;'; ?>"
                                 >
-                                <span class="help-text">Automatically calculated from date of birth and date of death</span>
+                                <span class="help-text">Automatically calculated from date of birth and date of death, or enter manually if "Others" is checked</span>
                             </div>
                         </div>
 
@@ -619,6 +630,11 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 
         // Death-specific: Calculate age automatically based on date of birth and date of death
         function calculateAge() {
+            // Skip auto-calculation when manual age entry is enabled
+            if (document.getElementById('manual_age_toggle')?.checked) {
+                return;
+            }
+
             const dateOfBirth = document.getElementById('date_of_birth').value;
             const dateOfDeath = document.getElementById('date_of_death').value;
             const ageInput = document.getElementById('age');
@@ -653,6 +669,38 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         window.addEventListener('DOMContentLoaded', function() {
             document.getElementById('date_of_birth').addEventListener('change', calculateAge);
             document.getElementById('date_of_death').addEventListener('change', calculateAge);
+
+            // "Others" checkbox: toggle manual age entry mode
+            const manualAgeToggle = document.getElementById('manual_age_toggle');
+            const ageInput = document.getElementById('age');
+            const dobInput = document.getElementById('date_of_birth');
+
+            if (manualAgeToggle) {
+                const applyManualMode = () => {
+                    if (manualAgeToggle.checked) {
+                        ageInput.removeAttribute('readonly');
+                        ageInput.style.backgroundColor = '';
+                        ageInput.style.cursor = '';
+                        ageInput.placeholder = 'Enter age manually';
+                        dobInput.value = '';
+                        dobInput.setAttribute('disabled', 'disabled');
+                        dobInput.style.backgroundColor = '#e9ecef';
+                    } else {
+                        ageInput.setAttribute('readonly', 'readonly');
+                        ageInput.style.backgroundColor = '#e9ecef';
+                        ageInput.style.cursor = 'not-allowed';
+                        ageInput.placeholder = 'Auto-calculated';
+                        ageInput.value = '';
+                        dobInput.removeAttribute('disabled');
+                        dobInput.style.backgroundColor = '';
+                        calculateAge();
+                    }
+                    if (typeof updateFormProgress === 'function') {
+                        updateFormProgress();
+                    }
+                };
+                manualAgeToggle.addEventListener('change', applyManualMode);
+            }
         });
 
         // Citizenship "Other" toggle handlers
