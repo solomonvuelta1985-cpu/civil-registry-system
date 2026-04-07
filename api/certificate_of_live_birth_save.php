@@ -112,10 +112,6 @@ try {
         $errors[] = "Child's last name is required.";
     }
 
-    if (empty($child_date_of_birth)) {
-        $errors[] = "Child's date of birth is required.";
-    }
-
     if (empty($place_type)) {
         $errors[] = "Place type is required.";
     }
@@ -191,8 +187,12 @@ try {
     $pdf_filepath = $upload_result['path'];
     $pdf_hash     = $upload_result['hash'] ?? null;
 
-    // Convert child date of birth format (safe)
-    $child_date_of_birth = safe_date_convert($child_date_of_birth);
+    // Convert child date of birth format (safe) - optional
+    if (!empty($child_date_of_birth)) {
+        $child_date_of_birth = safe_date_convert($child_date_of_birth);
+    } else {
+        $child_date_of_birth = null;
+    }
 
     // Convert marriage date if provided (safe)
     $date_of_marriage = safe_date_convert($date_of_marriage);

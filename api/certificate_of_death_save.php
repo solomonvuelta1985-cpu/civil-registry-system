@@ -74,10 +74,6 @@ try {
         $errors[] = "Deceased's last name is required.";
     }
 
-    if (empty($date_of_birth)) {
-        $errors[] = "Date of birth is required.";
-    }
-
     if (empty($date_of_death)) {
         $errors[] = "Date of death is required.";
     }
@@ -139,7 +135,11 @@ try {
     $pdf_filename = $upload_result['filename'];
     $pdf_filepath = $upload_result['path'];
     $pdf_hash     = $upload_result['hash'] ?? null;
-    $date_of_birth = safe_date_convert($date_of_birth);
+    if (!empty($date_of_birth)) {
+        $date_of_birth = safe_date_convert($date_of_birth);
+    } else {
+        $date_of_birth = null;
+    }
     $date_of_death = safe_date_convert($date_of_death);
 
     // Begin transaction
@@ -262,7 +262,8 @@ try {
         if ($e->getCode() == 23000 && strpos($e->getMessage(), 'uniq_registry_no') !== false) {
             json_response(false, 'Registry number already exists. Please use a unique registry number.', null, 409);
         } else {
-            json_response(false, 'Database error occurred. Please try again.', null, 500);
+            // DEBUG: expose real DB error (remove after debugging on production)
+            json_response(false, 'Database error: ' . $e->getMessage(), null, 500);
         }
     }
 
@@ -270,6 +271,7 @@ try {
     // Log unexpected errors
     error_log("Unexpected Error: " . $e->getMessage());
 
-    json_response(false, 'An unexpected error occurred. Please contact the administrator.', null, 500);
+    // DEBUG: expose real error (remove after debugging on production)
+    json_response(false, 'Unexpected error: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine(), null, 500);
 }
 ?>

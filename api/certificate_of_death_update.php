@@ -84,10 +84,6 @@ try {
         $errors[] = "Deceased's last name is required.";
     }
 
-    if (empty($date_of_birth)) {
-        $errors[] = "Date of birth is required.";
-    }
-
     if (empty($date_of_death)) {
         $errors[] = "Date of death is required.";
     }
@@ -138,9 +134,13 @@ try {
     if (!empty($errors)) {
         json_response(false, implode(' ', $errors), null, 400);
     }
-    $date_of_birth = safe_date_convert($date_of_birth);
-    if ($date_of_birth === null) {
-        json_response(false, 'Invalid date of birth.', null, 400);
+    if (!empty($date_of_birth)) {
+        $date_of_birth = safe_date_convert($date_of_birth);
+        if ($date_of_birth === null) {
+            json_response(false, 'Invalid date of birth.', null, 400);
+        }
+    } else {
+        $date_of_birth = null;
     }
     $date_of_death = safe_date_convert($date_of_death);
     if ($date_of_death === null) {

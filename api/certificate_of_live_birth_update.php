@@ -124,10 +124,6 @@ try {
         $errors[] = "Child's last name is required.";
     }
 
-    if (empty($child_date_of_birth)) {
-        $errors[] = "Child's date of birth is required.";
-    }
-
     if (empty($place_type)) {
         $errors[] = "Place type is required.";
     }

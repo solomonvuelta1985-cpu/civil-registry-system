@@ -257,13 +257,12 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="date_of_birth">
-                                    Date of Birth <span class="required">*</span>
+                                    Date of Birth
                                 </label>
                                 <input
                                     type="date"
                                     id="date_of_birth"
                                     name="date_of_birth"
-                                    required
                                     value="<?php echo $edit_mode ? htmlspecialchars($record['date_of_birth']) : ''; ?>"
                                 >
                             </div>

@@ -95,10 +95,10 @@ try {
     // Validation: Required fields
     if (empty($date_of_application) ||
         empty($groom_first_name) || empty($groom_last_name) ||
-        empty($groom_date_of_birth) || empty($groom_place_of_birth) ||
+        empty($groom_place_of_birth) ||
         empty($groom_citizenship) || empty($groom_residence) ||
         empty($bride_first_name) || empty($bride_last_name) ||
-        empty($bride_date_of_birth) || empty($bride_place_of_birth) ||
+        empty($bride_place_of_birth) ||
         empty($bride_citizenship) || empty($bride_residence)) {
         json_response(false, 'Please fill in all required fields.', null, 400);
     }
@@ -147,8 +147,8 @@ try {
     if ($date_of_application === null) {
         json_response(false, 'Invalid date of application.', null, 400);
     }
-    $groom_date_of_birth = safe_date_convert($groom_date_of_birth);
-    $bride_date_of_birth = safe_date_convert($bride_date_of_birth);
+    $groom_date_of_birth = !empty($groom_date_of_birth) ? safe_date_convert($groom_date_of_birth) : null;
+    $bride_date_of_birth = !empty($bride_date_of_birth) ? safe_date_convert($bride_date_of_birth) : null;
 
     // Upload PDF file into organized folder: marriage_license/{year}/
     $reg_year = date('Y', strtotime($date_of_application));

@@ -261,13 +261,12 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="groom_date_of_birth">
-                                    Date of Birth <span class="required">*</span>
+                                    Date of Birth
                                 </label>
                                 <input
                                     type="date"
                                     id="groom_date_of_birth"
                                     name="groom_date_of_birth"
-                                    required
                                     value="<?php echo $edit_mode ? htmlspecialchars($record['groom_date_of_birth']) : ''; ?>"
                                 >
                             </div>
@@ -519,13 +518,12 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="bride_date_of_birth">
-                                    Date of Birth <span class="required">*</span>
+                                    Date of Birth
                                 </label>
                                 <input
                                     type="date"
                                     id="bride_date_of_birth"
                                     name="bride_date_of_birth"
-                                    required
                                     value="<?php echo $edit_mode ? htmlspecialchars($record['bride_date_of_birth']) : ''; ?>"
                                 >
                             </div>

@@ -67,9 +67,9 @@ try {
 
     // Validation: Required fields
     if (empty($date_of_registration) || empty($husband_first_name) || empty($husband_last_name) ||
-        empty($husband_date_of_birth) || empty($husband_place_of_birth) || empty($husband_residence) ||
+        empty($husband_place_of_birth) || empty($husband_residence) ||
         empty($wife_first_name) || empty($wife_last_name) ||
-        empty($wife_date_of_birth) || empty($wife_place_of_birth) || empty($wife_residence) ||
+        empty($wife_place_of_birth) || empty($wife_residence) ||
         empty($date_of_marriage) || empty($place_of_marriage) || empty($nature_of_solemnization)) {
         json_response(false, 'Please fill in all required fields.', null, 400);
     }
@@ -107,8 +107,8 @@ try {
     if ($date_of_registration === null) {
         json_response(false, 'Invalid date of registration.', null, 400);
     }
-    $husband_date_of_birth = safe_date_convert($husband_date_of_birth);
-    $wife_date_of_birth = safe_date_convert($wife_date_of_birth);
+    $husband_date_of_birth = !empty($husband_date_of_birth) ? safe_date_convert($husband_date_of_birth) : null;
+    $wife_date_of_birth = !empty($wife_date_of_birth) ? safe_date_convert($wife_date_of_birth) : null;
     $date_of_marriage = safe_date_convert($date_of_marriage);
 
     // Upload PDF file into organized folder: marriage/{year}/
