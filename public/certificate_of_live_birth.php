@@ -588,7 +588,9 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 >
                                 <select
                                     class="father-not-stated-select"
-                                    name="father_first_name"
+                                    data-field-name="father_first_name"
+                                    data-skip-reenable="true"
+                                    <?php echo $father_is_not_stated ? 'name="father_first_name"' : ''; ?>
                                     style="<?php echo $father_is_not_stated ? '' : 'display:none;'; ?>"
                                     <?php echo $father_is_not_stated ? '' : 'disabled'; ?>
                                 >
@@ -611,7 +613,9 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 >
                                 <select
                                     class="father-not-stated-select"
-                                    name="father_middle_name"
+                                    data-field-name="father_middle_name"
+                                    data-skip-reenable="true"
+                                    <?php echo $father_is_not_stated ? 'name="father_middle_name"' : ''; ?>
                                     style="<?php echo $father_is_not_stated ? '' : 'display:none;'; ?>"
                                     <?php echo $father_is_not_stated ? '' : 'disabled'; ?>
                                 >
@@ -634,7 +638,9 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 >
                                 <select
                                     class="father-not-stated-select"
-                                    name="father_last_name"
+                                    data-field-name="father_last_name"
+                                    data-skip-reenable="true"
+                                    <?php echo $father_is_not_stated ? 'name="father_last_name"' : ''; ?>
                                     style="<?php echo $father_is_not_stated ? '' : 'display:none;'; ?>"
                                     <?php echo $father_is_not_stated ? '' : 'disabled'; ?>
                                 >
@@ -665,7 +671,9 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 </select>
                                 <select
                                     class="father-not-stated-select"
-                                    name="father_citizenship"
+                                    data-field-name="father_citizenship"
+                                    data-skip-reenable="true"
+                                    <?php echo $father_is_not_stated ? 'name="father_citizenship"' : ''; ?>
                                     style="<?php echo $father_is_not_stated ? '' : 'display:none;'; ?>"
                                     <?php echo $father_is_not_stated ? '' : 'disabled'; ?>
                                 >
@@ -731,6 +739,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 >
                                 <select
                                     class="marriage-others-select"
+                                    data-skip-reenable="true"
                                     name="date_of_marriage"
                                     style="<?php echo $marriage_is_others ? '' : 'display:none;'; ?>"
                                     <?php echo $marriage_is_others ? '' : 'disabled'; ?>
@@ -756,6 +765,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 >
                                 <select
                                     class="marriage-others-select"
+                                    data-skip-reenable="true"
                                     name="place_of_marriage"
                                     style="<?php echo $marriage_is_others ? '' : 'display:none;'; ?>"
                                     <?php echo $marriage_is_others ? '' : 'disabled'; ?>
@@ -1020,14 +1030,32 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         fatherNotStatedCb.addEventListener('change', function() {
             const checked = this.checked;
 
-            // Father fields: disable inputs, show Not Stated selects (or vice versa)
+            // Father fields: disable inputs, show Not Stated selects (or vice versa).
+            // Only ONE element per field name should carry a `name` attribute at submit
+            // time so PHP doesn't see duplicate values for the same key.
             document.querySelectorAll('.father-input-field').forEach(el => {
                 el.disabled = checked;
                 el.style.display = checked ? 'none' : '';
+                if (checked) {
+                    if (el.name) {
+                        el.dataset.savedName = el.name;
+                        el.removeAttribute('name');
+                    }
+                } else if (el.dataset.savedName) {
+                    el.name = el.dataset.savedName;
+                    delete el.dataset.savedName;
+                }
             });
             document.querySelectorAll('.father-not-stated-select').forEach(el => {
                 el.style.display = checked ? '' : 'none';
                 el.disabled = !checked;
+                if (checked) {
+                    if (!el.name && el.dataset.fieldName) {
+                        el.name = el.dataset.fieldName;
+                    }
+                } else {
+                    el.removeAttribute('name');
+                }
             });
 
             // Always hide the "specify citizenship" extra field when not stated

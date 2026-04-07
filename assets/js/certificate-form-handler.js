@@ -238,9 +238,11 @@ class CertificateFormHandler {
             }
 
             // Enable any disabled fields that have values (for cascading dropdowns)
+            // Skip fields marked data-skip-reenable (e.g. Not Stated / Not Married selects)
             const disabledFields = this.form.querySelectorAll('input:disabled, select:disabled, textarea:disabled');
             const fieldsToReEnable = [];
             disabledFields.forEach(field => {
+                if (field.dataset.skipReenable) return;
                 if (field.value && field.value.trim() !== '') {
                     field.disabled = false;
                     fieldsToReEnable.push(field);
