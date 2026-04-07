@@ -328,6 +328,14 @@ foreach ($config['filters'] as $filter) {
 
 $has_active_filters = !empty($active_filters);
 
+// Archive visibility toggle: Active only by default, include Archived when requested.
+// Deleted records are NEVER shown here (they belong in Trash).
+// This is the single place where the default status filter is decided, so changing
+// the behaviour later (e.g. allowing "Archived only") is a one-file change.
+$include_archived = isset($_GET['include_archived']) && $_GET['include_archived'] === '1';
+$status_in_list = $include_archived ? "'Active','Archived'" : "'Active'";
+$status_sql = "status IN ($status_in_list)";
+
 // Sorting functionality
 $allowed_sort_columns = $config['sort_columns'];
 
@@ -340,7 +348,7 @@ $sort_order = isset($_GET['sort_order']) && strtoupper($_GET['sort_order']) === 
     : 'DESC';
 
 // Get total records count
-$count_sql = "SELECT COUNT(*) as total FROM {$config['table']} WHERE status = 'Active'" . $search_query . $filter_query;
+$count_sql = "SELECT COUNT(*) as total FROM {$config['table']} WHERE {$status_sql}" . $search_query . $filter_query;
 
 try {
     $count_stmt = $pdo->prepare($count_sql);
@@ -362,7 +370,7 @@ try {
 }
 
 // Fetch records
-$sql = "SELECT * FROM {$config['table']} WHERE status = 'Active'"
+$sql = "SELECT * FROM {$config['table']} WHERE {$status_sql}"
     . $search_query
     . $filter_query
     . " ORDER BY {$sort_by} {$sort_order} LIMIT :limit OFFSET :offset";
@@ -477,6 +485,7 @@ function get_field_value($record, $field, $type = 'text') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?php require_once '../includes/security.php'; echo csrfTokenMeta(); ?>
     <title><?php echo htmlspecialchars($config['title']); ?> - Civil Registry</title>
 
     <!-- Google Fonts (online only; system fonts used when OFFLINE_MODE=true) -->
@@ -1254,9 +1263,169 @@ function get_field_value($record, $field, $type = 'text') {
             color: #DC2626;
         }
 
+        .action-dropdown-item.archive-action {
+            color: #D97706;
+        }
+        .action-dropdown-item.unarchive-action {
+            color: #059669;
+        }
+
         .action-dropdown-item svg {
             width: 16px;
             height: 16px;
+        }
+
+        /* "Include archived" toggle in page header */
+        .archive-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border: 1.5px solid var(--border-medium);
+            border-radius: var(--radius-md);
+            background: var(--bg-primary);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .archive-toggle:hover {
+            border-color: #D97706;
+            color: #D97706;
+            background: #FFFBEB;
+        }
+        .archive-toggle input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: #D97706;
+        }
+        .archive-toggle [data-lucide] {
+            width: 16px;
+            height: 16px;
+        }
+        .archive-toggle:has(input:checked) {
+            background: #FEF3C7;
+            border-color: #D97706;
+            color: #92400E;
+        }
+
+        /* Archived row indicator (shown in mixed lists) */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+        .status-badge.archived {
+            background: #FEF3C7;
+            color: #92400E;
+        }
+        .records-table tbody tr.row-archived {
+            background: #FFFBEB !important;
+        }
+        .records-table tbody tr.row-archived:hover {
+            background: #FEF3C7 !important;
+        }
+
+        /* Row-selection checkbox column */
+        .records-table th.select-header,
+        .records-table td.select-cell {
+            width: 42px;
+            text-align: center;
+            padding: 8px 4px;
+        }
+        .records-table th.select-header input[type="checkbox"],
+        .records-table td.select-cell input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+
+        /* Bulk action bar (appears when rows are selected) */
+        .bulk-action-bar {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 12px 16px;
+            background: var(--primary-lighter);
+            border: 1.5px solid var(--primary-light);
+            border-radius: var(--radius-md);
+            margin-bottom: 12px;
+            box-shadow: var(--shadow-sm);
+        }
+        .bulk-action-bar.active {
+            display: flex;
+        }
+        .bulk-action-count {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .bulk-action-count [data-lucide] {
+            width: 18px;
+            height: 18px;
+        }
+        .bulk-action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        .bulk-action-btn {
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            border: 1.5px solid transparent;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+        .bulk-action-btn [data-lucide] {
+            width: 14px;
+            height: 14px;
+        }
+        .bulk-action-btn.archive {
+            background: #FEF3C7;
+            color: #92400E;
+            border-color: #FDE68A;
+        }
+        .bulk-action-btn.archive:hover {
+            background: #D97706;
+            color: #FFFFFF;
+        }
+        .bulk-action-btn.unarchive {
+            background: var(--success-light);
+            color: #065F46;
+            border-color: #A7F3D0;
+        }
+        .bulk-action-btn.unarchive:hover {
+            background: var(--success);
+            color: #FFFFFF;
+        }
+        .bulk-action-btn.clear {
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            border-color: var(--border-medium);
+        }
+        .bulk-action-btn.clear:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
         }
 
         /* Pagination - Professional Design */
@@ -1650,15 +1819,24 @@ function get_field_value($record, $field, $type = 'text') {
                     <i data-lucide="<?php echo $config['icon']; ?>"></i>
                     <?php echo htmlspecialchars($config['title']); ?>
                 </h1>
-                <?php
-                $create_permission = str_replace('_view', '_create', $required_permission);
-                if (hasPermission($create_permission)):
-                ?>
-                <a href="<?php echo $config['entry_form']; ?>" class="btn btn-primary">
-                    <i data-lucide="plus"></i>
-                    Add New Record
-                </a>
-                <?php endif; ?>
+                <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                    <?php if (canArchive($record_type)): ?>
+                    <label class="archive-toggle" title="Include archived records in this list">
+                        <input type="checkbox" id="includeArchivedToggle" <?php echo $include_archived ? 'checked' : ''; ?>>
+                        <i data-lucide="archive"></i>
+                        <span>Include archived</span>
+                    </label>
+                    <?php endif; ?>
+                    <?php
+                    $create_permission = str_replace('_view', '_create', $required_permission);
+                    if (hasPermission($create_permission)):
+                    ?>
+                    <a href="<?php echo $config['entry_form']; ?>" class="btn btn-primary">
+                        <i data-lucide="plus"></i>
+                        Add New Record
+                    </a>
+                    <?php endif; ?>
+                </div>
             </div>
 
             <!-- Alert Messages -->
@@ -1778,6 +1956,31 @@ function get_field_value($record, $field, $type = 'text') {
                 </div>
             </div>
 
+            <!-- Bulk Action Bar (shown when rows are selected) -->
+            <?php $can_archive = canArchive($record_type); ?>
+            <?php if ($can_archive): ?>
+            <div class="bulk-action-bar" id="bulkActionBar">
+                <div class="bulk-action-count">
+                    <i data-lucide="check-square"></i>
+                    <span id="bulkSelectedCount">0</span> selected
+                </div>
+                <div class="bulk-action-buttons">
+                    <button type="button" class="bulk-action-btn archive" id="bulkArchiveBtn" onclick="bulkArchiveSelected()">
+                        <i data-lucide="archive"></i>
+                        Archive Selected
+                    </button>
+                    <button type="button" class="bulk-action-btn unarchive" id="bulkUnarchiveBtn" onclick="bulkUnarchiveSelected()" style="display:none;">
+                        <i data-lucide="archive-restore"></i>
+                        Unarchive Selected
+                    </button>
+                    <button type="button" class="bulk-action-btn clear" onclick="clearBulkSelection()">
+                        <i data-lucide="x"></i>
+                        Clear
+                    </button>
+                </div>
+            </div>
+            <?php endif; ?>
+
             <!-- Records Table -->
             <div class="table-container">
                 <?php if (count($records) > 0): ?>
@@ -1803,6 +2006,11 @@ function get_field_value($record, $field, $type = 'text') {
                 <table class="records-table">
                     <thead>
                         <tr>
+                            <?php if ($can_archive): ?>
+                            <th class="select-header">
+                                <input type="checkbox" id="selectAllRows" title="Select all on this page" onclick="toggleSelectAllRows(this)">
+                            </th>
+                            <?php endif; ?>
                             <th class="row-number-header">#</th>
                             <?php foreach ($config['table_columns'] as $column): ?>
                             <?php if ($column['sortable']): ?>
@@ -1826,23 +2034,41 @@ function get_field_value($record, $field, $type = 'text') {
                     <tbody id="recordsTableBody" style="opacity: 0;">
                         <?php
                         $row_number = $offset + 1; // Start from the current offset
+                        $edit_permission = str_replace('_view', '_edit', $required_permission);
+                        // Delete is Admin-only (enforced by isAdmin() below + server via requireAdminApi())
+                        $can_delete = isAdmin();
                         foreach ($records as $record):
+                            $is_archived_row = ($record['status'] ?? 'Active') === 'Archived';
                         ?>
-                        <tr>
+                        <tr class="<?php echo $is_archived_row ? 'row-archived' : ''; ?>" data-record-id="<?php echo (int)$record['id']; ?>" data-record-status="<?php echo htmlspecialchars($record['status'] ?? 'Active'); ?>">
+                            <?php if ($can_archive): ?>
+                            <td class="select-cell">
+                                <input type="checkbox" class="row-checkbox" value="<?php echo (int)$record['id']; ?>" data-status="<?php echo htmlspecialchars($record['status'] ?? 'Active'); ?>" onclick="updateBulkSelection()">
+                            </td>
+                            <?php endif; ?>
                             <td class="row-number"><?php echo $row_number++; ?></td>
                             <?php
                             $name_fields = ['child_name', 'husband_name', 'wife_name', 'deceased_name', 'groom_name', 'bride_name'];
+                            $first_name_shown = false;
                             foreach ($config['table_columns'] as $column):
                                 $value = get_field_value($record, $column['field'], $column['type'] ?? 'text');
                                 $is_name = in_array($column['field'], $name_fields);
+                                $is_first_name_cell = $is_name && !$first_name_shown;
+                                if ($is_name) $first_name_shown = true;
                             ?>
-                            <td><?php if ($is_name): ?><a href="javascript:void(0)" class="record-name-link" onclick="recordPreviewModal.open(<?php echo $record['id']; ?>, '<?php echo $record_type; ?>')"><?php echo $value; ?></a><?php else: echo $value; endif; ?></td>
+                            <td>
+                                <?php if ($is_name): ?>
+                                    <a href="javascript:void(0)" class="record-name-link" onclick="recordPreviewModal.open(<?php echo $record['id']; ?>, '<?php echo $record_type; ?>')"><?php echo $value; ?></a>
+                                <?php else: echo $value; endif; ?>
+                                <?php if ($is_first_name_cell && $is_archived_row): ?>
+                                    <span class="status-badge archived" title="This record is archived">
+                                        <i data-lucide="archive" style="width:10px;height:10px;"></i>
+                                        Archived
+                                    </span>
+                                <?php endif; ?>
+                            </td>
                             <?php endforeach; ?>
                             <td>
-                                <?php
-                                $edit_permission = str_replace('_view', '_edit', $required_permission);
-                                $delete_permission = str_replace('_view', '_delete', $required_permission);
-                                ?>
                                 <div class="action-dropdown">
                                     <button class="action-dropdown-btn" onclick="toggleActionDropdown(event, this)">
                                         <i data-lucide="more-vertical" style="width: 16px; height: 16px;"></i>
@@ -1860,9 +2086,31 @@ function get_field_value($record, $field, $type = 'text') {
                                             <span>Edit</span>
                                         </button>
                                         <?php endif; ?>
-                                        <?php if (hasPermission($delete_permission)): ?>
+                                        <?php if ($can_archive): ?>
+                                            <?php if ($is_archived_row): ?>
+                                            <button class="action-dropdown-item unarchive-action"
+                                                    onclick="toggleArchive(<?php echo $record['id']; ?>, 'unarchive', <?php echo htmlspecialchars(json_encode($record), ENT_QUOTES, 'UTF-8'); ?>); closeAllDropdowns();">
+                                                <i data-lucide="archive-restore"></i>
+                                                <span>Unarchive</span>
+                                            </button>
+                                            <?php else: ?>
+                                            <button class="action-dropdown-item archive-action"
+                                                    onclick="toggleArchive(<?php echo $record['id']; ?>, 'archive', <?php echo htmlspecialchars(json_encode($record), ENT_QUOTES, 'UTF-8'); ?>); closeAllDropdowns();">
+                                                <i data-lucide="archive"></i>
+                                                <span>Archive</span>
+                                            </button>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
+                                        <?php if ($can_delete): ?>
                                         <button class="action-dropdown-item delete-action"
                                                 onclick="deleteRecord(<?php echo $record['id']; ?>, <?php echo htmlspecialchars(json_encode($record), ENT_QUOTES, 'UTF-8'); ?>); closeAllDropdowns();">
+                                            <i data-lucide="x-circle"></i>
+                                            <span>Delete</span>
+                                        </button>
+                                        <?php else: ?>
+                                        <button type="button" class="action-dropdown-item delete-action" disabled
+                                                title="Only administrators can delete records"
+                                                style="opacity:0.5;cursor:not-allowed;">
                                             <i data-lucide="x-circle"></i>
                                             <span>Delete</span>
                                         </button>
@@ -2294,6 +2542,11 @@ function get_field_value($record, $field, $type = 'text') {
             const formData = new FormData();
             formData.append('record_id', id);
             formData.append('delete_type', 'soft');
+            // CSRF token (required by API)
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            if (csrfMeta) {
+                formData.append('csrf_token', csrfMeta.content);
+            }
 
             fetch('<?php echo $config['delete_api']; ?>', {
                 method: 'POST',
@@ -2601,7 +2854,8 @@ function get_field_value($record, $field, $type = 'text') {
             showSkeletonLoading();
 
             try {
-                const url = `../api/records_search.php?type=${recordType}&search=${encodeURIComponent(query)}&page=${currentPage}&per_page=<?php echo $records_per_page; ?>`;
+                const includeArchivedParam = <?php echo $include_archived ? '1' : '0'; ?>;
+                const url = `../api/records_search.php?type=${recordType}&search=${encodeURIComponent(query)}&page=${currentPage}&per_page=<?php echo $records_per_page; ?>&include_archived=${includeArchivedParam}`;
                 const response = await fetch(url);
                 const data = await response.json();
 
@@ -2657,17 +2911,31 @@ function get_field_value($record, $field, $type = 'text') {
         // Build table row HTML based on record type
         function buildTableRow(record, rowNumber) {
             const columns = <?php echo json_encode($config['table_columns']); ?>;
-            let html = '<tr>';
+            const canArchive = <?php echo $can_archive ? 'true' : 'false'; ?>;
+            const isArchived = (record.status || 'Active') === 'Archived';
+            const rowClass = isArchived ? 'row-archived' : '';
+            let html = `<tr class="${rowClass}" data-record-id="${record.id}" data-record-status="${escapeHtml(record.status || 'Active')}">`;
+
+            // Checkbox column (only if archiving is enabled for this type)
+            if (canArchive) {
+                html += `<td class="select-cell"><input type="checkbox" class="row-checkbox" value="${record.id}" data-status="${escapeHtml(record.status || 'Active')}" onclick="updateBulkSelection()"></td>`;
+            }
 
             // Add row number cell
             html += `<td class="row-number">${rowNumber}</td>`;
 
             // Build cells for each column
             const nameFields = ['child_name', 'husband_name', 'wife_name', 'deceased_name', 'groom_name', 'bride_name'];
+            let firstNameShown = false;
             columns.forEach(column => {
                 const value = getFieldValue(record, column.field, column.type || 'text');
-                if (nameFields.includes(column.field)) {
-                    html += `<td><a href="javascript:void(0)" class="record-name-link" onclick="recordPreviewModal.open(${record.id}, '${recordType}')">${value}</a></td>`;
+                const isNameField = nameFields.includes(column.field);
+                const badge = (isNameField && !firstNameShown && isArchived)
+                    ? ' <span class="status-badge archived"><i data-lucide="archive" style="width:10px;height:10px;"></i> Archived</span>'
+                    : '';
+                if (isNameField) {
+                    firstNameShown = true;
+                    html += `<td><a href="javascript:void(0)" class="record-name-link" onclick="recordPreviewModal.open(${record.id}, '${recordType}')">${value}</a>${badge}</td>`;
                 } else {
                     html += `<td>${value}</td>`;
                 }
@@ -2686,11 +2954,6 @@ function get_field_value($record, $field, $type = 'text') {
                             <span>View</span>
                         </button>`;
 
-            <?php
-            $edit_permission = str_replace('_view', '_edit', $required_permission);
-            $delete_permission = str_replace('_view', '_delete', $required_permission);
-            ?>
-
             <?php if (hasPermission($edit_permission)): ?>
             html += `<button class="action-dropdown-item edit-action" onclick='editRecord(${record.id}, "<?php echo $config['entry_form']; ?>", JSON.parse("${recordDataJson}")); closeAllDropdowns();'>
                             <i data-lucide="pen-line"></i>
@@ -2698,8 +2961,27 @@ function get_field_value($record, $field, $type = 'text') {
                         </button>`;
             <?php endif; ?>
 
-            <?php if (hasPermission($delete_permission)): ?>
+            if (canArchive) {
+                if (isArchived) {
+                    html += `<button class="action-dropdown-item unarchive-action" onclick='toggleArchive(${record.id}, "unarchive", JSON.parse("${recordDataJson}")); closeAllDropdowns();'>
+                                <i data-lucide="archive-restore"></i>
+                                <span>Unarchive</span>
+                            </button>`;
+                } else {
+                    html += `<button class="action-dropdown-item archive-action" onclick='toggleArchive(${record.id}, "archive", JSON.parse("${recordDataJson}")); closeAllDropdowns();'>
+                                <i data-lucide="archive"></i>
+                                <span>Archive</span>
+                            </button>`;
+                }
+            }
+
+            <?php if ($can_delete): ?>
             html += `<button class="action-dropdown-item delete-action" onclick='deleteRecord(${record.id}, JSON.parse("${recordDataJson}")); closeAllDropdowns();'>
+                            <i data-lucide="x-circle"></i>
+                            <span>Delete</span>
+                        </button>`;
+            <?php else: ?>
+            html += `<button type="button" class="action-dropdown-item delete-action" disabled title="Only administrators can delete records" style="opacity:0.5;cursor:not-allowed;">
                             <i data-lucide="x-circle"></i>
                             <span>Delete</span>
                         </button>`;
@@ -2768,6 +3050,288 @@ function get_field_value($record, $field, $type = 'text') {
                     performLiveSearch(query);
                 }
             }, 300)); // 300ms delay after user stops typing
+        }
+
+        // ==========================================================
+        // ARCHIVE / UNARCHIVE — single-record and bulk
+        // ==========================================================
+
+        // "Include archived" toggle — reload page with/without param
+        const includeArchivedToggle = document.getElementById('includeArchivedToggle');
+        if (includeArchivedToggle) {
+            includeArchivedToggle.addEventListener('change', function() {
+                const url = new URL(window.location);
+                if (this.checked) {
+                    url.searchParams.set('include_archived', '1');
+                } else {
+                    url.searchParams.delete('include_archived');
+                }
+                url.searchParams.delete('page'); // reset to page 1
+                window.location.href = url.toString();
+            });
+        }
+
+        // Single-record archive/unarchive
+        function toggleArchive(id, action, recordData) {
+            const recordTypeLabels = {
+                'birth': 'Birth Record',
+                'marriage': 'Marriage Record',
+                'death': 'Death Record',
+                'marriage_license': 'Marriage License'
+            };
+            const recordType = '<?php echo $record_type; ?>';
+            const recordLabel = recordTypeLabels[recordType] || 'Record';
+            const verb = action === 'archive' ? 'Archive' : 'Unarchive';
+            const dialogTitle = `${verb} ${recordLabel}`;
+
+            let details = '';
+            if (recordData && typeof getRecordDetails === 'function') {
+                details = getRecordDetails(recordData, recordType) || '';
+            }
+
+            const actionColor = action === 'archive' ? '#D97706' : '#059669';
+            const actionNote = action === 'archive'
+                ? 'This record will be hidden from the main list but kept for legal/historical reference.'
+                : 'This record will return to the main list as Active.';
+            const message = `Are you sure you want to ${action} this record?<br><br>` +
+                details +
+                `<br><br><span style="color: ${actionColor}; font-weight: 600;">${actionNote}</span>`;
+
+            if (typeof Notiflix === 'undefined') {
+                if (confirm(message.replace(/<[^>]+>/g, ''))) {
+                    performArchiveToggle(id, action);
+                }
+                return;
+            }
+
+            Notiflix.Confirm.show(
+                dialogTitle,
+                message,
+                'Cancel',
+                verb,
+                function okCb() { /* cancelled */ },
+                function cancelCb() { performArchiveToggle(id, action); },
+                {
+                    width: '500px',
+                    borderRadius: '12px',
+                    backgroundColor: '#FFFFFF',
+                    titleColor: '#111827',
+                    titleFontSize: '20px',
+                    messageColor: '#1F2937',
+                    messageFontSize: '15px',
+                    messageMaxLength: 600,
+                    plainText: false,
+                    okButtonColor: '#374151',
+                    okButtonBackground: '#F3F4F6',
+                    cancelButtonColor: '#FFFFFF',
+                    cancelButtonBackground: actionColor,
+                    buttonsFontSize: '15px',
+                    buttonsBorderRadius: '60px',
+                    cssAnimationStyle: 'zoom',
+                    cssAnimationDuration: 250,
+                    distance: '24px',
+                    backOverlayColor: 'rgba(0,0,0,0.6)',
+                }
+            );
+        }
+
+        function performArchiveToggle(id, action) {
+            if (typeof Notiflix !== 'undefined') {
+                Notiflix.Loading.circle(action === 'archive' ? 'Archiving...' : 'Unarchiving...');
+            }
+
+            const formData = new FormData();
+            formData.append('record_id', id);
+            formData.append('record_type', '<?php echo $record_type; ?>');
+            formData.append('action', action);
+
+            fetch('../api/archive_toggle.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (typeof Notiflix !== 'undefined') Notiflix.Loading.remove();
+                if (data.success) {
+                    if (typeof Notiflix !== 'undefined') Notiflix.Notify.success(data.message);
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    if (typeof Notiflix !== 'undefined') {
+                        Notiflix.Notify.failure(data.message);
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                }
+            })
+            .catch(err => {
+                if (typeof Notiflix !== 'undefined') Notiflix.Loading.remove();
+                console.error(err);
+                if (typeof Notiflix !== 'undefined') {
+                    Notiflix.Notify.failure('An error occurred. Please try again.');
+                }
+            });
+        }
+
+        // ===== Bulk selection =====
+
+        function getSelectedCheckboxes() {
+            return Array.from(document.querySelectorAll('.row-checkbox:checked'));
+        }
+
+        function updateBulkSelection() {
+            const bar = document.getElementById('bulkActionBar');
+            if (!bar) return;
+
+            const selected = getSelectedCheckboxes();
+            const count = selected.length;
+            const countEl = document.getElementById('bulkSelectedCount');
+            if (countEl) countEl.textContent = count;
+
+            if (count === 0) {
+                bar.classList.remove('active');
+                return;
+            }
+            bar.classList.add('active');
+
+            // Count statuses of selected rows to decide which bulk action makes sense
+            let activeCount = 0, archivedCount = 0;
+            selected.forEach(cb => {
+                const s = cb.getAttribute('data-status') || 'Active';
+                if (s === 'Archived') archivedCount++;
+                else activeCount++;
+            });
+
+            // Show Archive button if any Active rows are selected;
+            // show Unarchive button if any Archived rows are selected.
+            const archiveBtn = document.getElementById('bulkArchiveBtn');
+            const unarchiveBtn = document.getElementById('bulkUnarchiveBtn');
+            if (archiveBtn) archiveBtn.style.display = activeCount > 0 ? '' : 'none';
+            if (unarchiveBtn) unarchiveBtn.style.display = archivedCount > 0 ? '' : 'none';
+
+            // Sync the select-all checkbox state
+            const selectAll = document.getElementById('selectAllRows');
+            if (selectAll) {
+                const allCheckboxes = document.querySelectorAll('.row-checkbox');
+                selectAll.checked = count === allCheckboxes.length && count > 0;
+                selectAll.indeterminate = count > 0 && count < allCheckboxes.length;
+            }
+        }
+
+        function toggleSelectAllRows(source) {
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            checkboxes.forEach(cb => { cb.checked = source.checked; });
+            updateBulkSelection();
+        }
+
+        function clearBulkSelection() {
+            document.querySelectorAll('.row-checkbox').forEach(cb => { cb.checked = false; });
+            const selectAll = document.getElementById('selectAllRows');
+            if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
+            updateBulkSelection();
+        }
+
+        function bulkArchiveSelected() { bulkArchiveAction('archive'); }
+        function bulkUnarchiveSelected() { bulkArchiveAction('unarchive'); }
+
+        function bulkArchiveAction(action) {
+            const selected = getSelectedCheckboxes();
+            // Only send IDs whose current status matches the starting state for the action
+            const requiredStartStatus = action === 'archive' ? 'Active' : 'Archived';
+            const ids = selected
+                .filter(cb => (cb.getAttribute('data-status') || 'Active') === requiredStartStatus)
+                .map(cb => cb.value);
+
+            if (ids.length === 0) {
+                if (typeof Notiflix !== 'undefined') {
+                    Notiflix.Notify.warning('No eligible records selected for this action.');
+                }
+                return;
+            }
+
+            const verb = action === 'archive' ? 'Archive' : 'Unarchive';
+            const actionColor = action === 'archive' ? '#D97706' : '#059669';
+            const noun = ids.length === 1 ? 'record' : 'records';
+            const dialogTitle = `${verb} ${ids.length} ${noun}`;
+            const message = `Are you sure you want to ${action} <strong>${ids.length}</strong> ${noun}?<br><br>` +
+                `<span style="color: ${actionColor}; font-weight: 600;">` +
+                (action === 'archive'
+                    ? 'Archived records will be hidden from the main list but retained.'
+                    : 'Unarchived records will return to the main list as Active.') +
+                `</span>`;
+
+            if (typeof Notiflix === 'undefined') {
+                if (confirm(message.replace(/<[^>]+>/g, ''))) {
+                    performBulkArchive(action, ids);
+                }
+                return;
+            }
+
+            Notiflix.Confirm.show(
+                dialogTitle,
+                message,
+                'Cancel',
+                verb + ' All',
+                function okCb() { /* cancelled */ },
+                function cancelCb() { performBulkArchive(action, ids); },
+                {
+                    width: '500px',
+                    borderRadius: '12px',
+                    backgroundColor: '#FFFFFF',
+                    titleColor: '#111827',
+                    titleFontSize: '20px',
+                    messageColor: '#1F2937',
+                    messageFontSize: '15px',
+                    messageMaxLength: 800,
+                    plainText: false,
+                    okButtonColor: '#374151',
+                    okButtonBackground: '#F3F4F6',
+                    cancelButtonColor: '#FFFFFF',
+                    cancelButtonBackground: actionColor,
+                    buttonsFontSize: '15px',
+                    buttonsBorderRadius: '60px',
+                    cssAnimationStyle: 'zoom',
+                    cssAnimationDuration: 250,
+                    distance: '24px',
+                    backOverlayColor: 'rgba(0,0,0,0.6)',
+                }
+            );
+        }
+
+        function performBulkArchive(action, ids) {
+            if (typeof Notiflix !== 'undefined') {
+                Notiflix.Loading.circle(action === 'archive' ? 'Archiving records...' : 'Unarchiving records...');
+            }
+
+            const formData = new FormData();
+            formData.append('record_type', '<?php echo $record_type; ?>');
+            formData.append('action', action);
+            ids.forEach(id => formData.append('ids[]', id));
+
+            fetch('../api/archive_bulk.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (typeof Notiflix !== 'undefined') Notiflix.Loading.remove();
+                if (data.success) {
+                    if (typeof Notiflix !== 'undefined') Notiflix.Notify.success(data.message);
+                    setTimeout(() => location.reload(), 1200);
+                } else {
+                    if (typeof Notiflix !== 'undefined') {
+                        Notiflix.Notify.failure(data.message);
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                }
+            })
+            .catch(err => {
+                if (typeof Notiflix !== 'undefined') Notiflix.Loading.remove();
+                console.error(err);
+                if (typeof Notiflix !== 'undefined') {
+                    Notiflix.Notify.failure('An error occurred. Please try again.');
+                }
+            });
         }
     </script>
 

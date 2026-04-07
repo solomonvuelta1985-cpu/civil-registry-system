@@ -1,11 +1,17 @@
 <?php
 /**
- * Trash - View, Restore, and Permanently Delete soft-deleted records
- * Aggregates soft-deleted records (status='Deleted') from all 4 record tables:
+ * Archives - View and Unarchive archived records
+ * Aggregates archived records (status='Archived') from all 4 record tables:
  *  - certificate_of_live_birth
  *  - certificate_of_marriage
  *  - certificate_of_death
  *  - application_for_marriage_license
+ *
+ * Archive is distinct from Trash:
+ *  - Archived records are retained for legal/historical reference, just hidden
+ *    from the main record lists to keep daily workspaces uncluttered.
+ *  - Users can Unarchive (return to Active) from this page.
+ *  - Records can NEVER be permanently deleted from here — use Trash for that.
  */
 
 require_once '../includes/session_config.php';
@@ -13,17 +19,19 @@ require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 
-// Admin-only: Trash contains soft-deleted records. Only administrators
-// can restore or permanently delete, matching the Admin-only delete policy.
+// Admin-only: the Archives management page lets users unarchive records,
+// which is a destructive state change. Only administrators can access it.
+// (Encoders can still archive individual records from records_viewer.php
+// if they have the relevant *_archive permission.)
 requireAdmin();
 
-// Map of record type => table config
+// Record type → table config
 $type_configs = [
     'birth' => [
         'table' => 'certificate_of_live_birth',
         'label' => 'Birth Record',
         'icon' => 'baby',
-        'permission' => 'birth_delete',
+        'permission' => 'birth_archive',
         'name_fields' => ['child_first_name', 'child_middle_name', 'child_last_name'],
         'name_label' => 'Child',
         'date_field' => 'child_date_of_birth',
@@ -33,7 +41,7 @@ $type_configs = [
         'table' => 'certificate_of_marriage',
         'label' => 'Marriage Record',
         'icon' => 'heart',
-        'permission' => 'marriage_delete',
+        'permission' => 'marriage_archive',
         'name_fields' => ['husband_first_name', 'husband_middle_name', 'husband_last_name'],
         'secondary_fields' => ['wife_first_name', 'wife_middle_name', 'wife_last_name'],
         'name_label' => 'Husband & Wife',
@@ -44,7 +52,7 @@ $type_configs = [
         'table' => 'certificate_of_death',
         'label' => 'Death Record',
         'icon' => 'user-x',
-        'permission' => 'death_delete',
+        'permission' => 'death_archive',
         'name_fields' => ['deceased_first_name', 'deceased_middle_name', 'deceased_last_name'],
         'name_label' => 'Deceased',
         'date_field' => 'date_of_death',
@@ -54,7 +62,7 @@ $type_configs = [
         'table' => 'application_for_marriage_license',
         'label' => 'Marriage License',
         'icon' => 'file-heart',
-        'permission' => 'marriage_license_delete',
+        'permission' => 'marriage_license_archive',
         'name_fields' => ['groom_first_name', 'groom_middle_name', 'groom_last_name'],
         'secondary_fields' => ['bride_first_name', 'bride_middle_name', 'bride_last_name'],
         'name_label' => 'Groom & Bride',
@@ -69,10 +77,9 @@ if (!empty($filter_type) && !isset($type_configs[$filter_type])) {
     $filter_type = '';
 }
 
-// Search query
 $search = isset($_GET['search']) ? sanitize_input($_GET['search']) : '';
 
-// Pagination settings
+// Pagination
 $records_per_page = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
 if ($records_per_page < 5 || $records_per_page > 100) {
     $records_per_page = 10;
@@ -81,15 +88,14 @@ $pagination_current_page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $offset = ($pagination_current_page - 1) * $records_per_page;
 
 // Sorting
-$allowed_sort = ['deleted_at', 'registry_no', 'record_type'];
+$allowed_sort = ['archived_at', 'registry_no', 'record_type'];
 $sort_by = isset($_GET['sort_by']) && in_array($_GET['sort_by'], $allowed_sort, true)
     ? $_GET['sort_by']
-    : 'deleted_at';
+    : 'archived_at';
 $sort_order = isset($_GET['sort_order']) && strtoupper($_GET['sort_order']) === 'ASC' ? 'ASC' : 'DESC';
 
 /**
- * Build a SELECT query for one table normalized to a common shape.
- * Returns [sql, params] — uses unique param names per subquery.
+ * Build a normalized SELECT for one table.
  */
 function build_type_select($record_type, $config, $search, $search_prefix) {
     $table = $config['table'];
@@ -97,7 +103,6 @@ function build_type_select($record_type, $config, $search, $search_prefix) {
     $secondary_fields = $config['secondary_fields'] ?? null;
     $date_field = $config['date_field'];
 
-    // Build display name expression
     $name_concat = "CONCAT_WS(' ', "
         . implode(', ', array_map(fn($f) => "COALESCE(NULLIF(TRIM(`$f`), ''), '')", $name_fields))
         . ")";
@@ -110,16 +115,17 @@ function build_type_select($record_type, $config, $search, $search_prefix) {
         $display_name = $name_concat;
     }
 
+    // archived_at is approximated by updated_at, since we don't track a dedicated timestamp.
     $sql = "SELECT
                 id,
                 '$record_type' AS record_type,
                 registry_no,
                 TRIM($display_name) AS display_name,
                 `$date_field` AS record_date,
-                COALESCE(updated_at, created_at) AS deleted_at,
+                COALESCE(updated_at, created_at) AS archived_at,
                 created_at
             FROM `$table`
-            WHERE status = 'Deleted'";
+            WHERE status = 'Archived'";
 
     $params = [];
 
@@ -141,19 +147,17 @@ function build_type_select($record_type, $config, $search, $search_prefix) {
     return [$sql, $params];
 }
 
-// Build UNION across allowed record types (respecting permission + filter)
+// UNION across allowed record types
 $union_parts = [];
 $all_params = [];
 $accessible_types = [];
 
 foreach ($type_configs as $type_key => $config) {
-    // Skip if user lacks delete permission for this type
     if (!hasPermission($config['permission'])) {
         continue;
     }
     $accessible_types[$type_key] = $config;
 
-    // Skip if a specific filter is set and doesn't match
     if (!empty($filter_type) && $filter_type !== $type_key) {
         continue;
     }
@@ -170,8 +174,7 @@ if (empty($union_parts)) {
 } else {
     $union_sql = implode(' UNION ALL ', $union_parts);
 
-    // Count total
-    $count_sql = "SELECT COUNT(*) AS total FROM ($union_sql) AS trash_union";
+    $count_sql = "SELECT COUNT(*) AS total FROM ($union_sql) AS archive_union";
     try {
         $stmt = $pdo->prepare($count_sql);
         foreach ($all_params as $k => $v) {
@@ -181,14 +184,13 @@ if (empty($union_parts)) {
         $total_records = (int)($stmt->fetch()['total'] ?? 0);
         $total_pages = (int)ceil($total_records / $records_per_page);
     } catch (PDOException $e) {
-        error_log("Trash count error: " . $e->getMessage());
+        error_log("Archives count error: " . $e->getMessage());
         $total_records = 0;
         $total_pages = 0;
     }
 
-    // Fetch paginated results
-    $order_by = $sort_by === 'deleted_at' ? 'deleted_at' : $sort_by;
-    $fetch_sql = "SELECT * FROM ($union_sql) AS trash_union
+    $order_by = $sort_by === 'archived_at' ? 'archived_at' : $sort_by;
+    $fetch_sql = "SELECT * FROM ($union_sql) AS archive_union
                   ORDER BY $order_by $sort_order
                   LIMIT :limit OFFSET :offset";
     try {
@@ -201,19 +203,18 @@ if (empty($union_parts)) {
         $stmt->execute();
         $records = $stmt->fetchAll();
     } catch (PDOException $e) {
-        error_log("Trash fetch error: " . $e->getMessage());
+        error_log("Archives fetch error: " . $e->getMessage());
         $records = [];
     }
 }
 
-// Helper: query-string builder
+// Helpers
 function build_query_string($exclude = []) {
     $params = $_GET;
     foreach ($exclude as $k) unset($params[$k]);
     return http_build_query($params);
 }
 
-// Helper: sort URL
 function get_sort_url($column) {
     global $sort_by, $sort_order;
     $new_order = ($sort_by === $column && $sort_order === 'ASC') ? 'DESC' : 'ASC';
@@ -221,14 +222,12 @@ function get_sort_url($column) {
     return '?sort_by=' . $column . '&sort_order=' . $new_order . ($query ? '&' . $query : '');
 }
 
-// Helper: sort icon
 function get_sort_icon($column) {
     global $sort_by, $sort_order;
     if ($sort_by !== $column) return 'chevrons-up-down';
     return $sort_order === 'ASC' ? 'chevron-up' : 'chevron-down';
 }
 
-// Format date helper
 function fmt_date($val) {
     if (empty($val) || $val === '0000-00-00' || $val === '0000-00-00 00:00:00') return 'N/A';
     $ts = strtotime($val);
@@ -246,30 +245,17 @@ function fmt_datetime($val) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <?php require_once '../includes/security.php'; echo csrfTokenMeta(); ?>
-    <title>Trash - Civil Registry</title>
+    <title>Archives - Civil Registry</title>
 
-    <!-- Google Fonts -->
     <?= google_fonts_tag('Inter:wght@300;400;500;600;700') ?>
-
-    <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="<?= asset_url('fontawesome_css') ?>">
-
-    <!-- Lucide Icons -->
     <script src="<?= asset_url('lucide') ?>"></script>
-
-    <!-- Notiflix -->
     <link rel="stylesheet" href="<?= asset_url('notiflix_css') ?>">
     <script src="<?= asset_url('notiflix_js') ?>"></script>
     <script src="../assets/js/notiflix-config.js"></script>
-
-    <!-- Shared Sidebar Styles -->
     <link rel="stylesheet" href="../assets/css/sidebar.css">
 
     <style>
-        /* ========================================
-           CORPORATE MODERN DESIGN (matches records_viewer.php)
-           ======================================== */
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
@@ -288,45 +274,38 @@ function fmt_datetime($val) {
             --bg-secondary: #F8FAFC;
             --bg-tertiary: #F1F5F9;
             --bg-accent: #EFF6FF;
-
             --text-primary: #0F172A;
             --text-secondary: #475569;
             --text-tertiary: #94A3B8;
             --text-muted: #CBD5E1;
-
             --border-light: #F1F5F9;
             --border-medium: #E2E8F0;
             --border-strong: #CBD5E1;
-
             --primary: #2563EB;
             --primary-hover: #1D4ED8;
             --primary-light: #DBEAFE;
             --primary-lighter: #EFF6FF;
-
             --success: #059669;
             --success-hover: #047857;
             --success-light: #D1FAE5;
-
             --warning: #D97706;
             --warning-hover: #B45309;
             --warning-light: #FEF3C7;
-
             --danger: #DC2626;
             --danger-hover: #B91C1C;
             --danger-light: #FEE2E2;
-
+            --info: #0284C7;
+            --info-light: #E0F2FE;
             --spacing-xs: 6px;
             --spacing-sm: 12px;
             --spacing-md: 20px;
             --spacing-lg: 32px;
             --spacing-xl: 48px;
             --spacing-2xl: 64px;
-
             --radius-sm: 8px;
             --radius-md: 12px;
             --radius-lg: 16px;
             --radius-xl: 20px;
-
             --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
             --shadow-md: 0 2px 8px 0 rgba(0, 0, 0, 0.06);
             --shadow-lg: 0 8px 24px 0 rgba(0, 0, 0, 0.08);
@@ -362,13 +341,12 @@ function fmt_datetime($val) {
         }
 
         .page-title [data-lucide] {
-            color: var(--danger);
+            color: var(--warning);
             width: 26px;
             height: 26px;
             stroke-width: 2;
         }
 
-        /* Buttons */
         .btn {
             padding: 12px 24px;
             border-radius: var(--radius-md);
@@ -384,22 +362,11 @@ function fmt_datetime($val) {
             letter-spacing: -0.01em;
             box-shadow: var(--shadow-sm);
         }
-
-        .btn [data-lucide] {
-            width: 18px;
-            height: 18px;
-            stroke-width: 2.5;
-        }
-
+        .btn [data-lucide] { width: 18px; height: 18px; stroke-width: 2.5; }
         .btn-primary { background-color: var(--primary); color: #FFFFFF; }
         .btn-primary:hover { background-color: var(--primary-hover); box-shadow: var(--shadow-md); transform: translateY(-1px); }
-
         .btn-success { background-color: var(--success); color: #FFFFFF; }
         .btn-success:hover { background-color: var(--success-hover); box-shadow: var(--shadow-md); transform: translateY(-1px); }
-
-        .btn-danger { background-color: var(--danger); color: #FFFFFF; }
-        .btn-danger:hover { background-color: var(--danger-hover); box-shadow: var(--shadow-md); transform: translateY(-1px); }
-
         .btn-outline {
             background: var(--bg-primary);
             border: 1.5px solid var(--border-medium);
@@ -412,18 +379,9 @@ function fmt_datetime($val) {
             color: var(--primary);
             box-shadow: var(--shadow-sm);
         }
+        .btn-sm { padding: 8px 14px; font-size: 14px; gap: 6px; }
+        .btn-sm [data-lucide] { width: 16px; height: 16px; }
 
-        .btn-sm {
-            padding: 8px 14px;
-            font-size: 14px;
-            gap: 6px;
-        }
-        .btn-sm [data-lucide] {
-            width: 16px;
-            height: 16px;
-        }
-
-        /* Search & Filter Section */
         .search-section {
             margin-bottom: 16px;
             background: var(--bg-primary);
@@ -432,19 +390,13 @@ function fmt_datetime($val) {
             box-shadow: var(--shadow-sm);
             border: 1px solid var(--border-light);
         }
-
         .search-form {
             display: flex;
             gap: var(--spacing-sm);
             margin-bottom: 0;
             align-items: stretch;
         }
-
-        .search-input-wrapper {
-            flex: 1;
-            position: relative;
-        }
-
+        .search-input-wrapper { flex: 1; position: relative; }
         .search-input {
             width: 100%;
             padding: 10px var(--spacing-md) 10px 48px;
@@ -457,16 +409,13 @@ function fmt_datetime($val) {
             font-weight: 400;
             color: var(--text-primary);
         }
-
         .search-input::placeholder { color: var(--text-tertiary); font-weight: 400; }
-
         .search-input:focus {
             outline: none;
             border-color: var(--primary);
             background-color: var(--bg-primary);
             box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
         }
-
         .search-input-wrapper::before {
             content: '';
             position: absolute;
@@ -480,7 +429,6 @@ function fmt_datetime($val) {
             background-repeat: no-repeat;
             pointer-events: none;
         }
-
         .type-filter-select {
             padding: 10px 40px 10px 16px;
             border: 1.5px solid var(--border-medium);
@@ -500,18 +448,13 @@ function fmt_datetime($val) {
             transition: all 0.2s ease;
             min-width: 200px;
         }
-
-        .type-filter-select:hover {
-            border-color: var(--primary);
-        }
-
+        .type-filter-select:hover { border-color: var(--primary); }
         .type-filter-select:focus {
             outline: none;
             border-color: var(--primary);
             box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
         }
 
-        /* Table */
         .table-container {
             background: var(--bg-primary);
             border-radius: var(--radius-lg);
@@ -519,17 +462,12 @@ function fmt_datetime($val) {
             overflow: hidden;
             box-shadow: var(--shadow-md);
         }
-
         .records-table {
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
         }
-
-        .records-table thead {
-            background: var(--bg-secondary);
-        }
-
+        .records-table thead { background: var(--bg-secondary); }
         .records-table th {
             padding: 10px 6px;
             text-align: left;
@@ -542,38 +480,11 @@ function fmt_datetime($val) {
             white-space: normal;
             word-wrap: break-word;
         }
-
-        .records-table th.sortable {
-            cursor: pointer;
-            user-select: none;
-            transition: all 0.2s ease;
-        }
-
-        .records-table th.sortable:hover {
-            background-color: var(--bg-tertiary);
-            color: var(--primary);
-        }
-
-        .records-table th.sortable a {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: inherit;
-            text-decoration: none;
-        }
-
-        .records-table th.sortable.active {
-            background-color: var(--primary-lighter);
-            color: var(--primary);
-        }
-
-        .sort-icon {
-            opacity: 0.3;
-            transition: all 0.2s ease;
-            width: 16px;
-            height: 16px;
-        }
-
+        .records-table th.sortable { cursor: pointer; user-select: none; transition: all 0.2s ease; }
+        .records-table th.sortable:hover { background-color: var(--bg-tertiary); color: var(--primary); }
+        .records-table th.sortable a { display: flex; align-items: center; gap: 8px; color: inherit; text-decoration: none; }
+        .records-table th.sortable.active { background-color: var(--primary-lighter); color: var(--primary); }
+        .sort-icon { opacity: 0.3; transition: all 0.2s ease; width: 16px; height: 16px; }
         .records-table th.sortable:hover .sort-icon { opacity: 0.6; }
         .records-table th.sortable.active .sort-icon { opacity: 1; }
 
@@ -585,14 +496,9 @@ function fmt_datetime($val) {
             border-right: 2px solid var(--border-medium);
             background: var(--bg-secondary);
         }
-
         .records-table th.row-number-header { font-size: 12px; letter-spacing: 0.08em; }
         .records-table td.row-number { color: var(--text-tertiary); font-size: 14px; font-weight: 600; }
-
-        .records-table tbody tr:hover td.row-number {
-            background: var(--primary-lighter);
-            color: var(--primary);
-        }
+        .records-table tbody tr:hover td.row-number { background: var(--primary-lighter); color: var(--primary); }
 
         .records-table td {
             padding: 10px 6px;
@@ -605,7 +511,6 @@ function fmt_datetime($val) {
             word-wrap: break-word;
             max-width: 180px;
         }
-
         .records-table tbody tr { transition: all 0.2s ease; }
         .records-table tbody tr:nth-child(even) { background-color: var(--bg-secondary); }
         .records-table tbody tr:nth-child(odd) { background-color: var(--bg-primary); }
@@ -620,7 +525,6 @@ function fmt_datetime($val) {
             background: var(--bg-secondary);
             border-bottom: 2px solid var(--border-light);
         }
-
         .table-controls-left { display: flex; align-items: center; gap: 20px; }
         .table-controls-right { color: var(--text-secondary); font-size: 14px; font-weight: 500; }
 
@@ -632,9 +536,7 @@ function fmt_datetime($val) {
             color: var(--text-secondary);
             font-weight: 500;
         }
-
         .per-page-selector label { font-weight: 600; }
-
         .per-page-selector select {
             padding: 8px 14px;
             border: 1.5px solid var(--border-medium);
@@ -646,7 +548,6 @@ function fmt_datetime($val) {
             color: var(--text-primary);
             transition: all 0.2s ease;
         }
-
         .per-page-selector select:hover { border-color: var(--primary); }
         .per-page-selector select:focus {
             outline: none;
@@ -654,7 +555,6 @@ function fmt_datetime($val) {
             box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
         }
 
-        /* Type badge in trash table */
         .type-badge {
             display: inline-flex;
             align-items: center;
@@ -667,34 +567,29 @@ function fmt_datetime($val) {
             text-transform: uppercase;
             white-space: nowrap;
         }
-
         .type-badge [data-lucide] { width: 13px; height: 13px; stroke-width: 2.5; }
-
         .type-badge.birth { background: #DBEAFE; color: #1D4ED8; }
         .type-badge.marriage { background: #FCE7F3; color: #BE185D; }
         .type-badge.death { background: #E5E7EB; color: #374151; }
         .type-badge.marriage_license { background: #FEF3C7; color: #92400E; }
 
-        /* Action column / buttons */
         .records-table th.actions-header,
         .records-table td.actions-cell {
-            width: 240px;
-            min-width: 240px;
-            max-width: 240px;
+            width: 180px;
+            min-width: 180px;
+            max-width: 180px;
             text-align: center;
             white-space: nowrap;
             overflow: visible;
             padding-left: 10px;
             padding-right: 10px;
         }
-
         .action-buttons {
             display: inline-flex;
             gap: 6px;
             justify-content: center;
             flex-wrap: nowrap;
         }
-
         .action-btn {
             padding: 6px 12px;
             border-radius: var(--radius-sm);
@@ -709,28 +604,10 @@ function fmt_datetime($val) {
             white-space: nowrap;
             flex-shrink: 0;
         }
-
         .action-btn [data-lucide] { width: 14px; height: 14px; stroke-width: 2.5; }
+        .action-btn-unarchive { background: var(--success-light); color: #065F46; }
+        .action-btn-unarchive:hover { background: var(--success); color: #FFFFFF; }
 
-        .action-btn-restore {
-            background: var(--success-light);
-            color: #065F46;
-        }
-        .action-btn-restore:hover {
-            background: var(--success);
-            color: #FFFFFF;
-        }
-
-        .action-btn-delete {
-            background: var(--danger-light);
-            color: #991B1B;
-        }
-        .action-btn-delete:hover {
-            background: var(--danger);
-            color: #FFFFFF;
-        }
-
-        /* Pagination */
         .pagination {
             display: flex;
             justify-content: center;
@@ -739,7 +616,6 @@ function fmt_datetime($val) {
             padding: 16px 0;
             margin-top: 8px;
         }
-
         .pagination-btn {
             min-width: 44px;
             height: 44px;
@@ -758,13 +634,7 @@ function fmt_datetime($val) {
             text-decoration: none;
             box-shadow: var(--shadow-sm);
         }
-
-        .pagination-btn [data-lucide] {
-            width: 18px;
-            height: 18px;
-            stroke-width: 2.5;
-        }
-
+        .pagination-btn [data-lucide] { width: 18px; height: 18px; stroke-width: 2.5; }
         .pagination-btn:hover:not(.disabled):not(.active) {
             background: var(--primary-lighter);
             border-color: var(--primary);
@@ -772,14 +642,12 @@ function fmt_datetime($val) {
             transform: translateY(-2px);
             box-shadow: var(--shadow-md);
         }
-
         .pagination-btn.disabled {
             opacity: 0.25;
             cursor: not-allowed;
             pointer-events: none;
             background: var(--bg-tertiary);
         }
-
         .pagination-btn.active {
             background: var(--primary) !important;
             color: #FFFFFF !important;
@@ -789,7 +657,6 @@ function fmt_datetime($val) {
             cursor: default !important;
             pointer-events: none !important;
         }
-
         .pagination-info {
             display: inline-flex;
             align-items: center;
@@ -800,18 +667,12 @@ function fmt_datetime($val) {
             font-weight: 500;
         }
 
-        /* No records */
         .no-records {
             text-align: center;
             padding: var(--spacing-2xl) var(--spacing-lg);
             color: var(--text-tertiary);
         }
-
-        .no-records [data-lucide] {
-            margin-bottom: var(--spacing-md);
-            color: var(--text-muted);
-        }
-
+        .no-records [data-lucide] { margin-bottom: var(--spacing-md); color: var(--text-muted); }
         .no-records p {
             margin: 10px 0;
             font-size: 16px;
@@ -819,18 +680,13 @@ function fmt_datetime($val) {
             color: var(--text-secondary);
             line-height: 1.6;
         }
+        .no-records p:first-of-type { font-size: 18px; font-weight: 600; color: var(--text-primary); }
 
-        .no-records p:first-of-type {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        /* Trash info bar */
-        .trash-info {
-            background: var(--warning-light);
-            border: 1px solid #FDE68A;
-            border-left: 4px solid var(--warning);
+        /* Archive info bar — uses info/blue palette to distinguish from trash's warning color */
+        .archive-info {
+            background: var(--info-light);
+            border: 1px solid #BAE6FD;
+            border-left: 4px solid var(--info);
             padding: 12px 16px;
             border-radius: var(--radius-md);
             margin-bottom: 16px;
@@ -838,23 +694,20 @@ function fmt_datetime($val) {
             align-items: flex-start;
             gap: 12px;
             font-size: 14px;
-            color: #78350F;
+            color: #0C4A6E;
             font-weight: 500;
         }
-
-        .trash-info [data-lucide] {
+        .archive-info [data-lucide] {
             flex-shrink: 0;
             width: 20px;
             height: 20px;
             margin-top: 2px;
-            color: var(--warning);
+            color: var(--info);
         }
 
-        /* Responsive */
         @media (max-width: 1024px) {
             .page-container { padding: var(--spacing-lg) var(--spacing-md); }
         }
-
         @media (max-width: 768px) {
             .page-title { font-size: 26px; }
             .page-title [data-lucide] { width: 26px; height: 26px; }
@@ -873,7 +726,6 @@ function fmt_datetime($val) {
             .pagination { gap: 6px; padding: var(--spacing-lg) 0; }
             .pagination-btn { min-width: 40px; height: 40px; font-size: 14px; }
         }
-
         @media (max-width: 480px) {
             .page-container { padding: var(--spacing-md) var(--spacing-sm); }
             .btn { padding: 10px 16px; font-size: 14px; }
@@ -883,32 +735,26 @@ function fmt_datetime($val) {
 <body>
     <?php include '../includes/preloader.php'; ?>
     <?php include '../includes/mobile_header.php'; ?>
-
     <?php include '../includes/sidebar_nav.php'; ?>
-
     <?php include '../includes/top_navbar.php'; ?>
 
-    <!-- Main Content -->
     <div class="content">
         <div class="page-container">
-            <!-- Page Header -->
             <div class="page-header">
                 <h1 class="page-title">
-                    <i data-lucide="trash-2"></i>
-                    Trash
+                    <i data-lucide="archive"></i>
+                    Archives
                 </h1>
             </div>
 
-            <!-- Info bar -->
-            <div class="trash-info">
+            <div class="archive-info">
                 <i data-lucide="info"></i>
                 <div>
-                    Records in the Trash were soft-deleted and can be restored at any time.
-                    Use <strong>Delete Permanently</strong> to remove them forever &mdash; this action cannot be undone.
+                    Archived records are retained for legal and historical reference but are hidden from the main record lists.
+                    Use <strong>Unarchive</strong> to return a record to active status. Records cannot be permanently deleted from here &mdash; use the Trash for that.
                 </div>
             </div>
 
-            <!-- Search & Filter Section -->
             <div class="search-section">
                 <form method="GET" action="" class="search-form" id="searchForm">
                     <div class="search-input-wrapper">
@@ -946,10 +792,8 @@ function fmt_datetime($val) {
                 </form>
             </div>
 
-            <!-- Records Table -->
             <div class="table-container">
                 <?php if (count($records) > 0): ?>
-                <!-- Table Controls -->
                 <div class="table-controls">
                     <div class="table-controls-left">
                         <div class="per-page-selector">
@@ -986,10 +830,10 @@ function fmt_datetime($val) {
                             </th>
                             <th>Name</th>
                             <th>Record Date</th>
-                            <th class="sortable <?php echo $sort_by === 'deleted_at' ? 'active' : ''; ?>">
-                                <a href="<?php echo get_sort_url('deleted_at'); ?>">
-                                    Deleted On
-                                    <i data-lucide="<?php echo get_sort_icon('deleted_at'); ?>" class="sort-icon"></i>
+                            <th class="sortable <?php echo $sort_by === 'archived_at' ? 'active' : ''; ?>">
+                                <a href="<?php echo get_sort_url('archived_at'); ?>">
+                                    Archived On
+                                    <i data-lucide="<?php echo get_sort_icon('archived_at'); ?>" class="sort-icon"></i>
                                 </a>
                             </th>
                             <th class="actions-header">Actions</th>
@@ -1014,18 +858,13 @@ function fmt_datetime($val) {
                             <td><strong><?php echo htmlspecialchars($record['registry_no'] ?? 'N/A'); ?></strong></td>
                             <td><?php echo htmlspecialchars(!empty(trim($record['display_name'])) ? $record['display_name'] : 'N/A'); ?></td>
                             <td><?php echo fmt_date($record['record_date']); ?></td>
-                            <td><?php echo fmt_datetime($record['deleted_at']); ?></td>
+                            <td><?php echo fmt_datetime($record['archived_at']); ?></td>
                             <td class="actions-cell">
                                 <div class="action-buttons">
-                                    <button type="button" class="action-btn action-btn-restore"
-                                            onclick="restoreRecord(<?php echo (int)$record['id']; ?>, '<?php echo htmlspecialchars($rtype); ?>', '<?php echo htmlspecialchars(addslashes($record['registry_no'] ?? '')); ?>')">
-                                        <i data-lucide="rotate-ccw"></i>
-                                        Restore
-                                    </button>
-                                    <button type="button" class="action-btn action-btn-delete"
-                                            onclick="permanentlyDelete(<?php echo (int)$record['id']; ?>, '<?php echo htmlspecialchars($rtype); ?>', '<?php echo htmlspecialchars(addslashes($record['registry_no'] ?? '')); ?>')">
-                                        <i data-lucide="trash"></i>
-                                        Delete
+                                    <button type="button" class="action-btn action-btn-unarchive"
+                                            onclick="unarchiveRecord(<?php echo (int)$record['id']; ?>, '<?php echo htmlspecialchars($rtype); ?>', '<?php echo htmlspecialchars(addslashes($record['registry_no'] ?? '')); ?>')">
+                                        <i data-lucide="archive-restore"></i>
+                                        Unarchive
                                     </button>
                                 </div>
                             </td>
@@ -1035,24 +874,22 @@ function fmt_datetime($val) {
                 </table>
                 <?php else: ?>
                 <div class="no-records">
-                    <i data-lucide="trash-2" style="width: 48px; height: 48px; stroke: #adb5bd;"></i>
-                    <p>Trash is empty.</p>
+                    <i data-lucide="archive" style="width: 48px; height: 48px; stroke: #adb5bd;"></i>
+                    <p>No archived records.</p>
                     <?php if (!empty($search) || !empty($filter_type)): ?>
                     <p>Try adjusting your search or filter.</p>
                     <?php else: ?>
-                    <p>Deleted records will appear here and can be restored.</p>
+                    <p>Archived records will appear here and can be returned to Active.</p>
                     <?php endif; ?>
                 </div>
                 <?php endif; ?>
             </div>
 
-            <!-- Pagination -->
             <?php if ($total_pages > 1): ?>
             <div class="pagination">
                 <?php
                 $pagination_current_page = (int)$pagination_current_page;
                 $total_pages = (int)$total_pages;
-
                 $base_query = build_query_string(['page']);
                 $query_prefix = $base_query ? '&' . $base_query : '';
                 ?>
@@ -1117,14 +954,6 @@ function fmt_datetime($val) {
     <?php include '../includes/sidebar_scripts.php'; ?>
 
     <script>
-        // Record-type label → delete API endpoint
-        const DELETE_API_MAP = {
-            'birth': '../api/certificate_of_live_birth_delete.php',
-            'marriage': '../api/certificate_of_marriage_delete.php',
-            'death': '../api/certificate_of_death_delete.php',
-            'marriage_license': '../api/application_for_marriage_license_delete.php'
-        };
-
         const TYPE_LABELS = {
             'birth': 'Birth Record',
             'marriage': 'Marriage Record',
@@ -1138,7 +967,6 @@ function fmt_datetime($val) {
             }
         });
 
-        // Change records per page
         function changePerPage(perPage) {
             const url = new URL(window.location);
             url.searchParams.set('per_page', perPage);
@@ -1146,18 +974,17 @@ function fmt_datetime($val) {
             window.location.href = url.toString();
         }
 
-        // Restore a record
-        function restoreRecord(id, recordType, registryNo) {
+        function unarchiveRecord(id, recordType, registryNo) {
             const label = TYPE_LABELS[recordType] || 'Record';
-            const title = `Restore ${label}`;
-            const message = `Are you sure you want to restore this record?<br><br>` +
+            const title = `Unarchive ${label}`;
+            const message = `Return this record to active status?<br><br>` +
                 (registryNo ? `<strong>Registry No:</strong> ${registryNo}<br>` : '') +
                 `<strong>Type:</strong> ${label}<br><br>` +
-                `<span style="color: #059669; font-weight: 600;">This record will be moved back to active records.</span>`;
+                `<span style="color: #059669; font-weight: 600;">This record will reappear in the main ${label} list.</span>`;
 
             if (typeof Notiflix === 'undefined') {
                 if (confirm(message.replace(/<[^>]+>/g, ''))) {
-                    performRestore(id, recordType);
+                    performUnarchive(id, recordType);
                 }
                 return;
             }
@@ -1166,9 +993,9 @@ function fmt_datetime($val) {
                 title,
                 message,
                 'Cancel',
-                'Restore',
-                function okCb() { console.log('Restore cancelled'); },
-                function cancelCb() { performRestore(id, recordType); },
+                'Unarchive',
+                function okCb() { console.log('Unarchive cancelled'); },
+                function cancelCb() { performUnarchive(id, recordType); },
                 {
                     width: '500px',
                     borderRadius: '12px',
@@ -1193,28 +1020,23 @@ function fmt_datetime($val) {
             );
         }
 
-        function performRestore(id, recordType) {
+        function performUnarchive(id, recordType) {
             if (typeof Notiflix !== 'undefined') {
-                Notiflix.Loading.circle('Restoring record...');
+                Notiflix.Loading.circle('Unarchiving record...');
             }
 
             const formData = new FormData();
             formData.append('record_id', id);
             formData.append('record_type', recordType);
-            // CSRF token (required by API)
-            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-            if (csrfMeta) {
-                formData.append('csrf_token', csrfMeta.content);
-            }
+            formData.append('action', 'unarchive');
 
-            fetch('../api/trash_restore.php', {
+            fetch('../api/archive_toggle.php', {
                 method: 'POST',
                 body: formData
             })
             .then(r => r.json())
             .then(data => {
                 if (typeof Notiflix !== 'undefined') Notiflix.Loading.remove();
-
                 if (data.success) {
                     if (typeof Notiflix !== 'undefined') {
                         Notiflix.Notify.success(data.message);
@@ -1232,115 +1054,13 @@ function fmt_datetime($val) {
                 if (typeof Notiflix !== 'undefined') Notiflix.Loading.remove();
                 console.error(err);
                 if (typeof Notiflix !== 'undefined') {
-                    Notiflix.Notify.failure('An error occurred while restoring the record.');
+                    Notiflix.Notify.failure('An error occurred while unarchiving the record.');
                 } else {
-                    alert('An error occurred while restoring the record.');
+                    alert('An error occurred while unarchiving the record.');
                 }
             });
         }
 
-        // Permanently delete
-        function permanentlyDelete(id, recordType, registryNo) {
-            const label = TYPE_LABELS[recordType] || 'Record';
-            const title = `Delete ${label} Permanently`;
-            const message = `This record will be <strong>permanently deleted</strong>.<br><br>` +
-                (registryNo ? `<strong>Registry No:</strong> ${registryNo}<br>` : '') +
-                `<strong>Type:</strong> ${label}<br><br>` +
-                `<span style="color: #DC2626; font-weight: 600;">⚠ This action cannot be undone.</span>`;
-
-            if (typeof Notiflix === 'undefined') {
-                if (confirm(message.replace(/<[^>]+>/g, ''))) {
-                    performHardDelete(id, recordType);
-                }
-                return;
-            }
-
-            Notiflix.Confirm.show(
-                title,
-                message,
-                'Cancel',
-                'Delete Permanently',
-                function okCb() { console.log('Hard delete cancelled'); },
-                function cancelCb() { performHardDelete(id, recordType); },
-                {
-                    width: '500px',
-                    borderRadius: '12px',
-                    backgroundColor: '#FFFFFF',
-                    titleColor: '#111827',
-                    titleFontSize: '20px',
-                    messageColor: '#1F2937',
-                    messageFontSize: '15px',
-                    messageMaxLength: 600,
-                    plainText: false,
-                    okButtonColor: '#374151',
-                    okButtonBackground: '#F3F4F6',
-                    cancelButtonColor: '#FFFFFF',
-                    cancelButtonBackground: '#EF4444',
-                    buttonsFontSize: '15px',
-                    buttonsBorderRadius: '60px',
-                    cssAnimationStyle: 'zoom',
-                    cssAnimationDuration: 250,
-                    distance: '24px',
-                    backOverlayColor: 'rgba(0,0,0,0.6)',
-                }
-            );
-        }
-
-        function performHardDelete(id, recordType) {
-            const apiUrl = DELETE_API_MAP[recordType];
-            if (!apiUrl) {
-                if (typeof Notiflix !== 'undefined') {
-                    Notiflix.Notify.failure('Unknown record type.');
-                }
-                return;
-            }
-
-            if (typeof Notiflix !== 'undefined') {
-                Notiflix.Loading.circle('Deleting permanently...');
-            }
-
-            const formData = new FormData();
-            formData.append('record_id', id);
-            formData.append('delete_type', 'hard');
-            // CSRF token (required by API)
-            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-            if (csrfMeta) {
-                formData.append('csrf_token', csrfMeta.content);
-            }
-
-            fetch(apiUrl, {
-                method: 'POST',
-                body: formData
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (typeof Notiflix !== 'undefined') Notiflix.Loading.remove();
-
-                if (data.success) {
-                    if (typeof Notiflix !== 'undefined') {
-                        Notiflix.Notify.success(data.message);
-                    }
-                    setTimeout(() => location.reload(), 1200);
-                } else {
-                    if (typeof Notiflix !== 'undefined') {
-                        Notiflix.Notify.failure(data.message);
-                    } else {
-                        alert('Error: ' + data.message);
-                    }
-                }
-            })
-            .catch(err => {
-                if (typeof Notiflix !== 'undefined') Notiflix.Loading.remove();
-                console.error(err);
-                if (typeof Notiflix !== 'undefined') {
-                    Notiflix.Notify.failure('An error occurred while deleting the record.');
-                } else {
-                    alert('An error occurred while deleting the record.');
-                }
-            });
-        }
-
-        // Live search — reload with query after short delay
         let searchTimeout;
         const liveSearchInput = document.getElementById('liveSearchInput');
         if (liveSearchInput) {

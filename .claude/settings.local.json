@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(/c/xampp/mysql/bin/mysql:*)"
+      "Bash(/c/xampp/mysql/bin/mysql:*)",
+      "Bash(find /c/xampp/htdocs/iscan/database -name \"*.sql\" -exec grep -l \"status.*Archived\\\\|deleted_at\" {} \\\\;)",
+      "Bash(grep \"INSERT INTO \\\\`permissions\\\\`\" \"/c/xampp/htdocs/iscan/public/iscan_db \\(1\\).sql\")"
     ]
   }
 }

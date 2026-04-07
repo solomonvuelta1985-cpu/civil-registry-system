@@ -19,6 +19,7 @@ $record_type = isset($_GET['type']) ? sanitize_input($_GET['type']) : 'marriage'
 $search = isset($_GET['search']) ? sanitize_input($_GET['search']) : '';
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $per_page = isset($_GET['per_page']) ? max(1, min(100, intval($_GET['per_page']))) : 10;
+$include_archived = isset($_GET['include_archived']) && $_GET['include_archived'] === '1';
 
 // Validate record type
 $valid_types = ['marriage', 'birth', 'death'];
@@ -51,7 +52,7 @@ $configs = [
             'wife_first_name', 'wife_middle_name', 'wife_last_name',
             'place_of_marriage'
         ],
-        'columns' => ['id', 'registry_no', 'husband_first_name', 'husband_middle_name', 'husband_last_name',
+        'columns' => ['id', 'status', 'registry_no', 'husband_first_name', 'husband_middle_name', 'husband_last_name',
                      'wife_first_name', 'wife_middle_name', 'wife_last_name', 'date_of_marriage',
                      'place_of_marriage', 'pdf_filename']
     ],
@@ -64,7 +65,7 @@ $configs = [
             'mother_first_name', 'mother_middle_name', 'mother_last_name',
             'child_place_of_birth', 'barangay'
         ],
-        'columns' => ['id', 'registry_no', 'child_first_name', 'child_middle_name', 'child_last_name',
+        'columns' => ['id', 'status', 'registry_no', 'child_first_name', 'child_middle_name', 'child_last_name',
                      'child_date_of_birth', 'time_of_birth', 'child_sex', 'barangay',
                      'father_first_name', 'father_middle_name', 'father_last_name',
                      'father_citizenship', 'mother_first_name', 'mother_middle_name', 'mother_last_name',
@@ -79,7 +80,7 @@ $configs = [
             'mother_first_name', 'mother_middle_name', 'mother_last_name',
             'place_of_death', 'occupation'
         ],
-        'columns' => ['id', 'registry_no', 'deceased_first_name', 'deceased_middle_name', 'deceased_last_name',
+        'columns' => ['id', 'status', 'registry_no', 'deceased_first_name', 'deceased_middle_name', 'deceased_last_name',
                      'date_of_birth', 'date_of_death', 'age', 'occupation', 'place_of_death',
                      'father_first_name', 'father_middle_name', 'father_last_name',
                      'mother_first_name', 'mother_middle_name', 'mother_last_name',
@@ -106,7 +107,9 @@ try {
         $search_query = " AND (" . implode(' OR ', $search_conditions) . ")";
     }
 
-    $base_where = " WHERE status = 'Active'";
+    // Status filter: Active by default, include Archived when requested. Never include Deleted.
+    $status_in_list = $include_archived ? "'Active','Archived'" : "'Active'";
+    $base_where = " WHERE status IN ({$status_in_list})";
 
     // Get total count
     $count_query = "SELECT COUNT(*) as total FROM {$config['table']}{$base_where}{$search_query}";

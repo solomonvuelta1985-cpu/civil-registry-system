@@ -101,6 +101,44 @@ function hasAllPermissions($permissions) {
 }
 
 /**
+ * Archive permission map — central place to resolve record type -> archive permission name.
+ * Used by all archive-related code (APIs, records viewer, archives page).
+ * To change the permission for a record type, change it in ONE place here.
+ */
+function getArchivePermissionName($record_type) {
+    $map = [
+        'birth'            => 'birth_archive',
+        'marriage'         => 'marriage_archive',
+        'death'            => 'death_archive',
+        'marriage_license' => 'marriage_license_archive',
+    ];
+    return $map[$record_type] ?? null;
+}
+
+/**
+ * Check if current user can archive/unarchive records of the given type.
+ * Wrapping the permission check in a helper gives us a single line to change
+ * later if we split, rename, or consolidate archive permissions.
+ */
+function canArchive($record_type) {
+    $perm = getArchivePermissionName($record_type);
+    return $perm !== null && hasPermission($perm);
+}
+
+/**
+ * Return the list of all 4 archive permission names.
+ * Useful for "at least one archive permission" checks (e.g. admin/archives.php access).
+ */
+function getAllArchivePermissions() {
+    return [
+        'birth_archive',
+        'marriage_archive',
+        'death_archive',
+        'marriage_license_archive',
+    ];
+}
+
+/**
  * Check if current user is Admin
  */
 function isAdmin() {
@@ -153,6 +191,47 @@ function requireAdmin() {
     if (!isAdmin()) {
         http_response_code(403);
         include __DIR__ . '/../public/403.php';
+        exit;
+    }
+}
+
+/**
+ * Require Admin role for an API endpoint.
+ * Emits a JSON 403 (instead of an HTML 403 page) and logs the denied attempt
+ * to the activity log so admins can audit probing.
+ *
+ * Usage at the top of an admin-only API:
+ *   requireAdminApi('Only administrators can delete records.');
+ */
+function requireAdminApi($message = 'Only administrators can perform this action.') {
+    if (!isLoggedIn()) {
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+            http_response_code(401);
+        }
+        echo json_encode(['success' => false, 'message' => 'Unauthorized access. Please log in.', 'data' => null]);
+        exit;
+    }
+
+    if (!isAdmin()) {
+        // Audit denied attempt
+        global $pdo;
+        if (function_exists('log_activity') && isset($pdo)) {
+            $endpoint = $_SERVER['SCRIPT_NAME'] ?? 'unknown';
+            $ip       = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            log_activity(
+                $pdo,
+                'ADMIN_ACTION_DENIED',
+                "Non-admin user (role=" . (getUserRole() ?? 'unknown') . ") attempted admin-only endpoint {$endpoint} from {$ip}",
+                getUserId()
+            );
+        }
+
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+            http_response_code(403);
+        }
+        echo json_encode(['success' => false, 'message' => $message, 'data' => null]);
         exit;
     }
 }

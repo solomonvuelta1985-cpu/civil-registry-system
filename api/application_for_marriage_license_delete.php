@@ -8,26 +8,21 @@ require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 header('Content-Type: application/json');
-
-// Check authentication
-if (!isLoggedIn()) {
-    json_response(false, 'Unauthorized access. Please log in.', null, 401);
-    exit;
-}
-
-// Check delete permission
-if (!hasPermission('marriage_license_delete')) {
-    json_response(false, 'You do not have permission to delete marriage license applications.', null, 403);
-    exit;
-}
 
 // Validate request method
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(false, 'Invalid request method.', null, 405);
     exit;
 }
+
+// Admin-only + logs denied attempts to activity_logs
+requireAdminApi('Only administrators can delete marriage license applications.');
+
+// CSRF protection (exits with JSON 403 on failure)
+requireCSRFToken();
 
 try {
     // Get record ID from POST data

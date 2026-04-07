@@ -9,14 +9,9 @@ require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 header('Content-Type: application/json');
-
-// Check authentication
-if (!isLoggedIn()) {
-    json_response(false, 'Unauthorized access. Please log in.', null, 401);
-    exit;
-}
 
 // Only allow POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -24,26 +19,28 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// Map record type to table and required permission
+// Admin-only — same rule as delete (only admins manage the Trash)
+requireAdminApi('Only administrators can restore records from Trash.');
+
+// CSRF protection
+requireCSRFToken();
+
+// Map record type to table and label
 $type_map = [
     'birth' => [
         'table' => 'certificate_of_live_birth',
-        'permission' => 'birth_delete',
         'label' => 'Certificate of Live Birth'
     ],
     'marriage' => [
         'table' => 'certificate_of_marriage',
-        'permission' => 'marriage_delete',
         'label' => 'Certificate of Marriage'
     ],
     'death' => [
         'table' => 'certificate_of_death',
-        'permission' => 'death_delete',
         'label' => 'Certificate of Death'
     ],
     'marriage_license' => [
         'table' => 'application_for_marriage_license',
-        'permission' => 'marriage_license_delete',
         'label' => 'Application for Marriage License'
     ],
 ];
@@ -64,12 +61,7 @@ try {
 
     $config = $type_map[$record_type];
 
-    // Permission: reuse the delete permission for the corresponding record type
-    if (!hasPermission($config['permission'])) {
-        json_response(false, 'You do not have permission to restore this record.', null, 403);
-        exit;
-    }
-
+    // Admin check already happened at top of file via requireAdminApi().
     // Verify record exists and is currently deleted
     $stmt = $pdo->prepare("SELECT id, registry_no, status FROM {$config['table']} WHERE id = :id");
     $stmt->execute([':id' => $record_id]);
