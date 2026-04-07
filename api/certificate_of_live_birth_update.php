@@ -89,14 +89,6 @@ try {
     // Validation
     $errors = [];
 
-    // Validate registry number format if provided (optional but must match format if provided)
-    if (!empty($registry_no)) {
-        // Validate format: XXXX-XXXX or XX-XXXXXX
-        if (!preg_match('/^\d{2,4}-\d{4,6}$/', $registry_no)) {
-            $errors[] = "Registry number must be in format XXXX-XXXX or XX-XXXXXX (e.g., 2014-1423 or 99-123456).";
-        }
-    }
-
     if (empty($date_of_registration)) {
         $errors[] = "Date of registration is required.";
     }

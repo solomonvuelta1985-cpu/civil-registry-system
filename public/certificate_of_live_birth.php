@@ -181,12 +181,10 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 type="text"
                                 id="registry_no"
                                 name="registry_no"
-                                placeholder="e.g., 2014-1423 or 99-123456 (optional)"
-                                pattern="^\d{2,4}-\d{4,6}$"
-                                title="Format: XXXX-XXXX or XX-XXXXXX (numbers and dash only)"
+                                placeholder="Enter registry number (e.g., 1, 12, 123, 2014-1423)"
                                 value="<?php echo $edit_mode ? htmlspecialchars($record['registry_no']) : ''; ?>"
                             >
-                            <span class="help-text">Optional - Format: XXXX-XXXX or XX-XXXXXX (e.g., 2014-1423 or 99-123456). Leave blank if the registry number has not yet been assigned by the Civil Registrar.</span>
+                            <span class="help-text">Optional - Any format accepted (e.g., X, XX, XXX, XXXX, XXXX-XX). Leave blank if the registry number has not yet been assigned by the Civil Registrar.</span>
                         </div>
 
                         <div class="form-group">

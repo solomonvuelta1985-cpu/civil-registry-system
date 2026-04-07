@@ -25,6 +25,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 try {
     // Sanitize input data
     $registry_no = sanitize_input($_POST['registry_no'] ?? '');
+    // Convert empty registry_no to NULL to avoid unique constraint issues
+    if (empty($registry_no)) {
+        $registry_no = null;
+    }
     $date_of_registration = sanitize_input($_POST['date_of_registration'] ?? '');
 
     // Deceased information
