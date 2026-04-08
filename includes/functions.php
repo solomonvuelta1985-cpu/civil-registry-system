@@ -283,11 +283,13 @@ function safe_date_convert($date_string, $output_format = 'Y-m-d') {
     if (empty($date_string)) {
         return null;
     }
-    $ts = strtotime($date_string);
-    if ($ts === false || $ts < 0) {
+    $d = DateTime::createFromFormat('Y-m-d', $date_string)
+        ?: DateTime::createFromFormat('m/d/Y', $date_string)
+        ?: date_create($date_string);
+    if (!$d) {
         return null;
     }
-    return date($output_format, $ts);
+    return $d->format($output_format);
 }
 
 /**
