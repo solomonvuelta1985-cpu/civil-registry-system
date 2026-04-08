@@ -42,12 +42,12 @@ try {
     $barangay = sanitize_input($_POST['barangay'] ?? '');
 
     $child_sex = sanitize_input($_POST['child_sex'] ?? '');
-    $legitimacy_status = sanitize_input($_POST['legitimacy_status'] ?? '');
+    $legitimacy_status = sanitize_input($_POST['legitimacy_status'] ?? '') ?: null;
 
-    $type_of_birth = sanitize_input($_POST['type_of_birth'] ?? '');
-    $type_of_birth_other = sanitize_input($_POST['type_of_birth_other'] ?? null);
-    $birth_order = sanitize_input($_POST['birth_order'] ?? null);
-    $birth_order_other = sanitize_input($_POST['birth_order_other'] ?? null);
+    $type_of_birth       = sanitize_input($_POST['type_of_birth'] ?? '') ?: null;
+    $type_of_birth_other = sanitize_input($_POST['type_of_birth_other'] ?? null) ?: null;
+    $birth_order         = sanitize_input($_POST['birth_order'] ?? null) ?: null;
+    $birth_order_other   = sanitize_input($_POST['birth_order_other'] ?? null) ?: null;
 
     // Mother's information
     $mother_first_name = sanitize_input($_POST['mother_first_name'] ?? '');
