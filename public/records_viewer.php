@@ -217,6 +217,7 @@ $record_configs = [
             ['label' => 'Date of Birth', 'field' => 'date_of_birth', 'sortable' => true, 'type' => 'date'],
             ['label' => 'Date of Death', 'field' => 'date_of_death', 'sortable' => true, 'type' => 'date'],
             ['label' => 'Age', 'field' => 'age', 'sortable' => true],
+            ['label' => 'Sex', 'field' => 'sex', 'sortable' => true],
             ['label' => 'Place of Death', 'field' => 'place_of_death', 'sortable' => true],
             ['label' => 'Registration Date', 'field' => 'date_of_registration', 'sortable' => true, 'type' => 'date']
         ],
@@ -227,7 +228,19 @@ $record_configs = [
             ['name' => 'reg_date_to', 'label' => 'Registration Date To', 'type' => 'date', 'field' => 'date_of_registration', 'operator' => '<='],
             ['name' => 'place', 'label' => 'Place of Death', 'type' => 'text', 'field' => 'place_of_death', 'operator' => 'LIKE'],
             ['name' => 'age_from', 'label' => 'Age From', 'type' => 'number', 'field' => 'age', 'operator' => '>='],
-            ['name' => 'age_to', 'label' => 'Age To', 'type' => 'number', 'field' => 'age', 'operator' => '<=']
+            ['name' => 'age_to', 'label' => 'Age To', 'type' => 'number', 'field' => 'age', 'operator' => '<='],
+            [
+                'name' => 'sex',
+                'label' => 'Sex',
+                'type' => 'select',
+                'field' => 'sex',
+                'operator' => '=',
+                'options' => [
+                    '' => 'All',
+                    'Male' => 'Male',
+                    'Female' => 'Female'
+                ]
+            ]
         ]
     ],
     'marriage_license' => [

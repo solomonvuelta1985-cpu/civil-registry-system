@@ -81,7 +81,7 @@ $configs = [
             'place_of_death', 'occupation'
         ],
         'columns' => ['id', 'status', 'registry_no', 'deceased_first_name', 'deceased_middle_name', 'deceased_last_name',
-                     'date_of_birth', 'date_of_death', 'age', 'occupation', 'place_of_death',
+                     'date_of_birth', 'date_of_death', 'age', 'sex', 'occupation', 'place_of_death',
                      'father_first_name', 'father_middle_name', 'father_last_name',
                      'mother_first_name', 'mother_middle_name', 'mother_last_name',
                      'date_of_registration', 'pdf_filename']
