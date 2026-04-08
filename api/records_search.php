@@ -90,67 +90,126 @@ $configs = [
 
 $config = $configs[$record_type];
 
-try {
-    // Build search query
-    $search_query = '';
+/**
+ * Build the WHERE clause for a given search mode.
+ *
+ * Modes:
+ *  - 'strict': every token must match at least one search field (AND across tokens,
+ *    OR across fields). This makes "Juan Dela Cruz" find rows where "Juan" matches
+ *    first_name AND "Dela Cruz" matches last_name (or any combination).
+ *  - 'fuzzy':  ANY token matching ANY field is a hit (pure OR). Used as a fallback
+ *    to surface near / possible matches when strict returns zero rows.
+ *
+ * Returns [sql_fragment, params_array].
+ */
+function build_search_clause(array $tokens, array $search_fields, string $mode): array {
     $params = [];
+    if (empty($tokens)) {
+        return ['', $params];
+    }
 
-    if (!empty($search)) {
-        $search_conditions = [];
-        $search_index = 0;
-        foreach ($config['search_fields'] as $field) {
-            $param_name = ':search_' . $search_index;
-            $search_conditions[] = "{$field} LIKE {$param_name}";
-            $params[$param_name] = "%{$search}%";
-            $search_index++;
+    $param_index = 0;
+
+    if ($mode === 'strict') {
+        $token_clauses = [];
+        foreach ($tokens as $token) {
+            $field_clauses = [];
+            foreach ($search_fields as $field) {
+                $param_name = ':s_' . $param_index++;
+                $field_clauses[] = "{$field} LIKE {$param_name}";
+                $params[$param_name] = "%{$token}%";
+            }
+            $token_clauses[] = '(' . implode(' OR ', $field_clauses) . ')';
         }
-        $search_query = " AND (" . implode(' OR ', $search_conditions) . ")";
+        return [' AND (' . implode(' AND ', $token_clauses) . ')', $params];
+    }
+
+    // fuzzy: any token in any field
+    $field_clauses = [];
+    foreach ($tokens as $token) {
+        foreach ($search_fields as $field) {
+            $param_name = ':s_' . $param_index++;
+            $field_clauses[] = "{$field} LIKE {$param_name}";
+            $params[$param_name] = "%{$token}%";
+        }
+    }
+    return [' AND (' . implode(' OR ', $field_clauses) . ')', $params];
+}
+
+try {
+    // Tokenize the search query on whitespace. Multi-word names like
+    // "Dela Cruz" are handled naturally because each token only needs to
+    // match SOME field — "Dela" and "Cruz" will both land in last_name.
+    $tokens = [];
+    if (!empty($search)) {
+        $raw_tokens = preg_split('/\s+/', trim($search));
+        foreach ($raw_tokens as $t) {
+            if ($t !== '') {
+                $tokens[] = $t;
+            }
+        }
     }
 
     // Status filter: Active by default, include Archived when requested. Never include Deleted.
     $status_in_list = $include_archived ? "'Active','Archived'" : "'Active'";
     $base_where = " WHERE status IN ({$status_in_list})";
 
-    // Get total count
-    $count_query = "SELECT COUNT(*) as total FROM {$config['table']}{$base_where}{$search_query}";
-    $count_stmt = $pdo->prepare($count_query);
-    if (!empty($params)) {
-        foreach ($params as $key => $value) {
+    // First pass: strict multi-token search (all tokens must match).
+    [$search_query, $params] = build_search_clause($tokens, $config['search_fields'], 'strict');
+    $is_fuzzy = false;
+
+    $run_query = function (string $where_extra, array $bind_params) use ($pdo, $config, $base_where, $page, $per_page) {
+        $columns_str = implode(', ', $config['columns']);
+
+        $count_query = "SELECT COUNT(*) as total FROM {$config['table']}{$base_where}{$where_extra}";
+        $count_stmt = $pdo->prepare($count_query);
+        foreach ($bind_params as $key => $value) {
             $count_stmt->bindValue($key, $value, PDO::PARAM_STR);
         }
-    }
-    $count_stmt->execute();
-    $total_records = $count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
+        $count_stmt->execute();
+        $total_records = (int) $count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
 
-    // Calculate pagination
-    $offset = ($page - 1) * $per_page;
-    $total_pages = ceil($total_records / $per_page);
+        $offset = ($page - 1) * $per_page;
+        $total_pages = $total_records > 0 ? (int) ceil($total_records / $per_page) : 0;
 
-    // Get records
-    $columns_str = implode(', ', $config['columns']);
-    $query = "SELECT {$columns_str} FROM {$config['table']}{$base_where}{$search_query}
-              ORDER BY id DESC
-              LIMIT {$per_page} OFFSET {$offset}";
-
-    $stmt = $pdo->prepare($query);
-    if (!empty($params)) {
-        foreach ($params as $key => $value) {
+        $query = "SELECT {$columns_str} FROM {$config['table']}{$base_where}{$where_extra}
+                  ORDER BY id DESC
+                  LIMIT {$per_page} OFFSET {$offset}";
+        $stmt = $pdo->prepare($query);
+        foreach ($bind_params as $key => $value) {
             $stmt->bindValue($key, $value, PDO::PARAM_STR);
         }
-    }
-    $stmt->execute();
-    $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $stmt->execute();
+        $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Format response
+        return [$records, $total_records, $total_pages, $offset];
+    };
+
+    [$records, $total_records, $total_pages, $offset] = $run_query($search_query, $params);
+
+    // Fallback: if a multi-token strict search found nothing, rerun as a fuzzy
+    // OR search to surface near / possible matches. Only triggers when the user
+    // actually typed more than one token — a single-token search has no "near"
+    // interpretation beyond the literal LIKE it already ran.
+    if ($total_records === 0 && count($tokens) > 1) {
+        [$fuzzy_query, $fuzzy_params] = build_search_clause($tokens, $config['search_fields'], 'fuzzy');
+        [$records, $total_records, $total_pages, $offset] = $run_query($fuzzy_query, $fuzzy_params);
+        if ($total_records > 0) {
+            $is_fuzzy = true;
+        }
+    }
+
     echo json_encode([
         'success' => true,
         'records' => $records,
+        'fuzzy' => $is_fuzzy,
+        'search_tokens' => $tokens,
         'pagination' => [
             'current_page' => $page,
             'total_pages' => $total_pages,
             'total_records' => $total_records,
             'per_page' => $per_page,
-            'from' => $offset + 1,
+            'from' => $total_records > 0 ? $offset + 1 : 0,
             'to' => min($offset + $per_page, $total_records)
         ]
     ]);

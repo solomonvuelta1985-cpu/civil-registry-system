@@ -6,7 +6,8 @@
       "Bash(grep \"INSERT INTO \\\\`permissions\\\\`\" \"/c/xampp/htdocs/iscan/public/iscan_db \\(1\\).sql\")",
       "Bash(\"c:/xampp/php/php.exe\" -l c:/xampp/htdocs/iscan/public/certificate_of_death.php)",
       "Bash(\"c:/xampp/php/php.exe\" -l c:/xampp/htdocs/iscan/api/certificate_of_death_save.php)",
-      "Bash(\"c:/xampp/php/php.exe\" -l c:/xampp/htdocs/iscan/api/certificate_of_death_update.php)"
+      "Bash(\"c:/xampp/php/php.exe\" -l c:/xampp/htdocs/iscan/api/certificate_of_death_update.php)",
+      "Bash(/c/xampp/php/php.exe -l c:/xampp/htdocs/iscan/public/records_viewer.php)"
     ]
   }
 }

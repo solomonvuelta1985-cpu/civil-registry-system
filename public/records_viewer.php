@@ -303,25 +303,68 @@ if ($records_per_page < 5 || $records_per_page > 100) {
 $pagination_current_page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $offset = ($pagination_current_page - 1) * $records_per_page;
 
-// Search functionality
+// Search functionality — multi-token: split query on whitespace so
+// "richmond rosete" matches rows where "richmond" hits first_name AND
+// "rosete" hits last_name, instead of LIKE '%richmond rosete%' on each
+// column individually (which would find nothing). Fuzzy fallback below
+// (see "Fuzzy fallback") surfaces near/possible matches if strict fails.
 $search = isset($_GET['search']) ? sanitize_input($_GET['search']) : '';
 $search_query = '';
 $params = [];
+$is_fuzzy = false;
 
+$search_tokens = [];
 if (!empty($search)) {
-    $search_conditions = [];
-    $search_index = 0;
-    foreach ($config['search_fields'] as $field) {
-        $param_name = ':search_' . $search_index;
-        $search_conditions[] = "{$field} LIKE {$param_name}";
-        $params[$param_name] = "%{$search}%";
-        $search_index++;
+    foreach (preg_split('/\s+/', trim($search)) as $t) {
+        if ($t !== '') {
+            $search_tokens[] = $t;
+        }
     }
-    $search_query = " AND (" . implode(' OR ', $search_conditions) . ")";
+}
+
+/**
+ * Build WHERE fragment and bind params for a search mode.
+ * 'strict' — every token must match some search field (AND of ORs).
+ * 'fuzzy'  — any token in any field (flat OR), used as fallback.
+ */
+$build_search_clause = function (array $tokens, array $search_fields, string $mode): array {
+    if (empty($tokens)) {
+        return ['', []];
+    }
+    $p = [];
+    $i = 0;
+    if ($mode === 'strict') {
+        $token_clauses = [];
+        foreach ($tokens as $token) {
+            $field_clauses = [];
+            foreach ($search_fields as $field) {
+                $name = ':s_' . $i++;
+                $field_clauses[] = "{$field} LIKE {$name}";
+                $p[$name] = "%{$token}%";
+            }
+            $token_clauses[] = '(' . implode(' OR ', $field_clauses) . ')';
+        }
+        return [' AND (' . implode(' AND ', $token_clauses) . ')', $p];
+    }
+    $field_clauses = [];
+    foreach ($tokens as $token) {
+        foreach ($search_fields as $field) {
+            $name = ':s_' . $i++;
+            $field_clauses[] = "{$field} LIKE {$name}";
+            $p[$name] = "%{$token}%";
+        }
+    }
+    return [' AND (' . implode(' OR ', $field_clauses) . ')', $p];
+};
+
+$search_params = [];
+if (!empty($search_tokens)) {
+    [$search_query, $search_params] = $build_search_clause($search_tokens, $config['search_fields'], 'strict');
 }
 
 // Advanced filters
 $filter_query = '';
+$filter_params = [];
 $active_filters = [];
 
 foreach ($config['filters'] as $filter) {
@@ -331,10 +374,10 @@ foreach ($config['filters'] as $filter) {
 
         if ($filter['operator'] === 'LIKE') {
             $filter_query .= " AND {$filter['field']} LIKE {$param_name}";
-            $params[$param_name] = "%{$_GET[$filter['name']]}%";
+            $filter_params[$param_name] = "%{$_GET[$filter['name']]}%";
         } else {
             $filter_query .= " AND {$filter['field']} {$filter['operator']} {$param_name}";
-            $params[$param_name] = $_GET[$filter['name']];
+            $filter_params[$param_name] = $_GET[$filter['name']];
         }
     }
 }
@@ -360,52 +403,73 @@ $sort_order = isset($_GET['sort_order']) && strtoupper($_GET['sort_order']) === 
     ? 'ASC'
     : 'DESC';
 
-// Get total records count
-$count_sql = "SELECT COUNT(*) as total FROM {$config['table']} WHERE {$status_sql}" . $search_query . $filter_query;
+// Closure to run count + fetch for a given search fragment/params combo.
+// Used twice when the strict search returns no hits so we can fall back
+// to a fuzzy (any-token) search transparently.
+$run_records_query = function (string $search_fragment, array $search_binds) use (
+    $pdo, $config, $status_sql, $filter_query, $filter_params,
+    $sort_by, $sort_order, $records_per_page, $offset
+) {
+    $all_params = array_merge($search_binds, $filter_params);
 
-try {
-    $count_stmt = $pdo->prepare($count_sql);
-
-    // Bind parameters for count query
-    foreach ($params as $key => $value) {
-        $count_stmt->bindValue($key, $value);
-    }
-
-    $count_stmt->execute();
-    $total_records = (int)($count_stmt->fetch()['total'] ?? 0);
-    $total_pages = (int)ceil($total_records / $records_per_page);
-} catch (PDOException $e) {
-    error_log("Count query error: " . $e->getMessage());
-    error_log("Count SQL: " . $count_sql);
-    error_log("Params: " . print_r($params, true));
+    $count_sql = "SELECT COUNT(*) as total FROM {$config['table']} WHERE {$status_sql}" . $search_fragment . $filter_query;
     $total_records = 0;
     $total_pages = 0;
-}
-
-// Fetch records
-$sql = "SELECT * FROM {$config['table']} WHERE {$status_sql}"
-    . $search_query
-    . $filter_query
-    . " ORDER BY {$sort_by} {$sort_order} LIMIT :limit OFFSET :offset";
-
-try {
-    $stmt = $pdo->prepare($sql);
-
-    // Bind parameters for main query
-    foreach ($params as $key => $value) {
-        $stmt->bindValue($key, $value);
+    try {
+        $count_stmt = $pdo->prepare($count_sql);
+        foreach ($all_params as $key => $value) {
+            $count_stmt->bindValue($key, $value);
+        }
+        $count_stmt->execute();
+        $total_records = (int)($count_stmt->fetch()['total'] ?? 0);
+        $total_pages = (int)ceil($total_records / $records_per_page);
+    } catch (PDOException $e) {
+        error_log("Count query error: " . $e->getMessage());
+        error_log("Count SQL: " . $count_sql);
+        error_log("Params: " . print_r($all_params, true));
     }
 
-    $stmt->bindValue(':limit', $records_per_page, PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-    $stmt->execute();
-    $records = $stmt->fetchAll();
-} catch (PDOException $e) {
-    error_log("Main query error: " . $e->getMessage());
-    error_log("Main SQL: " . $sql);
-    error_log("Params: " . print_r($params, true));
+    $sql = "SELECT * FROM {$config['table']} WHERE {$status_sql}"
+        . $search_fragment
+        . $filter_query
+        . " ORDER BY {$sort_by} {$sort_order} LIMIT :limit OFFSET :offset";
     $records = [];
+    try {
+        $stmt = $pdo->prepare($sql);
+        foreach ($all_params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        $stmt->bindValue(':limit', $records_per_page, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        $records = $stmt->fetchAll();
+    } catch (PDOException $e) {
+        error_log("Main query error: " . $e->getMessage());
+        error_log("Main SQL: " . $sql);
+        error_log("Params: " . print_r($all_params, true));
+    }
+
+    return [$records, $total_records, $total_pages];
+};
+
+// First pass: strict multi-token search.
+[$records, $total_records, $total_pages] = $run_records_query($search_query, $search_params);
+
+// Fuzzy fallback: if a multi-word search returned nothing, rerun with
+// an OR across all tokens and surface the results as "possible matches".
+// Only triggers when the user typed 2+ tokens — a single word has no
+// "near" interpretation beyond the literal LIKE already attempted.
+if ($total_records === 0 && count($search_tokens) > 1) {
+    [$fuzzy_query, $fuzzy_params] = $build_search_clause($search_tokens, $config['search_fields'], 'fuzzy');
+    [$records, $total_records, $total_pages] = $run_records_query($fuzzy_query, $fuzzy_params);
+    if ($total_records > 0) {
+        $is_fuzzy = true;
+    }
 }
+
+// Keep $params populated for any legacy code below that still reads it
+// (e.g. debug output). Not used by the queries themselves anymore.
+$params = array_merge($search_params, $filter_params);
 
 // Helper function to build query string for pagination/sorting
 function build_query_string($exclude = []) {
@@ -2012,9 +2076,19 @@ function get_field_value($record, $field, $type = 'text') {
                         </div>
                     </div>
                     <div class="table-controls-right">
-                        Showing <?php echo number_format(($offset + 1)); ?> to <?php echo number_format(min($offset + $records_per_page, $total_records)); ?> of <?php echo number_format($total_records); ?> records
+                        Showing <?php echo number_format(($offset + 1)); ?> to <?php echo number_format(min($offset + $records_per_page, $total_records)); ?> of <?php echo number_format($total_records); ?> <?php echo $is_fuzzy ? 'possible matches' : 'records'; ?>
                     </div>
                 </div>
+
+                <?php if ($is_fuzzy): ?>
+                <div class="fuzzy-notice" style="background:#fff8e1; border-left:4px solid #f5a623; padding:12px 16px; margin:0 0 12px 0; color:#8a6d3b; border-radius:6px; display:flex; align-items:center; gap:10px;">
+                    <i data-lucide="search" style="width:18px; height:18px;"></i>
+                    <div>
+                        <strong>No exact match found for "<?php echo htmlspecialchars($search); ?>".</strong>
+                        Showing near / possible results based on the words you typed.
+                    </div>
+                </div>
+                <?php endif; ?>
 
                 <table class="records-table">
                     <thead>
@@ -2873,7 +2947,7 @@ function get_field_value($record, $field, $type = 'text') {
                 const data = await response.json();
 
                 if (data.success) {
-                    updateTable(data.records, data.pagination);
+                    updateTable(data.records, data.pagination, data.fuzzy === true);
                 } else {
                     console.error('Search error:', data.error);
                 }
@@ -2886,7 +2960,7 @@ function get_field_value($record, $field, $type = 'text') {
         }
 
         // Update table with new results
-        function updateTable(records, pagination) {
+        function updateTable(records, pagination, isFuzzy) {
             if (!recordsTable) return;
 
             // Update table body
@@ -2904,6 +2978,24 @@ function get_field_value($record, $field, $type = 'text') {
                 `;
             } else {
                 let html = '';
+                // Fuzzy notice row: shown when the strict search returned nothing and
+                // the API fell back to a partial-match ("any token in any field") search.
+                if (isFuzzy) {
+                    const colspan = (recordsTable.closest('table')?.querySelectorAll('thead th').length) || 100;
+                    html += `
+                        <tr class="fuzzy-notice-row">
+                            <td colspan="${colspan}" style="background:#fff8e1; border-left:4px solid #f5a623; padding:12px 16px; color:#8a6d3b;">
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <i data-lucide="search" style="width:18px; height:18px;"></i>
+                                    <div>
+                                        <strong>No exact match found.</strong>
+                                        Showing near / possible results based on the words you typed.
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }
                 records.forEach((record, index) => {
                     html += buildTableRow(record, pagination.from + index);
                 });
@@ -2912,7 +3004,8 @@ function get_field_value($record, $field, $type = 'text') {
 
             // Update table controls
             if (tableControls && pagination) {
-                tableControls.textContent = `Showing ${pagination.from} to ${pagination.to} of ${pagination.total_records} records`;
+                const label = isFuzzy ? 'possible matches' : 'records';
+                tableControls.textContent = `Showing ${pagination.from} to ${pagination.to} of ${pagination.total_records} ${label}`;
             }
 
             // Re-initialize Lucide icons
