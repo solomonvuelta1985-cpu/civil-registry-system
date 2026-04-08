@@ -36,6 +36,11 @@ if (!hasPermission($required_permission)) {
     exit;
 }
 
+// Derive edit/delete permission flags once — used in both the PHP table loop
+// and the JavaScript section further down the page.
+$edit_permission = str_replace('_view', '_edit', $required_permission);
+$can_delete      = isAdmin();
+
 // Configuration for different certificate types
 $record_configs = [
     'marriage' => [
@@ -2121,6 +2126,7 @@ function get_field_value($record, $field, $type = 'text') {
                     <tbody id="recordsTableBody" style="opacity: 0;">
                         <?php
                         $row_number = $offset + 1; // Start from the current offset
+                        // Initialize here so these are always defined even when $records is empty
                         $edit_permission = str_replace('_view', '_edit', $required_permission);
                         // Delete is Admin-only (enforced by isAdmin() below + server via requireAdminApi())
                         $can_delete = isAdmin();

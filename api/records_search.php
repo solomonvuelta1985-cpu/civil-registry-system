@@ -6,6 +6,7 @@
 
 header('Content-Type: application/json');
 require_once '../includes/auth.php';
+require_once '../includes/functions.php';
 
 // Only allow GET requests
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
