@@ -160,6 +160,23 @@ try {
         $pdf_filename = $upload_result['filename'];
         $pdf_filepath = $upload_result['path'];
         $pdf_hash     = $upload_result['hash'] ?? null;
+
+        // Duplicate-PDF guard: reject if this exact file is already
+        // attached to another record. Exclude the current record from
+        // the check so re-uploading the same file to itself is a no-op.
+        if ($pdf_hash) {
+            $dup = check_pdf_duplicate($pdo, $pdf_hash, 'marriage_license', (int)$record_id);
+            if ($dup) {
+                delete_file($pdf_filename);
+                json_response(
+                    false,
+                    "This PDF is already attached to {$dup['label']} Registry No. {$dup['registry_no']}. "
+                  . "Please verify you selected the correct file. If this is the same document, open the existing record instead.",
+                    null,
+                    409
+                );
+            }
+        }
     }
 
     // Update database

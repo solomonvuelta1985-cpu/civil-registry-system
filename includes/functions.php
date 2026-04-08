@@ -190,6 +190,56 @@ function compute_file_hash(string $filepath): string {
 }
 
 /**
+ * Check whether a given SHA-256 hash is already attached to any certificate
+ * record across all 4 certificate types. Used to prevent accidentally uploading
+ * the same PDF to multiple records (e.g., user picks wrong file from folder).
+ *
+ * @param  PDO    $pdo              Active DB connection
+ * @param  string $hash             SHA-256 hex string to look for
+ * @param  string|null $exclude_type Certificate type to exclude (birth/death/marriage/marriage_license)
+ * @param  int|null    $exclude_id   Record ID to exclude (used on update to ignore the current record)
+ * @return array|null               ['cert_type' => ..., 'id' => ..., 'registry_no' => ..., 'label' => ...]
+ *                                  or null if no duplicate found
+ */
+function check_pdf_duplicate(PDO $pdo, string $hash, ?string $exclude_type = null, ?int $exclude_id = null): ?array {
+    if ($hash === '') return null;
+
+    $tables = [
+        'birth'            => ['table' => 'certificate_of_live_birth',       'label' => 'Certificate of Live Birth'],
+        'death'            => ['table' => 'certificate_of_death',            'label' => 'Certificate of Death'],
+        'marriage'         => ['table' => 'certificate_of_marriage',         'label' => 'Certificate of Marriage'],
+        'marriage_license' => ['table' => 'application_for_marriage_license','label' => 'Application for Marriage License'],
+    ];
+
+    foreach ($tables as $type => $meta) {
+        $sql    = "SELECT id, registry_no FROM {$meta['table']} WHERE pdf_hash = :h";
+        $params = [':h' => $hash];
+
+        // Exclude the current record being updated (same type + same id)
+        if ($exclude_type === $type && $exclude_id !== null) {
+            $sql .= " AND id <> :id";
+            $params[':id'] = $exclude_id;
+        }
+
+        $sql .= " LIMIT 1";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($row) {
+            return [
+                'cert_type'   => $type,
+                'id'          => (int)$row['id'],
+                'registry_no' => $row['registry_no'],
+                'label'       => $meta['label'],
+            ];
+        }
+    }
+
+    return null;
+}
+
+/**
  * Move an existing PDF to the backup directory instead of deleting it.
  * Used by update endpoints to preserve the old version before replacing.
  *

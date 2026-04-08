@@ -178,6 +178,22 @@ try {
     $pdf_filepath = $upload_result['path'];
     $pdf_hash     = $upload_result['hash'] ?? null;
 
+    // Duplicate-PDF guard: reject if this exact file is already attached
+    // to another record (any certificate type).
+    if ($pdf_hash) {
+        $dup = check_pdf_duplicate($pdo, $pdf_hash);
+        if ($dup) {
+            delete_file($pdf_filename);
+            json_response(
+                false,
+                "This PDF is already attached to {$dup['label']} Registry No. {$dup['registry_no']}. "
+              . "Please verify you selected the correct file. If this is the same document, open the existing record instead.",
+                null,
+                409
+            );
+        }
+    }
+
     // Convert child date of birth format (safe) - optional
     if (!empty($child_date_of_birth)) {
         $child_date_of_birth = safe_date_convert($child_date_of_birth);

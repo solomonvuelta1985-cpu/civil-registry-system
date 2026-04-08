@@ -162,6 +162,22 @@ try {
     $upload_path = $upload_result['path'];
     $pdf_hash = $upload_result['hash'] ?? null;
 
+    // Duplicate-PDF guard: reject if this exact file is already attached
+    // to another record (any certificate type).
+    if ($pdf_hash) {
+        $dup = check_pdf_duplicate($pdo, $pdf_hash);
+        if ($dup) {
+            delete_file($unique_filename);
+            json_response(
+                false,
+                "This PDF is already attached to {$dup['label']} Registry No. {$dup['registry_no']}. "
+              . "Please verify you selected the correct file. If this is the same document, open the existing record instead.",
+                null,
+                409
+            );
+        }
+    }
+
     // Insert into database
     $sql = "INSERT INTO application_for_marriage_license (
         registry_no, date_of_application,
