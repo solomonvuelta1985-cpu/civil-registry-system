@@ -212,7 +212,7 @@ function check_pdf_duplicate(PDO $pdo, string $hash, ?string $exclude_type = nul
     ];
 
     foreach ($tables as $type => $meta) {
-        $sql    = "SELECT id, registry_no FROM {$meta['table']} WHERE pdf_hash = :h";
+        $sql    = "SELECT id, registry_no FROM {$meta['table']} WHERE pdf_hash = :h AND status = 'Active'";
         $params = [':h' => $hash];
 
         // Exclude the current record being updated (same type + same id)
@@ -227,6 +227,7 @@ function check_pdf_duplicate(PDO $pdo, string $hash, ?string $exclude_type = nul
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($row) {
+            error_log("[check_pdf_duplicate] MATCH: hash={$hash} type={$type} id={$row['id']} registry_no={$row['registry_no']}");
             return [
                 'cert_type'   => $type,
                 'id'          => (int)$row['id'],
