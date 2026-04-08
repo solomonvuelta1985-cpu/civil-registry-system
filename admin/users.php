@@ -688,31 +688,7 @@ $can_delete = hasPermission('users_delete');
     <?php include '../includes/sidebar_nav.php'; ?>
 
     <!-- Top Navbar -->
-    <div class="top-navbar">
-        <button id="sidebarCollapse">
-            <i data-lucide="panel-left-close"></i>
-        </button>
-        <div class="top-navbar-info">
-            <span class="welcome-text">User Management</span>
-        </div>
-
-        <div class="user-profile-dropdown">
-            <button class="user-profile-btn" id="userDropdownBtn">
-                <div class="user-avatar"><?php echo strtoupper(substr(getUserFullName(), 0, 1)); ?></div>
-                <div class="user-profile-info">
-                    <span class="user-name"><?php echo htmlspecialchars(getUserFullName()); ?></span>
-                    <span class="user-role"><?php echo htmlspecialchars(getUserRole()); ?></span>
-                </div>
-                <i data-lucide="chevron-down" class="dropdown-arrow"></i>
-            </button>
-            <div class="dropdown-menu" id="userDropdownMenu">
-                <a href="#"><i data-lucide="user"></i> My Profile</a>
-                <a href="#"><i data-lucide="settings"></i> Settings</a>
-                <div class="dropdown-divider"></div>
-                <a href="../public/logout.php" class="text-danger"><i data-lucide="log-out"></i> Logout</a>
-            </div>
-        </div>
-    </div>
+    <?php include '../includes/top_navbar.php'; ?>
 
     <!-- Main Content -->
     <div class="content">
@@ -932,7 +908,7 @@ $can_delete = hasPermission('users_delete');
             });
 
             // User dropdown
-            document.getElementById('userDropdownBtn').addEventListener('click', function(e) {
+            document.getElementById('userProfileBtn').addEventListener('click', function(e) {
                 e.stopPropagation();
                 document.getElementById('userDropdownMenu').classList.toggle('show');
             });

@@ -1887,10 +1887,18 @@ input[type="file"]:hover {
     /* Progress bar mobile */
     .progress-top-row {
         padding: 8px 12px;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .form-progress {
+        flex: 0 0 auto;
+        justify-content: center;
     }
 
     .progress-step .step-label {
-        display: none;
+        display: inline;
+        font-size: 0.6rem;
     }
 
     .progress-step {
@@ -1899,11 +1907,12 @@ input[type="file"]:hover {
     }
 
     .progress-connector {
-        width: 16px;
+        width: 10px;
     }
 
     .progress-meta {
-        padding-left: 10px;
+        margin-left: 0;
+        padding-left: 0;
         gap: 4px;
     }
 
