@@ -103,15 +103,6 @@ try {
         $errors[] = "Child's last name is required.";
     }
 
-    if (empty($place_type)) {
-        $errors[] = "Place type is required.";
-    }
-
-    // child_place_of_birth is required only for Hospital/Clinic and Barangay Health Center
-    if (in_array($place_type, ['Hospital/Clinic', 'Barangay Health Center']) && empty($child_place_of_birth)) {
-        $errors[] = "Child's place of birth (location) is required for the selected place type.";
-    }
-
     if (empty($barangay)) {
         $errors[] = "Barangay is required.";
     }

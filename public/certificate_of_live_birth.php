@@ -276,9 +276,9 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="place_type">
-                                    Place Type <span class="required">*</span>
+                                    Place Type
                                 </label>
-                                <select id="place_type" name="place_type" required>
+                                <select id="place_type" name="place_type">
                                     <option value="">-- Select Place Type --</option>
                                     <?php
                                     $place_types = ['Hospital/Clinic', 'Home', 'Barangay Health Center', 'Other'];
@@ -293,7 +293,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 
                             <div class="form-group" id="child_place_of_birth_group" style="display: <?php echo ($edit_mode && !empty($record['place_type'])) ? 'block' : 'none'; ?>;">
                                 <label for="child_place_of_birth">
-                                    <span id="place_label">Location</span> <span class="required">*</span>
+                                    <span id="place_label">Location</span>
                                 </label>
                                 <select
                                     id="child_place_of_birth"
@@ -948,7 +948,6 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                     });
 
                     placeOfBirthGroup.style.display = 'block';
-                    placeOfBirthSelect.required = true;
 
                     Notiflix.Loading.remove();
                     Notiflix.Notify.success(`${locations.length} locations loaded!`, {
