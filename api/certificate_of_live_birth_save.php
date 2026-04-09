@@ -103,10 +103,6 @@ try {
         $errors[] = "Child's last name is required.";
     }
 
-    if (empty($barangay)) {
-        $errors[] = "Barangay is required.";
-    }
-
     if (empty($child_sex)) {
         $errors[] = "Child's sex is required.";
     }
@@ -276,9 +272,9 @@ try {
             ':child_last_name' => $child_last_name,
             ':child_date_of_birth' => $child_date_of_birth,
             ':time_of_birth' => !empty($time_of_birth) ? $time_of_birth : null,
-            ':place_type' => $place_type,
+            ':place_type' => !empty($place_type) ? $place_type : null,
             ':child_place_of_birth' => !empty($child_place_of_birth) ? $child_place_of_birth : null,
-            ':barangay' => $barangay,
+            ':barangay' => !empty($barangay) ? $barangay : null,
             ':child_sex' => $child_sex,
             ':legitimacy_status' => $legitimacy_status,
             ':type_of_birth' => $type_of_birth,

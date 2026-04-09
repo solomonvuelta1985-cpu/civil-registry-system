@@ -308,9 +308,9 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="barangay">
-                                    Barangay <span class="required">*</span>
+                                    Barangay
                                 </label>
-                                <select id="barangay" name="barangay" required>
+                                <select id="barangay" name="barangay">
                                     <option value="">-- Select Barangay --</option>
                                 </select>
                                 <span class="help-text">Select the barangay where the birth occurred</span>

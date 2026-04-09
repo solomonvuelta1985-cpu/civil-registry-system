@@ -23,17 +23,44 @@ git commit -m "describe what you changed"
 git push
 ```
 
+---
+
 ### Step 2 — Pull on NAS (immediate update)
+
+#### If you are IN the office (local network):
 Open PowerShell and run:
 ```bash
 ssh mcrobaggao@192.168.1.12
 ```
-Then run:
+
+#### If you are at HOME or REMOTE (via Cloudflare Tunnel):
+
+> **One-time setup (already done):** `cloudflared` is installed and SSH config is set.
+> If on a new PC, install cloudflared first:
+> ```powershell
+> winget install Cloudflare.cloudflared
+> ```
+> Then add this to `C:\Users\<you>\.ssh\config`:
+> ```
+> Host ssh.cdrms.online
+>     ProxyCommand C:\PROGRA~2\cloudflared\cloudflared.exe access ssh --hostname ssh.cdrms.online
+> ```
+
+Open PowerShell and run:
+```powershell
+ssh mcrobaggao@ssh.cdrms.online
+```
+Enter your NAS password when prompted.
+
+---
+
+### Step 3 — Run update command on NAS
+Once connected (either local or remote), run:
 ```bash
 sudo chown -R mcrobaggao:users /volume1/iscan && git -C /volume1/iscan reset --hard HEAD && git -C /volume1/iscan pull origin main && sudo chown -R http:http /volume1/iscan && sudo chmod -R 755 /volume1/iscan
 ```
 
-> **Note:** If you don't run Step 2, the NAS will auto-pull within 1 hour via Task Scheduler.
+> **Note:** If you don't run Steps 2-3, the NAS will auto-pull within 1 hour via Task Scheduler.
 
 ---
 
@@ -107,3 +134,10 @@ synopkg start Apache2.4
 ```bash
 tail -30 /var/packages/WebStation/var/log/apache24_error_log
 ```
+
+
+
+In office → ssh mcrobaggao@192.168.1.12
+At home/remote → ssh mcrobaggao@ssh.cdrms.online (via Cloudflare tunnel)
+One-time setup instructions for new PCs
+Step 3 with the full update command to run after connecting
