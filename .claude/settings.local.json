@@ -7,7 +7,12 @@
       "Bash(\"c:/xampp/php/php.exe\" -l c:/xampp/htdocs/iscan/public/certificate_of_death.php)",
       "Bash(\"c:/xampp/php/php.exe\" -l c:/xampp/htdocs/iscan/api/certificate_of_death_save.php)",
       "Bash(\"c:/xampp/php/php.exe\" -l c:/xampp/htdocs/iscan/api/certificate_of_death_update.php)",
-      "Bash(/c/xampp/php/php.exe -l c:/xampp/htdocs/iscan/public/records_viewer.php)"
+      "Bash(/c/xampp/php/php.exe -l c:/xampp/htdocs/iscan/public/records_viewer.php)",
+      "Bash(grep -l \"ALTER TABLE.*certificate\" /c/xampp/htdocs/iscan/database/migrations/*.sql)",
+      "Bash(ls -la /c/xampp/htdocs/iscan/public/*.php)",
+      "Read(//c/xampp/htdocs/iscan/**)",
+      "Bash(grep -E \"^\\\\s*\\(//|<h|var|data|chart\\)\" /c/xampp/htdocs/iscan/admin/reports.php)",
+      "Bash(ls -1 /c/xampp/htdocs/iscan/public/*certificate*.php /c/xampp/htdocs/iscan/public/*marriage*.php)"
     ]
   }
 }
