@@ -39,6 +39,11 @@ try {
     $where_clauses = [];
     $params = [];
 
+    // By default, hide inactive (soft-deleted) users unless explicitly filtered
+    if (empty($status_filter)) {
+        $where_clauses[] = "status = 'Active'";
+    }
+
     if (!empty($search)) {
         $where_clauses[] = "(username LIKE :search OR full_name LIKE :search OR email LIKE :search)";
         $params[':search'] = "%{$search}%";
