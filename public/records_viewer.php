@@ -2209,13 +2209,6 @@ function get_field_value($record, $field, $type = 'text') {
                                             <i data-lucide="x-circle"></i>
                                             <span>Delete</span>
                                         </button>
-                                        <?php else: ?>
-                                        <button type="button" class="action-dropdown-item delete-action" disabled
-                                                title="Only administrators can delete records"
-                                                style="opacity:0.5;cursor:not-allowed;">
-                                            <i data-lucide="x-circle"></i>
-                                            <span>Delete</span>
-                                        </button>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -3098,11 +3091,6 @@ function get_field_value($record, $field, $type = 'text') {
 
             <?php if ($can_delete): ?>
             html += `<button class="action-dropdown-item delete-action" onclick='deleteRecord(${record.id}, JSON.parse("${recordDataJson}")); closeAllDropdowns();'>
-                            <i data-lucide="x-circle"></i>
-                            <span>Delete</span>
-                        </button>`;
-            <?php else: ?>
-            html += `<button type="button" class="action-dropdown-item delete-action" disabled title="Only administrators can delete records" style="opacity:0.5;cursor:not-allowed;">
                             <i data-lucide="x-circle"></i>
                             <span>Delete</span>
                         </button>`;
