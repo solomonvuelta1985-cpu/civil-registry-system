@@ -344,6 +344,129 @@ function safe_date_convert($date_string, $output_format = 'Y-m-d') {
 }
 
 /**
+ * Normalize a partial registration date into a storable DATE value (or NULL).
+ *
+ * @param string      $format     One of: full, month_only, year_only, month_year, month_day, na
+ * @param string      $full_date  Raw full date string (used when format = 'full')
+ * @param string|null $month      1-12 integer string (used when format includes month)
+ * @param string|null $year       4-digit year string (used when format includes year)
+ * @param string|null $day        1-31 integer string (used when format includes day)
+ *
+ * @return array{date: string|null, error: string|null}
+ */
+function normalize_registration_date(string $format, string $full_date = '',
+    ?string $month = null, ?string $year = null, ?string $day = null): array
+{
+    $allowed = ['full', 'month_only', 'year_only', 'month_year', 'month_day', 'na'];
+    if (!in_array($format, $allowed, true)) {
+        return ['date' => null, 'error' => 'Invalid date format type.'];
+    }
+
+    switch ($format) {
+        case 'full':
+            $converted = safe_date_convert($full_date);
+            if ($converted === null) {
+                return ['date' => null, 'error' => 'Invalid date of registration.'];
+            }
+            return ['date' => $converted, 'error' => null];
+
+        case 'month_only':
+            $m = (int)($month ?? 0);
+            if ($m < 1 || $m > 12) {
+                return ['date' => null, 'error' => 'Month is required for Month Only format.'];
+            }
+            return ['date' => null, 'error' => null];
+
+        case 'year_only':
+            $y = (int)($year ?? 0);
+            if ($y < 1800 || $y > (int)date('Y') + 1) {
+                return ['date' => null, 'error' => 'A valid 4-digit year is required for Year Only format.'];
+            }
+            return ['date' => null, 'error' => null];
+
+        case 'month_year':
+            $m = (int)($month ?? 0);
+            $y = (int)($year ?? 0);
+            if ($m < 1 || $m > 12) {
+                return ['date' => null, 'error' => 'Month is required for Month and Year format.'];
+            }
+            if ($y < 1800 || $y > (int)date('Y') + 1) {
+                return ['date' => null, 'error' => 'A valid 4-digit year is required for Month and Year format.'];
+            }
+            // Store first day of month so year-based queries still work.
+            return ['date' => sprintf('%04d-%02d-01', $y, $m), 'error' => null];
+
+        case 'month_day':
+            $m = (int)($month ?? 0);
+            $d = (int)($day ?? 0);
+            if ($m < 1 || $m > 12) {
+                return ['date' => null, 'error' => 'Month is required for Month and Day format.'];
+            }
+            if ($d < 1 || $d > 31) {
+                return ['date' => null, 'error' => 'Day is required for Month and Day format.'];
+            }
+            return ['date' => null, 'error' => null];
+
+        case 'na':
+            return ['date' => null, 'error' => null];
+    }
+
+    return ['date' => null, 'error' => 'Unknown format.'];
+}
+
+/**
+ * Format a stored partial registration date for human display.
+ *
+ * @param string|null $date    The raw DATE column value (Y-m-d or null)
+ * @param string      $format  The date_of_registration_format column value
+ * @param int|null    $month   Stored partial_month value (1-12)
+ * @param int|null    $year    Stored partial_year value (YYYY)
+ * @param int|null    $day     Stored partial_day value (1-31)
+ *
+ * @return string  Human-readable date string.
+ */
+function format_registration_date(?string $date, string $format = 'full',
+    ?int $month = null, ?int $year = null, ?int $day = null): string
+{
+    $month_names = [
+        1=>'January', 2=>'February', 3=>'March',    4=>'April',
+        5=>'May',     6=>'June',     7=>'July',      8=>'August',
+        9=>'September',10=>'October',11=>'November', 12=>'December'
+    ];
+
+    switch ($format) {
+        case 'full':
+            return $date ? date('M d, Y', strtotime($date)) : 'N/A';
+
+        case 'month_only':
+            return ($month && isset($month_names[$month])) ? $month_names[$month] : 'N/A';
+
+        case 'year_only':
+            return $year ? (string)$year : 'N/A';
+
+        case 'month_year':
+            if ($date) {
+                return date('F Y', strtotime($date));
+            }
+            if ($month && $year && isset($month_names[$month])) {
+                return $month_names[$month] . ' ' . $year;
+            }
+            return 'N/A';
+
+        case 'month_day':
+            if ($month && $day && isset($month_names[$month])) {
+                return $month_names[$month] . ' ' . $day;
+            }
+            return 'N/A';
+
+        case 'na':
+            return 'N/A';
+    }
+
+    return 'N/A';
+}
+
+/**
  * Validate that a string does not exceed the database column length.
  * Returns true if valid, false if too long.
  */

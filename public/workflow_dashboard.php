@@ -101,7 +101,40 @@ function getWorkflowRecords($pdo, $state, $type) {
                 WHEN ws.certificate_type = 'marriage' THEN (
                     SELECT date_of_registration FROM certificate_of_marriage WHERE id = ws.certificate_id
                 )
-            END as date_of_registration
+            END as date_of_registration,
+            CASE
+                WHEN ws.certificate_type = 'birth' THEN (
+                    SELECT date_of_registration_format FROM certificate_of_live_birth WHERE id = ws.certificate_id
+                )
+                WHEN ws.certificate_type = 'marriage' THEN (
+                    SELECT date_of_registration_format FROM certificate_of_marriage WHERE id = ws.certificate_id
+                )
+                ELSE 'full'
+            END as date_of_registration_format,
+            CASE
+                WHEN ws.certificate_type = 'birth' THEN (
+                    SELECT date_of_registration_partial_month FROM certificate_of_live_birth WHERE id = ws.certificate_id
+                )
+                WHEN ws.certificate_type = 'marriage' THEN (
+                    SELECT date_of_registration_partial_month FROM certificate_of_marriage WHERE id = ws.certificate_id
+                )
+            END as date_of_registration_partial_month,
+            CASE
+                WHEN ws.certificate_type = 'birth' THEN (
+                    SELECT date_of_registration_partial_year FROM certificate_of_live_birth WHERE id = ws.certificate_id
+                )
+                WHEN ws.certificate_type = 'marriage' THEN (
+                    SELECT date_of_registration_partial_year FROM certificate_of_marriage WHERE id = ws.certificate_id
+                )
+            END as date_of_registration_partial_year,
+            CASE
+                WHEN ws.certificate_type = 'birth' THEN (
+                    SELECT date_of_registration_partial_day FROM certificate_of_live_birth WHERE id = ws.certificate_id
+                )
+                WHEN ws.certificate_type = 'marriage' THEN (
+                    SELECT date_of_registration_partial_day FROM certificate_of_marriage WHERE id = ws.certificate_id
+                )
+            END as date_of_registration_partial_day
         FROM workflow_states ws
         WHERE 1=1
     ";
@@ -486,7 +519,13 @@ function getWorkflowRecords($pdo, $state, $type) {
                             <span style="color: #6c757d;">N/A</span>
                             <?php endif; ?>
                         </td>
-                        <td><?= date('M d, Y', strtotime($record['date_of_registration'] ?? 'now')) ?></td>
+                        <td><?= htmlspecialchars(format_registration_date(
+                            $record['date_of_registration'] ?? null,
+                            $record['date_of_registration_format'] ?? 'full',
+                            isset($record['date_of_registration_partial_month']) ? (int)$record['date_of_registration_partial_month'] : null,
+                            isset($record['date_of_registration_partial_year'])  ? (int)$record['date_of_registration_partial_year']  : null,
+                            isset($record['date_of_registration_partial_day'])   ? (int)$record['date_of_registration_partial_day']   : null
+                        )) ?></td>
                         <td>
                             <div class="actions">
                                 <a href="<?= $record['certificate_type'] ?>_certificate.php?id=<?= $record['certificate_id'] ?>" class="btn btn-view" title="View">👁️</a>

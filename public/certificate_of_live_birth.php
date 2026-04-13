@@ -49,6 +49,27 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
         $_SESSION['error'] = "Error loading record.";
     }
 }
+
+// Partial date mode state (for date_of_registration)
+$partial_date_mode   = false;
+$partial_date_format = 'full';
+$partial_date_month  = '';
+$partial_date_year   = '';
+$partial_date_day    = '';
+if ($edit_mode && $record) {
+    $fmt = $record['date_of_registration_format'] ?? 'full';
+    if ($fmt !== 'full') {
+        $partial_date_mode   = true;
+        $partial_date_format = $fmt;
+        $partial_date_month  = $record['date_of_registration_partial_month'] ?? '';
+        $partial_date_year   = $record['date_of_registration_partial_year'] ?? '';
+        $partial_date_day    = $record['date_of_registration_partial_day'] ?? '';
+        if ($fmt === 'month_year' && !empty($record['date_of_registration'])) {
+            if (!$partial_date_month) $partial_date_month = date('n', strtotime($record['date_of_registration']));
+            if (!$partial_date_year)  $partial_date_year  = date('Y', strtotime($record['date_of_registration']));
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -187,7 +208,21 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                             <span class="help-text">Optional - Any format accepted (e.g., X, XX, XXX, XXXX, XXXX-XX). Leave blank if the registry number has not yet been assigned by the Civil Registrar.</span>
                         </div>
 
-                        <div class="form-group">
+                        <!-- Partial date toggle for Date of Registration -->
+                        <div style="margin-bottom:0.75rem; padding:0.75rem 1rem; background:var(--bg-secondary, #f8f9fa); border-radius:6px; border:1px solid var(--border-color, #e0e0e0);">
+                            <label style="display:flex; align-items:center; gap:0.625rem; cursor:pointer; font-weight:500; font-size:0.9rem;">
+                                <input
+                                    type="checkbox"
+                                    id="partial_date_toggle"
+                                    style="width:1rem; height:1rem; cursor:pointer;"
+                                    <?php echo $partial_date_mode ? 'checked' : ''; ?>
+                                >
+                                Date of registration is incomplete (partial date)
+                            </label>
+                        </div>
+
+                        <!-- Full date input -->
+                        <div class="form-group" id="full_date_group">
                             <label for="date_of_registration">
                                 Date of Registration <span class="required">*</span>
                             </label>
@@ -195,10 +230,53 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 type="date"
                                 id="date_of_registration"
                                 name="date_of_registration"
-                                required
-                                value="<?php echo $edit_mode ? date('Y-m-d', strtotime($record['date_of_registration'])) : ''; ?>"
+                                <?php echo !$partial_date_mode ? 'required' : 'disabled'; ?>
+                                value="<?php echo ($edit_mode && !$partial_date_mode && !empty($record['date_of_registration'])) ? date('Y-m-d', strtotime($record['date_of_registration'])) : ''; ?>"
                             >
                         </div>
+
+                        <!-- Partial date inputs -->
+                        <div id="partial_date_group" style="<?php echo $partial_date_mode ? '' : 'display:none;'; ?>">
+                            <div class="form-group">
+                                <label for="partial_date_type">Date Type <span class="required">*</span></label>
+                                <select id="partial_date_type" name="partial_date_type" <?php echo $partial_date_mode ? '' : 'disabled'; ?>>
+                                    <option value="">-- Select Type --</option>
+                                    <option value="month_only"  <?= $partial_date_format === 'month_only'  ? 'selected' : '' ?>>Month Only</option>
+                                    <option value="year_only"   <?= $partial_date_format === 'year_only'   ? 'selected' : '' ?>>Year Only</option>
+                                    <option value="month_year"  <?= $partial_date_format === 'month_year'  ? 'selected' : '' ?>>Month and Year Only</option>
+                                    <option value="month_day"   <?= $partial_date_format === 'month_day'   ? 'selected' : '' ?>>Month and Date Only</option>
+                                    <option value="na"          <?= $partial_date_format === 'na'          ? 'selected' : '' ?>>N/A (no date)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="partial_month_group" style="<?php echo in_array($partial_date_format, ['month_only','month_year','month_day']) ? '' : 'display:none;'; ?>">
+                                <label for="partial_date_month">Month</label>
+                                <select id="partial_date_month" name="partial_date_month" <?= in_array($partial_date_format, ['month_only','month_year','month_day']) ? '' : 'disabled' ?>>
+                                    <option value="">-- Select Month --</option>
+                                    <?php
+                                    $months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                                    foreach ($months as $i => $mname): $mval = $i + 1; ?>
+                                    <option value="<?= $mval ?>" <?= ((int)$partial_date_month === $mval) ? 'selected' : '' ?>><?= $mname ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="form-group" id="partial_year_group" style="<?php echo in_array($partial_date_format, ['year_only','month_year']) ? '' : 'display:none;'; ?>">
+                                <label for="partial_date_year">Year</label>
+                                <input type="number" id="partial_date_year" name="partial_date_year"
+                                    min="1800" max="<?= date('Y') + 1 ?>" placeholder="e.g. 1995"
+                                    value="<?= htmlspecialchars($partial_date_year ?? '') ?>"
+                                    <?= in_array($partial_date_format, ['year_only','month_year']) ? '' : 'disabled' ?>>
+                            </div>
+                            <div class="form-group" id="partial_day_group" style="<?php echo ($partial_date_format === 'month_day') ? '' : 'display:none;'; ?>">
+                                <label for="partial_date_day">Day</label>
+                                <select id="partial_date_day" name="partial_date_day" <?= ($partial_date_format === 'month_day') ? '' : 'disabled' ?>>
+                                    <option value="">-- Select Day --</option>
+                                    <?php for ($d = 1; $d <= 31; $d++): ?>
+                                    <option value="<?= $d ?>" <?= ((int)$partial_date_day === $d) ? 'selected' : '' ?>><?= $d ?></option>
+                                    <?php endfor; ?>
+                                </select>
+                            </div>
+                        </div>
+                        <input type="hidden" id="date_of_registration_format" name="date_of_registration_format" value="<?= htmlspecialchars($partial_date_format) ?>">
 
                         <!-- Child's Name -->
                         <div class="form-row">
@@ -1020,6 +1098,66 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 
             updateFormProgress();
         });
+
+        // ── Partial Date Toggle for Date of Registration ──────────────────────
+        (function() {
+            const toggle       = document.getElementById('partial_date_toggle');
+            const fullGroup    = document.getElementById('full_date_group');
+            const partialGroup = document.getElementById('partial_date_group');
+            const fullInput    = document.getElementById('date_of_registration');
+            const typeSelect   = document.getElementById('partial_date_type');
+            const monthGroup   = document.getElementById('partial_month_group');
+            const yearGroup    = document.getElementById('partial_year_group');
+            const dayGroup     = document.getElementById('partial_day_group');
+            const monthSelect  = document.getElementById('partial_date_month');
+            const yearInput    = document.getElementById('partial_date_year');
+            const daySelect    = document.getElementById('partial_date_day');
+            const formatHidden = document.getElementById('date_of_registration_format');
+
+            if (!toggle) return;
+
+            function applyTypeSelection(typeVal) {
+                const needsMonth = (typeVal === 'month_only' || typeVal === 'month_year' || typeVal === 'month_day');
+                const needsYear  = (typeVal === 'year_only'  || typeVal === 'month_year');
+                const needsDay   = (typeVal === 'month_day');
+                monthGroup.style.display = needsMonth ? '' : 'none';
+                monthSelect.disabled     = !needsMonth;
+                if (!needsMonth) monthSelect.value = '';
+                yearGroup.style.display = needsYear ? '' : 'none';
+                yearInput.disabled      = !needsYear;
+                if (!needsYear) yearInput.value = '';
+                dayGroup.style.display = needsDay ? '' : 'none';
+                daySelect.disabled     = !needsDay;
+                if (!needsDay) daySelect.value = '';
+                formatHidden.value = typeVal || 'full';
+                if (typeof updateFormProgress === 'function') updateFormProgress();
+            }
+
+            function applyPartialMode(isPartial) {
+                fullGroup.style.display    = isPartial ? 'none' : '';
+                fullInput.disabled         = isPartial;
+                fullInput.required         = !isPartial;
+                if (isPartial) fullInput.value = '';
+                partialGroup.style.display = isPartial ? '' : 'none';
+                typeSelect.disabled        = !isPartial;
+                if (isPartial) {
+                    applyTypeSelection(typeSelect.value);
+                } else {
+                    monthGroup.style.display = 'none';
+                    yearGroup.style.display  = 'none';
+                    dayGroup.style.display   = 'none';
+                    monthSelect.disabled     = true;
+                    yearInput.disabled       = true;
+                    daySelect.disabled       = true;
+                    formatHidden.value       = 'full';
+                }
+                if (typeof updateFormProgress === 'function') updateFormProgress();
+            }
+
+            toggle.addEventListener('change', function() { applyPartialMode(this.checked); });
+            typeSelect.addEventListener('change', function() { applyTypeSelection(this.value); });
+            applyPartialMode(toggle.checked);
+        })();
 
         // "Father Not Stated" checkbox — toggle father inputs vs Not Stated selects
         const fatherNotStatedCb = document.getElementById('father_not_stated_checkbox');

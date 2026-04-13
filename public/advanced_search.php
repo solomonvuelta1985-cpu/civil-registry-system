@@ -34,6 +34,10 @@ function performSearch($pdo, $params) {
             registry_no,
             CONCAT(child_first_name, ' ', child_middle_name, ' ', child_last_name) as name,
             date_of_registration,
+            date_of_registration_format,
+            date_of_registration_partial_month,
+            date_of_registration_partial_year,
+            date_of_registration_partial_day,
             child_place_of_birth as location,
             created_at
         FROM certificate_of_live_birth
@@ -68,6 +72,10 @@ function performSearch($pdo, $params) {
             registry_no,
             CONCAT(husband_first_name, ' ', husband_last_name, ' & ', wife_first_name, ' ', wife_last_name) as name,
             date_of_registration,
+            date_of_registration_format,
+            date_of_registration_partial_month,
+            date_of_registration_partial_year,
+            date_of_registration_partial_day,
             place_of_marriage as location,
             created_at
         FROM certificate_of_marriage
@@ -389,7 +397,13 @@ function performSearch($pdo, $params) {
                             <strong>Registry:</strong> <?= htmlspecialchars($result['registry_no'] ?? 'N/A') ?>
                         </div>
                         <div class="result-detail">
-                            <strong>Date:</strong> <?= date('M d, Y', strtotime($result['date_of_registration'])) ?>
+                            <strong>Date:</strong> <?= htmlspecialchars(format_registration_date(
+                                $result['date_of_registration'] ?? null,
+                                $result['date_of_registration_format'] ?? 'full',
+                                isset($result['date_of_registration_partial_month']) ? (int)$result['date_of_registration_partial_month'] : null,
+                                isset($result['date_of_registration_partial_year'])  ? (int)$result['date_of_registration_partial_year']  : null,
+                                isset($result['date_of_registration_partial_day'])   ? (int)$result['date_of_registration_partial_day']   : null
+                            )) ?>
                         </div>
                         <div class="result-detail">
                             <strong>Location:</strong> <?= htmlspecialchars($result['location'] ?? 'N/A') ?>

@@ -555,6 +555,15 @@ function get_field_value($record, $field, $type = 'text') {
         $last = $record['mother_last_name'] ?? '';
         $full_name = trim($first . ' ' . $middle . ' ' . $last);
         return htmlspecialchars($full_name) ?: 'N/A';
+    } elseif ($field === 'date_of_registration') {
+        $fmt = $record['date_of_registration_format'] ?? 'full';
+        return htmlspecialchars(format_registration_date(
+            $record['date_of_registration'] ?? null,
+            $fmt,
+            isset($record['date_of_registration_partial_month']) ? (int)$record['date_of_registration_partial_month'] : null,
+            isset($record['date_of_registration_partial_year'])  ? (int)$record['date_of_registration_partial_year']  : null,
+            isset($record['date_of_registration_partial_day'])   ? (int)$record['date_of_registration_partial_day']   : null
+        ));
     } elseif ($type === 'date' && !empty($record[$field])) {
         return date('M d, Y', strtotime($record[$field]));
     } else {

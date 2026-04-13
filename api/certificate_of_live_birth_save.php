@@ -29,7 +29,11 @@ try {
     if (empty($registry_no)) {
         $registry_no = null;
     }
-    $date_of_registration = sanitize_input($_POST['date_of_registration'] ?? '');
+    $date_of_registration_format = sanitize_input($_POST['date_of_registration_format'] ?? 'full');
+    $date_of_registration        = sanitize_input($_POST['date_of_registration'] ?? '');
+    $partial_date_month          = sanitize_input($_POST['partial_date_month'] ?? null) ?: null;
+    $partial_date_year           = sanitize_input($_POST['partial_date_year'] ?? null) ?: null;
+    $partial_date_day            = sanitize_input($_POST['partial_date_day'] ?? null) ?: null;
 
     // Child information
     $child_first_name = sanitize_input($_POST['child_first_name'] ?? '');
@@ -76,7 +80,11 @@ try {
     // Validation
     $errors = [];
 
-    if (empty($date_of_registration)) {
+    $allowed_formats = ['full', 'month_only', 'year_only', 'month_year', 'month_day', 'na'];
+    if (!in_array($date_of_registration_format, $allowed_formats, true)) {
+        $errors[] = "Invalid date format type.";
+    }
+    if ($date_of_registration_format === 'full' && empty($date_of_registration)) {
         $errors[] = "Date of registration is required.";
     }
 
@@ -147,14 +155,27 @@ try {
         json_response(false, implode(' ', $errors), null, 400);
     }
 
-    // Convert date format to MySQL date format (safe — returns null on invalid)
-    $date_of_registration = safe_date_convert($date_of_registration);
-    if ($date_of_registration === null) {
-        json_response(false, 'Invalid date of registration.', null, 400);
+    // Normalize partial or full registration date
+    $norm = normalize_registration_date(
+        $date_of_registration_format,
+        $date_of_registration,
+        $partial_date_month,
+        $partial_date_year,
+        $partial_date_day
+    );
+    if ($norm['error'] !== null) {
+        json_response(false, $norm['error'], null, 400);
     }
+    $date_of_registration        = $norm['date'];
+    $stored_partial_month        = in_array($date_of_registration_format, ['month_only', 'month_year', 'month_day'])
+        ? ((int)$partial_date_month ?: null) : null;
+    $stored_partial_year         = in_array($date_of_registration_format, ['year_only', 'month_year'])
+        ? ((int)$partial_date_year ?: null) : null;
+    $stored_partial_day          = ($date_of_registration_format === 'month_day')
+        ? ((int)$partial_date_day ?: null) : null;
 
     // Upload PDF file into organized folder: birth/{year}/
-    $reg_year = date('Y', strtotime($date_of_registration));
+    $reg_year = !empty($date_of_registration) ? date('Y', strtotime($date_of_registration)) : date('Y');
     $upload_result = upload_file($_FILES['pdf_file'], 'birth', $reg_year);
 
     if (!$upload_result['success']) {
@@ -199,6 +220,10 @@ try {
         $sql = "INSERT INTO certificate_of_live_birth (
                     registry_no,
                     date_of_registration,
+                    date_of_registration_format,
+                    date_of_registration_partial_month,
+                    date_of_registration_partial_year,
+                    date_of_registration_partial_day,
                     child_first_name,
                     child_middle_name,
                     child_last_name,
@@ -227,10 +252,15 @@ try {
                     pdf_filepath,
                     pdf_hash,
                     created_at,
-                    status
+                    status,
+                    created_by
                 ) VALUES (
                     :registry_no,
                     :date_of_registration,
+                    :date_of_registration_format,
+                    :date_of_registration_partial_month,
+                    :date_of_registration_partial_year,
+                    :date_of_registration_partial_day,
                     :child_first_name,
                     :child_middle_name,
                     :child_last_name,
@@ -259,14 +289,21 @@ try {
                     :pdf_filepath,
                     :pdf_hash,
                     NOW(),
-                    'Active'
+                    'Active',
+                    :created_by
                 )";
 
         $stmt = $pdo->prepare($sql);
 
+        $created_by = $_SESSION['user_id'] ?? null;
+
         $stmt->execute([
-            ':registry_no' => $registry_no,
-            ':date_of_registration' => $date_of_registration,
+            ':registry_no'                         => $registry_no,
+            ':date_of_registration'                => $date_of_registration,
+            ':date_of_registration_format'         => $date_of_registration_format,
+            ':date_of_registration_partial_month'  => $stored_partial_month,
+            ':date_of_registration_partial_year'   => $stored_partial_year,
+            ':date_of_registration_partial_day'    => $stored_partial_day,
             ':child_first_name' => $child_first_name,
             ':child_middle_name' => $child_middle_name,
             ':child_last_name' => $child_last_name,
@@ -293,7 +330,8 @@ try {
             ':place_of_marriage' => $place_of_marriage,
             ':pdf_filename' => $pdf_filename,
             ':pdf_filepath' => $pdf_filepath,
-            ':pdf_hash'     => $pdf_hash
+            ':pdf_hash'     => $pdf_hash,
+            ':created_by'   => $created_by
         ]);
 
         $inserted_id = $pdo->lastInsertId();

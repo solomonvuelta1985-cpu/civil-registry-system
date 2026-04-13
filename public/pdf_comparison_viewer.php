@@ -561,7 +561,17 @@ $field_groups = $certificate_type === 'birth' ? $birth_fields : $marriage_fields
                                 <?php endif; ?>
                             </div>
                             <div class="field-value <?= empty($certificate_data[$field]) ? 'empty' : '' ?>">
-                                <?= !empty($certificate_data[$field]) ? htmlspecialchars($certificate_data[$field]) : '(Not provided)' ?>
+                                <?php if ($field === 'date_of_registration'): ?>
+                                    <?= htmlspecialchars(format_registration_date(
+                                        $certificate_data['date_of_registration'] ?? null,
+                                        $certificate_data['date_of_registration_format'] ?? 'full',
+                                        isset($certificate_data['date_of_registration_partial_month']) ? (int)$certificate_data['date_of_registration_partial_month'] : null,
+                                        isset($certificate_data['date_of_registration_partial_year'])  ? (int)$certificate_data['date_of_registration_partial_year']  : null,
+                                        isset($certificate_data['date_of_registration_partial_day'])   ? (int)$certificate_data['date_of_registration_partial_day']   : null
+                                    )) ?>
+                                <?php else: ?>
+                                    <?= !empty($certificate_data[$field]) ? htmlspecialchars($certificate_data[$field]) : '(Not provided)' ?>
+                                <?php endif; ?>
                             </div>
                         </div>
                     <?php endforeach; ?>

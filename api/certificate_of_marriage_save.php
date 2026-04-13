@@ -24,7 +24,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 try {
     // Sanitize and validate input
     $registry_no = sanitize_input($_POST['registry_no'] ?? '');
-    $date_of_registration = sanitize_input($_POST['date_of_registration'] ?? '');
+    $date_of_registration_format = sanitize_input($_POST['date_of_registration_format'] ?? 'full');
+    $date_of_registration        = sanitize_input($_POST['date_of_registration'] ?? '');
+    $partial_date_month          = sanitize_input($_POST['partial_date_month'] ?? null) ?: null;
+    $partial_date_year           = sanitize_input($_POST['partial_date_year'] ?? null) ?: null;
+    $partial_date_day            = sanitize_input($_POST['partial_date_day'] ?? null) ?: null;
 
     // Husband's Information
     $husband_first_name = sanitize_input($_POST['husband_first_name'] ?? '');
@@ -66,7 +70,11 @@ try {
     $add_new = isset($_POST['add_new']) && $_POST['add_new'] === '1';
 
     // Validation: Required fields
-    if (empty($date_of_registration) || empty($husband_first_name) || empty($husband_last_name) ||
+    $allowed_formats = ['full', 'month_only', 'year_only', 'month_year', 'month_day', 'na'];
+    if (!in_array($date_of_registration_format, $allowed_formats, true)) {
+        json_response(false, 'Invalid date format type.', null, 400);
+    }
+    if (empty($husband_first_name) || empty($husband_last_name) ||
         empty($husband_place_of_birth) || empty($husband_residence) ||
         empty($wife_first_name) || empty($wife_last_name) ||
         empty($wife_place_of_birth) || empty($wife_residence) ||
@@ -102,17 +110,31 @@ try {
         json_response(false, 'PDF file is required.', null, 400);
     }
 
-    // Convert date formats safely (returns null on invalid dates)
-    $date_of_registration = safe_date_convert($date_of_registration);
-    if ($date_of_registration === null) {
-        json_response(false, 'Invalid date of registration.', null, 400);
+    // Normalize partial or full registration date
+    $norm = normalize_registration_date(
+        $date_of_registration_format,
+        $date_of_registration,
+        $partial_date_month,
+        $partial_date_year,
+        $partial_date_day
+    );
+    if ($norm['error'] !== null) {
+        json_response(false, $norm['error'], null, 400);
     }
+    $date_of_registration        = $norm['date'];
+    $stored_partial_month        = in_array($date_of_registration_format, ['month_only', 'month_year', 'month_day'])
+        ? ((int)$partial_date_month ?: null) : null;
+    $stored_partial_year         = in_array($date_of_registration_format, ['year_only', 'month_year'])
+        ? ((int)$partial_date_year ?: null) : null;
+    $stored_partial_day          = ($date_of_registration_format === 'month_day')
+        ? ((int)$partial_date_day ?: null) : null;
+
     $husband_date_of_birth = !empty($husband_date_of_birth) ? safe_date_convert($husband_date_of_birth) : null;
     $wife_date_of_birth = !empty($wife_date_of_birth) ? safe_date_convert($wife_date_of_birth) : null;
     $date_of_marriage = safe_date_convert($date_of_marriage);
 
     // Upload PDF file into organized folder: marriage/{year}/
-    $reg_year = date('Y', strtotime($date_of_registration));
+    $reg_year = !empty($date_of_registration) ? date('Y', strtotime($date_of_registration)) : date('Y');
     $upload_result = upload_file($_FILES['pdf_file'], 'marriage', $reg_year);
 
     if (!$upload_result['success']) {
@@ -146,6 +168,7 @@ try {
         // Insert into database
         $sql = "INSERT INTO certificate_of_marriage (
             registry_no, date_of_registration,
+            date_of_registration_format, date_of_registration_partial_month, date_of_registration_partial_year, date_of_registration_partial_day,
             husband_first_name, husband_middle_name, husband_last_name,
             husband_date_of_birth, husband_place_of_birth, husband_residence, husband_citizenship,
             husband_father_name, husband_father_residence,
@@ -159,6 +182,7 @@ try {
             status, created_by
         ) VALUES (
             :registry_no, :date_of_registration,
+            :date_of_registration_format, :date_of_registration_partial_month, :date_of_registration_partial_year, :date_of_registration_partial_day,
             :husband_first_name, :husband_middle_name, :husband_last_name,
             :husband_date_of_birth, :husband_place_of_birth, :husband_residence, :husband_citizenship,
             :husband_father_name, :husband_father_residence,
@@ -174,11 +198,15 @@ try {
 
         $stmt = $pdo->prepare($sql);
 
-        $created_by = $_SESSION['user_id'] ?? 1;
+        $created_by = $_SESSION['user_id'] ?? null;
 
         $params = [
-            ':registry_no' => $registry_no ?: null,
-            ':date_of_registration' => $date_of_registration,
+            ':registry_no'                         => $registry_no ?: null,
+            ':date_of_registration'                => $date_of_registration,
+            ':date_of_registration_format'         => $date_of_registration_format,
+            ':date_of_registration_partial_month'  => $stored_partial_month,
+            ':date_of_registration_partial_year'   => $stored_partial_year,
+            ':date_of_registration_partial_day'    => $stored_partial_day,
             ':husband_first_name' => $husband_first_name,
             ':husband_middle_name' => $husband_middle_name ?: null,
             ':husband_last_name' => $husband_last_name,
