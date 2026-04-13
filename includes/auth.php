@@ -55,9 +55,31 @@ function hasPermission($permission_name) {
         return true;
     }
 
-    // Check cached permissions in session (loaded at login)
+    // Check cached permissions in session (loaded at login).
+    // Once per request, compare the cached count against the DB count so that
+    // permissions granted/revoked after login are picked up without requiring
+    // a logout/login cycle.
     $permissions = $_SESSION['permissions'] ?? null;
     if ($permissions !== null) {
+        static $permissions_verified = false;
+        if (!$permissions_verified) {
+            $permissions_verified = true;
+            global $pdo;
+            try {
+                $stmt = $pdo->prepare("SELECT COUNT(*) as cnt FROM role_permissions rp JOIN permissions p ON rp.permission_id = p.id WHERE rp.role = :role");
+                $stmt->execute([':role' => getUserRole()]);
+                $db_count = (int)($stmt->fetch()['cnt'] ?? 0);
+                if ($db_count !== (int)($_SESSION['permissions_count'] ?? -1)) {
+                    // Permission set changed since login — refresh the session cache
+                    $perms = getRolePermissions(getUserRole());
+                    $_SESSION['permissions'] = array_column($perms, 'name');
+                    $_SESSION['permissions_count'] = $db_count;
+                    $permissions = $_SESSION['permissions'];
+                }
+            } catch (PDOException $e) {
+                // Keep using cached permissions if DB check fails
+            }
+        }
         return in_array($permission_name, $permissions, true);
     }
 
@@ -297,6 +319,7 @@ function setUserSession($user) {
     // Cache permissions in session to avoid DB queries on every page load
     $perms = getRolePermissions($user['role']);
     $_SESSION['permissions'] = array_column($perms, 'name');
+    $_SESSION['permissions_count'] = count($_SESSION['permissions']);
 }
 
 /**
