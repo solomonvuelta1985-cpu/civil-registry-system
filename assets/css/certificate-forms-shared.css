@@ -1955,6 +1955,7 @@ input[type="file"]:hover {
 
     .content {
         margin-left: 0;
+        max-width: 100vw;
         padding: 0;
         padding-top: 70px;
         background: #ffffff;
@@ -1962,6 +1963,7 @@ input[type="file"]:hover {
 
     .sidebar-collapsed .content {
         margin-left: 0;
+        max-width: 100vw;
     }
 
     .page-container {
