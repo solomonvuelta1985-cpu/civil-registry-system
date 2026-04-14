@@ -1048,7 +1048,7 @@ if ($edit_mode && $record) {
 
         // Auto-map hospital/clinic to corresponding barangay
         const hospitalBarangayMap = {
-            'Baggao District Hospital': 'San Jose',
+            'Baggao District Hospital': 'Tungel',
             'Municipal Health Office': 'San Jose',
             'Baggao Community Medicare (Poblacion)': 'Poblacion (Centro)',
             'Baggao Municipal Hospital (Tallang)': 'Tallang'
