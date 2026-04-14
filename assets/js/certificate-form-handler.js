@@ -1015,11 +1015,23 @@ class CertificateFormHandler {
      */
     restoreFormData(data) {
         Object.keys(data).forEach(name => {
-            const input = this.form.elements[name];
-            if (input) {
-                input.value = data[name];
+            const field = this.form.elements[name];
+            if (!field) return;
+            const value = data[name];
+            const inputs = field instanceof RadioNodeList || field instanceof HTMLCollection
+                ? Array.from(field)
+                : [field];
+            inputs.forEach(input => {
+                if (!input || typeof input.dispatchEvent !== 'function') return;
+                if (input.type === 'radio' || input.type === 'checkbox') {
+                    input.checked = Array.isArray(value)
+                        ? value.includes(input.value)
+                        : String(input.value) === String(value);
+                } else {
+                    input.value = value;
+                }
                 input.dispatchEvent(new Event('change', { bubbles: true }));
-            }
+            });
         });
     }
 
@@ -1061,6 +1073,7 @@ class CertificateFormHandler {
                         () => {
                             // User confirmed - clear flag and navigate
                             formChanged = false;
+                            this.form.dataset.submitting = '1';
                             // Use a small delay to ensure flag is cleared before navigation
                             setTimeout(() => {
                                 window.location.href = targetUrl;
@@ -1083,6 +1096,7 @@ class CertificateFormHandler {
                     // Fallback to native confirm
                     if (confirm('You have unsaved changes. Are you sure you want to leave this page?')) {
                         formChanged = false;
+                        this.form.dataset.submitting = '1';
                         setTimeout(() => {
                             window.location.href = targetUrl;
                         }, 50);
