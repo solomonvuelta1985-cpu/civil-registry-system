@@ -168,6 +168,7 @@ try {
         $stmt = $pdo->query("
             SELECT
                 CASE
+                    WHEN age_unit IN ('months','days') THEN 'Infant (< 1)'
                     WHEN age < 1 THEN 'Infant (< 1)'
                     WHEN age BETWEEN 1 AND 17 THEN 'Child (1-17)'
                     WHEN age BETWEEN 18 AND 35 THEN 'Young Adult (18-35)'
@@ -179,7 +180,7 @@ try {
             FROM certificate_of_death
             WHERE status = 'Active' AND age IS NOT NULL AND $date_condition
             GROUP BY age_group
-            ORDER BY MIN(age)
+            ORDER BY CASE WHEN age_unit IN ('months','days') THEN -1 ELSE MIN(age) END
         ");
         $age_demographics = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } else {

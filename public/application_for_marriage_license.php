@@ -795,9 +795,9 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
             </div>
         </form>
 
-        <!-- Floating Toggle Button (shown when PDF is hidden) -->
-        <button type="button" id="floatingToggleBtn" class="floating-toggle-btn" title="Show PDF Upload">
-            <i data-lucide="eye"></i>
+        <!-- Floating Toggle Button - opens PDF drawer -->
+        <button type="button" id="floatingToggleBtn" class="floating-toggle-btn" title="Open PDF Upload">
+            <i data-lucide="file-text"></i>
         </button>
 
         </div> <!-- Close dashboard-container -->

@@ -70,6 +70,27 @@ if ($edit_mode && $record) {
         }
     }
 }
+
+// Partial DOB state (for child_date_of_birth)
+$child_dob_partial_mode   = false;
+$child_dob_partial_format = 'full';
+$child_dob_partial_month  = '';
+$child_dob_partial_year   = '';
+$child_dob_partial_day    = '';
+if ($edit_mode && $record) {
+    $cfmt = $record['child_date_of_birth_format'] ?? 'full';
+    if ($cfmt !== 'full') {
+        $child_dob_partial_mode   = true;
+        $child_dob_partial_format = $cfmt;
+        $child_dob_partial_month  = $record['child_date_of_birth_partial_month'] ?? '';
+        $child_dob_partial_year   = $record['child_date_of_birth_partial_year'] ?? '';
+        $child_dob_partial_day    = $record['child_date_of_birth_partial_day'] ?? '';
+        if ($cfmt === 'month_year' && !empty($record['child_date_of_birth'])) {
+            if (!$child_dob_partial_month) $child_dob_partial_month = date('n', strtotime($record['child_date_of_birth']));
+            if (!$child_dob_partial_year)  $child_dob_partial_year  = date('Y', strtotime($record['child_date_of_birth']));
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -323,8 +344,20 @@ if ($edit_mode && $record) {
                         </div>
 
                         <!-- Date and Time of Birth -->
+                        <!-- Partial date toggle for Child's Date of Birth -->
+                        <div style="margin-bottom:0.75rem; padding:0.75rem 1rem; background:var(--bg-secondary, #f8f9fa); border-radius:6px; border:1px solid var(--border-color, #e0e0e0);">
+                            <label style="display:flex; align-items:center; gap:0.625rem; cursor:pointer; font-weight:500; font-size:0.9rem;">
+                                <input
+                                    type="checkbox"
+                                    id="child_dob_partial_toggle"
+                                    style="width:1rem; height:1rem; cursor:pointer;"
+                                    <?php echo $child_dob_partial_mode ? 'checked' : ''; ?>
+                                >
+                                Child's date of birth is incomplete (partial date)
+                            </label>
+                        </div>
                         <div class="form-row">
-                            <div class="form-group">
+                            <div class="form-group" id="child_dob_full_group">
                                 <label for="child_date_of_birth">
                                     Child's Date of Birth
                                 </label>
@@ -332,9 +365,52 @@ if ($edit_mode && $record) {
                                     type="date"
                                     id="child_date_of_birth"
                                     name="child_date_of_birth"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['child_date_of_birth'] ?? '') : ''; ?>"
+                                    <?php echo $child_dob_partial_mode ? 'disabled' : ''; ?>
+                                    value="<?php echo ($edit_mode && !$child_dob_partial_mode && !empty($record['child_date_of_birth'])) ? htmlspecialchars(date('Y-m-d', strtotime($record['child_date_of_birth']))) : ''; ?>"
                                 >
                             </div>
+
+                            <div id="child_dob_partial_group" style="<?php echo $child_dob_partial_mode ? '' : 'display:none;'; ?>">
+                                <div class="form-group">
+                                    <label for="child_dob_partial_type">Date Type <span class="required">*</span></label>
+                                    <select id="child_dob_partial_type" <?php echo $child_dob_partial_mode ? '' : 'disabled'; ?>>
+                                        <option value="">-- Select Type --</option>
+                                        <option value="month_only"  <?= $child_dob_partial_format === 'month_only'  ? 'selected' : '' ?>>Month Only</option>
+                                        <option value="year_only"   <?= $child_dob_partial_format === 'year_only'   ? 'selected' : '' ?>>Year Only</option>
+                                        <option value="month_year"  <?= $child_dob_partial_format === 'month_year'  ? 'selected' : '' ?>>Month and Year Only</option>
+                                        <option value="month_day"   <?= $child_dob_partial_format === 'month_day'   ? 'selected' : '' ?>>Month and Date Only</option>
+                                        <option value="na"          <?= $child_dob_partial_format === 'na'          ? 'selected' : '' ?>>N/A (no date)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="child_dob_partial_month_group" style="<?php echo in_array($child_dob_partial_format, ['month_only','month_year','month_day']) ? '' : 'display:none;'; ?>">
+                                    <label for="child_dob_partial_month">Month</label>
+                                    <select id="child_dob_partial_month" name="child_date_of_birth_partial_month" <?= in_array($child_dob_partial_format, ['month_only','month_year','month_day']) ? '' : 'disabled' ?>>
+                                        <option value="">-- Select Month --</option>
+                                        <?php
+                                        $cdob_months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                                        foreach ($cdob_months as $i => $mname): $mval = $i + 1; ?>
+                                        <option value="<?= $mval ?>" <?= ((int)$child_dob_partial_month === $mval) ? 'selected' : '' ?>><?= $mname ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="child_dob_partial_year_group" style="<?php echo in_array($child_dob_partial_format, ['year_only','month_year']) ? '' : 'display:none;'; ?>">
+                                    <label for="child_dob_partial_year">Year</label>
+                                    <input type="number" id="child_dob_partial_year" name="child_date_of_birth_partial_year"
+                                        min="1800" max="<?= date('Y') + 1 ?>" placeholder="e.g. 2020"
+                                        value="<?= htmlspecialchars($child_dob_partial_year ?? '') ?>"
+                                        <?= in_array($child_dob_partial_format, ['year_only','month_year']) ? '' : 'disabled' ?>>
+                                </div>
+                                <div class="form-group" id="child_dob_partial_day_group" style="<?php echo ($child_dob_partial_format === 'month_day') ? '' : 'display:none;'; ?>">
+                                    <label for="child_dob_partial_day">Day</label>
+                                    <select id="child_dob_partial_day" name="child_date_of_birth_partial_day" <?= ($child_dob_partial_format === 'month_day') ? '' : 'disabled' ?>>
+                                        <option value="">-- Select Day --</option>
+                                        <?php for ($d = 1; $d <= 31; $d++): ?>
+                                        <option value="<?= $d ?>" <?= ((int)$child_dob_partial_day === $d) ? 'selected' : '' ?>><?= $d ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                </div>
+                            </div>
+                            <input type="hidden" id="child_date_of_birth_format" name="child_date_of_birth_format" value="<?= htmlspecialchars($child_dob_partial_format) ?>">
 
                             <div class="form-group">
                                 <label for="time_of_birth">
@@ -928,9 +1004,9 @@ if ($edit_mode && $record) {
             </div>
         </form>
 
-        <!-- Floating Toggle Button (shown when PDF is hidden) -->
-        <button type="button" id="floatingToggleBtn" class="floating-toggle-btn" title="Show PDF Upload">
-            <i data-lucide="eye"></i>
+        <!-- Floating Toggle Button - opens PDF drawer -->
+        <button type="button" id="floatingToggleBtn" class="floating-toggle-btn" title="Open PDF Upload">
+            <i data-lucide="file-text"></i>
         </button>
 
             </div> <!-- Close form-content-container -->
@@ -1152,6 +1228,63 @@ if ($edit_mode && $record) {
                     formatHidden.value       = 'full';
                 }
                 if (typeof updateFormProgress === 'function') updateFormProgress();
+            }
+
+            toggle.addEventListener('change', function() { applyPartialMode(this.checked); });
+            typeSelect.addEventListener('change', function() { applyTypeSelection(this.value); });
+            applyPartialMode(toggle.checked);
+        })();
+
+        // ── Partial DOB Toggle for Child's Date of Birth ──────────────────────
+        (function() {
+            const toggle       = document.getElementById('child_dob_partial_toggle');
+            const fullGroup    = document.getElementById('child_dob_full_group');
+            const partialGroup = document.getElementById('child_dob_partial_group');
+            const fullInput    = document.getElementById('child_date_of_birth');
+            const typeSelect   = document.getElementById('child_dob_partial_type');
+            const monthGroup   = document.getElementById('child_dob_partial_month_group');
+            const yearGroup    = document.getElementById('child_dob_partial_year_group');
+            const dayGroup     = document.getElementById('child_dob_partial_day_group');
+            const monthSelect  = document.getElementById('child_dob_partial_month');
+            const yearInput    = document.getElementById('child_dob_partial_year');
+            const daySelect    = document.getElementById('child_dob_partial_day');
+            const formatHidden = document.getElementById('child_date_of_birth_format');
+
+            if (!toggle) return;
+
+            function applyTypeSelection(typeVal) {
+                const needsMonth = (typeVal === 'month_only' || typeVal === 'month_year' || typeVal === 'month_day');
+                const needsYear  = (typeVal === 'year_only'  || typeVal === 'month_year');
+                const needsDay   = (typeVal === 'month_day');
+                monthGroup.style.display = needsMonth ? '' : 'none';
+                monthSelect.disabled     = !needsMonth;
+                if (!needsMonth) monthSelect.value = '';
+                yearGroup.style.display = needsYear ? '' : 'none';
+                yearInput.disabled      = !needsYear;
+                if (!needsYear) yearInput.value = '';
+                dayGroup.style.display = needsDay ? '' : 'none';
+                daySelect.disabled     = !needsDay;
+                if (!needsDay) daySelect.value = '';
+                formatHidden.value = typeVal || 'full';
+            }
+
+            function applyPartialMode(isPartial) {
+                fullGroup.style.display    = isPartial ? 'none' : '';
+                fullInput.disabled         = isPartial;
+                if (isPartial) fullInput.value = '';
+                partialGroup.style.display = isPartial ? '' : 'none';
+                typeSelect.disabled        = !isPartial;
+                if (isPartial) {
+                    applyTypeSelection(typeSelect.value);
+                } else {
+                    monthGroup.style.display = 'none';
+                    yearGroup.style.display  = 'none';
+                    dayGroup.style.display   = 'none';
+                    monthSelect.disabled     = true;
+                    yearInput.disabled       = true;
+                    daySelect.disabled       = true;
+                    formatHidden.value       = 'full';
+                }
             }
 
             toggle.addEventListener('change', function() { applyPartialMode(this.checked); });

@@ -40,8 +40,13 @@ try {
     $deceased_middle_name = sanitize_input($_POST['deceased_middle_name'] ?? null);
     $deceased_last_name = sanitize_input($_POST['deceased_last_name'] ?? '');
     $date_of_birth = sanitize_input($_POST['date_of_birth'] ?? '');
+    $dob_format        = sanitize_input($_POST['date_of_birth_format'] ?? 'full');
+    $dob_partial_month = sanitize_input($_POST['date_of_birth_partial_month'] ?? null) ?: null;
+    $dob_partial_year  = sanitize_input($_POST['date_of_birth_partial_year'] ?? null) ?: null;
+    $dob_partial_day   = sanitize_input($_POST['date_of_birth_partial_day'] ?? null) ?: null;
     $date_of_death = sanitize_input($_POST['date_of_death'] ?? '');
     $age = sanitize_input($_POST['age'] ?? '');
+    $age_unit = sanitize_input($_POST['age_unit'] ?? 'years');
     $sex = sanitize_input($_POST['sex'] ?? '');
     $occupation = sanitize_input($_POST['occupation'] ?? null);
 
@@ -77,6 +82,12 @@ try {
     }
     if ($date_of_registration_format === 'full' && empty($date_of_registration)) {
         $errors[] = "Date of registration is required.";
+    }
+    if (!in_array($dob_format, $allowed_formats, true)) {
+        $errors[] = "Invalid date of birth format type.";
+    }
+    if (!in_array($age_unit, ['years', 'months', 'days'], true)) {
+        $errors[] = "Invalid age unit.";
     }
 
     if (empty($deceased_first_name)) {
@@ -184,11 +195,25 @@ try {
         }
     }
 
-    if (!empty($date_of_birth)) {
-        $date_of_birth = safe_date_convert($date_of_birth);
-    } else {
-        $date_of_birth = null;
+    // Normalize date of birth (supports partial formats)
+    $dob_norm = normalize_registration_date(
+        $dob_format,
+        $date_of_birth,
+        $dob_partial_month,
+        $dob_partial_year,
+        $dob_partial_day
+    );
+    if ($dob_norm['error'] !== null) {
+        json_response(false, 'Date of birth: ' . $dob_norm['error'], null, 400);
     }
+    $date_of_birth = $dob_norm['date'];
+    $dob_stored_month = in_array($dob_format, ['month_only', 'month_year', 'month_day'])
+        ? ((int)$dob_partial_month ?: null) : null;
+    $dob_stored_year  = in_array($dob_format, ['year_only', 'month_year'])
+        ? ((int)$dob_partial_year ?: null) : null;
+    $dob_stored_day   = ($dob_format === 'month_day')
+        ? ((int)$dob_partial_day ?: null) : null;
+
     $date_of_death = safe_date_convert($date_of_death);
 
     // Begin transaction
@@ -208,8 +233,13 @@ try {
                     deceased_last_name,
                     sex,
                     date_of_birth,
+                    date_of_birth_format,
+                    date_of_birth_partial_month,
+                    date_of_birth_partial_year,
+                    date_of_birth_partial_day,
                     date_of_death,
                     age,
+                    age_unit,
                     occupation,
                     place_of_death,
                     father_first_name,
@@ -238,8 +268,13 @@ try {
                     :deceased_last_name,
                     :sex,
                     :date_of_birth,
+                    :date_of_birth_format,
+                    :date_of_birth_partial_month,
+                    :date_of_birth_partial_year,
+                    :date_of_birth_partial_day,
                     :date_of_death,
                     :age,
+                    :age_unit,
                     :occupation,
                     :place_of_death,
                     :father_first_name,
@@ -274,8 +309,13 @@ try {
             ':deceased_last_name' => $deceased_last_name,
             ':sex' => $sex,
             ':date_of_birth' => $date_of_birth,
+            ':date_of_birth_format'        => $dob_format,
+            ':date_of_birth_partial_month' => $dob_stored_month,
+            ':date_of_birth_partial_year'  => $dob_stored_year,
+            ':date_of_birth_partial_day'   => $dob_stored_day,
             ':date_of_death' => $date_of_death,
             ':age' => $age,
+            ':age_unit' => $age_unit,
             ':occupation' => $occupation,
             ':place_of_death' => $place_of_death,
             ':father_first_name' => $father_first_name,

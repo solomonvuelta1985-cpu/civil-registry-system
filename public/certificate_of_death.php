@@ -70,6 +70,36 @@ if ($edit_mode && $record) {
         }
     }
 }
+
+// Partial date mode state (for deceased's date_of_birth)
+$deceased_dob_partial_mode   = false;
+$deceased_dob_partial_format = 'full';
+$deceased_dob_partial_month  = '';
+$deceased_dob_partial_year   = '';
+$deceased_dob_partial_day    = '';
+if ($edit_mode && $record) {
+    $dfmt = $record['date_of_birth_format'] ?? 'full';
+    if ($dfmt !== 'full') {
+        $deceased_dob_partial_mode   = true;
+        $deceased_dob_partial_format = $dfmt;
+        $deceased_dob_partial_month  = $record['date_of_birth_partial_month'] ?? '';
+        $deceased_dob_partial_year   = $record['date_of_birth_partial_year'] ?? '';
+        $deceased_dob_partial_day    = $record['date_of_birth_partial_day'] ?? '';
+        if ($dfmt === 'month_year' && !empty($record['date_of_birth'])) {
+            if (!$deceased_dob_partial_month) $deceased_dob_partial_month = date('n', strtotime($record['date_of_birth']));
+            if (!$deceased_dob_partial_year)  $deceased_dob_partial_year  = date('Y', strtotime($record['date_of_birth']));
+        }
+    }
+}
+
+// Age unit (years/months/days) for infant-capable age entry
+$age_unit_selected = 'years';
+if ($edit_mode && $record && !empty($record['age_unit'])) {
+    $age_unit_selected = $record['age_unit'];
+}
+
+// Manual age mode: also true when partial DOB mode is enabled
+$manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_of_birth']) || $deceased_dob_partial_mode);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -332,9 +362,13 @@ if ($edit_mode && $record) {
                             </div>
                         </div>
 
-                        <?php
-                        $manual_age_mode = $edit_mode && empty($record['date_of_birth']) && !empty($record['age']);
-                        ?>
+                        <div style="margin-bottom:0.75rem; padding:0.75rem 1rem; background:var(--bg-secondary, #f8f9fa); border-radius:6px; border:1px solid var(--border-color, #e0e0e0);">
+                            <label style="display:flex; align-items:center; gap:0.625rem; cursor:pointer; font-weight:500; font-size:0.9rem;">
+                                <input type="checkbox" id="deceased_dob_partial_toggle" style="width:1rem; height:1rem; cursor:pointer;" <?php echo $deceased_dob_partial_mode ? 'checked' : ''; ?>>
+                                Date of birth is incomplete (partial date)
+                            </label>
+                        </div>
+
                         <div style="margin-bottom:1rem; padding:0.75rem 1rem; background:var(--bg-secondary, #f8f9fa); border-radius:6px; border:1px solid var(--border-color, #e0e0e0);">
                             <label style="display:flex; align-items:center; gap:0.625rem; cursor:pointer; font-weight:500; font-size:0.9rem;">
                                 <input type="checkbox" id="manual_age_toggle" name="manual_age_toggle" style="width:1rem; height:1rem; cursor:pointer;" <?php echo $manual_age_mode ? 'checked' : ''; ?>>
@@ -343,7 +377,7 @@ if ($edit_mode && $record) {
                         </div>
 
                         <div class="form-row">
-                            <div class="form-group">
+                            <div class="form-group" id="deceased_dob_full_group" style="<?php echo $deceased_dob_partial_mode ? 'display:none;' : ''; ?>">
                                 <label for="date_of_birth">
                                     Date of Birth
                                 </label>
@@ -351,10 +385,50 @@ if ($edit_mode && $record) {
                                     type="date"
                                     id="date_of_birth"
                                     name="date_of_birth"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['date_of_birth'] ?? '') : ''; ?>"
-                                    <?php echo $manual_age_mode ? 'disabled style="background-color: #e9ecef;"' : ''; ?>
+                                    value="<?php echo ($edit_mode && !$deceased_dob_partial_mode) ? htmlspecialchars($record['date_of_birth'] ?? '') : ''; ?>"
+                                    <?php echo ($manual_age_mode || $deceased_dob_partial_mode) ? 'disabled style="background-color: #e9ecef;"' : ''; ?>
                                 >
                             </div>
+
+                            <div class="form-group" id="deceased_dob_partial_group" style="<?php echo $deceased_dob_partial_mode ? '' : 'display:none;'; ?>">
+                                <label for="deceased_dob_partial_type">Date of Birth Type</label>
+                                <select id="deceased_dob_partial_type" <?php echo $deceased_dob_partial_mode ? '' : 'disabled'; ?>>
+                                    <option value="">-- Select Type --</option>
+                                    <option value="month_only" <?= $deceased_dob_partial_format === 'month_only' ? 'selected' : '' ?>>Month Only</option>
+                                    <option value="year_only"  <?= $deceased_dob_partial_format === 'year_only'  ? 'selected' : '' ?>>Year Only</option>
+                                    <option value="month_year" <?= $deceased_dob_partial_format === 'month_year' ? 'selected' : '' ?>>Month and Year Only</option>
+                                    <option value="month_day"  <?= $deceased_dob_partial_format === 'month_day'  ? 'selected' : '' ?>>Month and Date Only</option>
+                                    <option value="na"         <?= $deceased_dob_partial_format === 'na'         ? 'selected' : '' ?>>N/A (no date)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="deceased_dob_partial_month_group" style="<?php echo in_array($deceased_dob_partial_format, ['month_only','month_year','month_day']) ? '' : 'display:none;'; ?>">
+                                <label for="deceased_dob_partial_month">Month</label>
+                                <select id="deceased_dob_partial_month" name="date_of_birth_partial_month" <?= in_array($deceased_dob_partial_format, ['month_only','month_year','month_day']) ? '' : 'disabled' ?>>
+                                    <option value="">-- Select Month --</option>
+                                    <?php
+                                    $months_dob = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                                    foreach ($months_dob as $i => $mname): $mval = $i + 1; ?>
+                                    <option value="<?= $mval ?>" <?= ((int)$deceased_dob_partial_month === $mval) ? 'selected' : '' ?>><?= $mname ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="form-group" id="deceased_dob_partial_year_group" style="<?php echo in_array($deceased_dob_partial_format, ['year_only','month_year']) ? '' : 'display:none;'; ?>">
+                                <label for="deceased_dob_partial_year">Year</label>
+                                <input type="number" id="deceased_dob_partial_year" name="date_of_birth_partial_year"
+                                    min="1800" max="<?= date('Y') + 1 ?>" placeholder="e.g. 1995"
+                                    value="<?= htmlspecialchars($deceased_dob_partial_year ?? '') ?>"
+                                    <?= in_array($deceased_dob_partial_format, ['year_only','month_year']) ? '' : 'disabled' ?>>
+                            </div>
+                            <div class="form-group" id="deceased_dob_partial_day_group" style="<?php echo ($deceased_dob_partial_format === 'month_day') ? '' : 'display:none;'; ?>">
+                                <label for="deceased_dob_partial_day">Day</label>
+                                <select id="deceased_dob_partial_day" name="date_of_birth_partial_day" <?= ($deceased_dob_partial_format === 'month_day') ? '' : 'disabled' ?>>
+                                    <option value="">-- Select Day --</option>
+                                    <?php for ($d = 1; $d <= 31; $d++): ?>
+                                    <option value="<?= $d ?>" <?= ((int)$deceased_dob_partial_day === $d) ? 'selected' : '' ?>><?= $d ?></option>
+                                    <?php endfor; ?>
+                                </select>
+                            </div>
+                            <input type="hidden" id="date_of_birth_format" name="date_of_birth_format" value="<?= htmlspecialchars($deceased_dob_partial_format) ?>">
 
                             <div class="form-group">
                                 <label for="date_of_death">
@@ -371,19 +445,26 @@ if ($edit_mode && $record) {
 
                             <div class="form-group">
                                 <label for="age">
-                                    Age (Years) <span class="required">*</span>
+                                    Age <span class="required">*</span>
                                 </label>
-                                <input
-                                    type="number"
-                                    id="age"
-                                    name="age"
-                                    required
-                                    <?php echo $manual_age_mode ? '' : 'readonly'; ?>
-                                    placeholder="<?php echo $manual_age_mode ? 'Enter age manually' : 'Auto-calculated'; ?>"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['age']) : ''; ?>"
-                                    style="<?php echo $manual_age_mode ? '' : 'background-color: #e9ecef; cursor: not-allowed;'; ?>"
-                                >
-                                <span class="help-text">Automatically calculated from date of birth and date of death, or enter manually if "Others" is checked</span>
+                                <div style="display:flex; gap:0.5rem;">
+                                    <input
+                                        type="number"
+                                        id="age"
+                                        name="age"
+                                        required
+                                        <?php echo $manual_age_mode ? '' : 'readonly'; ?>
+                                        placeholder="<?php echo $manual_age_mode ? 'Enter age manually' : 'Auto-calculated'; ?>"
+                                        value="<?php echo $edit_mode ? htmlspecialchars($record['age']) : ''; ?>"
+                                        style="flex:1 1 auto; <?php echo $manual_age_mode ? '' : 'background-color: #e9ecef; cursor: not-allowed;'; ?>"
+                                    >
+                                    <select id="age_unit" name="age_unit" style="flex:0 0 110px;">
+                                        <option value="years"  <?= $age_unit_selected === 'years'  ? 'selected' : '' ?>>Years</option>
+                                        <option value="months" <?= $age_unit_selected === 'months' ? 'selected' : '' ?>>Months</option>
+                                        <option value="days"   <?= $age_unit_selected === 'days'   ? 'selected' : '' ?>>Days</option>
+                                    </select>
+                                </div>
+                                <span class="help-text">Auto-calculated from DOB and date of death (picks smallest whole unit for infants), or enter manually.</span>
                             </div>
                         </div>
 
@@ -702,9 +783,9 @@ if ($edit_mode && $record) {
             </div>
         </form>
 
-        <!-- Floating Toggle Button (shown when PDF is hidden) -->
-        <button type="button" id="floatingToggleBtn" class="floating-toggle-btn" title="Show PDF Upload">
-            <i data-lucide="eye"></i>
+        <!-- Floating Toggle Button - opens PDF drawer -->
+        <button type="button" id="floatingToggleBtn" class="floating-toggle-btn" title="Open PDF Upload">
+            <i data-lucide="file-text"></i>
         </button>
 
             </div> <!-- Close form-content-container -->
@@ -726,36 +807,51 @@ if ($edit_mode && $record) {
 
         // Death-specific: Calculate age automatically based on date of birth and date of death
         function calculateAge() {
-            // Skip auto-calculation when manual age entry is enabled
-            if (document.getElementById('manual_age_toggle')?.checked) {
-                return;
-            }
+            // Skip auto-calculation when manual age entry is enabled or DOB is partial
+            if (document.getElementById('manual_age_toggle')?.checked) return;
+            if (document.getElementById('deceased_dob_partial_toggle')?.checked) return;
 
             const dateOfBirth = document.getElementById('date_of_birth').value;
             const dateOfDeath = document.getElementById('date_of_death').value;
             const ageInput = document.getElementById('age');
+            const ageUnitSelect = document.getElementById('age_unit');
 
             if (dateOfBirth && dateOfDeath) {
                 const birthDate = new Date(dateOfBirth);
                 const deathDate = new Date(dateOfDeath);
 
-                // Check if death date is after birth date
                 if (deathDate < birthDate) {
                     formHandler.showAlert('warning', 'Date of death cannot be before date of birth.');
                     ageInput.value = '';
                     return;
                 }
 
-                // Calculate age in years
-                let age = deathDate.getFullYear() - birthDate.getFullYear();
-                const monthDiff = deathDate.getMonth() - birthDate.getMonth();
+                // Total elapsed time in days
+                const totalDays = Math.floor((deathDate - birthDate) / 86400000);
 
-                // Adjust age if birthday hasn't occurred yet in the death year
+                // Years (with month/day adjustment)
+                let years = deathDate.getFullYear() - birthDate.getFullYear();
+                const monthDiff = deathDate.getMonth() - birthDate.getMonth();
                 if (monthDiff < 0 || (monthDiff === 0 && deathDate.getDate() < birthDate.getDate())) {
-                    age--;
+                    years--;
                 }
 
-                ageInput.value = age;
+                if (years >= 1) {
+                    ageInput.value = years;
+                    if (ageUnitSelect) ageUnitSelect.value = 'years';
+                } else {
+                    // Under 1 year: pick Months if ≥ 1 month, else Days
+                    let months = (deathDate.getFullYear() - birthDate.getFullYear()) * 12
+                               + (deathDate.getMonth() - birthDate.getMonth());
+                    if (deathDate.getDate() < birthDate.getDate()) months--;
+                    if (months >= 1) {
+                        ageInput.value = months;
+                        if (ageUnitSelect) ageUnitSelect.value = 'months';
+                    } else {
+                        ageInput.value = totalDays;
+                        if (ageUnitSelect) ageUnitSelect.value = 'days';
+                    }
+                }
             } else {
                 ageInput.value = '';
             }
@@ -826,6 +922,76 @@ if ($edit_mode && $record) {
                 applyPartialMode(toggle.checked);
             })();
 
+            // ── Partial Date Toggle for Deceased Date of Birth ────────────
+            (function() {
+                const toggle       = document.getElementById('deceased_dob_partial_toggle');
+                const fullGroup    = document.getElementById('deceased_dob_full_group');
+                const partialGroup = document.getElementById('deceased_dob_partial_group');
+                const fullInput    = document.getElementById('date_of_birth');
+                const typeSelect   = document.getElementById('deceased_dob_partial_type');
+                const monthGroup   = document.getElementById('deceased_dob_partial_month_group');
+                const yearGroup    = document.getElementById('deceased_dob_partial_year_group');
+                const dayGroup     = document.getElementById('deceased_dob_partial_day_group');
+                const monthSelect  = document.getElementById('deceased_dob_partial_month');
+                const yearInput    = document.getElementById('deceased_dob_partial_year');
+                const daySelect    = document.getElementById('deceased_dob_partial_day');
+                const formatHidden = document.getElementById('date_of_birth_format');
+
+                if (!toggle) return;
+
+                function applyTypeSelection(typeVal) {
+                    const needsMonth = (typeVal === 'month_only' || typeVal === 'month_year' || typeVal === 'month_day');
+                    const needsYear  = (typeVal === 'year_only'  || typeVal === 'month_year');
+                    const needsDay   = (typeVal === 'month_day');
+                    monthGroup.style.display = needsMonth ? '' : 'none';
+                    monthSelect.disabled     = !needsMonth;
+                    if (!needsMonth) monthSelect.value = '';
+                    yearGroup.style.display  = needsYear ? '' : 'none';
+                    yearInput.disabled       = !needsYear;
+                    if (!needsYear) yearInput.value = '';
+                    dayGroup.style.display   = needsDay ? '' : 'none';
+                    daySelect.disabled       = !needsDay;
+                    if (!needsDay) daySelect.value = '';
+                    formatHidden.value = typeVal || 'full';
+                    if (typeof updateFormProgress === 'function') updateFormProgress();
+                }
+
+                function applyPartialMode(isPartial) {
+                    fullGroup.style.display    = isPartial ? 'none' : '';
+                    fullInput.disabled         = isPartial;
+                    if (isPartial) fullInput.value = '';
+                    fullInput.style.backgroundColor = isPartial ? '#e9ecef' : '';
+                    partialGroup.style.display = isPartial ? '' : 'none';
+                    typeSelect.disabled        = !isPartial;
+                    if (isPartial) {
+                        applyTypeSelection(typeSelect.value);
+                    } else {
+                        monthGroup.style.display = 'none';
+                        yearGroup.style.display  = 'none';
+                        dayGroup.style.display   = 'none';
+                        monthSelect.disabled     = true;
+                        yearInput.disabled       = true;
+                        daySelect.disabled       = true;
+                        formatHidden.value       = 'full';
+                    }
+                    if (typeof updateFormProgress === 'function') updateFormProgress();
+                }
+
+                toggle.addEventListener('change', function() {
+                    applyPartialMode(this.checked);
+                    // When partial DOB is enabled, auto-enable manual age entry
+                    if (this.checked) {
+                        const manualToggle = document.getElementById('manual_age_toggle');
+                        if (manualToggle && !manualToggle.checked) {
+                            manualToggle.checked = true;
+                            manualToggle.dispatchEvent(new Event('change'));
+                        }
+                    }
+                });
+                typeSelect.addEventListener('change', function() { applyTypeSelection(this.value); });
+                applyPartialMode(toggle.checked);
+            })();
+
             // "Others" checkbox: toggle manual age entry mode
             const manualAgeToggle = document.getElementById('manual_age_toggle');
             const ageInput = document.getElementById('age');
@@ -833,23 +999,28 @@ if ($edit_mode && $record) {
 
             if (manualAgeToggle) {
                 const applyManualMode = () => {
+                    const partialDobOn = document.getElementById('deceased_dob_partial_toggle')?.checked;
                     if (manualAgeToggle.checked) {
                         ageInput.removeAttribute('readonly');
                         ageInput.style.backgroundColor = '';
                         ageInput.style.cursor = '';
                         ageInput.placeholder = 'Enter age manually';
-                        dobInput.value = '';
-                        dobInput.setAttribute('disabled', 'disabled');
-                        dobInput.style.backgroundColor = '#e9ecef';
+                        if (!partialDobOn) {
+                            dobInput.value = '';
+                            dobInput.setAttribute('disabled', 'disabled');
+                            dobInput.style.backgroundColor = '#e9ecef';
+                        }
                     } else {
                         ageInput.setAttribute('readonly', 'readonly');
                         ageInput.style.backgroundColor = '#e9ecef';
                         ageInput.style.cursor = 'not-allowed';
                         ageInput.placeholder = 'Auto-calculated';
                         ageInput.value = '';
-                        dobInput.removeAttribute('disabled');
-                        dobInput.style.backgroundColor = '';
-                        calculateAge();
+                        if (!partialDobOn) {
+                            dobInput.removeAttribute('disabled');
+                            dobInput.style.backgroundColor = '';
+                            calculateAge();
+                        }
                     }
                     if (typeof updateFormProgress === 'function') {
                         updateFormProgress();

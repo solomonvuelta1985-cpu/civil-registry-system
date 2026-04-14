@@ -592,6 +592,10 @@ class CertificateFormHandler {
                 container.dataset.modalBound = 'true';
             }
         }
+
+        if (this.openDrawerFn) {
+            this.openDrawerFn();
+        }
     }
 
     /**
@@ -621,65 +625,135 @@ class CertificateFormHandler {
     }
 
     /**
-     * Setup PDF column toggle
+     * Setup PDF drawer toggle
      */
     setupPDFToggle() {
         const toggleBtn = document.getElementById('togglePdfBtn');
         const floatingBtn = document.getElementById('floatingToggleBtn');
-        const formLayout = document.querySelector('.form-layout');
 
-        if (!this.pdfColumn || !formLayout) return;
+        if (!this.pdfColumn) return;
 
-        let pdfVisible = true;
+        // Remove legacy classes
+        this.pdfColumn.classList.remove('hidden');
 
-        // Load saved state
-        const savedState = localStorage.getItem('pdfColumnVisible');
-        if (savedState !== null) {
-            pdfVisible = savedState === 'true';
-            if (!pdfVisible) {
-                this.pdfColumn.classList.add('hidden');
-                formLayout.classList.add('pdf-hidden');
-                if (floatingBtn) floatingBtn.classList.add('show');
-            }
+        // Move floating button to body to avoid stacking context issues
+        if (floatingBtn) {
+            document.body.appendChild(floatingBtn);
         }
 
-        // Toggle handlers
-        const toggle = () => {
-            pdfVisible = !pdfVisible;
+        let inlineBtn = null;
 
-            if (pdfVisible) {
-                this.pdfColumn.classList.remove('hidden');
-                formLayout.classList.remove('pdf-hidden');
-                if (floatingBtn) floatingBtn.classList.remove('show');
-                if (toggleBtn) {
-                    toggleBtn.innerHTML = '<i data-lucide="eye-off"></i>';
-                    toggleBtn.title = 'Hide PDF Upload';
-                }
-            } else {
-                this.pdfColumn.classList.add('hidden');
-                formLayout.classList.add('pdf-hidden');
-                if (floatingBtn) floatingBtn.classList.add('show');
-                if (toggleBtn) {
-                    toggleBtn.innerHTML = '<i data-lucide="eye"></i>';
-                    toggleBtn.title = 'Show PDF Upload';
-                }
-            }
+        // Create backdrop
+        const backdrop = document.createElement('div');
+        backdrop.className = 'pdf-drawer-backdrop';
+        document.body.appendChild(backdrop);
 
-            // Save state
-            localStorage.setItem('pdfColumnVisible', pdfVisible);
+        let drawerOpen = false;
 
-            // Reinitialize icons
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+        const openDrawer = () => {
+            if (drawerOpen) return;
+            drawerOpen = true;
+            this.openPdfDrawer(toggleBtn, floatingBtn, backdrop);
+            localStorage.setItem('pdfColumnVisible', 'true');
         };
 
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', toggle);
+        const closeDrawer = () => {
+            if (!drawerOpen) return;
+            drawerOpen = false;
+            this.closePdfDrawer(toggleBtn, floatingBtn, backdrop);
+            localStorage.setItem('pdfColumnVisible', 'false');
+        };
+
+        // Load saved state (default to closed)
+        const savedState = localStorage.getItem('pdfColumnVisible');
+        if (savedState === 'true') {
+            this.pdfColumn.style.transition = 'none';
+            backdrop.style.transition = 'none';
+            drawerOpen = true;
+            this.openPdfDrawer(toggleBtn, floatingBtn, backdrop);
+            this.pdfColumn.offsetHeight;
+            this.pdfColumn.style.transition = '';
+            backdrop.style.transition = '';
         }
 
+        // ARIA attributes
         if (floatingBtn) {
-            floatingBtn.addEventListener('click', toggle);
+            floatingBtn.setAttribute('aria-controls', 'pdfColumn');
+            floatingBtn.setAttribute('aria-expanded', drawerOpen ? 'true' : 'false');
+        }
+        this.pdfColumn.setAttribute('role', 'dialog');
+        this.pdfColumn.setAttribute('aria-label', 'PDF Upload Panel');
+
+        // Floating button opens
+        if (floatingBtn) {
+            floatingBtn.addEventListener('click', openDrawer);
+        }
+
+        // Inline button opens
+        if (inlineBtn) {
+            inlineBtn.addEventListener('click', openDrawer);
+        }
+
+        // Header toggle closes
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', closeDrawer);
+        }
+
+        // Backdrop click closes
+        backdrop.addEventListener('click', closeDrawer);
+
+        // Escape key closes
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && drawerOpen) {
+                closeDrawer();
+            }
+        });
+
+        this.openDrawerFn = openDrawer;
+        this.closeDrawerFn = closeDrawer;
+        this._floatingBtn = floatingBtn;
+    }
+
+    openPdfDrawer(toggleBtn, floatingBtn, backdrop) {
+        this.pdfColumn.classList.add('drawer-open');
+        if (backdrop) backdrop.classList.add('active');
+        if (floatingBtn) {
+            floatingBtn.classList.add('drawer-active');
+            floatingBtn.setAttribute('aria-expanded', 'true');
+        }
+        document.body.classList.add('pdf-drawer-open');
+
+        if (toggleBtn) {
+            toggleBtn.innerHTML = '<i data-lucide="x"></i>';
+            toggleBtn.title = 'Close PDF Upload';
+        }
+
+        this.pdfColumn.setAttribute('aria-hidden', 'false');
+
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }
+
+    closePdfDrawer(toggleBtn, floatingBtn, backdrop) {
+        this.pdfColumn.classList.remove('drawer-open');
+        if (backdrop) backdrop.classList.remove('active');
+        if (floatingBtn) {
+            floatingBtn.classList.remove('drawer-active');
+            floatingBtn.setAttribute('aria-expanded', 'false');
+            floatingBtn.focus();
+        }
+        document.body.classList.remove('pdf-drawer-open');
+
+        if (toggleBtn) {
+            toggleBtn.innerHTML = '<i data-lucide="eye-off"></i>';
+            toggleBtn.title = 'Hide PDF Upload';
+        }
+
+        this.pdfColumn.setAttribute('aria-hidden', 'true');
+
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
         }
     }
 
@@ -743,7 +817,9 @@ class CertificateFormHandler {
     closePDFModal() {
         if (this.pdfModal) {
             this.pdfModal.classList.remove('open');
-            document.body.style.overflow = '';
+            if (!document.body.classList.contains('pdf-drawer-open')) {
+                document.body.style.overflow = '';
+            }
             const frame = document.getElementById('pdfViewerModalFrame');
             if (frame) frame.src = '';
         }

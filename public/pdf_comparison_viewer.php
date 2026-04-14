@@ -569,6 +569,16 @@ $field_groups = $certificate_type === 'birth' ? $birth_fields : $marriage_fields
                                         isset($certificate_data['date_of_registration_partial_year'])  ? (int)$certificate_data['date_of_registration_partial_year']  : null,
                                         isset($certificate_data['date_of_registration_partial_day'])   ? (int)$certificate_data['date_of_registration_partial_day']   : null
                                     )) ?>
+                                <?php elseif (in_array($field, ['child_date_of_birth', 'husband_date_of_birth', 'wife_date_of_birth', 'date_of_birth'], true) && array_key_exists($field . '_format', $certificate_data)): ?>
+                                    <?= htmlspecialchars(format_registration_date(
+                                        $certificate_data[$field] ?? null,
+                                        $certificate_data[$field . '_format'] ?? 'full',
+                                        isset($certificate_data[$field . '_partial_month']) ? (int)$certificate_data[$field . '_partial_month'] : null,
+                                        isset($certificate_data[$field . '_partial_year'])  ? (int)$certificate_data[$field . '_partial_year']  : null,
+                                        isset($certificate_data[$field . '_partial_day'])   ? (int)$certificate_data[$field . '_partial_day']   : null
+                                    )) ?>
+                                <?php elseif ($field === 'age' && isset($certificate_data['age_unit'])): ?>
+                                    <?= !empty($certificate_data['age']) ? htmlspecialchars($certificate_data['age'] . ' ' . ucfirst($certificate_data['age_unit'] ?? 'years')) : '(Not provided)' ?>
                                 <?php else: ?>
                                     <?= !empty($certificate_data[$field]) ? htmlspecialchars($certificate_data[$field]) : '(Not provided)' ?>
                                 <?php endif; ?>

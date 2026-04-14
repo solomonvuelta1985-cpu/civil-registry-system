@@ -40,6 +40,10 @@ try {
     $child_middle_name = sanitize_input($_POST['child_middle_name'] ?? null);
     $child_last_name = sanitize_input($_POST['child_last_name'] ?? '');
     $child_date_of_birth = sanitize_input($_POST['child_date_of_birth'] ?? '');
+    $child_dob_format       = sanitize_input($_POST['child_date_of_birth_format'] ?? 'full');
+    $child_dob_partial_month = sanitize_input($_POST['child_date_of_birth_partial_month'] ?? null) ?: null;
+    $child_dob_partial_year  = sanitize_input($_POST['child_date_of_birth_partial_year'] ?? null) ?: null;
+    $child_dob_partial_day   = sanitize_input($_POST['child_date_of_birth_partial_day'] ?? null) ?: null;
     $time_of_birth = sanitize_input($_POST['time_of_birth'] ?? null);
     $place_type = sanitize_input($_POST['place_type'] ?? '');
     $child_place_of_birth = sanitize_input($_POST['child_place_of_birth'] ?? '');
@@ -86,6 +90,9 @@ try {
     }
     if ($date_of_registration_format === 'full' && empty($date_of_registration)) {
         $errors[] = "Date of registration is required.";
+    }
+    if (!in_array($child_dob_format, $allowed_formats, true)) {
+        $errors[] = "Invalid child date of birth format type.";
     }
 
     if (empty($type_of_birth)) {
@@ -202,12 +209,24 @@ try {
         }
     }
 
-    // Convert child date of birth format (safe) - optional
-    if (!empty($child_date_of_birth)) {
-        $child_date_of_birth = safe_date_convert($child_date_of_birth);
-    } else {
-        $child_date_of_birth = null;
+    // Normalize child date of birth (supports partial formats)
+    $child_dob_norm = normalize_registration_date(
+        $child_dob_format,
+        $child_date_of_birth,
+        $child_dob_partial_month,
+        $child_dob_partial_year,
+        $child_dob_partial_day
+    );
+    if ($child_dob_norm['error'] !== null) {
+        json_response(false, 'Child date of birth: ' . $child_dob_norm['error'], null, 400);
     }
+    $child_date_of_birth = $child_dob_norm['date'];
+    $child_dob_stored_month = in_array($child_dob_format, ['month_only', 'month_year', 'month_day'])
+        ? ((int)$child_dob_partial_month ?: null) : null;
+    $child_dob_stored_year  = in_array($child_dob_format, ['year_only', 'month_year'])
+        ? ((int)$child_dob_partial_year ?: null) : null;
+    $child_dob_stored_day   = ($child_dob_format === 'month_day')
+        ? ((int)$child_dob_partial_day ?: null) : null;
 
     // Convert marriage date if provided (safe)
     $date_of_marriage = safe_date_convert($date_of_marriage);
@@ -228,6 +247,10 @@ try {
                     child_middle_name,
                     child_last_name,
                     child_date_of_birth,
+                    child_date_of_birth_format,
+                    child_date_of_birth_partial_month,
+                    child_date_of_birth_partial_year,
+                    child_date_of_birth_partial_day,
                     time_of_birth,
                     place_type,
                     child_place_of_birth,
@@ -265,6 +288,10 @@ try {
                     :child_middle_name,
                     :child_last_name,
                     :child_date_of_birth,
+                    :child_date_of_birth_format,
+                    :child_date_of_birth_partial_month,
+                    :child_date_of_birth_partial_year,
+                    :child_date_of_birth_partial_day,
                     :time_of_birth,
                     :place_type,
                     :child_place_of_birth,
@@ -308,6 +335,10 @@ try {
             ':child_middle_name' => $child_middle_name,
             ':child_last_name' => $child_last_name,
             ':child_date_of_birth' => $child_date_of_birth,
+            ':child_date_of_birth_format'        => $child_dob_format,
+            ':child_date_of_birth_partial_month' => $child_dob_stored_month,
+            ':child_date_of_birth_partial_year'  => $child_dob_stored_year,
+            ':child_date_of_birth_partial_day'   => $child_dob_stored_day,
             ':time_of_birth' => !empty($time_of_birth) ? $time_of_birth : null,
             ':place_type' => !empty($place_type) ? $place_type : null,
             ':child_place_of_birth' => !empty($child_place_of_birth) ? $child_place_of_birth : null,

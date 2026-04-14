@@ -70,6 +70,27 @@ if ($edit_mode && $record) {
         }
     }
 }
+
+// Partial DOB state helper
+$init_partial_dob = function(?array $rec, string $prefix) {
+    $state = ['mode' => false, 'format' => 'full', 'month' => '', 'year' => '', 'day' => ''];
+    if (!$rec) return $state;
+    $fmtKey   = $prefix . '_format';
+    $fmt      = $rec[$fmtKey] ?? 'full';
+    if ($fmt === 'full') return $state;
+    $state['mode']   = true;
+    $state['format'] = $fmt;
+    $state['month']  = $rec[$prefix . '_partial_month'] ?? '';
+    $state['year']   = $rec[$prefix . '_partial_year']  ?? '';
+    $state['day']    = $rec[$prefix . '_partial_day']   ?? '';
+    if ($fmt === 'month_year' && !empty($rec[$prefix])) {
+        if (!$state['month']) $state['month'] = date('n', strtotime($rec[$prefix]));
+        if (!$state['year'])  $state['year']  = date('Y', strtotime($rec[$prefix]));
+    }
+    return $state;
+};
+$husband_dob = $init_partial_dob($edit_mode ? $record : null, 'husband_date_of_birth');
+$wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birth');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -339,8 +360,15 @@ if ($edit_mode && $record) {
                             </div>
                         </div>
 
+                        <!-- Partial DOB toggle for Husband -->
+                        <div style="margin-bottom:0.75rem; padding:0.75rem 1rem; background:var(--bg-secondary, #f8f9fa); border-radius:6px; border:1px solid var(--border-color, #e0e0e0);">
+                            <label style="display:flex; align-items:center; gap:0.625rem; cursor:pointer; font-weight:500; font-size:0.9rem;">
+                                <input type="checkbox" id="husband_dob_partial_toggle" style="width:1rem; height:1rem; cursor:pointer;" <?php echo $husband_dob['mode'] ? 'checked' : ''; ?>>
+                                Husband's date of birth is incomplete (partial date)
+                            </label>
+                        </div>
                         <div class="form-row">
-                            <div class="form-group">
+                            <div class="form-group" id="husband_dob_full_group">
                                 <label for="husband_date_of_birth">
                                     Date of Birth
                                 </label>
@@ -348,9 +376,52 @@ if ($edit_mode && $record) {
                                     type="date"
                                     id="husband_date_of_birth"
                                     name="husband_date_of_birth"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['husband_date_of_birth']) : ''; ?>"
+                                    <?php echo $husband_dob['mode'] ? 'disabled' : ''; ?>
+                                    value="<?php echo ($edit_mode && !$husband_dob['mode'] && !empty($record['husband_date_of_birth'])) ? htmlspecialchars(date('Y-m-d', strtotime($record['husband_date_of_birth']))) : ''; ?>"
                                 >
                             </div>
+
+                            <div id="husband_dob_partial_group" style="<?php echo $husband_dob['mode'] ? '' : 'display:none;'; ?>">
+                                <div class="form-group">
+                                    <label for="husband_dob_partial_type">Date Type <span class="required">*</span></label>
+                                    <select id="husband_dob_partial_type" <?php echo $husband_dob['mode'] ? '' : 'disabled'; ?>>
+                                        <option value="">-- Select Type --</option>
+                                        <option value="month_only"  <?= $husband_dob['format'] === 'month_only'  ? 'selected' : '' ?>>Month Only</option>
+                                        <option value="year_only"   <?= $husband_dob['format'] === 'year_only'   ? 'selected' : '' ?>>Year Only</option>
+                                        <option value="month_year"  <?= $husband_dob['format'] === 'month_year'  ? 'selected' : '' ?>>Month and Year Only</option>
+                                        <option value="month_day"   <?= $husband_dob['format'] === 'month_day'   ? 'selected' : '' ?>>Month and Date Only</option>
+                                        <option value="na"          <?= $husband_dob['format'] === 'na'          ? 'selected' : '' ?>>N/A (no date)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="husband_dob_partial_month_group" style="<?php echo in_array($husband_dob['format'], ['month_only','month_year','month_day']) ? '' : 'display:none;'; ?>">
+                                    <label for="husband_dob_partial_month">Month</label>
+                                    <select id="husband_dob_partial_month" name="husband_date_of_birth_partial_month" <?= in_array($husband_dob['format'], ['month_only','month_year','month_day']) ? '' : 'disabled' ?>>
+                                        <option value="">-- Select Month --</option>
+                                        <?php
+                                        $h_months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                                        foreach ($h_months as $i => $mname): $mval = $i + 1; ?>
+                                        <option value="<?= $mval ?>" <?= ((int)$husband_dob['month'] === $mval) ? 'selected' : '' ?>><?= $mname ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="husband_dob_partial_year_group" style="<?php echo in_array($husband_dob['format'], ['year_only','month_year']) ? '' : 'display:none;'; ?>">
+                                    <label for="husband_dob_partial_year">Year</label>
+                                    <input type="number" id="husband_dob_partial_year" name="husband_date_of_birth_partial_year"
+                                        min="1800" max="<?= date('Y') + 1 ?>" placeholder="e.g. 1985"
+                                        value="<?= htmlspecialchars($husband_dob['year'] ?? '') ?>"
+                                        <?= in_array($husband_dob['format'], ['year_only','month_year']) ? '' : 'disabled' ?>>
+                                </div>
+                                <div class="form-group" id="husband_dob_partial_day_group" style="<?php echo ($husband_dob['format'] === 'month_day') ? '' : 'display:none;'; ?>">
+                                    <label for="husband_dob_partial_day">Day</label>
+                                    <select id="husband_dob_partial_day" name="husband_date_of_birth_partial_day" <?= ($husband_dob['format'] === 'month_day') ? '' : 'disabled' ?>>
+                                        <option value="">-- Select Day --</option>
+                                        <?php for ($d = 1; $d <= 31; $d++): ?>
+                                        <option value="<?= $d ?>" <?= ((int)$husband_dob['day'] === $d) ? 'selected' : '' ?>><?= $d ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                </div>
+                            </div>
+                            <input type="hidden" id="husband_date_of_birth_format" name="husband_date_of_birth_format" value="<?= htmlspecialchars($husband_dob['format']) ?>">
 
                             <div class="form-group">
                                 <label for="husband_place_of_birth">
@@ -518,8 +589,15 @@ if ($edit_mode && $record) {
                             </div>
                         </div>
 
+                        <!-- Partial DOB toggle for Wife -->
+                        <div style="margin-bottom:0.75rem; padding:0.75rem 1rem; background:var(--bg-secondary, #f8f9fa); border-radius:6px; border:1px solid var(--border-color, #e0e0e0);">
+                            <label style="display:flex; align-items:center; gap:0.625rem; cursor:pointer; font-weight:500; font-size:0.9rem;">
+                                <input type="checkbox" id="wife_dob_partial_toggle" style="width:1rem; height:1rem; cursor:pointer;" <?php echo $wife_dob['mode'] ? 'checked' : ''; ?>>
+                                Wife's date of birth is incomplete (partial date)
+                            </label>
+                        </div>
                         <div class="form-row">
-                            <div class="form-group">
+                            <div class="form-group" id="wife_dob_full_group">
                                 <label for="wife_date_of_birth">
                                     Date of Birth
                                 </label>
@@ -527,9 +605,52 @@ if ($edit_mode && $record) {
                                     type="date"
                                     id="wife_date_of_birth"
                                     name="wife_date_of_birth"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['wife_date_of_birth']) : ''; ?>"
+                                    <?php echo $wife_dob['mode'] ? 'disabled' : ''; ?>
+                                    value="<?php echo ($edit_mode && !$wife_dob['mode'] && !empty($record['wife_date_of_birth'])) ? htmlspecialchars(date('Y-m-d', strtotime($record['wife_date_of_birth']))) : ''; ?>"
                                 >
                             </div>
+
+                            <div id="wife_dob_partial_group" style="<?php echo $wife_dob['mode'] ? '' : 'display:none;'; ?>">
+                                <div class="form-group">
+                                    <label for="wife_dob_partial_type">Date Type <span class="required">*</span></label>
+                                    <select id="wife_dob_partial_type" <?php echo $wife_dob['mode'] ? '' : 'disabled'; ?>>
+                                        <option value="">-- Select Type --</option>
+                                        <option value="month_only"  <?= $wife_dob['format'] === 'month_only'  ? 'selected' : '' ?>>Month Only</option>
+                                        <option value="year_only"   <?= $wife_dob['format'] === 'year_only'   ? 'selected' : '' ?>>Year Only</option>
+                                        <option value="month_year"  <?= $wife_dob['format'] === 'month_year'  ? 'selected' : '' ?>>Month and Year Only</option>
+                                        <option value="month_day"   <?= $wife_dob['format'] === 'month_day'   ? 'selected' : '' ?>>Month and Date Only</option>
+                                        <option value="na"          <?= $wife_dob['format'] === 'na'          ? 'selected' : '' ?>>N/A (no date)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="wife_dob_partial_month_group" style="<?php echo in_array($wife_dob['format'], ['month_only','month_year','month_day']) ? '' : 'display:none;'; ?>">
+                                    <label for="wife_dob_partial_month">Month</label>
+                                    <select id="wife_dob_partial_month" name="wife_date_of_birth_partial_month" <?= in_array($wife_dob['format'], ['month_only','month_year','month_day']) ? '' : 'disabled' ?>>
+                                        <option value="">-- Select Month --</option>
+                                        <?php
+                                        $w_months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                                        foreach ($w_months as $i => $mname): $mval = $i + 1; ?>
+                                        <option value="<?= $mval ?>" <?= ((int)$wife_dob['month'] === $mval) ? 'selected' : '' ?>><?= $mname ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="wife_dob_partial_year_group" style="<?php echo in_array($wife_dob['format'], ['year_only','month_year']) ? '' : 'display:none;'; ?>">
+                                    <label for="wife_dob_partial_year">Year</label>
+                                    <input type="number" id="wife_dob_partial_year" name="wife_date_of_birth_partial_year"
+                                        min="1800" max="<?= date('Y') + 1 ?>" placeholder="e.g. 1985"
+                                        value="<?= htmlspecialchars($wife_dob['year'] ?? '') ?>"
+                                        <?= in_array($wife_dob['format'], ['year_only','month_year']) ? '' : 'disabled' ?>>
+                                </div>
+                                <div class="form-group" id="wife_dob_partial_day_group" style="<?php echo ($wife_dob['format'] === 'month_day') ? '' : 'display:none;'; ?>">
+                                    <label for="wife_dob_partial_day">Day</label>
+                                    <select id="wife_dob_partial_day" name="wife_date_of_birth_partial_day" <?= ($wife_dob['format'] === 'month_day') ? '' : 'disabled' ?>>
+                                        <option value="">-- Select Day --</option>
+                                        <?php for ($d = 1; $d <= 31; $d++): ?>
+                                        <option value="<?= $d ?>" <?= ((int)$wife_dob['day'] === $d) ? 'selected' : '' ?>><?= $d ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                </div>
+                            </div>
+                            <input type="hidden" id="wife_date_of_birth_format" name="wife_date_of_birth_format" value="<?= htmlspecialchars($wife_dob['format']) ?>">
 
                             <div class="form-group">
                                 <label for="wife_place_of_birth">
@@ -776,9 +897,9 @@ if ($edit_mode && $record) {
             </div>
         </form>
 
-        <!-- Floating Toggle Button (shown when PDF is hidden) -->
-        <button type="button" id="floatingToggleBtn" class="floating-toggle-btn" title="Show PDF Upload">
-            <i data-lucide="eye"></i>
+        <!-- Floating Toggle Button - opens PDF drawer -->
+        <button type="button" id="floatingToggleBtn" class="floating-toggle-btn" title="Open PDF Upload">
+            <i data-lucide="file-text"></i>
         </button>
 
         </div> <!-- Close dashboard-container -->
@@ -1014,6 +1135,63 @@ if ($edit_mode && $record) {
             typeSelect.addEventListener('change', function() { applyTypeSelection(this.value); });
             applyPartialMode(toggle.checked);
         })();
+
+        // ── Partial DOB Toggles (Husband + Wife) ──────────────────────────────
+        function wireDobPartialToggle(prefix) {
+            const toggle       = document.getElementById(prefix + '_partial_toggle');
+            const fullGroup    = document.getElementById(prefix + '_full_group');
+            const partialGroup = document.getElementById(prefix + '_partial_group');
+            const fullInput    = document.getElementById(prefix.replace('_dob', '_date_of_birth'));
+            const typeSelect   = document.getElementById(prefix + '_partial_type');
+            const monthGroup   = document.getElementById(prefix + '_partial_month_group');
+            const yearGroup    = document.getElementById(prefix + '_partial_year_group');
+            const dayGroup     = document.getElementById(prefix + '_partial_day_group');
+            const monthSelect  = document.getElementById(prefix + '_partial_month');
+            const yearInput    = document.getElementById(prefix + '_partial_year');
+            const daySelect    = document.getElementById(prefix + '_partial_day');
+            const formatHidden = document.getElementById(prefix.replace('_dob', '_date_of_birth') + '_format');
+
+            if (!toggle) return;
+
+            function applyTypeSelection(typeVal) {
+                const needsMonth = (typeVal === 'month_only' || typeVal === 'month_year' || typeVal === 'month_day');
+                const needsYear  = (typeVal === 'year_only'  || typeVal === 'month_year');
+                const needsDay   = (typeVal === 'month_day');
+                monthGroup.style.display = needsMonth ? '' : 'none';
+                monthSelect.disabled     = !needsMonth;
+                if (!needsMonth) monthSelect.value = '';
+                yearGroup.style.display = needsYear ? '' : 'none';
+                yearInput.disabled      = !needsYear;
+                if (!needsYear) yearInput.value = '';
+                dayGroup.style.display = needsDay ? '' : 'none';
+                daySelect.disabled     = !needsDay;
+                if (!needsDay) daySelect.value = '';
+                formatHidden.value = typeVal || 'full';
+            }
+            function applyPartialMode(isPartial) {
+                fullGroup.style.display    = isPartial ? 'none' : '';
+                fullInput.disabled         = isPartial;
+                if (isPartial) fullInput.value = '';
+                partialGroup.style.display = isPartial ? '' : 'none';
+                typeSelect.disabled        = !isPartial;
+                if (isPartial) {
+                    applyTypeSelection(typeSelect.value);
+                } else {
+                    monthGroup.style.display = 'none';
+                    yearGroup.style.display  = 'none';
+                    dayGroup.style.display   = 'none';
+                    monthSelect.disabled     = true;
+                    yearInput.disabled       = true;
+                    daySelect.disabled       = true;
+                    formatHidden.value       = 'full';
+                }
+            }
+            toggle.addEventListener('change', function() { applyPartialMode(this.checked); });
+            typeSelect.addEventListener('change', function() { applyTypeSelection(this.value); });
+            applyPartialMode(toggle.checked);
+        }
+        wireDobPartialToggle('husband_dob');
+        wireDobPartialToggle('wife_dob');
 
         // Form Skeleton Loading on Page Load
         document.addEventListener('DOMContentLoaded', function() {

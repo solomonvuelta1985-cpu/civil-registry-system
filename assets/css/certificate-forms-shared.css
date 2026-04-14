@@ -533,46 +533,61 @@ body {
    ======================================== */
 .form-layout {
     display: grid;
-    grid-template-columns: 1.2fr 0.8fr;
+    grid-template-columns: 1fr;
     gap: clamp(16px, 2.5vw, 24px);
     margin: 0 clamp(15px, 2.5vw, 20px);
     padding: clamp(24px, 3.5vw, 36px) clamp(20px, 3vw, 28px);
     padding-top: clamp(20px, 3vw, 28px);
 }
 
-@media (max-width: 1200px) {
-    .form-layout {
-        grid-template-columns: 1fr;
-    }
-
-    .pdf-column {
-        position: static;
-        max-height: none;
-    }
-}
-
 .form-column {
     background-color: #ffffff;
 }
 
+/* PDF Upload Drawer - slides in from right edge */
 .pdf-column {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 440px;
+    height: 100vh;
     background-color: #f8f9fa;
-    border: 1px solid #e5e7eb;
-    border-radius: clamp(6px, 1vw, 8px);
+    border-left: 1px solid #e5e7eb;
     padding: clamp(14px, 2.2vw, 18px);
-    position: sticky;
-    top: clamp(8px, 1.5vw, 12px);
-    height: fit-content;
-    max-height: calc(100vh - 20px);
+    padding-top: 20px;
     overflow-y: auto;
+    z-index: 1050;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
 }
 
-.pdf-column.hidden {
-    display: none;
+.pdf-column.drawer-open {
+    transform: translateX(0);
 }
 
-.form-layout.pdf-hidden {
-    grid-template-columns: 1fr;
+/* Backdrop overlay when drawer is open */
+.pdf-drawer-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 1040;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                visibility 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pdf-drawer-backdrop.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+body.pdf-drawer-open {
+    overflow: hidden;
 }
 
 /* ========================================
@@ -872,6 +887,7 @@ input[type="file"]:hover {
     box-shadow: 0 4px 8px rgba(255, 193, 7, 0.3);
 }
 
+
 /* Loading state */
 .btn-loading {
     position: relative;
@@ -1085,37 +1101,47 @@ input[type="file"]:hover {
 
 .floating-toggle-btn {
     position: fixed;
-    right: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: #0d6efd;
+    right: 12px;
+    top: 30%;
+    background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
     color: #ffffff;
     border: none;
-    border-radius: 50%;
-    width: 50px;
-    height: 50px;
-    display: none;
+    border-radius: 10px;
+    width: 48px;
+    height: 56px;
+    display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 2px;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
-    z-index: 1000;
-    transition: all 0.3s ease;
+    box-shadow: -2px 2px 12px rgba(13, 110, 253, 0.35);
+    z-index: 1060;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.floating-toggle-btn::after {
+    content: 'PDF';
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    opacity: 0.9;
 }
 
 .floating-toggle-btn:hover {
-    background: #0b5ed7;
-    transform: translateY(-50%) scale(1.1);
-    box-shadow: 0 6px 16px rgba(13, 110, 253, 0.4);
+    background: linear-gradient(135deg, #0b5ed7 0%, #084298 100%);
+    transform: scale(1.08);
+    box-shadow: -4px 2px 16px rgba(13, 110, 253, 0.45);
 }
 
-.floating-toggle-btn.show {
-    display: flex;
+.floating-toggle-btn.drawer-active {
+    opacity: 0;
+    pointer-events: none;
 }
 
 .floating-toggle-btn svg {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
 }
 
 .upload-scanner-container {
@@ -1843,8 +1869,23 @@ input[type="file"]:hover {
     }
 
     .pdf-column {
-        position: static;
-        max-height: none;
+        width: 100vw;
+        padding: 16px;
+        z-index: 1110;
+    }
+
+    .pdf-drawer-backdrop {
+        z-index: 1105;
+    }
+
+
+    .upload-scanner-container {
+        flex-direction: column;
+    }
+
+    .upload-scanner-container input[type="file"] {
+        min-width: unset;
+        width: 100%;
     }
 
     .page-header {
@@ -1967,6 +2008,26 @@ input[type="file"]:hover {
         font-size: 0.72rem;
         padding: 5px 10px;
     }
+
+    .pdf-column {
+        padding: 12px;
+    }
+
+    .pdf-preview-header {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .pdf-preview-title {
+        font-size: 0.85rem;
+    }
+
+}
+
+@media (min-width: 769px) and (max-width: 1200px) {
+    .pdf-column {
+        width: min(440px, 60vw);
+    }
 }
 
 /* ========================================
@@ -1981,11 +2042,21 @@ input[type="file"]:hover {
     .button-group,
     .pdf-upload-section,
     .floating-toggle-btn,
-    .toggle-pdf-btn {
+    .toggle-pdf-btn,
+    .pdf-column,
+    .pdf-drawer-backdrop {
         display: none !important;
     }
 
     .form-layout {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pdf-column,
+    .pdf-drawer-backdrop,
+    .floating-toggle-btn {
+        transition: none;
     }
 }

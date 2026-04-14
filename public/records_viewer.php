@@ -564,6 +564,21 @@ function get_field_value($record, $field, $type = 'text') {
             isset($record['date_of_registration_partial_year'])  ? (int)$record['date_of_registration_partial_year']  : null,
             isset($record['date_of_registration_partial_day'])   ? (int)$record['date_of_registration_partial_day']   : null
         ));
+    } elseif (in_array($field, ['child_date_of_birth', 'husband_date_of_birth', 'wife_date_of_birth', 'date_of_birth'], true)
+              && array_key_exists($field . '_format', $record)) {
+        $fmt = $record[$field . '_format'] ?? 'full';
+        return htmlspecialchars(format_registration_date(
+            $record[$field] ?? null,
+            $fmt,
+            isset($record[$field . '_partial_month']) ? (int)$record[$field . '_partial_month'] : null,
+            isset($record[$field . '_partial_year'])  ? (int)$record[$field . '_partial_year']  : null,
+            isset($record[$field . '_partial_day'])   ? (int)$record[$field . '_partial_day']   : null
+        ));
+    } elseif ($field === 'age' && $record_type === 'death') {
+        if (!isset($record['age']) || $record['age'] === null || $record['age'] === '') return 'N/A';
+        $unit = $record['age_unit'] ?? 'years';
+        $label = ucfirst($unit);
+        return htmlspecialchars($record['age'] . ' ' . $label);
     } elseif ($type === 'date' && !empty($record[$field])) {
         return date('M d, Y', strtotime($record[$field]));
     } else {

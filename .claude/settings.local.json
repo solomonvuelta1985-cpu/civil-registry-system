@@ -25,7 +25,11 @@
       "Bash(php -l api/certificate_of_live_birth_save.php)",
       "Bash(php -l api/certificate_of_marriage_save.php)",
       "Bash(php -l api/certificate_of_death_save.php)",
-      "Bash(php -l api/certificate_of_live_birth_update.php)"
+      "Bash(php -l api/certificate_of_live_birth_update.php)",
+      "Bash(/c/xampp/mysql/bin/mysql.exe -u root iscan_db)",
+      "Bash(tasklist //FI \"IMAGENAME eq mysqld.exe\")",
+      "Bash(/c/xampp/mysql/bin/mysqld.exe --defaults-file=/c/xampp/mysql/bin/my.ini --standalone)",
+      "Bash(/c/xampp/mysql/bin/mysql.exe -u root iscan_db -e \"SHOW COLUMNS FROM certificate_of_death LIKE 'date_of_birth%'; SHOW COLUMNS FROM certificate_of_death LIKE 'age%'; SHOW COLUMNS FROM certificate_of_marriage LIKE '%_date_of_birth%'; SHOW COLUMNS FROM certificate_of_live_birth LIKE 'child_date_of_birth%';\")"
     ]
   }
 }

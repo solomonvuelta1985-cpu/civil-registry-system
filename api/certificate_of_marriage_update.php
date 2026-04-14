@@ -51,6 +51,10 @@ try {
     $husband_middle_name = sanitize_input($_POST['husband_middle_name'] ?? '');
     $husband_last_name = sanitize_input($_POST['husband_last_name'] ?? '');
     $husband_date_of_birth = sanitize_input($_POST['husband_date_of_birth'] ?? '');
+    $husband_dob_format        = sanitize_input($_POST['husband_date_of_birth_format'] ?? 'full');
+    $husband_dob_partial_month = sanitize_input($_POST['husband_date_of_birth_partial_month'] ?? null) ?: null;
+    $husband_dob_partial_year  = sanitize_input($_POST['husband_date_of_birth_partial_year'] ?? null) ?: null;
+    $husband_dob_partial_day   = sanitize_input($_POST['husband_date_of_birth_partial_day'] ?? null) ?: null;
     $husband_place_of_birth = sanitize_input($_POST['husband_place_of_birth'] ?? '');
     $husband_residence = sanitize_input($_POST['husband_residence'] ?? '');
     $husband_citizenship = sanitize_input($_POST['husband_citizenship'] ?? null);
@@ -67,6 +71,10 @@ try {
     $wife_middle_name = sanitize_input($_POST['wife_middle_name'] ?? '');
     $wife_last_name = sanitize_input($_POST['wife_last_name'] ?? '');
     $wife_date_of_birth = sanitize_input($_POST['wife_date_of_birth'] ?? '');
+    $wife_dob_format        = sanitize_input($_POST['wife_date_of_birth_format'] ?? 'full');
+    $wife_dob_partial_month = sanitize_input($_POST['wife_date_of_birth_partial_month'] ?? null) ?: null;
+    $wife_dob_partial_year  = sanitize_input($_POST['wife_date_of_birth_partial_year'] ?? null) ?: null;
+    $wife_dob_partial_day   = sanitize_input($_POST['wife_date_of_birth_partial_day'] ?? null) ?: null;
     $wife_place_of_birth = sanitize_input($_POST['wife_place_of_birth'] ?? '');
     $wife_residence = sanitize_input($_POST['wife_residence'] ?? '');
     $wife_citizenship = sanitize_input($_POST['wife_citizenship'] ?? null);
@@ -87,6 +95,12 @@ try {
     $allowed_formats = ['full', 'month_only', 'year_only', 'month_year', 'month_day', 'na'];
     if (!in_array($date_of_registration_format, $allowed_formats, true)) {
         json_response(false, 'Invalid date format type.', null, 400);
+    }
+    if (!in_array($husband_dob_format, $allowed_formats, true)) {
+        json_response(false, 'Invalid husband date of birth format type.', null, 400);
+    }
+    if (!in_array($wife_dob_format, $allowed_formats, true)) {
+        json_response(false, 'Invalid wife date of birth format type.', null, 400);
     }
     if (empty($husband_first_name) || empty($husband_last_name) ||
         empty($husband_place_of_birth) || empty($husband_residence) ||
@@ -115,22 +129,43 @@ try {
     $stored_partial_day          = ($date_of_registration_format === 'month_day')
         ? ((int)$partial_date_day ?: null) : null;
 
-    if (!empty($husband_date_of_birth)) {
-        $husband_date_of_birth = safe_date_convert($husband_date_of_birth);
-        if ($husband_date_of_birth === null) {
-            json_response(false, 'Invalid husband date of birth.', null, 400);
-        }
-    } else {
-        $husband_date_of_birth = null;
+    // Normalize husband date of birth (supports partial formats)
+    $h_dob_norm = normalize_registration_date(
+        $husband_dob_format,
+        $husband_date_of_birth,
+        $husband_dob_partial_month,
+        $husband_dob_partial_year,
+        $husband_dob_partial_day
+    );
+    if ($h_dob_norm['error'] !== null) {
+        json_response(false, 'Husband date of birth: ' . $h_dob_norm['error'], null, 400);
     }
-    if (!empty($wife_date_of_birth)) {
-        $wife_date_of_birth = safe_date_convert($wife_date_of_birth);
-        if ($wife_date_of_birth === null) {
-            json_response(false, 'Invalid wife date of birth.', null, 400);
-        }
-    } else {
-        $wife_date_of_birth = null;
+    $husband_date_of_birth = $h_dob_norm['date'];
+    $husband_dob_stored_month = in_array($husband_dob_format, ['month_only', 'month_year', 'month_day'])
+        ? ((int)$husband_dob_partial_month ?: null) : null;
+    $husband_dob_stored_year  = in_array($husband_dob_format, ['year_only', 'month_year'])
+        ? ((int)$husband_dob_partial_year ?: null) : null;
+    $husband_dob_stored_day   = ($husband_dob_format === 'month_day')
+        ? ((int)$husband_dob_partial_day ?: null) : null;
+
+    // Normalize wife date of birth (supports partial formats)
+    $w_dob_norm = normalize_registration_date(
+        $wife_dob_format,
+        $wife_date_of_birth,
+        $wife_dob_partial_month,
+        $wife_dob_partial_year,
+        $wife_dob_partial_day
+    );
+    if ($w_dob_norm['error'] !== null) {
+        json_response(false, 'Wife date of birth: ' . $w_dob_norm['error'], null, 400);
     }
+    $wife_date_of_birth = $w_dob_norm['date'];
+    $wife_dob_stored_month = in_array($wife_dob_format, ['month_only', 'month_year', 'month_day'])
+        ? ((int)$wife_dob_partial_month ?: null) : null;
+    $wife_dob_stored_year  = in_array($wife_dob_format, ['year_only', 'month_year'])
+        ? ((int)$wife_dob_partial_year ?: null) : null;
+    $wife_dob_stored_day   = ($wife_dob_format === 'month_day')
+        ? ((int)$wife_dob_partial_day ?: null) : null;
     $date_of_marriage = safe_date_convert($date_of_marriage);
     if ($date_of_marriage === null) {
         json_response(false, 'Invalid date of marriage.', null, 400);
@@ -190,6 +225,10 @@ try {
         husband_middle_name = :husband_middle_name,
         husband_last_name = :husband_last_name,
         husband_date_of_birth = :husband_date_of_birth,
+        husband_date_of_birth_format = :husband_date_of_birth_format,
+        husband_date_of_birth_partial_month = :husband_date_of_birth_partial_month,
+        husband_date_of_birth_partial_year = :husband_date_of_birth_partial_year,
+        husband_date_of_birth_partial_day = :husband_date_of_birth_partial_day,
         husband_place_of_birth = :husband_place_of_birth,
         husband_residence = :husband_residence,
         husband_citizenship = :husband_citizenship,
@@ -201,6 +240,10 @@ try {
         wife_middle_name = :wife_middle_name,
         wife_last_name = :wife_last_name,
         wife_date_of_birth = :wife_date_of_birth,
+        wife_date_of_birth_format = :wife_date_of_birth_format,
+        wife_date_of_birth_partial_month = :wife_date_of_birth_partial_month,
+        wife_date_of_birth_partial_year = :wife_date_of_birth_partial_year,
+        wife_date_of_birth_partial_day = :wife_date_of_birth_partial_day,
         wife_place_of_birth = :wife_place_of_birth,
         wife_residence = :wife_residence,
         wife_citizenship = :wife_citizenship,
@@ -232,6 +275,10 @@ try {
         ':husband_middle_name' => $husband_middle_name ?: null,
         ':husband_last_name' => $husband_last_name,
         ':husband_date_of_birth' => $husband_date_of_birth,
+        ':husband_date_of_birth_format'        => $husband_dob_format,
+        ':husband_date_of_birth_partial_month' => $husband_dob_stored_month,
+        ':husband_date_of_birth_partial_year'  => $husband_dob_stored_year,
+        ':husband_date_of_birth_partial_day'   => $husband_dob_stored_day,
         ':husband_place_of_birth' => $husband_place_of_birth,
         ':husband_residence' => $husband_residence,
         ':husband_citizenship' => $husband_citizenship ?: null,
@@ -243,6 +290,10 @@ try {
         ':wife_middle_name' => $wife_middle_name ?: null,
         ':wife_last_name' => $wife_last_name,
         ':wife_date_of_birth' => $wife_date_of_birth,
+        ':wife_date_of_birth_format'        => $wife_dob_format,
+        ':wife_date_of_birth_partial_month' => $wife_dob_stored_month,
+        ':wife_date_of_birth_partial_year'  => $wife_dob_stored_year,
+        ':wife_date_of_birth_partial_day'   => $wife_dob_stored_day,
         ':wife_place_of_birth' => $wife_place_of_birth,
         ':wife_residence' => $wife_residence,
         ':wife_citizenship' => $wife_citizenship ?: null,
