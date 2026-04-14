@@ -899,6 +899,7 @@ class CertificateFormHandler {
                     'Yes, Cancel',
                     'Continue Editing',
                     () => {
+                        this.form.dataset.submitting = '1';
                         window.location.href = backUrl;
                     },
                     () => {},
@@ -940,12 +941,14 @@ class CertificateFormHandler {
                         'Restore',
                         'Discard',
                         () => {
-                            this.restoreFormData(data);
-                            if (typeof Notiflix !== 'undefined' && Notiflix.Notify) {
-                                Notiflix.Notify.info('Autosaved data has been restored.');
-                            } else {
-                                this.showAlert('info', 'Autosaved data has been restored.');
-                            }
+                            setTimeout(() => {
+                                this.restoreFormData(data);
+                                if (typeof Notiflix !== 'undefined' && Notiflix.Notify) {
+                                    Notiflix.Notify.info('Autosaved data has been restored.');
+                                } else {
+                                    this.showAlert('info', 'Autosaved data has been restored.');
+                                }
+                            }, 0);
                         },
                         () => {
                             localStorage.removeItem(autoSaveKey);
