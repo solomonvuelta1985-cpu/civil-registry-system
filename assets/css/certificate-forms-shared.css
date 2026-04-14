@@ -17,6 +17,8 @@
 html {
     font-size: 16px;
     scroll-behavior: smooth;
+    overflow-x: hidden;
+    scroll-padding-top: 130px;
 }
 
 body {
