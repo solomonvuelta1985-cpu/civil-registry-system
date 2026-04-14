@@ -48,7 +48,7 @@ body {
     background-color: #f8f9fb;
 }
 
-/* ========================================
+/* ========================================++
    MOBILE HEADER
    ======================================== */
 .mobile-header {
@@ -351,10 +351,13 @@ body {
     min-height: 100vh;
     background: #f8f9fb;
     transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-x: hidden;
+    max-width: calc(100vw - var(--sidebar-width, 260px));
 }
 
 .sidebar-collapsed .content {
     margin-left: var(--sidebar-collapsed-width, 72px);
+    max-width: calc(100vw - var(--sidebar-collapsed-width, 72px));
 }
 
 .main-content-wrapper {
@@ -1928,7 +1931,7 @@ input[type="file"]:hover {
 /* ========================================
    RESPONSIVE DESIGN
    ======================================== */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .mobile-header {
         display: block;
     }
