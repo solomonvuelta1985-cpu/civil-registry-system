@@ -127,7 +127,7 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
     <link rel="stylesheet" href="../assets/css/sidebar.css">
 
     <!-- Shared Certificate Form Styles -->
-    <link rel="stylesheet" href="../assets/css/certificate-forms-shared.css">
+    <link rel="stylesheet" href="../assets/css/certificate-forms-shared.css?v=2.1">
 
 </head>
 <body>
@@ -794,7 +794,7 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
 
     <!-- Shared Certificate Form Handler -->
     <script>window.APP_BASE = '<?= rtrim(BASE_URL, '/') ?>';</script>
-    <script src="../assets/js/certificate-form-handler.js"></script>
+    <script src="../assets/js/certificate-form-handler.js?v=2.1"></script>
 
     <!-- Death Certificate Specific Logic -->
     <script>

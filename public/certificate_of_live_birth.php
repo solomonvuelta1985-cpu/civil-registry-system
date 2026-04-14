@@ -118,7 +118,7 @@ if ($edit_mode && $record) {
     <link rel="stylesheet" href="../assets/css/sidebar.css">
 
     <!-- Shared Certificate Form Styles -->
-    <link rel="stylesheet" href="../assets/css/certificate-forms-shared.css">
+    <link rel="stylesheet" href="../assets/css/certificate-forms-shared.css?v=2.1">
 </head>
 <body>
     <?php include '../includes/preloader.php'; ?>
@@ -1015,7 +1015,7 @@ if ($edit_mode && $record) {
 
     <!-- Shared Certificate Form Handler -->
     <script>window.APP_BASE = '<?= rtrim(BASE_URL, '/') ?>';</script>
-    <script src="../assets/js/certificate-form-handler.js"></script>
+    <script src="../assets/js/certificate-form-handler.js?v=2.1"></script>
 
     <!-- Birth Certificate Specific Logic -->
     <script>
