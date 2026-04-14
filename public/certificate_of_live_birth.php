@@ -1041,8 +1041,18 @@ if ($edit_mode && $record) {
 
         const hospitals = [
             'Baggao District Hospital',
-            'Municipal Health Office'
+            'Municipal Health Office',
+            'Baggao Community Medicare (Poblacion)',
+            'Baggao Municipal Hospital (Tallang)'
         ];
+
+        // Auto-map hospital/clinic to corresponding barangay
+        const hospitalBarangayMap = {
+            'Baggao District Hospital': 'San Jose',
+            'Municipal Health Office': 'San Jose',
+            'Baggao Community Medicare (Poblacion)': 'Poblacion (Centro)',
+            'Baggao Municipal Hospital (Tallang)': 'Tallang'
+        };
 
         const healthCenters = [
             'Baggao Rural Health Unit',
@@ -1120,6 +1130,14 @@ if ($edit_mode && $record) {
                 placeOfBirthSelect.required = false;
                 placeOfBirthSelect.value = '';
                 placeOfBirthSelect.innerHTML = '<option value="">-- Select Location --</option>';
+            }
+        });
+
+        // Auto-update barangay when a hospital/clinic is selected
+        placeOfBirthSelect.addEventListener('change', function() {
+            const selectedLocation = this.value;
+            if (hospitalBarangayMap[selectedLocation]) {
+                barangaySelect.value = hospitalBarangayMap[selectedLocation];
             }
         });
 
