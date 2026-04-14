@@ -35,7 +35,7 @@ function asset_url(string $asset): string {
         'notiflix_js'     => 'https://cdn.jsdelivr.net/npm/notiflix@3.2.6/dist/notiflix-3.2.6.min.js',
         'pdfjs'           => 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
         'pdfjs_worker'    => 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
-        'lucide'          => 'https://unpkg.com/lucide@latest',
+        'lucide'          => 'https://unpkg.com/lucide@0.446.0/dist/umd/lucide.min.js',
         'tesseractjs'     => 'https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js',
     ];
 

@@ -312,64 +312,54 @@ $user_first_name = explode(' ', $user_name)[0];
 
     <style>
         :root {
+            /* Institutional / Governmental Design System */
+            --gov-primary: #0f2847;          /* Deep institutional navy */
+            --gov-primary-600: #1e3a5f;      /* Navy hover/active */
+            --gov-primary-50: #eef2f8;       /* Navy tint surface */
+            --gov-accent: #c9a961;           /* Muted institutional gold */
+            --gov-accent-600: #b08f48;
+            --gov-accent-50: #faf6ec;
 
-            /* Material Design 3 - Dynamic Color System */
-            --md-sys-color-primary: #6750A4;
-            --md-sys-color-on-primary: #FFFFFF;
-            --md-sys-color-primary-container: #EADDFF;
-            --md-sys-color-on-primary-container: #21005D;
+            --gov-blue: #1d4ed8;             /* Action blue */
+            --gov-blue-50: #eff6ff;
 
-            --md-sys-color-secondary: #625B71;
-            --md-sys-color-on-secondary: #FFFFFF;
-            --md-sys-color-secondary-container: #E8DEF8;
-            --md-sys-color-on-secondary-container: #1D192B;
+            --gov-surface: #ffffff;
+            --gov-surface-alt: #f8fafc;
+            --gov-bg: #f4f6fa;               /* Formal cool page bg */
+            --gov-border: #dde3ed;
+            --gov-border-strong: #c5cfdc;
 
-            --md-sys-color-surface: #FFFBFE;
-            --md-sys-color-surface-variant: #E7E0EC;
-            --md-sys-color-on-surface: #1C1B1F;
-            --md-sys-color-on-surface-variant: #49454F;
+            --gov-text: #0f172a;
+            --gov-text-muted: #475569;
+            --gov-text-subtle: #64748b;
 
-            --md-sys-color-background: #FFFBFE;
-            --md-sys-color-on-background: #1C1B1F;
+            --gov-success: #0f766e;
+            --gov-success-50: #ecfdf5;
+            --gov-warning: #b45309;
+            --gov-warning-50: #fffbeb;
+            --gov-danger: #991b1b;
+            --gov-danger-50: #fef2f2;
 
-            --md-sys-color-error: #B3261E;
-            --md-sys-color-on-error: #FFFFFF;
+            /* Stat accent family (muted institutional tones) */
+            --stat-navy: #0f2847;
+            --stat-teal: #0f766e;
+            --stat-slate: #475569;
+            --stat-maroon: #991b1b;
+            --stat-amber: #b45309;
+            --stat-indigo: #3730a3;
+            --stat-gray: #64748b;
+            --stat-gold: #a17d2b;
 
-            --md-sys-color-outline: #79747E;
-            --md-sys-color-outline-variant: #CAC4D0;
+            /* Subtle shadow tuned to navy */
+            --gov-shadow-sm: 0 1px 2px rgba(15, 40, 71, 0.04);
+            --gov-shadow-md: 0 2px 6px rgba(15, 40, 71, 0.06), 0 1px 2px rgba(15, 40, 71, 0.04);
+            --gov-shadow-lg: 0 8px 24px rgba(15, 40, 71, 0.08);
 
-            /* Semantic Colors */
-            --color-success: #2E7D32;
-            --color-success-container: #C8E6C9;
-            --color-warning: #F57C00;
-            --color-warning-container: #FFE0B2;
-            --color-info: #0288D1;
-            --color-info-container: #B3E5FC;
-
-            /* Elevation - Material Design 3 */
-            --md-sys-elevation-1: 0px 1px 2px rgba(0, 0, 0, 0.3), 0px 1px 3px 1px rgba(0, 0, 0, 0.15);
-            --md-sys-elevation-2: 0px 1px 2px rgba(0, 0, 0, 0.3), 0px 2px 6px 2px rgba(0, 0, 0, 0.15);
-            --md-sys-elevation-3: 0px 4px 8px 3px rgba(0, 0, 0, 0.15), 0px 1px 3px rgba(0, 0, 0, 0.3);
-            --md-sys-elevation-4: 0px 6px 10px 4px rgba(0, 0, 0, 0.15), 0px 2px 3px rgba(0, 0, 0, 0.3);
-            --md-sys-elevation-5: 0px 8px 12px 6px rgba(0, 0, 0, 0.15), 0px 4px 4px rgba(0, 0, 0, 0.3);
-
-            /* Shape */
-            --md-sys-shape-corner-none: 0px;
-            --md-sys-shape-corner-extra-small: 4px;
-            --md-sys-shape-corner-small: 8px;
-            --md-sys-shape-corner-medium: 12px;
-            --md-sys-shape-corner-large: 16px;
-            --md-sys-shape-corner-extra-large: 28px;
-
-            /* Typography Scale */
-            --md-sys-typescale-display-large: 57px;
-            --md-sys-typescale-headline-large: 32px;
-            --md-sys-typescale-headline-medium: 28px;
-            --md-sys-typescale-title-large: 22px;
-            --md-sys-typescale-title-medium: 16px;
-            --md-sys-typescale-body-large: 16px;
-            --md-sys-typescale-body-medium: 14px;
-            --md-sys-typescale-label-large: 14px;
+            /* Formal radii */
+            --radius-xs: 4px;
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 10px;
         }
         * {
             margin: 0;
@@ -379,13 +369,14 @@ $user_first_name = explode(' ', $user_name)[0];
 
         body {
             font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #f9fafb;
-            color: #1f2937;
+            background: var(--gov-bg);
+            color: var(--gov-text);
             font-size: 14px;
             line-height: 1.6;
             margin: 0;
             min-height: 100vh;
             overflow-x: hidden;
+            font-feature-settings: "tnum" 1, "ss01" 1;
         }
 
         .content {
@@ -404,55 +395,65 @@ $user_first_name = explode(' ', $user_name)[0];
             margin: 0 auto;
         }
 
-        /* Search & Filter Bar */
+        /* Search & Filter Bar — Formal */
         .search-filter-bar {
-            background-color: #ffffff;
-            border-radius: 12px;
-            border: 1px solid #e5e7eb;
-            padding: 20px;
-            margin-bottom: 28px;
+            background-color: var(--gov-surface);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--gov-border);
+            padding: 16px 20px;
+            margin-bottom: 24px;
             display: flex;
             gap: 16px;
             flex-wrap: wrap;
             align-items: center;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            box-shadow: var(--gov-shadow-sm);
         }
 
         .date-range-selector {
-            display: flex;
-            gap: 8px;
+            display: inline-flex;
             align-items: center;
             margin-left: auto;
+            gap: 10px;
         }
 
         .date-range-label {
-            font-size: 13px;
-            font-weight: 500;
-            color: #64748b;
-            margin-right: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--gov-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .date-range-group {
+            display: inline-flex;
+            border: 1px solid var(--gov-border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            background: var(--gov-surface);
         }
 
         .date-range-btn {
-            padding: 8px 16px;
-            border: 1px solid #e2e8f0;
-            background: #ffffff;
-            color: #475569;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 500;
+            padding: 8px 14px;
+            border: none;
+            border-right: 1px solid var(--gov-border);
+            background: transparent;
+            color: var(--gov-text-muted);
+            font-size: 12.5px;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
         }
 
+        .date-range-btn:last-child { border-right: none; }
+
         .date-range-btn:hover {
-            background: #f8fafc;
-            border-color: #cbd5e1;
+            background: var(--gov-primary-50);
+            color: var(--gov-primary);
         }
 
         .date-range-btn.active {
-            background: #3b82f6;
+            background: var(--gov-primary);
             color: #ffffff;
-            border-color: #3b82f6;
         }
 
         .search-box {
@@ -463,22 +464,22 @@ $user_first_name = explode(' ', $user_name)[0];
 
         .search-box input {
             width: 100%;
-            padding: 12px 14px 12px 42px;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
+            padding: 10px 14px 10px 40px;
+            border: 1px solid var(--gov-border);
+            border-radius: var(--radius-md);
             font-size: 0.875rem;
             font-family: inherit;
-            background-color: #f8fafc;
-            color: #0f172a;
-            transition: all 0.2s ease;
+            background-color: var(--gov-surface);
+            color: var(--gov-text);
+            transition: all 0.15s ease;
             font-weight: 500;
         }
 
         .search-box input:focus {
             outline: none;
-            border-color: #6750A4;
+            border-color: var(--gov-primary);
             background-color: #ffffff;
-            box-shadow: 0 0 0 3px rgba(103, 80, 164, 0.1);
+            box-shadow: 0 0 0 3px rgba(15, 40, 71, 0.08);
         }
 
         .search-box input::placeholder {
@@ -490,8 +491,8 @@ $user_first_name = explode(' ', $user_name)[0];
             left: 14px;
             top: 50%;
             transform: translateY(-50%);
-            color: #64748b;
-            font-size: 0.9375rem;
+            color: var(--gov-text-subtle);
+            font-size: 0.875rem;
         }
 
         .filter-group {
@@ -501,41 +502,46 @@ $user_first_name = explode(' ', $user_name)[0];
         }
 
         .filter-chip {
-            padding: 10px 18px;
-            border-radius: 8px;
-            border: 2px solid #e5e7eb;
-            background-color: #ffffff;
-            color: #64748b;
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: 1px solid var(--gov-border);
+            background-color: var(--gov-surface);
+            color: var(--gov-text-muted);
             font-size: 0.8125rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.15s ease;
             display: inline-flex;
             align-items: center;
             gap: 6px;
+            position: relative;
         }
 
         .filter-chip:hover {
-            background-color: #f8fafc;
-            border-color: #cbd5e1;
-            transform: translateY(-1px);
+            background-color: var(--gov-primary-50);
+            border-color: var(--gov-primary-600);
+            color: var(--gov-primary);
         }
 
         .filter-chip.active {
-            background-color: #6750A4;
-            border-color: #6750A4;
+            background-color: var(--gov-primary);
+            border-color: var(--gov-primary);
             color: #ffffff;
-            box-shadow: 0 2px 4px rgba(103, 80, 164, 0.2);
+            box-shadow: inset 0 -2px 0 var(--gov-accent);
         }
 
-        /* Header */
+        .filter-chip.active i { color: var(--gov-accent); }
+
+        /* Header — Official Document Banner */
         .dashboard-header {
-            background-color: #ffffff;
-            border-radius: 12px;
-            border: 1px solid #e5e7eb;
-            padding: 28px;
-            margin-bottom: 28px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            background-color: var(--gov-surface);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--gov-border);
+            border-top: 3px solid var(--gov-accent);
+            padding: 24px 28px;
+            margin-bottom: 24px;
+            box-shadow: var(--gov-shadow-sm);
+            position: relative;
         }
 
         .header-content {
@@ -546,51 +552,114 @@ $user_first_name = explode(' ', $user_name)[0];
             gap: 24px;
         }
 
-        .header-title h1 {
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: #0f172a;
-            margin-bottom: 6px;
-            letter-spacing: -0.02em;
+        .header-identity {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 18px;
         }
 
-        .header-title h1 i {
-            color: #6750A4;
+        .header-seal {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--gov-accent-50);
+            border: 2px solid var(--gov-accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+            flex-shrink: 0;
+            box-shadow: inset 0 0 0 1px rgba(201, 169, 97, 0.3);
+        }
+
+        .header-seal img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .header-eyebrow {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--gov-accent-600);
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-eyebrow::after {
+            content: '';
+            flex: 0 0 28px;
+            height: 1px;
+            background: var(--gov-accent);
+        }
+
+        .header-title h1 {
+            font-size: 1.625rem;
+            font-weight: 700;
+            color: var(--gov-primary);
+            margin-bottom: 2px;
+            letter-spacing: -0.015em;
+            line-height: 1.2;
         }
 
         .header-title p {
-            color: #64748b;
-            font-size: 0.9375rem;
+            color: var(--gov-text-muted);
+            font-size: 0.875rem;
             font-weight: 500;
+        }
+
+        .header-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 12px;
+        }
+
+        .header-date {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--gov-text-muted);
+            letter-spacing: 0.01em;
+            padding: 6px 12px;
+            background: var(--gov-surface-alt);
+            border: 1px solid var(--gov-border);
+            border-radius: var(--radius-sm);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .header-date i {
+            color: var(--gov-accent-600);
+            margin-right: 6px;
         }
 
         .header-actions {
             display: flex;
-            gap: 12px;
+            gap: 8px;
             flex-wrap: wrap;
         }
 
         .btn {
-            padding: 11px 22px;
-            border-radius: 8px;
-            font-size: 0.875rem;
+            padding: 9px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 0.8125rem;
             font-weight: 600;
-            border: none;
+            border: 1px solid transparent;
             cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.15s ease;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 7px;
             text-decoration: none;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            letter-spacing: 0.01em;
         }
 
         .btn:hover {
             transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--gov-shadow-md);
         }
 
         .btn:active {
@@ -598,63 +667,75 @@ $user_first_name = explode(' ', $user_name)[0];
         }
 
         .btn-primary {
-            background-color: #6750A4;
+            background-color: var(--gov-primary);
             color: #ffffff;
+            border-color: var(--gov-primary);
         }
 
         .btn-primary:hover {
-            background-color: #5a47a1;
+            background-color: var(--gov-primary-600);
+            border-color: var(--gov-accent);
         }
 
         .btn-success {
-            background-color: #2E7D32;
-            color: #ffffff;
+            background-color: var(--gov-surface);
+            color: var(--gov-primary);
+            border-color: var(--gov-border-strong);
         }
 
         .btn-success:hover {
-            background-color: #27692b;
+            background-color: var(--gov-primary-50);
+            border-color: var(--gov-primary);
+            color: var(--gov-primary);
         }
 
         .btn-warning {
-            background-color: #FF9800;
-            color: #ffffff;
+            background-color: var(--gov-surface);
+            color: var(--gov-primary);
+            border-color: var(--gov-border-strong);
         }
 
         .btn-warning:hover {
-            background-color: #f57c00;
+            background-color: var(--gov-primary-50);
+            border-color: var(--gov-primary);
+            color: var(--gov-primary);
         }
 
         .btn-info {
-            background-color: #0288D1;
-            color: #ffffff;
+            background-color: var(--gov-surface);
+            color: var(--gov-primary);
+            border-color: var(--gov-border-strong);
         }
 
         .btn-info:hover {
-            background-color: #0277bd;
+            background-color: var(--gov-primary-50);
+            border-color: var(--gov-primary);
+            color: var(--gov-primary);
         }
 
-        /* Statistics Grid */
+        /* Statistics Grid — Institutional Style */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 20px;
-            margin-bottom: 28px;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
         }
 
         .stat-card {
-            background-color: #ffffff;
-            border-radius: 12px;
-            border: 1px solid #e5e7eb;
-            padding: 24px;
+            background-color: var(--gov-surface);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--gov-border);
+            padding: 20px 22px;
             position: relative;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            transition: all 0.15s ease;
+            box-shadow: var(--gov-shadow-sm);
+            overflow: hidden;
         }
 
         .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            border-color: #d1d5db;
+            border-color: var(--gov-border-strong);
+            box-shadow: var(--gov-shadow-md);
+            transform: translateY(-1px);
         }
 
         .stat-card::before {
@@ -664,99 +745,77 @@ $user_first_name = explode(' ', $user_name)[0];
             left: 0;
             width: 4px;
             height: 100%;
-            border-radius: 12px 0 0 12px;
         }
 
-        .stat-card.blue::before { background: #2196F3; }
-        .stat-card.green::before { background: #4CAF50; }
-        .stat-card.purple::before { background: #9C27B0; }
-        .stat-card.red::before { background: #E91E63; }
-        .stat-card.orange::before { background: #FF9800; }
-        .stat-card.indigo::before { background: #673AB7; }
-        .stat-card.gray::before { background: #607D8B; }
-        .stat-card.teal::before { background: #009688; }
+        .stat-card.blue::before   { background: var(--stat-navy); }
+        .stat-card.green::before  { background: var(--stat-teal); }
+        .stat-card.purple::before { background: var(--stat-gold); }
+        .stat-card.red::before    { background: var(--stat-maroon); }
+        .stat-card.orange::before { background: var(--stat-amber); }
+        .stat-card.indigo::before { background: var(--stat-indigo); }
+        .stat-card.gray::before   { background: var(--stat-slate); }
+        .stat-card.teal::before   { background: var(--stat-teal); }
 
         .stat-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
+            gap: 12px;
         }
 
         .stat-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 10px;
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-sm);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.375rem;
+            font-size: 1.125rem;
             flex-shrink: 0;
         }
 
-        .stat-card.blue .stat-icon {
-            background-color: rgba(33, 150, 243, 0.1);
-            color: #2196F3;
-        }
-        .stat-card.green .stat-icon {
-            background-color: rgba(76, 175, 80, 0.1);
-            color: #4CAF50;
-        }
-        .stat-card.purple .stat-icon {
-            background-color: rgba(156, 39, 176, 0.1);
-            color: #9C27B0;
-        }
-        .stat-card.red .stat-icon {
-            background-color: rgba(233, 30, 99, 0.1);
-            color: #E91E63;
-        }
-        .stat-card.orange .stat-icon {
-            background-color: rgba(255, 152, 0, 0.1);
-            color: #FF9800;
-        }
-        .stat-card.indigo .stat-icon {
-            background-color: rgba(103, 58, 183, 0.1);
-            color: #673AB7;
-        }
-        .stat-card.gray .stat-icon {
-            background-color: rgba(96, 125, 139, 0.1);
-            color: #607D8B;
-        }
-        .stat-card.teal .stat-icon {
-            background-color: rgba(0, 150, 136, 0.1);
-            color: #009688;
-        }
+        .stat-card.blue .stat-icon   { background-color: rgba(15, 40, 71, 0.08);  color: var(--stat-navy); }
+        .stat-card.green .stat-icon  { background-color: rgba(15, 118, 110, 0.08); color: var(--stat-teal); }
+        .stat-card.purple .stat-icon { background-color: rgba(161, 125, 43, 0.1);  color: var(--stat-gold); }
+        .stat-card.red .stat-icon    { background-color: rgba(153, 27, 27, 0.08);  color: var(--stat-maroon); }
+        .stat-card.orange .stat-icon { background-color: rgba(180, 83, 9, 0.08);   color: var(--stat-amber); }
+        .stat-card.indigo .stat-icon { background-color: rgba(55, 48, 163, 0.08);  color: var(--stat-indigo); }
+        .stat-card.gray .stat-icon   { background-color: rgba(71, 85, 105, 0.08);  color: var(--stat-slate); }
+        .stat-card.teal .stat-icon   { background-color: rgba(15, 118, 110, 0.08); color: var(--stat-teal); }
 
         .stat-number {
-            font-size: 2.25rem;
+            font-size: 2rem;
             font-weight: 700;
-            color: #0f172a;
-            margin-bottom: 6px;
+            color: var(--gov-primary);
+            margin-bottom: 4px;
             font-variant-numeric: tabular-nums;
             line-height: 1;
             letter-spacing: -0.02em;
         }
 
         .stat-label {
-            color: #64748b;
-            font-size: 0.875rem;
+            color: var(--gov-text-muted);
+            font-size: 0.75rem;
             font-weight: 600;
             line-height: 1.4;
             display: flex;
             align-items: center;
             gap: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
         }
 
         .stat-label-info {
-            width: 16px;
-            height: 16px;
+            width: 14px;
+            height: 14px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            background-color: #e0e7ff;
-            color: #6366f1;
+            background-color: var(--gov-primary-50);
+            color: var(--gov-primary);
             border-radius: 50%;
-            font-size: 10px;
+            font-size: 9px;
             cursor: help;
             position: relative;
         }
@@ -767,14 +826,16 @@ $user_first_name = explode(' ', $user_name)[0];
             bottom: 100%;
             left: 50%;
             transform: translateX(-50%) translateY(-8px);
-            background-color: #0f172a;
+            background-color: var(--gov-primary);
             color: #ffffff;
             padding: 8px 12px;
-            border-radius: 6px;
+            border-radius: var(--radius-sm);
             font-size: 12px;
             white-space: nowrap;
             z-index: 1000;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            box-shadow: var(--gov-shadow-lg);
+            text-transform: none;
+            letter-spacing: 0;
         }
 
         .stat-label-info:hover::before {
@@ -784,7 +845,7 @@ $user_first_name = explode(' ', $user_name)[0];
             left: 50%;
             transform: translateX(-50%);
             border: 6px solid transparent;
-            border-top-color: #0f172a;
+            border-top-color: var(--gov-primary);
         }
 
         .stat-empty-state {
@@ -798,68 +859,85 @@ $user_first_name = explode(' ', $user_name)[0];
             display: inline-flex;
             align-items: center;
             gap: 5px;
-            font-size: 0.8125rem;
+            font-size: 0.75rem;
             font-weight: 600;
             margin-top: 10px;
-            padding: 4px 8px;
-            border-radius: 6px;
-            background-color: #f8fafc;
+            padding: 3px 8px;
+            border-radius: var(--radius-xs);
+            background-color: var(--gov-surface-alt);
+            border: 1px solid var(--gov-border);
+            font-variant-numeric: tabular-nums;
         }
 
         .stat-trend.up {
-            color: #047857;
-            background-color: #ecfdf5;
+            color: var(--gov-success);
+            background-color: var(--gov-success-50);
+            border-color: rgba(15, 118, 110, 0.2);
         }
 
         .stat-trend.down {
-            color: #dc2626;
-            background-color: #fef2f2;
+            color: var(--gov-danger);
+            background-color: var(--gov-danger-50);
+            border-color: rgba(153, 27, 27, 0.2);
         }
 
         .stat-trend.neutral {
-            color: #64748b;
-            background-color: #f1f5f9;
+            color: var(--gov-text-subtle);
+            background-color: var(--gov-surface-alt);
         }
 
-        /* Charts Section */
+        /* Charts Section — Formal Style */
         .charts-section {
             display: grid;
             grid-template-columns: 2fr 1fr;
-            gap: 20px;
-            margin-bottom: 28px;
+            gap: 16px;
+            margin-bottom: 24px;
         }
 
         .chart-card {
-            background-color: #ffffff;
-            border-radius: 12px;
-            border: 1px solid #e5e7eb;
-            padding: 28px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: var(--gov-surface);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--gov-border);
+            padding: 24px;
+            box-shadow: var(--gov-shadow-sm);
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
         .chart-card:hover {
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            border-color: #d1d5db;
+            box-shadow: var(--gov-shadow-md);
+            border-color: var(--gov-border-strong);
         }
 
         .chart-header {
-            margin-bottom: 24px;
-            padding-bottom: 16px;
-            border-bottom: 2px solid #f1f5f9;
+            margin-bottom: 20px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--gov-border);
+            position: relative;
+        }
+
+        .chart-header::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 48px;
+            height: 2px;
+            background: var(--gov-accent);
         }
 
         .chart-title {
-            font-size: 1.25rem;
+            font-size: 1rem;
             font-weight: 700;
-            color: #0f172a;
-            margin-bottom: 6px;
-            letter-spacing: -0.01em;
+            color: var(--gov-primary);
+            margin-bottom: 4px;
+            letter-spacing: -0.005em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
         }
 
         .chart-subtitle {
-            color: #64748b;
-            font-size: 0.875rem;
+            color: var(--gov-text-subtle);
+            font-size: 0.8125rem;
             font-weight: 500;
         }
 
@@ -877,25 +955,25 @@ $user_first_name = explode(' ', $user_name)[0];
         }
 
         .fab-main {
-            width: 64px;
-            height: 64px;
+            width: 60px;
+            height: 60px;
             border-radius: 50%;
-            background-color: #6750A4;
+            background-color: var(--gov-primary);
             color: #ffffff;
-            border: none;
-            box-shadow: 0 6px 20px rgba(103, 80, 164, 0.4);
+            border: 2px solid var(--gov-accent);
+            box-shadow: 0 6px 20px rgba(15, 40, 71, 0.35);
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.75rem;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 1.5rem;
+            transition: all 0.2s ease;
         }
 
         .fab-main:hover {
-            background-color: #5a47a1;
-            transform: scale(1.08);
-            box-shadow: 0 8px 24px rgba(103, 80, 164, 0.5);
+            background-color: var(--gov-primary-600);
+            transform: scale(1.06);
+            box-shadow: 0 10px 28px rgba(15, 40, 71, 0.45), 0 0 0 4px rgba(201, 169, 97, 0.2);
         }
 
         .fab-main:active {
@@ -904,14 +982,15 @@ $user_first_name = explode(' ', $user_name)[0];
 
         .fab-main.active {
             transform: rotate(45deg);
-            background-color: #dc2626;
-            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4);
+            background-color: var(--gov-danger);
+            border-color: var(--gov-danger);
+            box-shadow: 0 6px 20px rgba(153, 27, 27, 0.4);
         }
 
         .fab-main.active:hover {
-            background-color: #b91c1c;
-            transform: rotate(45deg) scale(1.08);
-            box-shadow: 0 8px 24px rgba(220, 38, 38, 0.5);
+            background-color: #7f1d1d;
+            transform: rotate(45deg) scale(1.06);
+            box-shadow: 0 8px 24px rgba(153, 27, 27, 0.5);
         }
 
         .fab-menu {
@@ -953,99 +1032,96 @@ $user_first_name = explode(' ', $user_name)[0];
         .fab-menu.active .fab-action:nth-child(5) { transition-delay: 0.25s; }
 
         .fab-label {
-            background-color: #0f172a;
+            background-color: var(--gov-primary);
             color: #ffffff;
-            padding: 10px 16px;
-            border-radius: 8px;
-            font-size: 0.875rem;
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 0.8125rem;
             font-weight: 600;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            box-shadow: var(--gov-shadow-lg);
             white-space: nowrap;
-            letter-spacing: -0.01em;
+            letter-spacing: 0;
+            border: 1px solid var(--gov-accent);
         }
 
         .fab-button {
-            width: 52px;
-            height: 52px;
-            border-radius: 12px;
-            border: none;
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--gov-border);
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.375rem;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 1.125rem;
+            background-color: var(--gov-surface);
+            box-shadow: var(--gov-shadow-md);
+            transition: all 0.15s ease;
             text-decoration: none;
         }
 
         .fab-button:hover {
             transform: scale(1.05);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+            border-color: var(--gov-accent);
+            box-shadow: 0 6px 16px rgba(15, 40, 71, 0.15);
         }
 
         .fab-button:active {
             transform: scale(0.95);
         }
 
-        .fab-button.primary {
-            background-color: #6750A4;
-            color: #ffffff;
-        }
+        .fab-button.primary   { color: var(--stat-navy); }
+        .fab-button.success   { color: var(--stat-teal); }
+        .fab-button.warning   { color: var(--stat-maroon); }
+        .fab-button.info      { color: var(--stat-indigo); }
+        .fab-button.secondary { color: var(--stat-slate); }
 
-        .fab-button.success {
-            background-color: #2E7D32;
-            color: #ffffff;
-        }
-
-        .fab-button.warning {
-            background-color: #FF9800;
-            color: #ffffff;
-        }
-
-        .fab-button.info {
-            background-color: #0288D1;
-            color: #ffffff;
-        }
-
-        .fab-button.secondary {
-            background-color: #625B71;
-            color: #ffffff;
-        }
-
-        /* Recent Activity */
+        /* Recent Activity — Table-like Formal Rows */
         .activity-section {
-            background-color: #ffffff;
-            border-radius: 12px;
-            border: 1px solid #e5e7eb;
-            padding: 28px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: var(--gov-surface);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--gov-border);
+            padding: 24px;
+            box-shadow: var(--gov-shadow-sm);
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
         .activity-section:hover {
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            border-color: #d1d5db;
+            box-shadow: var(--gov-shadow-md);
+            border-color: var(--gov-border-strong);
         }
 
         .activity-header {
-            margin-bottom: 20px;
-            padding-bottom: 16px;
-            border-bottom: 2px solid #f1f5f9;
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--gov-border);
+            position: relative;
+        }
+
+        .activity-header::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 48px;
+            height: 2px;
+            background: var(--gov-accent);
         }
 
         .activity-title {
-            font-size: 1.25rem;
+            font-size: 0.9375rem;
             font-weight: 700;
-            color: #0f172a;
+            color: var(--gov-primary);
             display: flex;
             align-items: center;
             gap: 10px;
-            letter-spacing: -0.01em;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
         }
 
         .activity-title i {
-            color: #6750A4;
+            color: var(--gov-accent-600);
+            font-size: 0.9375rem;
         }
 
         .activity-list {
@@ -1056,18 +1132,14 @@ $user_first_name = explode(' ', $user_name)[0];
             display: flex;
             align-items: flex-start;
             gap: 14px;
-            padding: 16px 0;
-            border-bottom: 1px solid #f1f5f9;
-            transition: all 0.2s ease;
+            padding: 14px 4px;
+            border-bottom: 1px solid var(--gov-border);
+            transition: background-color 0.15s ease;
             cursor: pointer;
         }
 
         .activity-item:hover {
-            background-color: #fafbfc;
-            margin: 0 -12px;
-            padding: 16px 12px;
-            border-radius: 8px;
-            transform: translateX(4px);
+            background-color: var(--gov-surface-alt);
         }
 
         .activity-item:last-child {
@@ -1076,7 +1148,7 @@ $user_first_name = explode(' ', $user_name)[0];
 
         .activity-user-info {
             font-size: 0.75rem;
-            color: #64748b;
+            color: var(--gov-text-subtle);
             margin-top: 4px;
             display: flex;
             align-items: center;
@@ -1088,55 +1160,62 @@ $user_first_name = explode(' ', $user_name)[0];
             align-items: center;
             gap: 4px;
             padding: 2px 8px;
-            background: #f0fdf4;
-            color: #166534;
-            border-radius: 4px;
+            background: var(--gov-success-50);
+            color: var(--gov-success);
+            border-radius: var(--radius-xs);
             font-size: 0.7rem;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.06em;
+            border: 1px solid rgba(15, 118, 110, 0.15);
         }
 
         .activity-role-badge {
             display: inline-flex;
             align-items: center;
             padding: 2px 8px;
-            background: #eff6ff;
-            color: #1e40af;
-            border-radius: 4px;
+            background: var(--gov-primary-50);
+            color: var(--gov-primary);
+            border-radius: var(--radius-xs);
             font-size: 0.7rem;
-            font-weight: 500;
+            font-weight: 600;
+            border: 1px solid rgba(15, 40, 71, 0.1);
         }
 
         .activity-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 10px;
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            font-size: 1.125rem;
+            font-size: 0.9375rem;
+            border: 1px solid var(--gov-border);
         }
 
         .activity-icon.birth {
-            background-color: rgba(33, 150, 243, 0.1);
-            color: #2196F3;
+            background-color: rgba(15, 40, 71, 0.06);
+            color: var(--stat-navy);
+            border-color: rgba(15, 40, 71, 0.15);
         }
 
         .activity-icon.marriage {
-            background-color: rgba(233, 30, 99, 0.1);
-            color: #E91E63;
+            background-color: rgba(161, 125, 43, 0.08);
+            color: var(--stat-gold);
+            border-color: rgba(161, 125, 43, 0.2);
         }
 
         .activity-icon.death {
-            background-color: rgba(255, 152, 0, 0.1);
-            color: #FF9800;
+            background-color: rgba(71, 85, 105, 0.08);
+            color: var(--stat-slate);
+            border-color: rgba(71, 85, 105, 0.2);
         }
 
         .activity-icon.license {
-            background-color: rgba(103, 58, 183, 0.1);
-            color: #673AB7;
+            background-color: rgba(55, 48, 163, 0.06);
+            color: var(--stat-indigo);
+            border-color: rgba(55, 48, 163, 0.15);
         }
 
         .activity-content {
@@ -1145,36 +1224,38 @@ $user_first_name = explode(' ', $user_name)[0];
         }
 
         .activity-name {
-            font-weight: 700;
-            color: #0f172a;
-            margin-bottom: 4px;
+            font-weight: 600;
+            color: var(--gov-text);
+            margin-bottom: 3px;
             font-size: 0.9375rem;
-            letter-spacing: -0.01em;
+            letter-spacing: -0.005em;
         }
 
         .activity-meta {
             font-size: 0.8125rem;
-            color: #64748b;
+            color: var(--gov-text-muted);
             font-weight: 500;
         }
 
         .activity-time {
-            font-size: 0.8125rem;
-            color: #94a3b8;
+            font-size: 0.75rem;
+            color: var(--gov-text-muted);
             white-space: nowrap;
             font-weight: 600;
             padding: 4px 10px;
-            background-color: #f8fafc;
-            border-radius: 6px;
+            background-color: var(--gov-surface-alt);
+            border-radius: var(--radius-xs);
+            border: 1px solid var(--gov-border);
+            font-variant-numeric: tabular-nums;
         }
 
-        /* Security Status Card - Clean White Design */
+        /* Security Status Card — Institutional */
         .security-status-card {
-            background: #ffffff;
-            border-radius: 8px;
-            padding: 20px;
-            border: 1px solid #e2e8f0;
-            box-shadow: none;
+            background: var(--gov-surface);
+            border-radius: var(--radius-md);
+            padding: 20px 22px;
+            border: 1px solid var(--gov-border);
+            box-shadow: var(--gov-shadow-sm);
             margin-bottom: 24px;
         }
 
@@ -1183,20 +1264,32 @@ $user_first_name = explode(' ', $user_name)[0];
             align-items: center;
             gap: 10px;
             margin-bottom: 16px;
-            padding-bottom: 0;
-            border-bottom: none;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--gov-border);
+            position: relative;
+        }
+
+        .security-header::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 48px;
+            height: 2px;
+            background: var(--gov-accent);
         }
 
         .security-header i {
-            font-size: 1rem;
-            color: #3b82f6;
+            font-size: 0.9375rem;
+            color: var(--gov-accent-600);
         }
 
         .security-title {
             font-size: 0.9375rem;
-            font-weight: 600;
-            color: #0f172a;
-            letter-spacing: 0;
+            font-weight: 700;
+            color: var(--gov-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
         }
 
         .security-grid {
@@ -1209,46 +1302,51 @@ $user_first_name = explode(' ', $user_name)[0];
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 12px;
-            background-color: #f8fafc;
-            border-radius: 6px;
-            border: none;
-            transition: all 0.2s ease;
+            padding: 12px 14px;
+            background-color: var(--gov-surface-alt);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--gov-border);
+            transition: all 0.15s ease;
         }
 
         .security-item:hover {
-            background-color: #f1f5f9;
+            border-color: var(--gov-border-strong);
+            background-color: var(--gov-primary-50);
         }
 
         .security-item.warning-border {
-            border: none;
-            background-color: #fef3c7;
+            border-color: rgba(180, 83, 9, 0.3);
+            background-color: var(--gov-warning-50);
         }
 
         .security-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 6px;
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            font-size: 1.125rem;
+            font-size: 1rem;
+            border: 1px solid var(--gov-border);
         }
 
         .security-icon.success {
-            background-color: #dcfce7;
-            color: #22c55e;
+            background-color: var(--gov-success-50);
+            color: var(--gov-success);
+            border-color: rgba(15, 118, 110, 0.2);
         }
 
         .security-icon.info {
-            background-color: #dbeafe;
-            color: #3b82f6;
+            background-color: var(--gov-primary-50);
+            color: var(--gov-primary);
+            border-color: rgba(15, 40, 71, 0.15);
         }
 
         .security-icon.warning {
-            background-color: #fef3c7;
-            color: #fbbf24;
+            background-color: var(--gov-warning-50);
+            color: var(--gov-warning);
+            border-color: rgba(180, 83, 9, 0.2);
         }
 
         .security-content {
@@ -1258,47 +1356,48 @@ $user_first_name = explode(' ', $user_name)[0];
 
         .security-label {
             font-size: 0.6875rem;
-            color: #64748b;
-            font-weight: 500;
+            color: var(--gov-text-subtle);
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.03em;
+            letter-spacing: 0.08em;
             margin-bottom: 3px;
         }
 
         .security-value {
-            font-size: 1.25rem;
+            font-size: 1.125rem;
             font-weight: 700;
-            color: #0f172a;
+            color: var(--gov-primary);
             line-height: 1.2;
+            font-variant-numeric: tabular-nums;
         }
 
         .security-value.text-warning {
-            color: #f59e0b;
+            color: var(--gov-warning);
         }
 
-        /* Calendar & Notes Section - Clean Design */
+        /* Calendar & Notes Section — Institutional */
         .calendar-notes-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            gap: 16px;
             margin-bottom: 24px;
         }
 
         .calendar-widget {
-            background: #ffffff;
-            border-radius: 12px;
-            padding: 16px;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            background: var(--gov-surface);
+            border-radius: var(--radius-md);
+            padding: 18px 20px;
+            border: 1px solid var(--gov-border);
+            box-shadow: var(--gov-shadow-sm);
         }
 
         .notes-widget {
-            background: #ffffff;
-            border-radius: 12px;
-            padding: 16px;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-            color: #1e293b;
+            background: var(--gov-surface);
+            border-radius: var(--radius-md);
+            padding: 18px 20px;
+            border: 1px solid var(--gov-border);
+            box-shadow: var(--gov-shadow-sm);
+            color: var(--gov-text);
         }
 
         .widget-header {
@@ -1307,7 +1406,18 @@ $user_first_name = explode(' ', $user_name)[0];
             justify-content: space-between;
             margin-bottom: 16px;
             padding-bottom: 12px;
-            border-bottom: 1px solid #e2e8f0;
+            border-bottom: 1px solid var(--gov-border);
+            position: relative;
+        }
+
+        .widget-header::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 48px;
+            height: 2px;
+            background: var(--gov-accent);
         }
 
         .widget-title {
@@ -1316,32 +1426,36 @@ $user_first_name = explode(' ', $user_name)[0];
             gap: 8px;
             font-size: 0.9375rem;
             font-weight: 700;
-            color: #0f172a;
+            color: var(--gov-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
         }
 
         .widget-title i {
-            color: #0ea5e9;
-            font-size: 1rem;
+            color: var(--gov-accent-600);
+            font-size: 0.9375rem;
         }
 
         .widget-action-btn {
             padding: 6px 12px;
-            background: #0ea5e9;
+            background: var(--gov-primary);
             color: #ffffff;
-            border: none;
-            border-radius: 8px;
+            border: 1px solid var(--gov-primary);
+            border-radius: var(--radius-sm);
             font-size: 0.75rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
             display: flex;
             align-items: center;
             gap: 4px;
+            letter-spacing: 0.02em;
         }
 
         .widget-action-btn:hover {
-            background: #0284c7;
-            box-shadow: 0 2px 8px rgba(14, 165, 233, 0.25);
+            background: var(--gov-primary-600);
+            border-color: var(--gov-accent);
+            box-shadow: var(--gov-shadow-md);
         }
 
         .widget-action-btn i {
@@ -1359,36 +1473,37 @@ $user_first_name = explode(' ', $user_name)[0];
             display: flex;
             align-items: start;
             gap: 12px;
-            padding: 14px;
-            margin-bottom: 10px;
-            background: #f8fafc;
-            border-left: 4px solid #3b82f6;
-            border-radius: 8px;
-            transition: all 0.2s ease;
+            padding: 12px 14px;
+            margin-bottom: 8px;
+            background: var(--gov-surface-alt);
+            border: 1px solid var(--gov-border);
+            border-left: 3px solid var(--gov-primary);
+            border-radius: var(--radius-sm);
+            transition: all 0.15s ease;
             cursor: pointer;
         }
 
         .event-item:hover {
-            background: #f1f5f9;
-            transform: translateX(4px);
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+            background: var(--gov-primary-50);
+            border-color: var(--gov-border-strong);
+            border-left-color: var(--gov-accent);
         }
 
         .event-item.priority-high {
-            border-left-color: #ef4444;
+            border-left-color: var(--gov-danger);
         }
 
         .event-item.priority-urgent {
-            border-left-color: #dc2626;
-            background: #fef2f2;
+            border-left-color: var(--gov-danger);
+            background: var(--gov-danger-50);
         }
 
         .event-item.priority-medium {
-            border-left-color: #f59e0b;
+            border-left-color: var(--gov-warning);
         }
 
         .event-item.priority-low {
-            border-left-color: #64748b;
+            border-left-color: var(--gov-text-subtle);
         }
 
         .event-date-badge {
@@ -1399,25 +1514,26 @@ $user_first_name = explode(' ', $user_name)[0];
             width: 50px;
             min-width: 50px;
             height: 50px;
-            background: #ffffff;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
+            background: var(--gov-surface);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--gov-border);
             flex-shrink: 0;
         }
 
         .event-month {
             font-size: 0.625rem;
             font-weight: 700;
-            color: #3b82f6;
+            color: var(--gov-accent-600);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.1em;
         }
 
         .event-day {
             font-size: 1.25rem;
             font-weight: 700;
-            color: #0f172a;
+            color: var(--gov-primary);
             line-height: 1;
+            font-variant-numeric: tabular-nums;
         }
 
         .event-content {
@@ -1426,15 +1542,15 @@ $user_first_name = explode(' ', $user_name)[0];
         }
 
         .event-title {
-            font-weight: 700;
-            color: #0f172a;
+            font-weight: 600;
+            color: var(--gov-text);
             margin-bottom: 4px;
             font-size: 0.9375rem;
         }
 
         .event-meta {
             font-size: 0.75rem;
-            color: #64748b;
+            color: var(--gov-text-subtle);
             display: flex;
             align-items: center;
             gap: 8px;
@@ -1443,12 +1559,14 @@ $user_first_name = explode(' ', $user_name)[0];
 
         .event-type-badge {
             padding: 2px 8px;
-            background: #eff6ff;
-            color: #1e40af;
-            border-radius: 4px;
+            background: var(--gov-primary-50);
+            color: var(--gov-primary);
+            border-radius: var(--radius-xs);
             font-size: 0.7rem;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
+            letter-spacing: 0.06em;
+            border: 1px solid rgba(15, 40, 71, 0.1);
         }
 
         .event-time {
@@ -1462,30 +1580,30 @@ $user_first_name = explode(' ', $user_name)[0];
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 12px 16px;
-            background: #ffffff;
-            border-radius: 10px;
-            margin-bottom: 12px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-            border: 1px solid #e2e8f0;
+            padding: 10px 14px;
+            background: var(--gov-surface-alt);
+            border-radius: var(--radius-sm);
+            margin-bottom: 10px;
+            border: 1px solid var(--gov-border);
         }
 
         .calendar-month-year {
             margin: 0;
-            font-size: 1rem;
+            font-size: 0.9375rem;
             font-weight: 700;
-            color: #0f172a;
-            letter-spacing: -0.01em;
+            color: var(--gov-primary);
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
         }
 
         .calendar-nav-btn {
-            background: #f8fafc;
-            border: 1.5px solid #e2e8f0;
-            color: #0ea5e9;
+            background: var(--gov-surface);
+            border: 1px solid var(--gov-border);
+            color: var(--gov-primary);
             cursor: pointer;
-            padding: 6px 12px;
-            border-radius: 8px;
-            transition: all 0.2s ease;
+            padding: 5px 10px;
+            border-radius: var(--radius-xs);
+            transition: all 0.15s ease;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1493,10 +1611,9 @@ $user_first_name = explode(' ', $user_name)[0];
         }
 
         .calendar-nav-btn:hover {
-            background: #0ea5e9;
-            border-color: #0ea5e9;
+            background: var(--gov-primary);
+            border-color: var(--gov-primary);
             color: #ffffff;
-            box-shadow: 0 2px 8px rgba(14, 165, 233, 0.25);
         }
 
         /* Calendar Wrapper */
@@ -1517,9 +1634,9 @@ $user_first_name = explode(' ', $user_name)[0];
             text-align: center;
             font-size: 0.6875rem;
             font-weight: 700;
-            color: #64748b;
+            color: var(--gov-text-subtle);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.1em;
             padding: 4px 0;
         }
 
@@ -1539,26 +1656,26 @@ $user_first_name = explode(' ', $user_name)[0];
             align-items: center;
             justify-content: center;
             padding: 0;
-            font-size: 0.9375rem;
-            border-radius: 50%;
+            font-size: 0.875rem;
+            border-radius: var(--radius-xs);
             cursor: pointer;
-            transition: all 0.25s ease;
-            background: #ffffff;
-            border: 2px solid #e2e8f0;
+            transition: all 0.15s ease;
+            background: var(--gov-surface);
+            border: 1px solid var(--gov-border);
             position: relative;
             font-weight: 600;
-            color: #1e293b;
-            min-height: 50px;
+            color: var(--gov-text);
+            min-height: 46px;
             width: 100%;
             max-width: 50px;
             margin: 0 auto;
+            font-variant-numeric: tabular-nums;
         }
 
         .calendar-day-cell:hover:not(.empty):not(.today) {
-            background: #e0f2fe;
-            border-color: #0ea5e9;
-            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
-            transform: scale(1.1);
+            background: var(--gov-primary-50);
+            border-color: var(--gov-primary);
+            color: var(--gov-primary);
         }
 
         .calendar-day-cell.empty {
@@ -1568,40 +1685,38 @@ $user_first_name = explode(' ', $user_name)[0];
         }
 
         .calendar-day-cell.today {
-            background: #0ea5e9;
-            color: #ffffff;
-            border-color: #0284c7;
-            font-weight: 700;
-            box-shadow: 0 6px 20px rgba(14, 165, 233, 0.4);
+            background: var(--gov-surface);
+            color: var(--gov-primary);
+            border: 2px solid var(--gov-accent);
+            font-weight: 800;
+            box-shadow: 0 0 0 2px rgba(201, 169, 97, 0.15);
         }
 
         .calendar-day-cell.today:hover {
-            background: #0284c7;
-            box-shadow: 0 8px 24px rgba(14, 165, 233, 0.5);
-            transform: scale(1.15);
+            background: var(--gov-accent-50);
         }
 
         .calendar-day-cell.has-event {
-            background: #f0f9ff;
-            border-color: #0ea5e9;
-            border-width: 2.5px;
+            background: var(--gov-primary-50);
+            border-color: var(--gov-primary);
+            color: var(--gov-primary);
         }
 
         .calendar-day-cell.has-event:hover {
-            background: #e0f2fe;
-            border-color: #0284c7;
+            background: var(--gov-primary);
+            color: #ffffff;
         }
 
         .calendar-day-cell.today.has-event {
-            background: #0ea5e9;
-            border-color: #0284c7;
+            background: var(--gov-accent-50);
+            border-color: var(--gov-accent);
         }
 
         .calendar-event-count {
             position: absolute;
             top: -4px;
             right: -4px;
-            background: #0ea5e9;
+            background: var(--gov-primary);
             color: #ffffff;
             font-size: 0.625rem;
             font-weight: 800;
@@ -1612,14 +1727,15 @@ $user_first_name = explode(' ', $user_name)[0];
             align-items: center;
             justify-content: center;
             padding: 0 4px;
-            box-shadow: 0 2px 6px rgba(14, 165, 233, 0.4);
-            border: 2px solid #ffffff;
+            box-shadow: 0 1px 3px rgba(15, 40, 71, 0.3);
+            border: 2px solid var(--gov-surface);
+            font-variant-numeric: tabular-nums;
         }
 
         .calendar-day-cell.today .calendar-event-count {
-            background: #fbbf24;
-            color: #1e293b;
-            border-color: #0ea5e9;
+            background: var(--gov-accent);
+            color: var(--gov-primary);
+            border-color: var(--gov-surface);
         }
 
         .day-number {
@@ -1632,7 +1748,7 @@ $user_first_name = explode(' ', $user_name)[0];
             bottom: 4px;
             width: 4px;
             height: 4px;
-            background: #3b82f6;
+            background: var(--gov-accent);
             border-radius: 50%;
         }
 
@@ -1645,30 +1761,29 @@ $user_first_name = explode(' ', $user_name)[0];
 
         /* Notes List */
         .note-item {
-            padding: 12px;
-            margin-bottom: 10px;
-            background: #f8fafc;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-            transition: all 0.2s ease;
+            padding: 12px 14px;
+            margin-bottom: 8px;
+            background: var(--gov-surface-alt);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--gov-border);
+            transition: all 0.15s ease;
             cursor: pointer;
             position: relative;
         }
 
         .note-item:hover {
-            background: #e0f2fe;
-            border-color: #0ea5e9;
-            box-shadow: 0 2px 8px rgba(14, 165, 233, 0.15);
+            background: var(--gov-primary-50);
+            border-color: var(--gov-border-strong);
         }
 
         .note-item.pinned {
-            background: #fef3c7;
-            border-color: #fbbf24;
+            background: var(--gov-accent-50);
+            border-color: var(--gov-accent);
+            border-left: 3px solid var(--gov-accent);
         }
 
         .note-item.pinned:hover {
-            background: #fde68a;
-            border-color: #f59e0b;
+            background: #f5ecd3;
         }
 
         .note-item.pinned::before {
@@ -1678,7 +1793,7 @@ $user_first_name = explode(' ', $user_name)[0];
             position: absolute;
             top: 10px;
             right: 10px;
-            color: #f59e0b;
+            color: var(--gov-accent-600);
             font-size: 0.75rem;
         }
 
@@ -1691,7 +1806,7 @@ $user_first_name = explode(' ', $user_name)[0];
 
         .note-title {
             font-weight: 600;
-            color: #0f172a;
+            color: var(--gov-primary);
             font-size: 0.875rem;
             flex: 1;
             padding-right: 20px;
@@ -1699,7 +1814,7 @@ $user_first_name = explode(' ', $user_name)[0];
 
         .note-content-preview {
             font-size: 0.75rem;
-            color: #64748b;
+            color: var(--gov-text-muted);
             line-height: 1.4;
             margin-bottom: 6px;
             display: -webkit-box;
@@ -1713,18 +1828,20 @@ $user_first_name = explode(' ', $user_name)[0];
             align-items: center;
             gap: 8px;
             font-size: 0.6875rem;
-            color: #64748b;
+            color: var(--gov-text-subtle);
             flex-wrap: wrap;
         }
 
         .note-type-badge {
-            padding: 3px 8px;
-            background: #e0f2fe;
-            color: #0369a1;
-            border-radius: 6px;
+            padding: 2px 8px;
+            background: var(--gov-primary-50);
+            color: var(--gov-primary);
+            border-radius: var(--radius-xs);
             font-size: 0.625rem;
             font-weight: 700;
             text-transform: uppercase;
+            letter-spacing: 0.06em;
+            border: 1px solid rgba(15, 40, 71, 0.1);
         }
 
         .note-author {
@@ -1750,28 +1867,36 @@ $user_first_name = explode(' ', $user_name)[0];
             margin-bottom: 16px;
         }
 
-        /* Chart Insights */
+        /* Chart Insights — Formal Callout */
         .chart-insight {
-            background-color: #f0f9ff;
-            border-left: 3px solid #3b82f6;
-            padding: 14px 18px;
-            border-radius: 8px;
+            background-color: var(--gov-accent-50);
+            border-left: 3px solid var(--gov-accent);
+            padding: 12px 16px;
+            border-radius: var(--radius-xs);
             margin-bottom: 16px;
+            border-top: 1px solid rgba(201, 169, 97, 0.3);
+            border-right: 1px solid rgba(201, 169, 97, 0.3);
+            border-bottom: 1px solid rgba(201, 169, 97, 0.3);
         }
 
         .chart-insight-text {
             display: flex;
             align-items: flex-start;
             gap: 10px;
-            font-size: 0.875rem;
-            color: #1e40af;
+            font-size: 0.8125rem;
+            color: var(--gov-text);
             font-weight: 500;
-            line-height: 1.5;
+            line-height: 1.55;
+        }
+
+        .chart-insight-text strong {
+            color: var(--gov-primary);
+            font-weight: 700;
         }
 
         .chart-insight-text i {
-            color: #3b82f6;
-            font-size: 1rem;
+            color: var(--gov-accent-600);
+            font-size: 0.9375rem;
             flex-shrink: 0;
             margin-top: 2px;
         }
@@ -1813,13 +1938,14 @@ $user_first_name = explode(' ', $user_name)[0];
         }
 
         .modal-container {
-            background: #ffffff;
-            border-radius: 16px;
+            background: var(--gov-surface);
+            border-radius: var(--radius-md);
+            border-top: 3px solid var(--gov-accent);
             width: 90%;
             max-width: 600px;
             max-height: 90vh;
             overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 20px 60px rgba(15, 40, 71, 0.25);
             animation: slideUp 0.3s ease;
             position: relative;
         }
@@ -1828,24 +1954,25 @@ $user_first_name = explode(' ', $user_name)[0];
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 20px 24px;
-            border-bottom: 1px solid #e2e8f0;
-            background: #ffffff;
-            border-radius: 16px 16px 0 0;
+            padding: 18px 22px;
+            border-bottom: 1px solid var(--gov-border);
+            background: var(--gov-surface);
         }
 
         .modal-title {
-            font-size: 1.25rem;
+            font-size: 1rem;
             font-weight: 700;
-            color: #0f172a;
+            color: var(--gov-primary);
             display: flex;
             align-items: center;
             gap: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
         }
 
         .modal-title i {
-            color: #0ea5e9;
-            font-size: 1.5rem;
+            color: var(--gov-accent-600);
+            font-size: 1.125rem;
         }
 
         .modal-close {
@@ -1954,26 +2081,27 @@ $user_first_name = explode(' ', $user_name)[0];
         }
 
         .modal-btn-primary {
-            background: #0ea5e9;
+            background: var(--gov-primary);
             color: #ffffff;
-            box-shadow: 0 2px 8px rgba(14, 165, 233, 0.25);
+            border: 1px solid var(--gov-primary);
         }
 
         .modal-btn-primary:hover {
-            background: #0284c7;
-            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.35);
+            background: var(--gov-primary-600);
+            border-color: var(--gov-accent);
+            box-shadow: var(--gov-shadow-md);
             transform: translateY(-1px);
         }
 
         .modal-btn-danger {
-            background: #ef4444;
+            background: var(--gov-danger);
             color: #ffffff;
-            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
+            border: 1px solid var(--gov-danger);
         }
 
         .modal-btn-danger:hover {
-            background: #dc2626;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
+            background: #7f1d1d;
+            box-shadow: var(--gov-shadow-md);
             transform: translateY(-1px);
         }
 
@@ -2315,11 +2443,16 @@ $user_first_name = explode(' ', $user_name)[0];
             }
 
             .dashboard-header {
-                padding: 20px;
+                padding: 18px 20px;
             }
 
             .header-content {
                 flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header-right {
+                width: 100%;
                 align-items: flex-start;
             }
 
@@ -2332,12 +2465,25 @@ $user_first_name = explode(' ', $user_name)[0];
                 justify-content: center;
             }
 
+            .header-seal {
+                width: 48px;
+                height: 48px;
+            }
+
+            .header-title h1 {
+                font-size: 1.375rem;
+            }
+
+            .calendar-notes-grid {
+                grid-template-columns: 1fr;
+            }
+
             .stats-grid {
                 grid-template-columns: 1fr;
             }
 
             .stat-card {
-                padding: 20px;
+                padding: 18px;
             }
 
             .chart-container {
@@ -2345,11 +2491,11 @@ $user_first_name = explode(' ', $user_name)[0];
             }
 
             .chart-card {
-                padding: 20px;
+                padding: 18px;
             }
 
             .activity-section {
-                padding: 20px;
+                padding: 18px;
             }
 
             .quick-actions-fab {
@@ -2360,6 +2506,7 @@ $user_first_name = explode(' ', $user_name)[0];
             .fab-main {
                 width: 52px;
                 height: 52px;
+                font-size: 1.25rem;
             }
         }
     </style>
@@ -2372,66 +2519,80 @@ $user_first_name = explode(' ', $user_name)[0];
 
     <div class="content">
         <div class="dashboard-container">
-            <!-- Header -->
+            <!-- Header — Official Document Banner -->
             <div class="dashboard-header">
-            <div class="header-content">
-                <div class="header-title">
-                    <h1><i class="fas fa-chart-line"></i> Dashboard</h1>
-                    <p>Welcome back, <?php echo htmlspecialchars($user_first_name); ?>! Here's your civil registry overview.</p>
-                </div>
-                <div class="header-actions">
-                    <a href="../public/certificate_of_live_birth.php" class="btn btn-primary">
-                        <i class="fas fa-baby"></i> New Birth
-                    </a>
-                    <a href="../public/certificate_of_marriage.php" class="btn btn-success">
-                        <i class="fas fa-ring"></i> New Marriage
-                    </a>
-                    <a href="../public/certificate_of_death.php" class="btn btn-warning">
-                        <i class="fas fa-cross"></i> New Death
-                    </a>
-                    <a href="../public/application_for_marriage_license.php" class="btn btn-info">
-                        <i class="fas fa-clipboard-check"></i> New License
-                    </a>
+                <div class="header-content">
+                    <div class="header-identity">
+                        <div class="header-seal" aria-hidden="true">
+                            <img src="../assets/img/LOGO1.png" alt="Civil Registry Office Seal">
+                        </div>
+                        <div class="header-title">
+                            <div class="header-eyebrow">Civil Registry Office</div>
+                            <h1>Administrative Dashboard</h1>
+                            <p>Welcome, <?php echo htmlspecialchars($user_first_name); ?>. Official overview of registry operations.</p>
+                        </div>
+                    </div>
+                    <div class="header-right">
+                        <div class="header-date">
+                            <i class="fas fa-calendar-day" aria-hidden="true"></i>
+                            <?php echo date('l, d F Y'); ?>
+                        </div>
+                        <div class="header-actions">
+                            <a href="../public/certificate_of_live_birth.php" class="btn btn-primary">
+                                <i class="fas fa-file-lines"></i> New Birth
+                            </a>
+                            <a href="../public/certificate_of_marriage.php" class="btn btn-success">
+                                <i class="fas fa-file-signature"></i> New Marriage
+                            </a>
+                            <a href="../public/certificate_of_death.php" class="btn btn-warning">
+                                <i class="fas fa-file-lines"></i> New Death
+                            </a>
+                            <a href="../public/application_for_marriage_license.php" class="btn btn-info">
+                                <i class="fas fa-stamp"></i> New License
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
         <!-- Search & Filter Bar -->
         <div class="search-filter-bar" role="search" aria-label="Dashboard search and filters">
             <div class="search-box">
-                <i class="fas fa-search" aria-hidden="true"></i>
-                <input type="text" id="dashboardSearch" placeholder="Search certificates, registry numbers, names..." aria-label="Search certificates">
+                <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                <input type="text" id="dashboardSearch" placeholder="Search records by name, registry number, or date..." aria-label="Search records">
             </div>
             <div class="filter-group" role="group" aria-label="Certificate type filters">
                 <button class="filter-chip active" data-filter="all" aria-pressed="true">
-                    <i class="fas fa-layer-group" aria-hidden="true"></i> All
+                    <i class="fas fa-folder-open" aria-hidden="true"></i> All
                 </button>
                 <button class="filter-chip" data-filter="birth" aria-pressed="false">
-                    <i class="fas fa-baby" aria-hidden="true"></i> Birth
+                    <i class="fas fa-file-lines" aria-hidden="true"></i> Birth
                 </button>
                 <button class="filter-chip" data-filter="marriage" aria-pressed="false">
-                    <i class="fas fa-ring" aria-hidden="true"></i> Marriage
+                    <i class="fas fa-file-signature" aria-hidden="true"></i> Marriage
                 </button>
                 <button class="filter-chip" data-filter="death" aria-pressed="false">
-                    <i class="fas fa-cross" aria-hidden="true"></i> Death
+                    <i class="fas fa-file-lines" aria-hidden="true"></i> Death
                 </button>
                 <button class="filter-chip" data-filter="license" aria-pressed="false">
-                    <i class="fas fa-clipboard-check" aria-hidden="true"></i> License
+                    <i class="fas fa-stamp" aria-hidden="true"></i> License
                 </button>
             </div>
             <div class="date-range-selector" role="group" aria-label="Date range filters">
-                <span class="date-range-label">Period:</span>
-                <button class="date-range-btn active" data-range="monthly" aria-pressed="true">Monthly</button>
-                <button class="date-range-btn" data-range="quarterly" aria-pressed="false">Quarterly</button>
-                <button class="date-range-btn" data-range="yearly" aria-pressed="false">Yearly</button>
+                <span class="date-range-label">Period</span>
+                <div class="date-range-group">
+                    <button class="date-range-btn active" data-range="monthly" aria-pressed="true">Monthly</button>
+                    <button class="date-range-btn" data-range="quarterly" aria-pressed="false">Quarterly</button>
+                    <button class="date-range-btn" data-range="yearly" aria-pressed="false">Yearly</button>
+                </div>
             </div>
         </div>
 
         <!-- Security & System Status -->
         <div class="security-status-card" role="region" aria-label="Security and system status">
             <div class="security-header">
-                <i class="fas fa-shield-alt" aria-hidden="true"></i>
-                <h2 class="security-title">Security & System Status</h2>
+                <i class="fas fa-shield-halved" aria-hidden="true"></i>
+                <h2 class="security-title">Security &amp; System Status</h2>
             </div>
             <div class="security-grid">
                 <div class="security-item">
@@ -2485,7 +2646,7 @@ $user_first_name = explode(' ', $user_name)[0];
                     </div>
                     <div class="security-content">
                         <div class="security-label">System Health</div>
-                        <div class="security-value" style="font-size: 0.875rem; color: #22c55e;">Operational</div>
+                        <div class="security-value" style="font-size: 0.875rem; color: var(--gov-success);">Operational</div>
                     </div>
                 </div>
             </div>
@@ -2497,7 +2658,7 @@ $user_first_name = explode(' ', $user_name)[0];
             <div class="calendar-widget" role="region" aria-label="Calendar events">
                 <div class="widget-header">
                     <h3 class="widget-title">
-                        <i class="fas fa-calendar-alt" aria-hidden="true"></i>
+                        <i class="fas fa-calendar-days" aria-hidden="true"></i>
                         <span>Upcoming Events</span>
                     </h3>
                     <button class="widget-action-btn" onclick="openEventModal()" aria-label="Add new event">
@@ -2568,7 +2729,7 @@ $user_first_name = explode(' ', $user_name)[0];
                 </div>
 
                 <div style="text-align: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
-                    <a href="javascript:void(0)" onclick="openAllEventsModal()" style="color: #3b82f6; font-size: 0.875rem; font-weight: 600; text-decoration: none; cursor: pointer;">
+                    <a href="javascript:void(0)" onclick="openAllEventsModal()" style="color: var(--gov-primary); font-size: 0.8125rem; font-weight: 600; text-decoration: none; cursor: pointer; letter-spacing: 0.02em; text-transform: uppercase;">
                         View Full Calendar <i class="fas fa-arrow-right"></i>
                     </a>
                 </div>
@@ -2578,8 +2739,8 @@ $user_first_name = explode(' ', $user_name)[0];
             <div class="notes-widget" role="region" aria-label="System notes">
                 <div class="widget-header">
                     <h3 class="widget-title">
-                        <i class="fas fa-sticky-note" aria-hidden="true"></i>
-                        <span>Recent Notes</span>
+                        <i class="fas fa-clipboard" aria-hidden="true"></i>
+                        <span>Official Notes</span>
                     </h3>
                     <button class="widget-action-btn" onclick="openNoteModal()" aria-label="Add new note">
                         <i class="fas fa-plus"></i> Add Note
@@ -2631,7 +2792,7 @@ $user_first_name = explode(' ', $user_name)[0];
                         <?php endforeach; ?>
                     </ul>
                     <div style="text-align: center; margin-top: 16px;">
-                        <a href="javascript:void(0)" onclick="openAllNotesModal()" style="color: #3b82f6; font-size: 0.875rem; font-weight: 600; text-decoration: none; cursor: pointer;">
+                        <a href="javascript:void(0)" onclick="openAllNotesModal()" style="color: var(--gov-primary); font-size: 0.8125rem; font-weight: 600; text-decoration: none; cursor: pointer; letter-spacing: 0.02em; text-transform: uppercase;">
                             View All Notes <i class="fas fa-arrow-right"></i>
                         </a>
                     </div>
@@ -2641,23 +2802,24 @@ $user_first_name = explode(' ', $user_name)[0];
 
         <!-- PDF Integrity Status Widget -->
         <?php if (getUserRole() === 'Admin'): ?>
-        <div style="margin-bottom:20px;">
+        <?php $pdf_has_issues = $stats['pdf_integrity_issues'] > 0; ?>
+        <div style="margin-bottom:24px;">
             <a href="../admin/pdf_integrity_report.php" style="text-decoration:none;">
-                <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;border-radius:12px;background:<?= $stats['pdf_integrity_issues'] > 0 ? '#fff5f5' : '#f0fff4' ?>;border:1px solid <?= $stats['pdf_integrity_issues'] > 0 ? '#feb2b2' : '#9ae6b4' ?>;">
-                    <i data-lucide="<?= $stats['pdf_integrity_issues'] > 0 ? 'shield-alert' : 'shield-check' ?>"
-                       style="width:28px;height:28px;color:<?= $stats['pdf_integrity_issues'] > 0 ? '#c53030' : '#276749' ?>;flex-shrink:0;"></i>
+                <div style="display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:var(--radius-md);background:<?= $pdf_has_issues ? 'var(--gov-danger-50)' : 'var(--gov-success-50)' ?>;border:1px solid <?= $pdf_has_issues ? 'rgba(153,27,27,0.2)' : 'rgba(15,118,110,0.2)' ?>;border-left:3px solid <?= $pdf_has_issues ? 'var(--gov-danger)' : 'var(--gov-success)' ?>;box-shadow:var(--gov-shadow-sm);">
+                    <i data-lucide="<?= $pdf_has_issues ? 'shield-alert' : 'shield-check' ?>"
+                       style="width:24px;height:24px;color:<?= $pdf_has_issues ? 'var(--gov-danger)' : 'var(--gov-success)' ?>;flex-shrink:0;"></i>
                     <div>
-                        <div style="font-weight:700;font-size:0.95rem;color:<?= $stats['pdf_integrity_issues'] > 0 ? '#c53030' : '#276749' ?>;">
-                            PDF Integrity:
-                            <?= $stats['pdf_integrity_issues'] > 0
-                                ? $stats['pdf_integrity_issues'] . ' issue(s) detected in the last 30 days'
+                        <div style="font-weight:700;font-size:0.875rem;color:<?= $pdf_has_issues ? 'var(--gov-danger)' : 'var(--gov-success)' ?>;text-transform:uppercase;letter-spacing:0.04em;">
+                            Document Integrity:
+                            <?= $pdf_has_issues
+                                ? $stats['pdf_integrity_issues'] . ' issue(s) detected (last 30 days)'
                                 : 'All checks passed' ?>
                         </div>
-                        <div style="font-size:0.82rem;color:#718096;margin-top:2px;">
-                            Click to view the full integrity report and restore backups
+                        <div style="font-size:0.8125rem;color:var(--gov-text-muted);margin-top:2px;font-weight:500;">
+                            Open the full integrity report and restore backups
                         </div>
                     </div>
-                    <i data-lucide="chevron-right" style="width:18px;height:18px;color:#a0aec0;margin-left:auto;"></i>
+                    <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--gov-text-subtle);margin-left:auto;"></i>
                 </div>
             </a>
         </div>
@@ -2689,7 +2851,7 @@ $user_first_name = explode(' ', $user_name)[0];
                         <?php endif; ?>
                     </div>
                     <div class="stat-icon">
-                        <i class="fas fa-baby"></i>
+                        <i class="fas fa-file-lines"></i>
                     </div>
                 </div>
             </div>
@@ -2708,7 +2870,7 @@ $user_first_name = explode(' ', $user_name)[0];
                         <?php endif; ?>
                     </div>
                     <div class="stat-icon">
-                        <i class="fas fa-ring"></i>
+                        <i class="fas fa-file-signature"></i>
                     </div>
                 </div>
             </div>
@@ -2746,7 +2908,7 @@ $user_first_name = explode(' ', $user_name)[0];
                         <?php endif; ?>
                     </div>
                     <div class="stat-icon">
-                        <i class="fas fa-heart"></i>
+                        <i class="fas fa-file-signature"></i>
                     </div>
                 </div>
             </div>
@@ -2765,7 +2927,7 @@ $user_first_name = explode(' ', $user_name)[0];
                         <?php endif; ?>
                     </div>
                     <div class="stat-icon">
-                        <i class="fas fa-cross"></i>
+                        <i class="fas fa-file-lines"></i>
                     </div>
                 </div>
             </div>
@@ -2784,7 +2946,7 @@ $user_first_name = explode(' ', $user_name)[0];
                         <?php endif; ?>
                     </div>
                     <div class="stat-icon">
-                        <i class="fas fa-clipboard-check"></i>
+                        <i class="fas fa-stamp"></i>
                     </div>
                 </div>
             </div>
@@ -2797,7 +2959,7 @@ $user_first_name = explode(' ', $user_name)[0];
                         <div class="stat-label">Deaths This Month</div>
                     </div>
                     <div class="stat-icon">
-                        <i class="fas fa-calendar-minus"></i>
+                        <i class="fas fa-calendar-xmark"></i>
                     </div>
                 </div>
             </div>
@@ -2843,7 +3005,7 @@ $user_first_name = explode(' ', $user_name)[0];
                 ?>
                 <div class="chart-insight">
                     <div class="chart-insight-text">
-                        <i class="fas fa-lightbulb"></i>
+                        <i class="fas fa-circle-info"></i>
                         <span>
                             <?php if ($total_all_months > 0): ?>
                                 <strong><?php echo $peak_month; ?></strong> had the highest registration activity with <strong><?php echo max($monthly_totals); ?> total records</strong>.
@@ -2882,7 +3044,7 @@ $user_first_name = explode(' ', $user_name)[0];
                 ?>
                 <div class="chart-insight">
                     <div class="chart-insight-text">
-                        <i class="fas fa-chart-pie"></i>
+                        <i class="fas fa-circle-info"></i>
                         <span>
                             <?php if ($total_certs > 0): ?>
                                 <strong><?php echo $dominant_type; ?> certificates</strong> represent the largest category at <strong><?php echo $dominant_percentage; ?>%</strong> of all records,
@@ -2902,7 +3064,7 @@ $user_first_name = explode(' ', $user_name)[0];
         <!-- Recent Activity -->
         <div class="activity-section">
             <div class="activity-header">
-                <h3 class="activity-title"><i class="fas fa-clock"></i> Recent Activity</h3>
+                <h3 class="activity-title"><i class="fas fa-clock-rotate-left"></i> Recent Activity</h3>
             </div>
 
             <?php if (empty($recent_activities)): ?>
@@ -2931,9 +3093,9 @@ $user_first_name = explode(' ', $user_name)[0];
                         <li class="activity-item" onclick="window.location.href='<?php echo $view_url; ?>'" role="listitem" tabindex="0" aria-label="View <?php echo $activity['type']; ?> record for <?php echo htmlspecialchars($activity['name']); ?>">
                             <div class="activity-icon <?php echo $activity['type']; ?>" aria-hidden="true">
                                 <i class="fas fa-<?php
-                                    echo $activity['type'] === 'birth' ? 'baby' :
-                                        ($activity['type'] === 'marriage' ? 'ring' :
-                                        ($activity['type'] === 'death' ? 'cross' : 'clipboard-check'));
+                                    echo $activity['type'] === 'birth' ? 'file-lines' :
+                                        ($activity['type'] === 'marriage' ? 'file-signature' :
+                                        ($activity['type'] === 'death' ? 'file-lines' : 'stamp'));
                                 ?>"></i>
                             </div>
                             <div class="activity-content">
@@ -2982,25 +3144,25 @@ $user_first_name = explode(' ', $user_name)[0];
             <div class="fab-action">
                 <span class="fab-label">New Birth Certificate</span>
                 <a href="../public/certificate_of_live_birth.php" class="fab-button primary">
-                    <i class="fas fa-baby"></i>
+                    <i class="fas fa-file-lines"></i>
                 </a>
             </div>
             <div class="fab-action">
                 <span class="fab-label">New Marriage Certificate</span>
                 <a href="../public/certificate_of_marriage.php" class="fab-button success">
-                    <i class="fas fa-ring"></i>
+                    <i class="fas fa-file-signature"></i>
                 </a>
             </div>
             <div class="fab-action">
                 <span class="fab-label">New Death Certificate</span>
                 <a href="../public/certificate_of_death.php" class="fab-button warning">
-                    <i class="fas fa-cross"></i>
+                    <i class="fas fa-file-lines"></i>
                 </a>
             </div>
             <div class="fab-action">
                 <span class="fab-label">New Marriage License</span>
                 <a href="../public/application_for_marriage_license.php" class="fab-button info">
-                    <i class="fas fa-clipboard-check"></i>
+                    <i class="fas fa-stamp"></i>
                 </a>
             </div>
             <div class="fab-action">
@@ -3010,7 +3172,7 @@ $user_first_name = explode(' ', $user_name)[0];
                 </a>
             </div>
         </div>
-        <button class="fab-main" id="fabMain">
+        <button class="fab-main" id="fabMain" aria-label="Quick actions menu">
             <i class="fas fa-plus"></i>
         </button>
     </div>
@@ -3159,68 +3321,68 @@ $user_first_name = explode(' ', $user_name)[0];
                     {
                         label: 'Birth Certificates',
                         data: <?php echo json_encode(array_column($monthly_chart_data, 'births')); ?>,
-                        borderColor: '#2196F3',
-                        backgroundColor: 'rgba(33, 150, 243, 0.1)',
-                        borderWidth: 3,
-                        tension: 0.4,
+                        borderColor: '#0f2847',
+                        backgroundColor: 'rgba(15, 40, 71, 0.08)',
+                        borderWidth: 2.5,
+                        tension: 0.35,
                         fill: true,
-                        pointRadius: 5,
-                        pointHoverRadius: 7,
-                        pointBackgroundColor: '#2196F3',
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: '#0f2847',
                         pointBorderColor: '#fff',
                         pointBorderWidth: 2,
-                        pointHoverBackgroundColor: '#2196F3',
-                        pointHoverBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#0f2847',
+                        pointHoverBorderColor: '#c9a961',
                         pointHoverBorderWidth: 3
                     },
                     {
                         label: 'Marriage Certificates',
                         data: <?php echo json_encode(array_column($monthly_chart_data, 'marriages')); ?>,
-                        borderColor: '#E91E63',
-                        backgroundColor: 'rgba(233, 30, 99, 0.1)',
-                        borderWidth: 3,
-                        tension: 0.4,
+                        borderColor: '#c9a961',
+                        backgroundColor: 'rgba(201, 169, 97, 0.1)',
+                        borderWidth: 2.5,
+                        tension: 0.35,
                         fill: true,
-                        pointRadius: 5,
-                        pointHoverRadius: 7,
-                        pointBackgroundColor: '#E91E63',
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: '#c9a961',
                         pointBorderColor: '#fff',
                         pointBorderWidth: 2,
-                        pointHoverBackgroundColor: '#E91E63',
-                        pointHoverBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#c9a961',
+                        pointHoverBorderColor: '#0f2847',
                         pointHoverBorderWidth: 3
                     },
                     {
                         label: 'Death Certificates',
                         data: <?php echo json_encode(array_column($monthly_chart_data, 'deaths')); ?>,
-                        borderColor: '#FF9800',
-                        backgroundColor: 'rgba(255, 152, 0, 0.1)',
-                        borderWidth: 3,
-                        tension: 0.4,
+                        borderColor: '#991b1b',
+                        backgroundColor: 'rgba(153, 27, 27, 0.08)',
+                        borderWidth: 2.5,
+                        tension: 0.35,
                         fill: true,
-                        pointRadius: 5,
-                        pointHoverRadius: 7,
-                        pointBackgroundColor: '#FF9800',
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: '#991b1b',
                         pointBorderColor: '#fff',
                         pointBorderWidth: 2,
-                        pointHoverBackgroundColor: '#FF9800',
+                        pointHoverBackgroundColor: '#991b1b',
                         pointHoverBorderColor: '#fff',
                         pointHoverBorderWidth: 3
                     },
                     {
                         label: 'Marriage Licenses',
                         data: <?php echo json_encode(array_column($monthly_chart_data, 'licenses')); ?>,
-                        borderColor: '#673AB7',
-                        backgroundColor: 'rgba(103, 58, 183, 0.1)',
-                        borderWidth: 3,
-                        tension: 0.4,
+                        borderColor: '#0f766e',
+                        backgroundColor: 'rgba(15, 118, 110, 0.08)',
+                        borderWidth: 2.5,
+                        tension: 0.35,
                         fill: true,
-                        pointRadius: 5,
-                        pointHoverRadius: 7,
-                        pointBackgroundColor: '#673AB7',
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: '#0f766e',
                         pointBorderColor: '#fff',
                         pointBorderWidth: 2,
-                        pointHoverBackgroundColor: '#673AB7',
+                        pointHoverBackgroundColor: '#0f766e',
                         pointHoverBorderColor: '#fff',
                         pointHoverBorderWidth: 3
                     }
@@ -3247,15 +3409,19 @@ $user_first_name = explode(' ', $user_name)[0];
                         }
                     },
                     tooltip: {
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                        titleColor: '#1C1B1F',
-                        bodyColor: '#49454F',
-                        borderColor: '#CAC4D0',
+                        backgroundColor: '#0f2847',
+                        titleColor: '#ffffff',
+                        bodyColor: '#e2e8f0',
+                        borderColor: '#c9a961',
                         borderWidth: 1,
                         padding: 12,
                         boxPadding: 6,
                         usePointStyle: true,
-                        font: {
+                        titleFont: {
+                            family: 'Inter',
+                            weight: '700'
+                        },
+                        bodyFont: {
                             family: 'Inter'
                         }
                     }
@@ -3269,10 +3435,10 @@ $user_first_name = explode(' ', $user_name)[0];
                                 family: 'Inter',
                                 size: 12
                             },
-                            color: '#49454F'
+                            color: '#475569'
                         },
                         grid: {
-                            color: 'rgba(202, 196, 208, 0.3)',
+                            color: 'rgba(221, 227, 237, 0.6)',
                             drawBorder: false
                         }
                     },
@@ -3282,7 +3448,7 @@ $user_first_name = explode(' ', $user_name)[0];
                                 family: 'Inter',
                                 size: 12
                             },
-                            color: '#49454F'
+                            color: '#475569'
                         },
                         grid: {
                             display: false
@@ -3309,11 +3475,12 @@ $user_first_name = explode(' ', $user_name)[0];
                     datasets: [{
                         data: distributionData,
                         backgroundColor: [
-                            '#2196F3',
-                            '#E91E63',
-                            '#FF9800'
+                            '#0f2847',
+                            '#c9a961',
+                            '#991b1b',
+                            '#0f766e'
                         ],
-                        borderWidth: 3,
+                        borderWidth: 2,
                         borderColor: '#ffffff',
                         hoverOffset: 8
                     }]
@@ -3321,7 +3488,7 @@ $user_first_name = explode(' ', $user_name)[0];
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    cutout: '60%',
+                    cutout: '62%',
                     plugins: {
                         legend: {
                             position: 'bottom',
@@ -3333,18 +3500,22 @@ $user_first_name = explode(' ', $user_name)[0];
                                     size: 12,
                                     weight: '500'
                                 },
-                                color: '#1f2937'
+                                color: '#0f172a'
                             }
                         },
                         tooltip: {
-                            backgroundColor: 'rgba(31, 41, 55, 0.95)',
+                            backgroundColor: '#0f2847',
                             titleColor: '#ffffff',
-                            bodyColor: '#e5e7eb',
-                            borderColor: '#374151',
+                            bodyColor: '#e2e8f0',
+                            borderColor: '#c9a961',
                             borderWidth: 1,
                             padding: 12,
                             boxPadding: 6,
-                            font: {
+                            titleFont: {
+                                family: 'Inter',
+                                weight: '700'
+                            },
+                            bodyFont: {
                                 family: 'Inter'
                             },
                             callbacks: {

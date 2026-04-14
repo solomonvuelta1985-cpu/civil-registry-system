@@ -506,7 +506,7 @@ if ($edit_mode && $record) {
                     <div class="form-section" id="birth_section">
                         <div class="section-header">
                             <h2 class="section-title">
-                                <i data-lucide="baby"></i>
+                                <i data-lucide="scroll-text"></i>
                                 Birth Information
                             </h2>
                         </div>
@@ -851,14 +851,14 @@ if ($edit_mode && $record) {
                     <div class="form-section" id="marriage_section">
                         <div class="section-header">
                             <h2 class="section-title">
-                                <i data-lucide="heart"></i>
+                                <i data-lucide="file-signature"></i>
                                 Marriage Information
                             </h2>
                         </div>
 
                         <?php
                         $marriage_dom_val = $edit_mode ? ($record['date_of_marriage'] ?? '') : '';
-                        $marriage_is_others = $edit_mode && in_array($marriage_dom_val, ['Not Married', "Don't Know", 'Forgotten']);
+                        $marriage_is_others = $edit_mode && in_array($marriage_dom_val, ['Not Married', "Don't Know", 'Forgotten', 'Not Stated']);
                         ?>
 
                         <!-- "Others" checkbox (always visible) -->
@@ -898,6 +898,7 @@ if ($edit_mode && $record) {
                                     <option value="Not Married" <?php echo $marriage_dom_val === 'Not Married' ? 'selected' : ''; ?>>Not Married</option>
                                     <option value="Don't Know" <?php echo $marriage_dom_val === "Don't Know" ? 'selected' : ''; ?>>Don't Know</option>
                                     <option value="Forgotten" <?php echo $marriage_dom_val === 'Forgotten' ? 'selected' : ''; ?>>Forgotten</option>
+                                    <option value="Not Stated" <?php echo $marriage_dom_val === 'Not Stated' ? 'selected' : ''; ?>>Not Stated</option>
                                 </select>
                             </div>
 
@@ -921,7 +922,8 @@ if ($edit_mode && $record) {
                                     style="<?php echo $marriage_is_others ? '' : 'display:none;'; ?>"
                                     <?php echo $marriage_is_others ? '' : 'disabled'; ?>
                                 >
-                                    <option value="Not Applicable" selected>Not Applicable</option>
+                                    <option value="Not Applicable" <?php echo (($record['place_of_marriage'] ?? '') === 'Not Applicable' || !$edit_mode) ? 'selected' : ''; ?>>Not Applicable</option>
+                                    <option value="Not Stated" <?php echo (($record['place_of_marriage'] ?? '') === 'Not Stated') ? 'selected' : ''; ?>>Not Stated</option>
                                 </select>
                             </div>
                         </div>

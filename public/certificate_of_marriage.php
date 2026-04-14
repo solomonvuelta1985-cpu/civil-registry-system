@@ -769,7 +769,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                     <div class="form-section" id="marriage_section">
                         <div class="section-header">
                             <h2 class="section-title">
-                                <i data-lucide="heart"></i>
+                                <i data-lucide="file-signature"></i>
                                 Marriage Information
                             </h2>
                         </div>
