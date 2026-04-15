@@ -55,7 +55,7 @@ $configs = [
         ],
         'columns' => ['id', 'status', 'registry_no', 'husband_first_name', 'husband_middle_name', 'husband_last_name',
                      'wife_first_name', 'wife_middle_name', 'wife_last_name', 'date_of_marriage',
-                     'place_of_marriage', 'pdf_filename']
+                     'place_of_marriage', 'date_of_registration', 'pdf_filename']
     ],
     'birth' => [
         'table' => 'certificate_of_live_birth',

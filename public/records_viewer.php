@@ -120,8 +120,8 @@ $record_configs = [
         'table_columns' => [
             ['label' => 'Registry No.', 'field' => 'registry_no', 'sortable' => true],
             ['label' => 'Child', 'field' => 'child_name', 'sortable' => true, 'sort_field' => 'child_first_name'],
-            ['label' => 'Birth Date', 'field' => 'child_date_of_birth', 'sortable' => true, 'type' => 'date'],
             ['label' => 'Sex', 'field' => 'child_sex', 'sortable' => true],
+            ['label' => 'Birth Date', 'field' => 'child_date_of_birth', 'sortable' => true, 'type' => 'date'],
             ['label' => 'Father', 'field' => 'father_name', 'sortable' => true, 'sort_field' => 'father_first_name'],
             ['label' => 'Mother', 'field' => 'mother_name', 'sortable' => true, 'sort_field' => 'mother_first_name'],
             ['label' => 'Place', 'field' => 'child_place_of_birth', 'sortable' => true],
@@ -219,10 +219,10 @@ $record_configs = [
         'table_columns' => [
             ['label' => 'Registry No.', 'field' => 'registry_no', 'sortable' => true],
             ['label' => 'Deceased', 'field' => 'deceased_name', 'sortable' => true, 'sort_field' => 'deceased_first_name'],
+            ['label' => 'Sex', 'field' => 'sex', 'sortable' => true],
+            ['label' => 'Age', 'field' => 'age', 'sortable' => true],
             ['label' => 'Date of Birth', 'field' => 'date_of_birth', 'sortable' => true, 'type' => 'date'],
             ['label' => 'Date of Death', 'field' => 'date_of_death', 'sortable' => true, 'type' => 'date'],
-            ['label' => 'Age', 'field' => 'age', 'sortable' => true],
-            ['label' => 'Sex', 'field' => 'sex', 'sortable' => true],
             ['label' => 'Place of Death', 'field' => 'place_of_death', 'sortable' => true],
             ['label' => 'Registration Date', 'field' => 'date_of_registration', 'sortable' => true, 'type' => 'date']
         ],
@@ -584,6 +584,44 @@ function get_field_value($record, $field, $type = 'text') {
     } else {
         return htmlspecialchars($record[$field] ?? 'N/A');
     }
+}
+
+/**
+ * Detect late/delayed registration per PSA / Act 3753 rules:
+ *   Birth    — timely if registered within 30 days of date of birth
+ *   Death    — timely if registered within 30 days of date of death
+ *   Marriage — timely if registered within 15 days of date of marriage
+ *
+ * Returns ['is_late' => bool, 'days_delayed' => int, 'threshold' => int]
+ * or null when event/registration date is missing (can't determine).
+ */
+function detect_late_registration($record, $record_type) {
+    $event_field = [
+        'birth'    => 'child_date_of_birth',
+        'death'    => 'date_of_death',
+        'marriage' => 'date_of_marriage',
+    ][$record_type] ?? null;
+
+    $threshold = ($record_type === 'marriage') ? 15 : 30;
+
+    if (!$event_field) return null;
+
+    $event_date = $record[$event_field] ?? null;
+    $reg_date   = $record['date_of_registration'] ?? null;
+
+    if (empty($event_date) || empty($reg_date)) return null;
+
+    $event_ts = strtotime($event_date);
+    $reg_ts   = strtotime($reg_date);
+    if ($event_ts === false || $reg_ts === false) return null;
+
+    $days_delayed = (int) floor(($reg_ts - $event_ts) / 86400);
+
+    return [
+        'is_late'      => $days_delayed > $threshold,
+        'days_delayed' => $days_delayed,
+        'threshold'    => $threshold,
+    ];
 }
 ?>
 <!DOCTYPE html>
@@ -1436,6 +1474,14 @@ function get_field_value($record, $field, $type = 'text') {
             background: #FEF3C7;
             color: #92400E;
         }
+        .status-badge.late-registration {
+            background: #FEE2E2;
+            color: #991B1B;
+        }
+        .status-badge.timely-registration {
+            background: #DCFCE7;
+            color: #166534;
+        }
         .records-table tbody tr.row-archived {
             background: #FFFBEB !important;
         }
@@ -2183,6 +2229,27 @@ function get_field_value($record, $field, $type = 'text') {
                                         Archived
                                     </span>
                                 <?php endif; ?>
+                                <?php
+                                if ($column['field'] === 'date_of_registration'
+                                    && in_array($record_type, ['birth', 'death', 'marriage'], true)):
+                                    $late_info = detect_late_registration($record, $record_type);
+                                    if ($late_info !== null):
+                                        $tooltip = $late_info['is_late']
+                                            ? 'Late — registered ' . $late_info['days_delayed'] . ' days after event (threshold: ' . $late_info['threshold'] . ' days)'
+                                            : 'Registered within the ' . $late_info['threshold'] . '-day timely period';
+                                ?>
+                                    <?php if ($late_info['is_late']): ?>
+                                    <span class="status-badge late-registration" title="<?php echo htmlspecialchars($tooltip); ?>">
+                                        <i data-lucide="alert-triangle" style="width:10px;height:10px;"></i>
+                                        Late
+                                    </span>
+                                    <?php else: ?>
+                                    <span class="status-badge timely-registration" title="<?php echo htmlspecialchars($tooltip); ?>">
+                                        <i data-lucide="check" style="width:10px;height:10px;"></i>
+                                        Timely
+                                    </span>
+                                    <?php endif; ?>
+                                <?php endif; endif; ?>
                             </td>
                             <?php endforeach; ?>
                             <td>
@@ -3062,11 +3129,14 @@ function get_field_value($record, $field, $type = 'text') {
                 const badge = (isNameField && !firstNameShown && isArchived)
                     ? ' <span class="status-badge archived"><i data-lucide="archive" style="width:10px;height:10px;"></i> Archived</span>'
                     : '';
+                const regBadge = (column.field === 'date_of_registration')
+                    ? buildLateRegistrationBadge(record)
+                    : '';
                 if (isNameField) {
                     firstNameShown = true;
                     html += `<td><a href="javascript:void(0)" class="record-name-link" onclick="recordPreviewModal.open(${record.id}, '${recordType}')">${value}</a>${badge}</td>`;
                 } else {
-                    html += `<td>${value}</td>`;
+                    html += `<td>${value}${regBadge}</td>`;
                 }
             });
 
@@ -3147,6 +3217,38 @@ function get_field_value($record, $field, $type = 'text') {
         function buildFullName(first, middle, last) {
             const parts = [first, middle, last].filter(p => p && p.trim());
             return escapeHtml(parts.length > 0 ? parts.join(' ') : 'N/A');
+        }
+
+        // Late/Timely registration badge — mirrors PHP detect_late_registration().
+        // Birth/Death: 30-day window. Marriage: 15-day window (Act 3753 / PSA).
+        function buildLateRegistrationBadge(record) {
+            const eventFieldMap = {
+                birth: 'child_date_of_birth',
+                death: 'date_of_death',
+                marriage: 'date_of_marriage'
+            };
+            const rType = '<?php echo $record_type; ?>';
+            const eventField = eventFieldMap[rType];
+            if (!eventField) return '';
+
+            const threshold = (rType === 'marriage') ? 15 : 30;
+            const eventDate = record[eventField];
+            const regDate = record.date_of_registration;
+            if (!eventDate || !regDate) return '';
+
+            const eventTs = Date.parse(eventDate);
+            const regTs = Date.parse(regDate);
+            if (isNaN(eventTs) || isNaN(regTs)) return '';
+
+            const days = Math.floor((regTs - eventTs) / 86400000);
+            const isLate = days > threshold;
+            const tooltip = isLate
+                ? `Late — registered ${days} days after event (threshold: ${threshold} days)`
+                : `Registered within the ${threshold}-day timely period`;
+            const cls = isLate ? 'late-registration' : 'timely-registration';
+            const icon = isLate ? 'alert-triangle' : 'check';
+            const label = isLate ? 'Late' : 'Timely';
+            return ` <span class="status-badge ${cls}" title="${escapeHtml(tooltip)}"><i data-lucide="${icon}" style="width:10px;height:10px;"></i> ${label}</span>`;
         }
 
         // Format date
