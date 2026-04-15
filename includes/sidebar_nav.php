@@ -1,6 +1,14 @@
 <?php
 // Get current page to highlight active menu item
 $current_page = basename($_SERVER['PHP_SELF']);
+
+// Ensure auth helpers are available so role checks work even if a page
+// includes this nav before auth.php. Safe-guard for non-Admin roles
+// (Encoder/Viewer) which should not see administrative menu items.
+if (!function_exists('isAdmin')) {
+    require_once __DIR__ . '/auth.php';
+}
+$__is_admin = function_exists('isAdmin') ? isAdmin() : false;
 ?>
 
 <!-- Sidebar Navigation -->
@@ -69,7 +77,8 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </a>
         </li>
 
-        <!-- Archives & Trash Section -->
+        <?php if ($__is_admin): ?>
+        <!-- Archives & Trash Section (Admin only) -->
         <li class="sidebar-divider"></li>
         <li class="sidebar-heading">Archives & Trash</li>
         <li>
@@ -82,6 +91,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 <i data-lucide="trash-2"></i> <span>Trash</span>
             </a>
         </li>
+        <?php endif; ?>
 
         <!-- Reports Section -->
         <li class="sidebar-divider"></li>
@@ -92,7 +102,8 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </a>
         </li>
 
-        <!-- Maintenance Section -->
+        <?php if ($__is_admin): ?>
+        <!-- Maintenance Section (Admin only) -->
         <li class="sidebar-divider"></li>
         <li class="sidebar-heading">Maintenance</li>
         <li>
@@ -111,7 +122,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </a>
         </li>
 
-        <!-- Administration Section -->
+        <!-- Administration Section (Admin only) -->
         <li class="sidebar-divider"></li>
         <li class="sidebar-heading">Administration</li>
         <li>
@@ -129,5 +140,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 <i data-lucide="settings"></i> <span>Settings</span>
             </a>
         </li>
+        <?php endif; ?>
     </ul>
 </nav>

@@ -367,6 +367,11 @@ $user_first_name = explode(' ', $user_name)[0];
             box-sizing: border-box;
         }
 
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
         body {
             font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: var(--gov-bg);
@@ -375,15 +380,29 @@ $user_first_name = explode(' ', $user_name)[0];
             line-height: 1.6;
             margin: 0;
             min-height: 100vh;
-            overflow-x: hidden;
             font-feature-settings: "tnum" 1, "ss01" 1;
         }
 
         .content {
             margin-left: 280px;
-            padding: 88px 20px 20px 20px;
+            padding: clamp(64px, 6vw + 40px, 96px) clamp(10px, 2.5vw, 28px) clamp(16px, 2vw, 28px);
             transition: margin-left 0.3s ease;
             min-height: 100vh;
+        }
+
+        @media (max-width: 1024px) {
+            .content,
+            .sidebar-collapsed .content {
+                margin-left: 0;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                padding-left: clamp(8px, 3vw, 16px);
+                padding-right: clamp(8px, 3vw, 16px);
+                padding-top: 72px;
+            }
         }
 
         .sidebar-collapsed .content {
@@ -393,6 +412,9 @@ $user_first_name = explode(' ', $user_name)[0];
         .dashboard-container {
             max-width: 1400px;
             margin: 0 auto;
+            width: 100%;
+            min-width: 0;
+            overflow-x: hidden;
         }
 
         /* Search & Filter Bar — Formal */
@@ -458,7 +480,7 @@ $user_first_name = explode(' ', $user_name)[0];
 
         .search-box {
             flex: 1;
-            min-width: 280px;
+            min-width: min(280px, 100%);
             position: relative;
         }
 
@@ -538,8 +560,8 @@ $user_first_name = explode(' ', $user_name)[0];
             border-radius: var(--radius-md);
             border: 1px solid var(--gov-border);
             border-top: 3px solid var(--gov-accent);
-            padding: 24px 28px;
-            margin-bottom: 24px;
+            padding: clamp(16px, 2vw, 24px) clamp(16px, 2.4vw, 28px);
+            margin-bottom: clamp(16px, 2vw, 24px);
             box-shadow: var(--gov-shadow-sm);
             position: relative;
         }
@@ -549,18 +571,18 @@ $user_first_name = explode(' ', $user_name)[0];
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            gap: 24px;
+            gap: clamp(12px, 2vw, 24px);
         }
 
         .header-identity {
             display: flex;
             align-items: center;
-            gap: 18px;
+            gap: clamp(10px, 1.4vw, 18px);
         }
 
         .header-seal {
-            width: 56px;
-            height: 56px;
+            width: clamp(44px, 4.5vw, 56px);
+            height: clamp(44px, 4.5vw, 56px);
             border-radius: 50%;
             background: var(--gov-accent-50);
             border: 2px solid var(--gov-accent);
@@ -598,7 +620,7 @@ $user_first_name = explode(' ', $user_name)[0];
         }
 
         .header-title h1 {
-            font-size: 1.625rem;
+            font-size: clamp(1.15rem, 1vw + 0.9rem, 1.625rem);
             font-weight: 700;
             color: var(--gov-primary);
             margin-bottom: 2px;
@@ -608,7 +630,7 @@ $user_first_name = explode(' ', $user_name)[0];
 
         .header-title p {
             color: var(--gov-text-muted);
-            font-size: 0.875rem;
+            font-size: clamp(0.8rem, 0.3vw + 0.75rem, 0.9rem);
             font-weight: 500;
         }
 
@@ -716,16 +738,16 @@ $user_first_name = explode(' ', $user_name)[0];
         /* Statistics Grid — Institutional Style */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+            gap: clamp(10px, 1.2vw, 16px);
+            margin-bottom: clamp(16px, 2vw, 24px);
         }
 
         .stat-card {
             background-color: var(--gov-surface);
             border-radius: var(--radius-md);
             border: 1px solid var(--gov-border);
-            padding: 20px 22px;
+            padding: clamp(14px, 1.6vw, 22px);
             position: relative;
             transition: all 0.15s ease;
             box-shadow: var(--gov-shadow-sm);
@@ -765,8 +787,8 @@ $user_first_name = explode(' ', $user_name)[0];
         }
 
         .stat-icon {
-            width: 40px;
-            height: 40px;
+            width: clamp(34px, 3vw, 42px);
+            height: clamp(34px, 3vw, 42px);
             border-radius: var(--radius-sm);
             display: flex;
             align-items: center;
@@ -785,7 +807,7 @@ $user_first_name = explode(' ', $user_name)[0];
         .stat-card.teal .stat-icon   { background-color: rgba(15, 118, 110, 0.08); color: var(--stat-teal); }
 
         .stat-number {
-            font-size: 2rem;
+            font-size: clamp(1.4rem, 1.2vw + 1rem, 2rem);
             font-weight: 700;
             color: var(--gov-primary);
             margin-bottom: 4px;
@@ -890,17 +912,18 @@ $user_first_name = explode(' ', $user_name)[0];
         .charts-section {
             display: grid;
             grid-template-columns: 2fr 1fr;
-            gap: 16px;
-            margin-bottom: 24px;
+            gap: clamp(12px, 1.2vw, 16px);
+            margin-bottom: clamp(16px, 2vw, 24px);
         }
 
         .chart-card {
             background-color: var(--gov-surface);
             border-radius: var(--radius-md);
             border: 1px solid var(--gov-border);
-            padding: 24px;
+            padding: clamp(16px, 1.8vw, 24px);
             box-shadow: var(--gov-shadow-sm);
             transition: border-color 0.15s ease, box-shadow 0.15s ease;
+            min-width: 0;
         }
 
         .chart-card:hover {
@@ -943,20 +966,21 @@ $user_first_name = explode(' ', $user_name)[0];
 
         .chart-container {
             position: relative;
-            height: 320px;
+            height: clamp(220px, 32vw, 340px);
+            width: 100%;
         }
 
         /* Quick Actions Widget */
         .quick-actions-fab {
             position: fixed;
-            bottom: 32px;
-            right: 32px;
+            bottom: clamp(16px, 2vw, 32px);
+            right: clamp(16px, 2vw, 32px);
             z-index: 1000;
         }
 
         .fab-main {
-            width: 60px;
-            height: 60px;
+            width: clamp(48px, 4.5vw, 60px);
+            height: clamp(48px, 4.5vw, 60px);
             border-radius: 50%;
             background-color: var(--gov-primary);
             color: #ffffff;
@@ -1081,7 +1105,7 @@ $user_first_name = explode(' ', $user_name)[0];
             background-color: var(--gov-surface);
             border-radius: var(--radius-md);
             border: 1px solid var(--gov-border);
-            padding: 24px;
+            padding: clamp(16px, 1.8vw, 24px);
             box-shadow: var(--gov-shadow-sm);
             transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
@@ -1378,26 +1402,30 @@ $user_first_name = explode(' ', $user_name)[0];
         /* Calendar & Notes Section — Institutional */
         .calendar-notes-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+            gap: clamp(12px, 1.2vw, 16px);
+            margin-bottom: clamp(16px, 2vw, 24px);
         }
 
         .calendar-widget {
             background: var(--gov-surface);
             border-radius: var(--radius-md);
-            padding: 18px 20px;
+            padding: clamp(10px, 1.4vw, 20px);
             border: 1px solid var(--gov-border);
             box-shadow: var(--gov-shadow-sm);
+            min-width: 0;
+            overflow: hidden;
         }
 
         .notes-widget {
             background: var(--gov-surface);
             border-radius: var(--radius-md);
-            padding: 18px 20px;
+            padding: clamp(10px, 1.4vw, 20px);
             border: 1px solid var(--gov-border);
             box-shadow: var(--gov-shadow-sm);
             color: var(--gov-text);
+            min-width: 0;
+            overflow: hidden;
         }
 
         .widget-header {
@@ -1408,6 +1436,8 @@ $user_first_name = explode(' ', $user_name)[0];
             padding-bottom: 12px;
             border-bottom: 1px solid var(--gov-border);
             position: relative;
+            flex-wrap: wrap;
+            gap: 8px;
         }
 
         .widget-header::after {
@@ -1625,9 +1655,9 @@ $user_first_name = explode(' ', $user_name)[0];
         .calendar-day-headers {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            gap: 8px;
+            gap: clamp(2px, 0.8vw, 8px);
             margin-bottom: 8px;
-            padding: 0 12px;
+            padding: 0 clamp(4px, 1.2vw, 12px);
         }
 
         .calendar-day-header {
@@ -1644,9 +1674,10 @@ $user_first_name = explode(' ', $user_name)[0];
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            gap: 8px;
-            padding: 12px;
+            gap: clamp(2px, 0.8vw, 8px);
+            padding: clamp(4px, 1.2vw, 12px);
             background: transparent;
+            min-width: 0;
         }
 
         .calendar-day-cell {
@@ -1656,7 +1687,7 @@ $user_first_name = explode(' ', $user_name)[0];
             align-items: center;
             justify-content: center;
             padding: 0;
-            font-size: 0.875rem;
+            font-size: clamp(0.72rem, 2vw, 0.875rem);
             border-radius: var(--radius-xs);
             cursor: pointer;
             transition: all 0.15s ease;
@@ -1665,9 +1696,10 @@ $user_first_name = explode(' ', $user_name)[0];
             position: relative;
             font-weight: 600;
             color: var(--gov-text);
-            min-height: 46px;
+            min-height: clamp(32px, 9vw, 46px);
             width: 100%;
-            max-width: 50px;
+            max-width: 100%;
+            min-width: 0;
             margin: 0 auto;
             font-variant-numeric: tabular-nums;
         }
@@ -2442,10 +2474,6 @@ $user_first_name = explode(' ', $user_name)[0];
                 padding: 0;
             }
 
-            .dashboard-header {
-                padding: 18px 20px;
-            }
-
             .header-content {
                 flex-direction: column;
                 align-items: flex-start;
@@ -2463,15 +2491,7 @@ $user_first_name = explode(' ', $user_name)[0];
             .btn {
                 flex: 1;
                 justify-content: center;
-            }
-
-            .header-seal {
-                width: 48px;
-                height: 48px;
-            }
-
-            .header-title h1 {
-                font-size: 1.375rem;
+                min-width: 0;
             }
 
             .calendar-notes-grid {
@@ -2479,34 +2499,78 @@ $user_first_name = explode(' ', $user_name)[0];
             }
 
             .stats-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
             }
 
             .stat-card {
-                padding: 18px;
+                padding: 12px;
             }
 
-            .chart-container {
-                height: 250px;
-            }
-
-            .chart-card {
-                padding: 18px;
-            }
-
-            .activity-section {
-                padding: 18px;
-            }
-
-            .quick-actions-fab {
-                bottom: 20px;
-                right: 20px;
-            }
-
-            .fab-main {
-                width: 52px;
-                height: 52px;
+            .stat-number {
                 font-size: 1.25rem;
+            }
+
+            .stat-label {
+                font-size: 0.68rem;
+                letter-spacing: 0.04em;
+            }
+
+            .header-identity {
+                gap: 10px;
+            }
+
+            .header-eyebrow {
+                font-size: 10px;
+            }
+
+            .header-actions {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                width: 100%;
+                gap: 8px;
+            }
+
+            .header-actions .btn {
+                width: 100%;
+                padding: 10px 8px;
+                font-size: 0.75rem;
+            }
+
+            .date-range-selector {
+                width: 100%;
+                margin-left: 0;
+                flex-wrap: wrap;
+            }
+
+            .filter-chip {
+                font-size: 0.7rem;
+                padding: 6px 10px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header-actions {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            .stat-card:hover,
+            .chart-card:hover,
+            .activity-section:hover,
+            .btn:hover {
+                transform: none;
             }
         }
     </style>

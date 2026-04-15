@@ -612,7 +612,7 @@ function get_field_value($record, $field, $type = 'text') {
     <link rel="stylesheet" href="../assets/css/sidebar.css">
 
     <!-- Record Preview Modal Styles -->
-    <link rel="stylesheet" href="../assets/css/record-preview-modal.css">
+    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=4">
 
     <!-- PDF.js Library -->
     <script src="<?= asset_url('pdfjs') ?>"></script>
@@ -3460,6 +3460,6 @@ function get_field_value($record, $field, $type = 'text') {
     </script>
 
     <!-- Record Preview Modal Script -->
-    <script src="../assets/js/record-preview-modal.js"></script>
+    <script src="../assets/js/record-preview-modal.js?v=4"></script>
 </body>
 </html>

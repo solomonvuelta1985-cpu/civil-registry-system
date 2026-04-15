@@ -244,7 +244,7 @@ class RecordPreviewModal {
         };
 
         const statusClass = record.status === 'Active' ? 'active' : 'pending';
-        const statusIcon = record.status === 'Active' ? 'check-circle' : 'clock';
+        const statusIcon = record.status === 'Active' ? 'badge-check' : 'hourglass';
 
         document.getElementById('modalRecordTitle').textContent = titleMap[this.currentRecordType] || 'Record Preview';
 
@@ -286,7 +286,7 @@ class RecordPreviewModal {
             <!-- Child Information - Prominent -->
             <div class="record-details-section primary-section">
                 <div class="record-section-title">
-                    <i data-lucide="baby"></i>
+                    <i data-lucide="scroll-text"></i>
                     Child Information
                 </div>
                 <div class="record-detail-row highlight-row">
@@ -315,10 +315,26 @@ class RecordPreviewModal {
                 </div>
             </div>
 
+            <!-- Registration Details -->
+            <div class="record-details-section">
+                <div class="record-section-title">
+                    <i data-lucide="stamp"></i>
+                    Registration Details
+                </div>
+                <div class="record-detail-row">
+                    <span class="record-detail-label">Registry No.</span>
+                    <span class="record-detail-value highlight">${this.formatValue(record.registry_no)}</span>
+                </div>
+                <div class="record-detail-row">
+                    <span class="record-detail-label">Date of Registration</span>
+                    <span class="record-detail-value">${this.formatDate(record.date_of_registration)}</span>
+                </div>
+            </div>
+
             <!-- Father Information -->
             <div class="record-details-section">
                 <div class="record-section-title">
-                    <i data-lucide="user"></i>
+                    <i data-lucide="user-round"></i>
                     Father Information
                 </div>
                 <div class="record-detail-row">
@@ -334,7 +350,7 @@ class RecordPreviewModal {
             <!-- Mother Information -->
             <div class="record-details-section">
                 <div class="record-section-title">
-                    <i data-lucide="user"></i>
+                    <i data-lucide="user-round"></i>
                     Mother Information
                 </div>
                 <div class="record-detail-row">
@@ -346,57 +362,15 @@ class RecordPreviewModal {
                     <span class="record-detail-value">${this.formatValue(record.mother_citizenship)}</span>
                 </div>
             </div>
-
-            <!-- Registration Details -->
-            <div class="record-details-section">
-                <div class="record-section-title">
-                    <i data-lucide="calendar"></i>
-                    Registration Details
-                </div>
-                <div class="record-detail-row">
-                    <span class="record-detail-label">Registry No.</span>
-                    <span class="record-detail-value highlight">${this.formatValue(record.registry_no)}</span>
-                </div>
-                <div class="record-detail-row">
-                    <span class="record-detail-label">Date of Registration</span>
-                    <span class="record-detail-value">${this.formatDate(record.date_of_registration)}</span>
-                </div>
-                <div class="record-detail-row">
-                    <span class="record-detail-label">Status</span>
-                    <span class="record-status-badge active">
-                        <i class="fas fa-circle"></i>
-                        ${this.escapeHtml(record.status || 'Active')}
-                    </span>
-                </div>
-            </div>
         `;
     }
 
     renderMarriageDetails(record) {
         return `
-            <!-- Primary Information -->
-            <div class="record-details-section">
-                <div class="record-section-title">
-                    <i data-lucide="info"></i>
-                    Primary Information
-                </div>
-                <div class="record-detail-row">
-                    <span class="record-detail-label">Registry No.</span>
-                    <span class="record-detail-value">${this.escapeHtml(record.registry_no || 'N/A')}</span>
-                </div>
-                <div class="record-detail-row">
-                    <span class="record-detail-label">Status</span>
-                    <span class="record-status-badge active">
-                        <i class="fas fa-circle"></i>
-                        ${this.escapeHtml(record.status || 'Active')}
-                    </span>
-                </div>
-            </div>
-
             <!-- Husband Information -->
-            <div class="record-details-section">
+            <div class="record-details-section primary-section">
                 <div class="record-section-title">
-                    <i data-lucide="user"></i>
+                    <i data-lucide="user-round"></i>
                     Husband Information
                 </div>
                 <div class="record-detail-row">
@@ -413,10 +387,26 @@ class RecordPreviewModal {
                 </div>
             </div>
 
+            <!-- Registration Details -->
+            <div class="record-details-section">
+                <div class="record-section-title">
+                    <i data-lucide="stamp"></i>
+                    Registration Details
+                </div>
+                <div class="record-detail-row">
+                    <span class="record-detail-label">Registry No.</span>
+                    <span class="record-detail-value highlight">${this.escapeHtml(record.registry_no || 'N/A')}</span>
+                </div>
+                <div class="record-detail-row">
+                    <span class="record-detail-label">Date of Registration</span>
+                    <span class="record-detail-value">${this.formatDate(record.date_of_registration)}</span>
+                </div>
+            </div>
+
             <!-- Wife Information -->
             <div class="record-details-section">
                 <div class="record-section-title">
-                    <i data-lucide="user"></i>
+                    <i data-lucide="user-round"></i>
                     Wife Information
                 </div>
                 <div class="record-detail-row">
@@ -436,7 +426,7 @@ class RecordPreviewModal {
             <!-- Marriage Details -->
             <div class="record-details-section">
                 <div class="record-section-title">
-                    <i data-lucide="heart"></i>
+                    <i data-lucide="file-signature"></i>
                     Marriage Details
                 </div>
                 <div class="record-detail-row">
@@ -447,39 +437,16 @@ class RecordPreviewModal {
                     <span class="record-detail-label">Place of Marriage</span>
                     <span class="record-detail-value">${this.escapeHtml(record.place_of_marriage || 'N/A')}</span>
                 </div>
-                <div class="record-detail-row">
-                    <span class="record-detail-label">Date of Registration</span>
-                    <span class="record-detail-value">${this.formatDate(record.date_of_registration)}</span>
-                </div>
             </div>
         `;
     }
 
     renderDeathDetails(record) {
         return `
-            <!-- Primary Information -->
-            <div class="record-details-section">
-                <div class="record-section-title">
-                    <i data-lucide="info"></i>
-                    Primary Information
-                </div>
-                <div class="record-detail-row">
-                    <span class="record-detail-label">Registry No.</span>
-                    <span class="record-detail-value">${this.escapeHtml(record.registry_no || 'N/A')}</span>
-                </div>
-                <div class="record-detail-row">
-                    <span class="record-detail-label">Status</span>
-                    <span class="record-status-badge active">
-                        <i class="fas fa-circle"></i>
-                        ${this.escapeHtml(record.status || 'Active')}
-                    </span>
-                </div>
-            </div>
-
             <!-- Deceased Information -->
-            <div class="record-details-section">
+            <div class="record-details-section primary-section">
                 <div class="record-section-title">
-                    <i data-lucide="user-x"></i>
+                    <i data-lucide="file-text"></i>
                     Deceased Information
                 </div>
                 <div class="record-detail-row">
@@ -515,8 +482,12 @@ class RecordPreviewModal {
             <!-- Registration Details -->
             <div class="record-details-section">
                 <div class="record-section-title">
-                    <i data-lucide="calendar"></i>
+                    <i data-lucide="stamp"></i>
                     Registration Details
+                </div>
+                <div class="record-detail-row">
+                    <span class="record-detail-label">Registry No.</span>
+                    <span class="record-detail-value highlight">${this.escapeHtml(record.registry_no || 'N/A')}</span>
                 </div>
                 <div class="record-detail-row">
                     <span class="record-detail-label">Date of Registration</span>
@@ -528,33 +499,10 @@ class RecordPreviewModal {
 
     renderMarriageLicenseDetails(record) {
         return `
-            <!-- Primary Information -->
-            <div class="record-details-section">
-                <div class="record-section-title">
-                    <i data-lucide="info"></i>
-                    Primary Information
-                </div>
-                <div class="record-detail-row">
-                    <span class="record-detail-label">Registry No.</span>
-                    <span class="record-detail-value">${this.escapeHtml(record.registry_no || 'N/A')}</span>
-                </div>
-                <div class="record-detail-row">
-                    <span class="record-detail-label">Status</span>
-                    <span class="record-status-badge active">
-                        <i class="fas fa-circle"></i>
-                        ${this.escapeHtml(record.status || 'Active')}
-                    </span>
-                </div>
-                <div class="record-detail-row">
-                    <span class="record-detail-label">Date of Application</span>
-                    <span class="record-detail-value">${this.formatDate(record.date_of_application)}</span>
-                </div>
-            </div>
-
             <!-- Groom Information -->
-            <div class="record-details-section">
+            <div class="record-details-section primary-section">
                 <div class="record-section-title">
-                    <i data-lucide="user"></i>
+                    <i data-lucide="user-round"></i>
                     Groom Information
                 </div>
                 <div class="record-detail-row">
@@ -571,10 +519,26 @@ class RecordPreviewModal {
                 </div>
             </div>
 
+            <!-- Registration Details -->
+            <div class="record-details-section">
+                <div class="record-section-title">
+                    <i data-lucide="stamp"></i>
+                    Registration Details
+                </div>
+                <div class="record-detail-row">
+                    <span class="record-detail-label">Registry No.</span>
+                    <span class="record-detail-value highlight">${this.escapeHtml(record.registry_no || 'N/A')}</span>
+                </div>
+                <div class="record-detail-row">
+                    <span class="record-detail-label">Date of Application</span>
+                    <span class="record-detail-value">${this.formatDate(record.date_of_application)}</span>
+                </div>
+            </div>
+
             <!-- Bride Information -->
             <div class="record-details-section">
                 <div class="record-section-title">
-                    <i data-lucide="user"></i>
+                    <i data-lucide="user-round"></i>
                     Bride Information
                 </div>
                 <div class="record-detail-row">
@@ -600,7 +564,7 @@ class RecordPreviewModal {
         // Edit button (if user has permission)
         html += `
             <button type="button" class="modal-btn modal-btn-primary" onclick="recordPreviewModal.editRecord()" title="Keyboard shortcut: E">
-                <i data-lucide="edit"></i>
+                <i data-lucide="square-pen"></i>
                 <span>Edit</span>
                 <span class="btn-shortcut">E</span>
             </button>
@@ -618,8 +582,8 @@ class RecordPreviewModal {
 
             // Download button
             html += `
-                <button type="button" class="modal-btn modal-btn-primary" onclick="recordPreviewModal.downloadRecord()" title="Keyboard shortcut: D">
-                    <i data-lucide="download"></i>
+                <button type="button" class="modal-btn modal-btn-info" onclick="recordPreviewModal.downloadRecord()" title="Keyboard shortcut: D">
+                    <i data-lucide="file-down"></i>
                     <span>Download</span>
                     <span class="btn-shortcut">D</span>
                 </button>
@@ -629,7 +593,7 @@ class RecordPreviewModal {
         // Delete button (if user has permission)
         html += `
             <button type="button" class="modal-btn modal-btn-danger" onclick="recordPreviewModal.deleteRecord()">
-                <i data-lucide="trash-2"></i>
+                <i data-lucide="archive-x"></i>
                 <span>Delete</span>
             </button>
         `;
