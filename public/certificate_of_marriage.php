@@ -908,7 +908,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
 
     <!-- Shared Certificate Form Handler -->
     <script>window.APP_BASE = '<?= rtrim(BASE_URL, '/') ?>';</script>
-    <script src="../assets/js/certificate-form-handler.js?v=2.1"></script>
+    <script src="../assets/js/certificate-form-handler.js?v=2.2"></script>
 
     <!-- Marriage Certificate Specific Logic -->
     <script>
