@@ -164,25 +164,8 @@ $records_label = ucfirst(str_replace(['_', '.php'], [' ', ''], $records_url_map[
         });
     }
 
-    // ----- Save & New flag -----
+    // ----- Save & New button reference (click handled by certificate-form-handler.js) -----
     const saveAndNewBtn = toolbar.querySelector('[data-action="save-and-new"]');
-    if (saveAndNewBtn) {
-        saveAndNewBtn.addEventListener('click', () => {
-            let flag = form.querySelector('input[name="__save_and_new"]');
-            if (!flag) {
-                flag = document.createElement('input');
-                flag.type = 'hidden';
-                flag.name = '__save_and_new';
-                flag.value = '1';
-                form.appendChild(flag);
-            }
-            if (typeof form.requestSubmit === 'function') {
-                form.requestSubmit();
-            } else {
-                form.submit();
-            }
-        });
-    }
 
     // ----- Submit: spinner + disable + clear dirty -----
     form.addEventListener('submit', () => {
