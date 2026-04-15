@@ -302,6 +302,9 @@ try {
         $pdo->rollBack();
     }
     error_log("Database Error: " . $e->getMessage());
+    if ($e->getCode() == 23000 && strpos($e->getMessage(), 'uniq_registry_no') !== false) {
+        json_response(false, 'Registry number already exists on another record. Please use a unique registry number.', null, 409);
+    }
     json_response(false, 'Database error occurred.', null, 500);
 } catch (Exception $e) {
     if ($pdo->inTransaction()) {
