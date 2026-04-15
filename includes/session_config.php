@@ -13,20 +13,24 @@ if (!defined('SESSION_TIMEOUT')) {
 require_once __DIR__ . '/security_headers.php';
 
 // Configure session settings before starting the session
-ini_set('session.cookie_httponly', 1);
 ini_set('session.use_only_cookies', 1);
-
-// Set secure flag only if on HTTPS (auto-detect)
-ini_set('session.cookie_secure', isHTTPS() ? 1 : 0);
-ini_set('session.cookie_samesite', 'Strict');
-
-// Set session garbage collection
 ini_set('session.gc_maxlifetime', SESSION_TIMEOUT);
 ini_set('session.gc_probability', 1);
 ini_set('session.gc_divisor', 100);
 
-// Start the session if not already started
+// Set cookie params atomically before session_start so Secure/SameSite/HttpOnly
+// are applied consistently. SameSite=Lax (not Strict) is required behind
+// Cloudflare Tunnel / reverse proxies so the cookie survives top-level
+// redirects. Secure flag is auto-enabled when isHTTPS() (honors X-Forwarded-Proto).
 if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path'     => '/',
+        'domain'   => '',
+        'secure'   => isHTTPS(),
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
     session_start();
 }
 
@@ -35,6 +39,14 @@ if (isset($_SESSION['LAST_ACTIVITY']) && (time() - $_SESSION['LAST_ACTIVITY'] > 
     // Last request was more than SESSION_TIMEOUT seconds ago
     session_unset();
     session_destroy();
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path'     => '/',
+        'domain'   => '',
+        'secure'   => isHTTPS(),
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
     session_start();
 
     // Redirect to login if not already there
@@ -47,11 +59,10 @@ if (isset($_SESSION['LAST_ACTIVITY']) && (time() - $_SESSION['LAST_ACTIVITY'] > 
 // Update last activity timestamp
 $_SESSION['LAST_ACTIVITY'] = time();
 
-// Session regeneration for security (regenerate every 30 minutes)
+// Session regeneration happens at privilege boundaries only (login/logout),
+// not on a timer. Timer-based regenerate_id behind a tunnel can reissue the
+// cookie without the Secure flag if a single request misses X-Forwarded-Proto,
+// causing silent session loss on the next navigation.
 if (!isset($_SESSION['CREATED'])) {
-    $_SESSION['CREATED'] = time();
-} else if (time() - $_SESSION['CREATED'] > 1800) {
-    // Session started more than 30 minutes ago
-    session_regenerate_id(true);
     $_SESSION['CREATED'] = time();
 }

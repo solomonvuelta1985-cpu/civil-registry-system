@@ -87,3 +87,13 @@ function isDevelopment() {
 // Load .env file from project root
 $env_file = __DIR__ . '/../.env';
 loadEnv($env_file);
+
+// When served behind a reverse proxy or tunnel (Cloudflare Tunnel, Web Station),
+// the origin is plain HTTP but the user-facing edge is HTTPS. Honor the
+// forwarded protocol so session.cookie_secure and isHTTPS() stay consistent
+// across every request — otherwise a single request missing this header can
+// reissue the session cookie without the Secure flag and lose the session.
+if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strcasecmp($_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') === 0) {
+    $_SERVER['HTTPS'] = 'on';
+    $_SERVER['SERVER_PORT'] = 443;
+}

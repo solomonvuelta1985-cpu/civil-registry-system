@@ -272,8 +272,14 @@ class CertificateFormHandler {
             try {
                 const response = await fetch(endpoint, {
                     method: 'POST',
+                    credentials: 'same-origin',
                     body: formData
                 });
+
+                if (response.redirected || response.url.includes('/public/login.php')) {
+                    this.handleError('Your session has expired. Please log in again.');
+                    return;
+                }
 
                 const data = await response.json();
 
