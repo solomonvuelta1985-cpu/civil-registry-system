@@ -202,7 +202,6 @@ function handle_list(PDO $pdo) {
             'columns' => 'id, registry_no, groom_first_name, groom_middle_name, groom_last_name,
                           bride_first_name, bride_middle_name, bride_last_name,
                           date_of_application,
-                          date_of_registration,
                           pdf_filename, status, created_at',
             'search_fields' => ['registry_no', 'groom_first_name', 'groom_last_name',
                                 'bride_first_name', 'bride_last_name'],
