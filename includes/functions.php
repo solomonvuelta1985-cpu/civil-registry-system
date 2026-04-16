@@ -154,6 +154,66 @@ function upload_sub_dir(string $type, ?int $year, string $last_name_folder): str
     return $type . '/' . $last_name_folder . '/';
 }
 
+/**
+ * Reconcile an existing PDF's folder path with the current record state.
+ *
+ * Used by update endpoints when the user edits a last name or event date
+ * without re-uploading the PDF. If the target folder differs from where the
+ * file currently lives, the file is moved on disk and the new relative path
+ * is returned. After the move, the old folder is removed if it is empty.
+ *
+ * Returns:
+ *   ['moved' => bool, 'new_filename' => string, 'new_filepath' => string, 'error' => ?string]
+ *   - moved=false, error=null → no change needed (already correct, or source missing)
+ *   - moved=true              → file relocated; caller must UPDATE pdf_filename/pdf_filepath
+ *   - error!=null             → move attempted but failed; caller should keep old path
+ */
+function reconcile_pdf_folder(string $type, ?int $year, string $last_name_folder, ?string $current_filename): array {
+    $result = ['moved' => false, 'new_filename' => $current_filename, 'new_filepath' => null, 'error' => null];
+
+    if ($current_filename === null || $current_filename === '') {
+        return $result;
+    }
+
+    $basename = basename($current_filename);
+    $target_sub = upload_sub_dir($type, $year, $last_name_folder);
+    $target_rel = $target_sub . $basename;
+
+    if ($current_filename === $target_rel) {
+        return $result;
+    }
+
+    $src_abs = UPLOAD_DIR . $current_filename;
+    $dst_abs = UPLOAD_DIR . $target_rel;
+
+    if (!is_file($src_abs)) {
+        return $result;
+    }
+
+    if (file_exists($dst_abs)) {
+        $result['error'] = 'Collision: a file already exists at target path.';
+        return $result;
+    }
+
+    $dst_dir = dirname($dst_abs);
+    if (!is_dir($dst_dir) && !mkdir($dst_dir, 0755, true) && !is_dir($dst_dir)) {
+        $result['error'] = 'Failed to create target directory.';
+        return $result;
+    }
+
+    if (!@rename($src_abs, $dst_abs)) {
+        $result['error'] = 'Failed to move file.';
+        return $result;
+    }
+
+    @rmdir(dirname($src_abs));
+
+    $result['moved']        = true;
+    $result['new_filename'] = $target_rel;
+    $result['new_filepath'] = $dst_abs;
+    return $result;
+}
+
 function upload_file($file, $type = null, $year = null, $last_name_folder = null) {
     // Validate file first
     $validation_errors = validate_file_upload($file);

@@ -181,6 +181,17 @@ try {
         }
     }
 
+    // Reconcile PDF folder with (possibly renamed) groom last name / date of application.
+    if ($old_pdf_filename === null && $pdf_filename) {
+        $reconcile_year = year_from_date($date_of_application) ?? registry_folder_year($registry_no);
+        $reconcile_last = folder_safe_last_name($groom_last_name);
+        $rec = reconcile_pdf_folder('marriage_license', $reconcile_year, $reconcile_last, $pdf_filename);
+        if ($rec['moved']) {
+            $pdf_filename = $rec['new_filename'];
+            $pdf_filepath = $rec['new_filepath'];
+        }
+    }
+
     // Update database
     $sql = "UPDATE application_for_marriage_license SET
         registry_no = :registry_no,

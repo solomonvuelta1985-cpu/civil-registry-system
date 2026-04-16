@@ -220,6 +220,17 @@ try {
         json_response(false, 'Invalid date of death.', null, 400);
     }
 
+    // Reconcile PDF folder with (possibly renamed) last name / date of death.
+    if ($old_pdf_filename === null && $pdf_filename) {
+        $reconcile_year = year_from_date($date_of_death) ?? registry_folder_year($registry_no);
+        $reconcile_last = folder_safe_last_name($deceased_last_name);
+        $rec = reconcile_pdf_folder('death', $reconcile_year, $reconcile_last, $pdf_filename);
+        if ($rec['moved']) {
+            $pdf_filename = $rec['new_filename'];
+            $pdf_filepath = $rec['new_filepath'];
+        }
+    }
+
     // Begin transaction
     $pdo->beginTransaction();
 

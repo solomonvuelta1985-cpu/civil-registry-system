@@ -151,6 +151,66 @@ upload_sub_dir('death', null, 'REYES');          // 'death/REYES/'
 
 Extended to accept an optional 4th parameter `$last_name_folder`. When provided, uses the new year + last-name scheme. When omitted, falls back to the legacy `{type}/{year}/` behavior for backward compatibility.
 
+### `reconcile_pdf_folder(string $type, ?int $year, string $last_name_folder, ?string $current_filename): array`
+
+Moves an existing PDF to the correct folder when the record's last name or event date is edited. Called by each update endpoint when **no new PDF is uploaded** — new uploads already land in the right folder.
+
+**Returns:** `['moved' => bool, 'new_filename' => string, 'new_filepath' => string|null, 'error' => string|null]`
+
+**Behavior:**
+1. Computes target path from current `type`, `year`, `last_name_folder`.
+2. If current path already matches target → no-op (`moved=false`, `error=null`).
+3. If source file is missing on disk → no-op.
+4. If target path already has a different file → aborts with `error` (collision guard, no overwrite).
+5. Creates target directory if missing, renames file, then attempts `rmdir()` on the old folder (succeeds silently only if empty).
+
+Example — record renamed from `Baculit` → `Baculi`:
+```php
+// Before: pdf_filename = 'birth/2014/BACULIT/cert_xxx.pdf'
+$rec = reconcile_pdf_folder('birth', 2014, 'BACULI', 'birth/2014/BACULIT/cert_xxx.pdf');
+// $rec['moved']         = true
+// $rec['new_filename']  = 'birth/2014/BACULI/cert_xxx.pdf'
+```
+
+---
+
+## Auto-Move on Last-Name / Event-Date Update
+
+Each update endpoint (`*_update.php`) calls `reconcile_pdf_folder()` when the user edits a record **without** re-uploading the PDF. This keeps the folder structure in sync with the record's current state.
+
+### What triggers a move
+
+| Field edited | Effect |
+|--------------|--------|
+| Last name (child / deceased / husband / groom) | Target folder changes → file moved |
+| Event date (DOB / date of death / date of marriage / date of application) | Target year changes → file moved |
+| Both | File moved to new year + new last-name folder |
+| Anything else | No-op (target path unchanged) |
+
+### Empty-folder cleanup
+
+After a successful move, the script calls `rmdir()` on the old folder. `rmdir()` succeeds only if the folder is empty — so:
+
+- **You were the only `BACULIT` record in 2014** → `uploads/birth/2014/BACULIT/` is deleted automatically.
+- **Other `BACULIT` records still exist in 2014** → the old folder stays. `rmdir()` fails silently, no error shown.
+
+Empty year folders (e.g. `uploads/birth/2014/` after the last last-name folder was cleaned) are **not** auto-deleted — only the immediate parent. Run the optional cleanup step from the NAS deployment guide if needed.
+
+### Collision handling
+
+If a file with the same name already exists at the target path (extremely unlikely due to `uniqid()` + `time()` naming), the reconcile aborts with an error and the DB keeps the old path. No data is overwritten. The record is still saved successfully — only the folder location is left unchanged.
+
+### Transaction safety
+
+The move happens **before** `beginTransaction()`, but the `pdf_filename` / `pdf_filepath` columns are updated **inside** the transaction. If the DB update rolls back after a successful move, the file stays at the new path while the DB still points to the old path — this would show as `MISSING` on the next reorganize run and is easily fixed by re-running the reorganize tool.
+
+### Files Changed
+
+- `api/certificate_of_live_birth_update.php`
+- `api/certificate_of_death_update.php`
+- `api/certificate_of_marriage_update.php`
+- `api/application_for_marriage_license_update.php`
+
 ---
 
 ## Affected Endpoints
@@ -340,15 +400,15 @@ find /volume1/iscan/uploads -type d -empty -delete
 
 | File | Change |
 |------|--------|
-| `includes/functions.php` | Added `registry_folder_year()`, `year_from_date()`, `folder_safe_last_name()`, `upload_sub_dir()`. Extended `upload_file()` with optional 4th parameter. |
+| `includes/functions.php` | Added `registry_folder_year()`, `year_from_date()`, `folder_safe_last_name()`, `upload_sub_dir()`, `reconcile_pdf_folder()`. Extended `upload_file()` with optional 4th parameter. |
 | `api/certificate_of_live_birth_save.php` | Uses new year + last-name folder logic. |
-| `api/certificate_of_live_birth_update.php` | Uses new year + last-name folder logic. |
+| `api/certificate_of_live_birth_update.php` | Uses new year + last-name folder logic. Calls `reconcile_pdf_folder()` on edits without a new PDF. |
 | `api/certificate_of_death_save.php` | Uses new year + last-name folder logic. |
-| `api/certificate_of_death_update.php` | Uses new year + last-name folder logic. |
+| `api/certificate_of_death_update.php` | Uses new year + last-name folder logic. Calls `reconcile_pdf_folder()` on edits without a new PDF. |
 | `api/certificate_of_marriage_save.php` | Uses new year + last-name folder logic. |
-| `api/certificate_of_marriage_update.php` | Uses new year + last-name folder logic. |
+| `api/certificate_of_marriage_update.php` | Uses new year + last-name folder logic. Calls `reconcile_pdf_folder()` on edits without a new PDF. |
 | `api/application_for_marriage_license_save.php` | Uses new year + last-name folder logic. |
-| `api/application_for_marriage_license_update.php` | Uses new year + last-name folder logic. |
+| `api/application_for_marriage_license_update.php` | Uses new year + last-name folder logic. Calls `reconcile_pdf_folder()` on edits without a new PDF. |
 | `api/serve_pdf.php` | Updated comment to reflect new path format. |
 | `includes/sidebar_nav.php` | Added "Reorganize Uploads" link under Maintenance section (admin-only). |
 | `includes/reorganize_uploads.php` | **New.** Shared core logic for the reorganization tool. |

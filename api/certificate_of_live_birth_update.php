@@ -238,6 +238,18 @@ try {
     // Convert date format if provided
     $date_of_marriage = !empty($date_of_marriage) ? safe_date_convert($date_of_marriage) : null;
 
+    // Reconcile PDF folder with (possibly renamed) last name / event date.
+    // Only runs when no new PDF was uploaded — new uploads already land in the right folder.
+    if ($old_pdf_filename === null && $pdf_filename) {
+        $reconcile_year = year_from_date($child_date_of_birth) ?? registry_folder_year($registry_no);
+        $reconcile_last = folder_safe_last_name($child_last_name);
+        $rec = reconcile_pdf_folder('birth', $reconcile_year, $reconcile_last, $pdf_filename);
+        if ($rec['moved']) {
+            $pdf_filename = $rec['new_filename'];
+            $pdf_filepath = $rec['new_filepath'];
+        }
+    }
+
     // Begin transaction
     $pdo->beginTransaction();
 

@@ -24,13 +24,22 @@ if (!isLoggedIn()) {
 
 $action = $_GET['action'] ?? '';
 
-if ($action === 'tree') {
-    handle_tree($pdo);
-} elseif ($action === 'list') {
-    handle_list($pdo);
-} else {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Invalid action']);
+try {
+    if ($action === 'tree') {
+        handle_tree($pdo);
+    } elseif ($action === 'list') {
+        handle_list($pdo);
+    } else {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Invalid action']);
+    }
+} catch (Throwable $e) {
+    error_log('folder_browse error: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Server error: ' . $e->getMessage(),
+    ]);
 }
 
 function handle_tree(PDO $pdo) {
@@ -156,8 +165,7 @@ function handle_list(PDO $pdo) {
             'columns' => 'id, registry_no, child_first_name, child_middle_name, child_last_name, child_sex,
                           child_date_of_birth, father_first_name, father_middle_name, father_last_name,
                           mother_first_name, mother_middle_name, mother_last_name,
-                          date_of_registration, date_of_registration_format,
-                          date_of_registration_partial_month, date_of_registration_partial_year, date_of_registration_partial_day,
+                          date_of_registration,
                           pdf_filename, status, created_at',
             'search_fields' => ['registry_no', 'child_first_name', 'child_middle_name', 'child_last_name',
                                 'father_first_name', 'father_last_name', 'mother_first_name', 'mother_last_name'],
@@ -170,8 +178,7 @@ function handle_list(PDO $pdo) {
                           date_of_death, date_of_birth, age, age_unit, place_of_death,
                           father_first_name, father_middle_name, father_last_name,
                           mother_first_name, mother_middle_name, mother_last_name,
-                          date_of_registration, date_of_registration_format,
-                          date_of_registration_partial_month, date_of_registration_partial_year, date_of_registration_partial_day,
+                          date_of_registration,
                           pdf_filename, status, created_at',
             'search_fields' => ['registry_no', 'deceased_first_name', 'deceased_middle_name', 'deceased_last_name',
                                 'father_first_name', 'father_last_name', 'mother_first_name', 'mother_last_name'],
@@ -183,8 +190,7 @@ function handle_list(PDO $pdo) {
             'columns' => 'id, registry_no, husband_first_name, husband_middle_name, husband_last_name,
                           wife_first_name, wife_middle_name, wife_last_name,
                           date_of_marriage, place_of_marriage,
-                          date_of_registration, date_of_registration_format,
-                          date_of_registration_partial_month, date_of_registration_partial_year, date_of_registration_partial_day,
+                          date_of_registration,
                           pdf_filename, status, created_at',
             'search_fields' => ['registry_no', 'husband_first_name', 'husband_last_name',
                                 'wife_first_name', 'wife_last_name'],
@@ -196,8 +202,7 @@ function handle_list(PDO $pdo) {
             'columns' => 'id, registry_no, groom_first_name, groom_middle_name, groom_last_name,
                           bride_first_name, bride_middle_name, bride_last_name,
                           date_of_application,
-                          date_of_registration, date_of_registration_format,
-                          date_of_registration_partial_month, date_of_registration_partial_year, date_of_registration_partial_day,
+                          date_of_registration,
                           pdf_filename, status, created_at',
             'search_fields' => ['registry_no', 'groom_first_name', 'groom_last_name',
                                 'bride_first_name', 'bride_last_name'],

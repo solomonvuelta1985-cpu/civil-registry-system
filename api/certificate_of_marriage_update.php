@@ -213,6 +213,17 @@ try {
         }
     }
 
+    // Reconcile PDF folder with (possibly renamed) husband last name / date of marriage.
+    if ($old_pdf_filename === null && $pdf_filename) {
+        $reconcile_year = year_from_date($date_of_marriage) ?? registry_folder_year($registry_no);
+        $reconcile_last = folder_safe_last_name($husband_last_name);
+        $rec = reconcile_pdf_folder('marriage', $reconcile_year, $reconcile_last, $pdf_filename);
+        if ($rec['moved']) {
+            $pdf_filename = $rec['new_filename'];
+            $pdf_filepath = $rec['new_filepath'];
+        }
+    }
+
     // Update database
     $pdo->beginTransaction();
 
