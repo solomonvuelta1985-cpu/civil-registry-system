@@ -84,30 +84,38 @@ $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
 $logs = $stmt->fetchAll();
 
-// Stats — today, this week, most active user, most common action
-$today_count = (int)$pdo->query("SELECT COUNT(*) FROM activity_logs WHERE DATE(created_at) = CURDATE()")->fetchColumn();
-$week_count = (int)$pdo->query("SELECT COUNT(*) FROM activity_logs WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetchColumn();
-$all_time_count = (int)$pdo->query("SELECT COUNT(*) FROM activity_logs")->fetchColumn();
-
-$most_active_user = $pdo->query("
-    SELECT u.full_name, u.username, COUNT(*) as activity_count
+// Encoding leaderboard — counts only CREATE_* actions (new records registered),
+// per user, for today / this week (Mon-Sun) / this month / all-time.
+// Updates, logins, deletes, archives, etc. are NOT counted — they stay in the
+// activity log table below but don't inflate the encoding productivity numbers.
+$leaderboard_sql = "
+    SELECT
+        u.id,
+        u.full_name,
+        u.username,
+        u.role,
+        SUM(CASE WHEN DATE(al.created_at) = CURDATE() THEN 1 ELSE 0 END) AS today_count,
+        SUM(CASE WHEN YEARWEEK(al.created_at, 1) = YEARWEEK(CURDATE(), 1) THEN 1 ELSE 0 END) AS week_count,
+        SUM(CASE WHEN YEAR(al.created_at) = YEAR(CURDATE()) AND MONTH(al.created_at) = MONTH(CURDATE()) THEN 1 ELSE 0 END) AS month_count,
+        COUNT(*) AS total_count
     FROM activity_logs al
-    LEFT JOIN users u ON al.user_id = u.id
-    WHERE al.user_id IS NOT NULL
-      AND al.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-    GROUP BY al.user_id
-    ORDER BY activity_count DESC
-    LIMIT 1
-")->fetch();
+    INNER JOIN users u ON al.user_id = u.id
+    WHERE al.action LIKE 'CREATE\\_%'
+    GROUP BY u.id, u.full_name, u.username, u.role
+    ORDER BY month_count DESC, total_count DESC
+";
+$leaderboard = $pdo->query($leaderboard_sql)->fetchAll();
 
-$top_action = $pdo->query("
-    SELECT action, COUNT(*) as count
-    FROM activity_logs
-    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-    GROUP BY action
-    ORDER BY count DESC
-    LIMIT 1
-")->fetch();
+// Totals row (sum across all users)
+$totals = [
+    'today' => 0, 'week' => 0, 'month' => 0, 'total' => 0,
+];
+foreach ($leaderboard as $row) {
+    $totals['today'] += (int)$row['today_count'];
+    $totals['week']  += (int)$row['week_count'];
+    $totals['month'] += (int)$row['month_count'];
+    $totals['total'] += (int)$row['total_count'];
+}
 
 // Distinct actions for filter dropdown
 $actions_sql = "SELECT DISTINCT action FROM activity_logs ORDER BY action";
@@ -226,46 +234,132 @@ foreach ($CATEGORY_LABELS as $cat => $_) {
 
         .back-link:hover { opacity: 1; }
 
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .stat-card {
+        /* Encoding leaderboard */
+        .leaderboard-card {
             background: white;
-            padding: 24px;
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 30px;
+            overflow: hidden;
         }
 
-        .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        .leaderboard-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #e9ecef;
         }
 
-        .stat-card h3 {
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #6c757d;
-            margin-bottom: 12px;
+        .leaderboard-header h2 {
+            font-size: 1.15rem;
             font-weight: 600;
-        }
-
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
             color: #212529;
         }
 
-        .stat-sub {
+        .leaderboard-sub {
+            display: block;
+            margin-top: 4px;
             font-size: 0.8rem;
             color: #6c757d;
-            margin-top: 4px;
-            font-weight: 500;
+            font-weight: 400;
+        }
+
+        .leaderboard-table-wrapper {
+            overflow-x: auto;
+        }
+
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .leaderboard-table thead {
+            background: #f8f9fa;
+        }
+
+        .leaderboard-table th {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: #6c757d;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .leaderboard-table th small {
+            font-size: 0.68rem;
+            font-weight: 400;
+            color: #adb5bd;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        .leaderboard-table th.num,
+        .leaderboard-table td.num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .leaderboard-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 0.88rem;
+            vertical-align: top;
+        }
+
+        .leaderboard-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .leaderboard-table tbody tr:nth-child(1) .rank {
+            background: #ffd700; color: #704d00;
+        }
+        .leaderboard-table tbody tr:nth-child(2) .rank {
+            background: #c0c0c0; color: #3a3a3a;
+        }
+        .leaderboard-table tbody tr:nth-child(3) .rank {
+            background: #cd7f32; color: #fff;
+        }
+
+        .leaderboard-table .rank {
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: #e9ecef;
+            color: #6c757d;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+
+        .leaderboard-table .num-active {
+            color: #198754;
+            font-weight: 600;
+        }
+
+        .leaderboard-table .num-zero {
+            color: #ced4da;
+        }
+
+        .leaderboard-table .num-total {
+            color: #212529;
+            font-weight: 700;
+        }
+
+        .leaderboard-table tfoot {
+            background: #f8f9fa;
+        }
+
+        .leaderboard-table tfoot td {
+            padding: 14px 16px;
+            border-top: 2px solid #dee2e6;
+            border-bottom: none;
+            font-size: 0.9rem;
         }
 
         .filter-section {
@@ -486,48 +580,73 @@ foreach ($CATEGORY_LABELS as $cat => $_) {
             </a>
         </div>
 
-        <!-- Statistics -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <h3>Activities Today</h3>
-                <div class="stat-value"><?php echo number_format($today_count); ?></div>
-                <div class="stat-sub">All-time: <?php echo number_format($all_time_count); ?></div>
+        <!-- Encoding Leaderboard -->
+        <div class="leaderboard-card">
+            <div class="leaderboard-header">
+                <h2>
+                    <i data-lucide="users" style="width: 20px; height: 20px;"></i>
+                    Encoding Productivity by User
+                </h2>
+                <span class="leaderboard-sub">Counts new records created (CREATE actions only — edits are excluded)</span>
             </div>
-            <div class="stat-card">
-                <h3>Last 7 Days</h3>
-                <div class="stat-value"><?php echo number_format($week_count); ?></div>
-                <div class="stat-sub">Rolling week</div>
-            </div>
-            <div class="stat-card">
-                <h3>Most Active User (7d)</h3>
-                <div class="stat-value" style="font-size: 1.1rem;">
-                    <?php if ($most_active_user && $most_active_user['full_name']): ?>
-                        <?php echo htmlspecialchars($most_active_user['full_name']); ?>
-                    <?php else: ?>
-                        <span class="text-muted">No data</span>
-                    <?php endif; ?>
+            <?php if ($leaderboard): ?>
+                <div class="leaderboard-table-wrapper">
+                    <table class="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>User</th>
+                                <th class="num">Today</th>
+                                <th class="num">This Week<br><small>(Mon–Sun)</small></th>
+                                <th class="num">This Month</th>
+                                <th class="num">All-Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($leaderboard as $i => $row): ?>
+                                <tr>
+                                    <td class="rank"><?php echo $i + 1; ?></td>
+                                    <td>
+                                        <strong><?php echo htmlspecialchars($row['full_name'] ?: $row['username']); ?></strong>
+                                        <?php if ($row['role']): ?>
+                                            <span class="role-badge role-<?php echo htmlspecialchars($row['role']); ?>">
+                                                <?php echo htmlspecialchars($row['role']); ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        <div class="text-muted">@<?php echo htmlspecialchars($row['username']); ?></div>
+                                    </td>
+                                    <td class="num <?php echo $row['today_count'] > 0 ? 'num-active' : 'num-zero'; ?>">
+                                        <?php echo number_format($row['today_count']); ?>
+                                    </td>
+                                    <td class="num <?php echo $row['week_count'] > 0 ? 'num-active' : 'num-zero'; ?>">
+                                        <?php echo number_format($row['week_count']); ?>
+                                    </td>
+                                    <td class="num <?php echo $row['month_count'] > 0 ? 'num-active' : 'num-zero'; ?>">
+                                        <?php echo number_format($row['month_count']); ?>
+                                    </td>
+                                    <td class="num num-total">
+                                        <?php echo number_format($row['total_count']); ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td></td>
+                                <td><strong>Total (all users)</strong></td>
+                                <td class="num"><strong><?php echo number_format($totals['today']); ?></strong></td>
+                                <td class="num"><strong><?php echo number_format($totals['week']); ?></strong></td>
+                                <td class="num"><strong><?php echo number_format($totals['month']); ?></strong></td>
+                                <td class="num"><strong><?php echo number_format($totals['total']); ?></strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
-                <div class="stat-sub">
-                    <?php if ($most_active_user): ?>
-                        <?php echo number_format($most_active_user['activity_count']); ?> actions
-                    <?php endif; ?>
+            <?php else: ?>
+                <div class="no-logs" style="padding: 30px;">
+                    <p class="text-muted">No encoding activity recorded yet.</p>
                 </div>
-            </div>
-            <div class="stat-card">
-                <h3>Top Action (7d)</h3>
-                <div class="stat-value" style="font-size: 1.1rem; font-family: 'Courier New', monospace;">
-                    <?php if ($top_action): ?>
-                        <?php echo htmlspecialchars($top_action['action']); ?>
-                    <?php else: ?>
-                        <span class="text-muted">No data</span>
-                    <?php endif; ?>
-                </div>
-                <div class="stat-sub">
-                    <?php if ($top_action): ?>
-                        <?php echo number_format($top_action['count']); ?> times
-                    <?php endif; ?>
-                </div>
-            </div>
+            <?php endif; ?>
         </div>
 
         <!-- Filters -->
