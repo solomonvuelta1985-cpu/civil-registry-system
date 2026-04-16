@@ -121,6 +121,11 @@ $__is_admin = function_exists('isAdmin') ? isAdmin() : false;
                 <i data-lucide="hard-drive"></i> <span>PDF Backups</span>
             </a>
         </li>
+        <li>
+            <a href="../admin/reorganize_uploads.php" class="<?php echo $current_page == 'reorganize_uploads.php' ? 'active' : ''; ?>" title="Reorganize Upload Folders">
+                <i data-lucide="folder-sync"></i> <span>Reorganize Uploads</span>
+            </a>
+        </li>
 
         <!-- Administration Section (Admin only) -->
         <li class="sidebar-divider"></li>

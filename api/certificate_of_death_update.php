@@ -156,9 +156,11 @@ try {
         if (!empty($file_errors)) {
             $errors = array_merge($errors, $file_errors);
         } else {
-            // Upload new file into organized folder: death/{year}/
-            $reg_year = !empty($date_of_registration) ? date('Y', strtotime($date_of_registration)) : date('Y');
-            $upload_result = upload_file($_FILES['pdf_file'], 'death', $reg_year);
+            // Upload new file into organized folder: death/{year}/{LAST_NAME}/
+            $upload_year = year_from_date($date_of_death)
+                        ?? registry_folder_year($registry_no);
+            $upload_last = folder_safe_last_name($deceased_last_name);
+            $upload_result = upload_file($_FILES['pdf_file'], 'death', $upload_year, $upload_last);
 
             if (!$upload_result['success']) {
                 json_response(false, implode(' ', $upload_result['errors']), null, 400);

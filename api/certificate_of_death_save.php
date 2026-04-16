@@ -167,9 +167,12 @@ try {
     $stored_partial_day          = ($date_of_registration_format === 'month_day')
         ? ((int)$partial_date_day ?: null) : null;
 
-    // Upload PDF file into organized folder: death/{year}/
-    $reg_year = !empty($date_of_registration) ? date('Y', strtotime($date_of_registration)) : date('Y');
-    $upload_result = upload_file($_FILES['pdf_file'], 'death', $reg_year);
+    // Upload PDF into organized folder: death/{year}/{LAST_NAME}/
+    // Year priority: date of death > registry number prefix > null (-> {type}/{LAST_NAME}/).
+    $upload_year = year_from_date($date_of_death)
+                ?? registry_folder_year($registry_no);
+    $upload_last = folder_safe_last_name($deceased_last_name);
+    $upload_result = upload_file($_FILES['pdf_file'], 'death', $upload_year, $upload_last);
 
     if (!$upload_result['success']) {
         json_response(false, implode(' ', $upload_result['errors']), null, 400);

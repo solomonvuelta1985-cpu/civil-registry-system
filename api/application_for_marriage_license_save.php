@@ -150,9 +150,12 @@ try {
     $groom_date_of_birth = !empty($groom_date_of_birth) ? safe_date_convert($groom_date_of_birth) : null;
     $bride_date_of_birth = !empty($bride_date_of_birth) ? safe_date_convert($bride_date_of_birth) : null;
 
-    // Upload PDF file into organized folder: marriage_license/{year}/
-    $reg_year = date('Y', strtotime($date_of_application));
-    $upload_result = upload_file($_FILES['pdf_file'], 'marriage_license', $reg_year);
+    // Upload PDF into organized folder: marriage_license/{year}/{GROOM_LAST_NAME}/
+    // Year priority: date of application > registry number prefix > null (-> {type}/{LAST_NAME}/).
+    $upload_year = year_from_date($date_of_application)
+                ?? registry_folder_year($registry_no);
+    $upload_last = folder_safe_last_name($groom_last_name);
+    $upload_result = upload_file($_FILES['pdf_file'], 'marriage_license', $upload_year, $upload_last);
 
     if (!$upload_result['success']) {
         json_response(false, implode(' ', $upload_result['errors']), null, 400);

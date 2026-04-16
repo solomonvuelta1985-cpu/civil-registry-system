@@ -52,12 +52,12 @@ if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) !== 'pdf') {
 }
 
 // Determine certificate type from path for permission check
-// Path format: {type}/{year}/filename.pdf OR just filename.pdf (legacy)
+// Path format: {type}/{year}/{last_name}/filename.pdf, {type}/{last_name}/filename.pdf, or just filename.pdf (legacy)
 $parts = explode('/', $file);
 $type = null;
 
 if (count($parts) >= 2) {
-    // New format: birth/2026/cert_xxx.pdf
+    // Organized format: first segment is always the certificate type
     $type = $parts[0];
 } else {
     // Legacy format: cert_xxx.pdf (flat uploads/)

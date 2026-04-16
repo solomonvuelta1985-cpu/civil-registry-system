@@ -178,9 +178,11 @@ try {
     $old_pdf_filename = null;
 
     if (isset($_FILES['pdf_file']) && $_FILES['pdf_file']['error'] === UPLOAD_ERR_OK) {
-        // Upload new file into organized folder: marriage/{year}/
-        $reg_year = !empty($date_of_registration) ? date('Y', strtotime($date_of_registration)) : date('Y');
-        $upload_result = upload_file($_FILES['pdf_file'], 'marriage', $reg_year);
+        // Upload new file into organized folder: marriage/{year}/{HUSBAND_LAST_NAME}/
+        $upload_year = year_from_date($date_of_marriage)
+                    ?? registry_folder_year($registry_no);
+        $upload_last = folder_safe_last_name($husband_last_name);
+        $upload_result = upload_file($_FILES['pdf_file'], 'marriage', $upload_year, $upload_last);
 
         if (!$upload_result['success']) {
             json_response(false, implode(' ', $upload_result['errors']), null, 400);

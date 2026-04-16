@@ -81,7 +81,80 @@ function validate_file_upload($file) {
 /**
  * Upload file to server
  */
-function upload_file($file, $type = null, $year = null) {
+/**
+ * Parse the folder-year prefix of a registry number.
+ * Accepts "YYYY-NNNN" or "YY-NNNN". Returns null if no parseable year prefix.
+ *
+ * 2-digit expansion: YY > current 2-digit year -> 19YY, else 20YY.
+ * This pivot slides forward each year automatically.
+ */
+function registry_folder_year(?string $registry_no): ?int {
+    if ($registry_no === null) return null;
+    $trimmed = trim($registry_no);
+    if ($trimmed === '') return null;
+
+    $first = explode('-', $trimmed, 2)[0];
+    if (!ctype_digit($first)) return null;
+
+    $len = strlen($first);
+    $currentY = (int)date('Y');
+
+    if ($len === 4) {
+        $y = (int)$first;
+        return ($y >= 1900 && $y <= $currentY + 1) ? $y : null;
+    }
+    if ($len === 2) {
+        $yy    = (int)$first;
+        $pivot = (int)date('y');
+        return ($yy > $pivot) ? (1900 + $yy) : (2000 + $yy);
+    }
+    return null;
+}
+
+/**
+ * Extract a 4-digit year from a date string. Returns null for empty/invalid input.
+ */
+function year_from_date(?string $date): ?int {
+    if ($date === null) return null;
+    $date = trim($date);
+    if ($date === '') return null;
+    $ts = strtotime($date);
+    if ($ts === false) return null;
+    $y = (int)date('Y', $ts);
+    return ($y >= 1900 && $y <= (int)date('Y') + 1) ? $y : null;
+}
+
+/**
+ * Normalize a last name into a filesystem-safe folder segment.
+ * Uppercases, replaces spaces with '_', strips non-alphanumeric/underscore.
+ * Returns 'UNKNOWN' when the input is blank after normalization.
+ */
+function folder_safe_last_name(?string $last_name): string {
+    if ($last_name === null) return 'UNKNOWN';
+    $s = trim($last_name);
+    if ($s === '') return 'UNKNOWN';
+    $s = strtoupper($s);
+    $s = preg_replace('/\s+/', '_', $s);
+    $s = preg_replace('/[^A-Z0-9_]/', '', $s);
+    $s = trim($s, '_');
+    return $s === '' ? 'UNKNOWN' : $s;
+}
+
+/**
+ * Build the relative sub-directory path for an upload given the certificate
+ * type, the derived year (may be null), and the normalized last-name folder.
+ *
+ * Case A (year known):       {type}/{YEAR}/{LAST_NAME}/
+ * Case B (no year anywhere): {type}/{LAST_NAME}/
+ */
+function upload_sub_dir(string $type, ?int $year, string $last_name_folder): string {
+    if ($year !== null) {
+        return $type . '/' . (string)$year . '/' . $last_name_folder . '/';
+    }
+    return $type . '/' . $last_name_folder . '/';
+}
+
+function upload_file($file, $type = null, $year = null, $last_name_folder = null) {
     // Validate file first
     $validation_errors = validate_file_upload($file);
     if (!empty($validation_errors)) {
@@ -92,15 +165,27 @@ function upload_file($file, $type = null, $year = null) {
     $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
     $new_filename = uniqid('cert_', true) . '_' . time() . '.' . $file_extension;
 
-    // Build subdirectory path: {type}/{year}/
+    // Build subdirectory path.
+    // New scheme: {type}/{year}/{LAST_NAME}/ when last name provided,
+    //             {type}/{LAST_NAME}/        when no year was derivable,
+    //             {type}/{year}/             when last name omitted (legacy caller).
     $sub_dir = '';
     if ($type) {
         $allowed_types = ['birth', 'death', 'marriage', 'marriage_license'];
         if (!in_array($type, $allowed_types)) {
             return ['success' => false, 'errors' => ['Invalid certificate type for upload.']];
         }
-        $year = $year ? (int)$year : (int)date('Y');
-        $sub_dir = $type . '/' . $year . '/';
+
+        $year_int = ($year === null || $year === '') ? null : (int)$year;
+
+        if ($last_name_folder !== null && $last_name_folder !== '') {
+            $sub_dir = upload_sub_dir($type, $year_int, $last_name_folder);
+        } else {
+            // Legacy fallback — preserve prior behavior if a caller doesn't pass
+            // a last name (should not happen for the certificate endpoints now).
+            $y = $year_int ?? (int)date('Y');
+            $sub_dir = $type . '/' . $y . '/';
+        }
     }
 
     $target_dir = UPLOAD_DIR . $sub_dir;
