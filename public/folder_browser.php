@@ -732,5 +732,6 @@ function openPreview(id, type) {
 </script>
 
 <script src="../assets/js/record-preview-modal.js?v=4"></script>
+<?php include '../includes/sidebar_scripts.php'; ?>
 </body>
 </html>
