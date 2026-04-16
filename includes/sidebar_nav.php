@@ -76,6 +76,11 @@ $__is_admin = function_exists('isAdmin') ? isAdmin() : false;
                 <i data-lucide="folder-search"></i> <span>License Records</span>
             </a>
         </li>
+        <li>
+            <a href="../public/folder_browser.php" class="<?php echo $current_page == 'folder_browser.php' ? 'active' : ''; ?>" title="Browse Records by Folder">
+                <i data-lucide="folder-tree"></i> <span>Folder Browser</span>
+            </a>
+        </li>
 
         <?php if ($__is_admin): ?>
         <!-- Archives & Trash Section (Admin only) -->
