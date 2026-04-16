@@ -53,8 +53,9 @@ try {
                 $event_id = $pdo->lastInsertId();
 
                 // Log activity
-                log_activity($pdo, $user_id, 'CREATE_EVENT', 'calendar_events', $event_id,
-                    "Created event: " . $data['event_title']);
+                log_activity($pdo, 'CREATE_EVENT',
+                    "Created event: " . $data['event_title'] . " (ID: {$event_id})",
+                    $user_id);
 
                 echo json_encode([
                     'success' => true,
@@ -102,8 +103,9 @@ try {
 
             if ($result) {
                 // Log activity
-                log_activity($pdo, $user_id, 'UPDATE_EVENT', 'calendar_events', $data['event_id'],
-                    "Updated event: " . $data['event_title']);
+                log_activity($pdo, 'UPDATE_EVENT',
+                    "Updated event: " . $data['event_title'] . " (ID: {$data['event_id']})",
+                    $user_id);
 
                 echo json_encode([
                     'success' => true,
@@ -134,8 +136,9 @@ try {
 
             if ($result) {
                 // Log activity
-                log_activity($pdo, $user_id, 'DELETE_EVENT', 'calendar_events', $data['event_id'],
-                    "Deleted event ID: " . $data['event_id']);
+                log_activity($pdo, 'DELETE_EVENT',
+                    "Deleted event ID: " . $data['event_id'],
+                    $user_id);
 
                 echo json_encode([
                     'success' => true,

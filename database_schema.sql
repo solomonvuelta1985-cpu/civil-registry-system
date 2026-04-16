@@ -75,10 +75,12 @@ CREATE TABLE IF NOT EXISTS activity_logs (
     user_id INT(11) UNSIGNED NULL,
     action VARCHAR(100) NOT NULL,
     details TEXT NULL,
+    ip_address VARCHAR(45) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     INDEX idx_user_id (user_id),
     INDEX idx_action (action),
+    INDEX idx_ip_address (ip_address),
     INDEX idx_created_at (created_at)
 
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

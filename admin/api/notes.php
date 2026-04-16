@@ -53,8 +53,9 @@ try {
                 $note_id = $pdo->lastInsertId();
 
                 // Log activity
-                log_activity($pdo, $user_id, 'CREATE_NOTE', 'system_notes', $note_id,
-                    "Created note: " . $data['note_title']);
+                log_activity($pdo, 'CREATE_NOTE',
+                    "Created note: " . $data['note_title'] . " (ID: {$note_id})",
+                    $user_id);
 
                 echo json_encode([
                     'success' => true,
@@ -100,8 +101,9 @@ try {
 
             if ($result) {
                 // Log activity
-                log_activity($pdo, $user_id, 'UPDATE_NOTE', 'system_notes', $data['note_id'],
-                    "Updated note: " . $data['note_title']);
+                log_activity($pdo, 'UPDATE_NOTE',
+                    "Updated note: " . $data['note_title'] . " (ID: {$data['note_id']})",
+                    $user_id);
 
                 echo json_encode([
                     'success' => true,
@@ -132,8 +134,9 @@ try {
 
             if ($result) {
                 // Log activity
-                log_activity($pdo, $user_id, 'DELETE_NOTE', 'system_notes', $data['note_id'],
-                    "Deleted note ID: " . $data['note_id']);
+                log_activity($pdo, 'DELETE_NOTE',
+                    "Deleted note ID: " . $data['note_id'],
+                    $user_id);
 
                 echo json_encode([
                     'success' => true,

@@ -55,7 +55,7 @@ try {
     $batch_id = $pdo->lastInsertId();
 
     // Log activity
-    log_activity($pdo, $user_id, 'BATCH_UPLOAD', "Created batch: $batch_name ($total_files files)");
+    log_activity($pdo, 'BATCH_UPLOAD', "Created batch: $batch_name ($total_files files)", $user_id);
 
     echo json_encode([
         'success' => true,

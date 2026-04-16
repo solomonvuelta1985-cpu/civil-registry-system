@@ -136,6 +136,11 @@ $__is_admin = function_exists('isAdmin') ? isAdmin() : false;
             </a>
         </li>
         <li>
+            <a href="../admin/activity_logs.php" class="<?php echo $current_page == 'activity_logs.php' ? 'active' : ''; ?>" title="User Activity Logs">
+                <i data-lucide="history"></i> <span>Activity Logs</span>
+            </a>
+        </li>
+        <li>
             <a href="../admin/settings.php" class="<?php echo $current_page == 'settings.php' ? 'active' : ''; ?>" title="System Configuration">
                 <i data-lucide="settings"></i> <span>Settings</span>
             </a>
