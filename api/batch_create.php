@@ -17,7 +17,13 @@ try {
         session_start();
     }
 
-    $user_id = $_SESSION['user_id'] ?? 1;
+    if (empty($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Authentication required.']);
+        exit;
+    }
+
+    $user_id = (int)$_SESSION['user_id'];
 
     // Get parameters
     $batch_name = isset($_POST['batch_name']) ? sanitize_input($_POST['batch_name']) : null;

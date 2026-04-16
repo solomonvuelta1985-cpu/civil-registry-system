@@ -84,23 +84,32 @@ $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
 $logs = $stmt->fetchAll();
 
-// Encoding leaderboard — counts only CREATE_* actions (new records registered),
-// per user, for today / this week (Mon-Sun) / this month / all-time.
-// Updates, logins, deletes, archives, etc. are NOT counted — they stay in the
-// activity log table below but don't inflate the encoding productivity numbers.
+// Encoding leaderboard — counts rows the user actually created in the
+// certificate tables (ground truth via created_by), for today / this week
+// (Mon-Sun) / this month / all-time. Soft-deleted records are excluded;
+// archived records still count. Sourcing from the certificate tables rather
+// than activity_logs avoids gaps when a save endpoint forgets to call
+// log_activity or falls back to admin when the session is missing.
 $leaderboard_sql = "
     SELECT
         u.id,
         u.full_name,
         u.username,
         u.role,
-        SUM(CASE WHEN DATE(al.created_at) = CURDATE() THEN 1 ELSE 0 END) AS today_count,
-        SUM(CASE WHEN YEARWEEK(al.created_at, 1) = YEARWEEK(CURDATE(), 1) THEN 1 ELSE 0 END) AS week_count,
-        SUM(CASE WHEN YEAR(al.created_at) = YEAR(CURDATE()) AND MONTH(al.created_at) = MONTH(CURDATE()) THEN 1 ELSE 0 END) AS month_count,
+        SUM(CASE WHEN DATE(c.created_at) = CURDATE() THEN 1 ELSE 0 END) AS today_count,
+        SUM(CASE WHEN YEARWEEK(c.created_at, 1) = YEARWEEK(CURDATE(), 1) THEN 1 ELSE 0 END) AS week_count,
+        SUM(CASE WHEN YEAR(c.created_at) = YEAR(CURDATE()) AND MONTH(c.created_at) = MONTH(CURDATE()) THEN 1 ELSE 0 END) AS month_count,
         COUNT(*) AS total_count
-    FROM activity_logs al
-    INNER JOIN users u ON al.user_id = u.id
-    WHERE al.action LIKE 'CREATE\\_%'
+    FROM (
+        SELECT created_by, created_at FROM certificate_of_live_birth        WHERE status <> 'Deleted' AND created_by IS NOT NULL
+        UNION ALL
+        SELECT created_by, created_at FROM certificate_of_death             WHERE status <> 'Deleted' AND created_by IS NOT NULL
+        UNION ALL
+        SELECT created_by, created_at FROM certificate_of_marriage          WHERE status <> 'Deleted' AND created_by IS NOT NULL
+        UNION ALL
+        SELECT created_by, created_at FROM application_for_marriage_license WHERE status <> 'Deleted' AND created_by IS NOT NULL
+    ) c
+    INNER JOIN users u ON c.created_by = u.id
     GROUP BY u.id, u.full_name, u.username, u.role
     ORDER BY month_count DESC, total_count DESC
 ";
@@ -587,7 +596,7 @@ foreach ($CATEGORY_LABELS as $cat => $_) {
                     <i data-lucide="users" style="width: 20px; height: 20px;"></i>
                     Encoding Productivity by User
                 </h2>
-                <span class="leaderboard-sub">Counts new records created (CREATE actions only — edits are excluded)</span>
+                <span class="leaderboard-sub">Counts records encoded per user across all certificate types (soft-deleted records excluded)</span>
             </div>
             <?php if ($leaderboard): ?>
                 <div class="leaderboard-table-wrapper">

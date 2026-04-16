@@ -13,8 +13,14 @@ if (session_status() === PHP_SESSION_NONE) {
 
 header('Content-Type: application/json');
 
+if (empty($_SESSION['user_id'])) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Authentication required.']);
+    exit;
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
-$user_id = $_SESSION['user_id'] ?? 1;
+$user_id = (int)$_SESSION['user_id'];
 
 try {
     switch ($method) {

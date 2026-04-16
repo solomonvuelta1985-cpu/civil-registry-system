@@ -275,7 +275,7 @@ try {
 
     $stmt = $pdo->prepare($sql);
 
-    $updated_by = $_SESSION['user_id'] ?? 1;
+    $updated_by = (int)$_SESSION['user_id'];
 
     $params = [
         ':registry_no'                         => $registry_no ?: null,

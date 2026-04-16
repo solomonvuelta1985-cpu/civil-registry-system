@@ -259,7 +259,7 @@ try {
 
         $stmt = $pdo->prepare($sql);
 
-        $created_by = $_SESSION['user_id'] ?? null;
+        $created_by = (int)$_SESSION['user_id'];
 
         $params = [
             ':registry_no'                         => $registry_no ?: null,
@@ -313,6 +313,13 @@ try {
 
         // Commit transaction
         $pdo->commit();
+
+        log_activity(
+            $pdo,
+            'CREATE_CERTIFICATE',
+            "Created Certificate of Marriage: Registry No. " . ($registry_no ?: '(none)'),
+            $created_by
+        );
 
         $message = $add_new
             ? 'Marriage certificate saved successfully! You can add another record.'

@@ -220,7 +220,7 @@ try {
 
     $stmt = $pdo->prepare($sql);
 
-    $created_by = $_SESSION['user_id'] ?? 1;
+    $created_by = (int)$_SESSION['user_id'];
 
     $params = [
         ':registry_no' => $registry_no ?: null,
@@ -269,6 +269,13 @@ try {
 
     $new_id = $pdo->lastInsertId();
     $pdo->commit();
+
+    log_activity(
+        $pdo,
+        'CREATE_CERTIFICATE',
+        "Created Marriage License Application: Registry No. " . ($registry_no ?: '(none)'),
+        $created_by
+    );
 
     $message = $add_new
         ? 'Marriage license application saved successfully! You can add another record.'

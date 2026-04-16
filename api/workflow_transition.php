@@ -14,6 +14,7 @@
  */
 
 header('Content-Type: application/json');
+require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 
@@ -21,6 +22,12 @@ require_once '../includes/functions.php';
 error_reporting(E_ALL);
 ini_set('display_errors', 0); // Don't display in output
 ini_set('log_errors', 1);
+
+if (empty($_SESSION['user_id'])) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Authentication required.']);
+    exit;
+}
 
 try {
     // Verify request method
@@ -33,7 +40,7 @@ try {
     $certificate_id = isset($_POST['certificate_id']) ? (int)$_POST['certificate_id'] : null;
     $transition_type = isset($_POST['transition_type']) ? sanitize_input($_POST['transition_type']) : null;
     $notes = isset($_POST['notes']) ? sanitize_input($_POST['notes']) : null;
-    $user_id = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 1; // Default to admin for testing
+    $user_id = (int)$_SESSION['user_id'];
 
     // Validate required fields
     if (!$certificate_type || !$certificate_id || !$transition_type) {
