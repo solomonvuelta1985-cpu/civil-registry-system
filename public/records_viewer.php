@@ -76,7 +76,7 @@ $record_configs = [
             ['label' => 'Husband', 'field' => 'husband_name', 'sortable' => true, 'sort_field' => 'husband_first_name'],
             ['label' => 'Wife', 'field' => 'wife_name', 'sortable' => true, 'sort_field' => 'wife_first_name'],
             ['label' => 'Marriage Date', 'field' => 'date_of_marriage', 'sortable' => true, 'type' => 'date'],
-            ['label' => 'Place', 'field' => 'place_of_marriage', 'sortable' => true],
+            ['label' => 'Place of Marriage', 'field' => 'place_of_marriage', 'sortable' => true],
             ['label' => 'Registration Date', 'field' => 'date_of_registration', 'sortable' => true, 'type' => 'date']
         ],
         'filters' => [
@@ -124,7 +124,7 @@ $record_configs = [
             ['label' => 'Birth Date', 'field' => 'child_date_of_birth', 'sortable' => true, 'type' => 'date'],
             ['label' => 'Father', 'field' => 'father_name', 'sortable' => true, 'sort_field' => 'father_first_name'],
             ['label' => 'Mother', 'field' => 'mother_name', 'sortable' => true, 'sort_field' => 'mother_first_name'],
-            ['label' => 'Place', 'field' => 'child_place_of_birth', 'sortable' => true],
+            ['label' => 'Place of Birth', 'field' => 'child_place_of_birth', 'sortable' => true],
             ['label' => 'Registration Date', 'field' => 'date_of_registration', 'sortable' => true, 'type' => 'date']
         ],
         'filters' => [
