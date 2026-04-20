@@ -30,7 +30,7 @@ git push
 #### If you are IN the office (local network):
 Open PowerShell and run:
 ```bash
-ssh mcrobaggao@192.168.1.12
+ssh mcrobaggao@192.168.1.2
 ```
 
 #### If you are at HOME or REMOTE (via Cloudflare Tunnel):
