@@ -264,16 +264,16 @@ $record_configs = [
             'bride_last_name',
             'groom_place_of_birth',
             'bride_place_of_birth',
-            'groom_citizenship',
-            'bride_citizenship'
+            'groom_residence',
+            'bride_residence'
         ],
         'sort_columns' => [
             'registry_no',
             'groom_first_name',
             'bride_first_name',
             'date_of_application',
-            'groom_citizenship',
-            'bride_citizenship',
+            'groom_residence',
+            'bride_residence',
             'created_at'
         ],
         'table_columns' => [
@@ -281,14 +281,14 @@ $record_configs = [
             ['label' => 'Groom', 'field' => 'groom_name', 'sortable' => true, 'sort_field' => 'groom_first_name'],
             ['label' => 'Bride', 'field' => 'bride_name', 'sortable' => true, 'sort_field' => 'bride_first_name'],
             ['label' => 'Application Date', 'field' => 'date_of_application', 'sortable' => true, 'type' => 'date'],
-            ['label' => 'Groom Citizenship', 'field' => 'groom_citizenship', 'sortable' => true],
-            ['label' => 'Bride Citizenship', 'field' => 'bride_citizenship', 'sortable' => true]
+            ['label' => 'Groom Residence', 'field' => 'groom_residence', 'sortable' => true],
+            ['label' => 'Bride Residence', 'field' => 'bride_residence', 'sortable' => true]
         ],
         'filters' => [
             ['name' => 'app_date_from', 'label' => 'Application Date From', 'type' => 'date', 'field' => 'date_of_application', 'operator' => '>='],
             ['name' => 'app_date_to', 'label' => 'Application Date To', 'type' => 'date', 'field' => 'date_of_application', 'operator' => '<='],
-            ['name' => 'groom_citizenship', 'label' => 'Groom Citizenship', 'type' => 'text', 'field' => 'groom_citizenship', 'operator' => 'LIKE'],
-            ['name' => 'bride_citizenship', 'label' => 'Bride Citizenship', 'type' => 'text', 'field' => 'bride_citizenship', 'operator' => 'LIKE']
+            ['name' => 'groom_residence', 'label' => 'Groom Residence', 'type' => 'text', 'field' => 'groom_residence', 'operator' => 'LIKE'],
+            ['name' => 'bride_residence', 'label' => 'Bride Residence', 'type' => 'text', 'field' => 'bride_residence', 'operator' => 'LIKE']
         ]
     ]
 ];
