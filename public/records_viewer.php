@@ -574,6 +574,29 @@ function get_field_value($record, $field, $type = 'text') {
             isset($record[$field . '_partial_year'])  ? (int)$record[$field . '_partial_year']  : null,
             isset($record[$field . '_partial_day'])   ? (int)$record[$field . '_partial_day']   : null
         ));
+    } elseif ($field === 'child_place_of_birth' && $record_type === 'birth') {
+        $place = $record['child_place_of_birth'] ?? '';
+        $barangay = $record['barangay'] ?? '';
+        $place_type = $record['place_type'] ?? '';
+
+        if (!empty($place)) {
+            // Has specific location (hospital/health center name)
+            $result = $place;
+            if (!empty($barangay) && stripos($place, $barangay) === false) {
+                $result .= ', ' . $barangay;
+            }
+        } elseif (!empty($place_type) && in_array($place_type, ['Home', 'Other'], true)) {
+            // Home/Other birth — show type + barangay
+            $result = $place_type;
+            if (!empty($barangay)) {
+                $result .= ', ' . $barangay;
+            }
+        } elseif (!empty($barangay)) {
+            $result = $barangay;
+        } else {
+            return 'N/A';
+        }
+        return htmlspecialchars($result);
     } elseif ($field === 'age' && $record_type === 'death') {
         if (!isset($record['age']) || $record['age'] === null || $record['age'] === '') return 'N/A';
         $unit = $record['age_unit'] ?? 'years';
@@ -3206,6 +3229,23 @@ function detect_late_registration($record, $record_type) {
                 return buildFullName(record.father_first_name, record.father_middle_name, record.father_last_name);
             } else if (field === 'mother_name') {
                 return buildFullName(record.mother_first_name, record.mother_middle_name, record.mother_last_name);
+            } else if (field === 'child_place_of_birth' && recordType === 'birth') {
+                const place = record.child_place_of_birth || '';
+                const barangay = record.barangay || '';
+                const placeType = record.place_type || '';
+
+                if (place) {
+                    let result = place;
+                    if (barangay && !place.toLowerCase().includes(barangay.toLowerCase())) {
+                        result += ', ' + barangay;
+                    }
+                    return escapeHtml(result);
+                } else if (placeType && (placeType === 'Home' || placeType === 'Other')) {
+                    return escapeHtml(barangay ? placeType + ', ' + barangay : placeType);
+                } else if (barangay) {
+                    return escapeHtml(barangay);
+                }
+                return 'N/A';
             } else if (type === 'date' && record[field]) {
                 return formatDate(record[field]);
             } else {

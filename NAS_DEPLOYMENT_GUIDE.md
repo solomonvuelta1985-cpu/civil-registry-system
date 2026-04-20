@@ -62,6 +62,13 @@ sudo chown -R mcrobaggao:users /volume1/iscan && git -C /volume1/iscan reset --h
 
 > **Note:** If you don't run Steps 2-3, the NAS will auto-pull within 1 hour via Task Scheduler.
 
+### Step 4 — Run database migration (one-time catch-up)
+After pulling the latest code, run the catch-up migration to add all missing columns:
+```bash
+mysql -u root -p iscan_db < /volume1/iscan/database/migrations/019_nas_catchup_all_missing_columns.sql
+```
+Enter DB password when prompted. This migration is safe to re-run (uses `IF NOT EXISTS`).
+
 ---
 
 ## Manual Database Backup
