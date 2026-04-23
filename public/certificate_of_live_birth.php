@@ -1019,6 +1019,10 @@ if ($edit_mode && $record) {
     <script>window.APP_BASE = '<?= rtrim(BASE_URL, '/') ?>';</script>
     <script src="../assets/js/certificate-form-handler.js?v=2.2"></script>
 
+    <!-- Double Registration Comparison Modal (loads when duplicate detected on save) -->
+    <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css">
+    <script src="../assets/js/double-reg-comparison-modal.js?v=2"></script>
+
     <!-- Birth Certificate Specific Logic -->
     <script>
         // Initialize the form handler

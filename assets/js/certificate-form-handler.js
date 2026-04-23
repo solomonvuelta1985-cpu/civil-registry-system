@@ -284,7 +284,12 @@ class CertificateFormHandler {
                 const data = await response.json();
 
                 if (data.success) {
-                    this.handleSuccess(data.message, addNew);
+                    // Check for potential duplicate registrations
+                    if (data.data && data.data.potential_duplicates && data.data.potential_duplicates.length > 0) {
+                        this.showDuplicateNotification(data.data.potential_duplicates, data.data.id, data.message, addNew);
+                    } else {
+                        this.handleSuccess(data.message, addNew);
+                    }
             } else {
                 this.handleError(data.message || 'An error occurred while saving the record.');
             }
@@ -330,6 +335,37 @@ class CertificateFormHandler {
     }
 
     /**
+     * Reset form for a new entry, preserving context fields (municipality, province)
+     */
+    _resetFormForNewEntry() {
+        // Save context fields before reset
+        const contextFields = {};
+        const contextFieldNames = ['municipality', 'province'];
+        contextFieldNames.forEach(name => {
+            const field = this.form.elements[name];
+            if (field) contextFields[name] = field.value;
+        });
+
+        // Reset form
+        this.form.reset();
+
+        // Restore context fields after reset
+        Object.keys(contextFields).forEach(name => {
+            const field = this.form.elements[name];
+            if (field) field.value = contextFields[name];
+        });
+
+        // Clear validation states
+        this.form.querySelectorAll('.is-valid, .is-invalid').forEach(el => {
+            el.classList.remove('is-valid', 'is-invalid');
+            el.removeAttribute('aria-invalid');
+        });
+
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    /**
      * Handle successful form submission
      */
     handleSuccess(message, addNew) {
@@ -346,31 +382,7 @@ class CertificateFormHandler {
                 this.showAlert('success', `${message} Ready to create another record.`);
             }
 
-            // Save context fields before reset (municipality, province, etc.)
-            const contextFields = {};
-            const contextFieldNames = ['municipality', 'province'];
-            contextFieldNames.forEach(name => {
-                const field = this.form.elements[name];
-                if (field) contextFields[name] = field.value;
-            });
-
-            // Reset form
-            this.form.reset();
-
-            // Restore context fields after reset
-            Object.keys(contextFields).forEach(name => {
-                const field = this.form.elements[name];
-                if (field) field.value = contextFields[name];
-            });
-
-            // Clear validation states
-            this.form.querySelectorAll('.is-valid, .is-invalid').forEach(el => {
-                el.classList.remove('is-valid', 'is-invalid');
-                el.removeAttribute('aria-invalid');
-            });
-
-            // Scroll to top
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            this._resetFormForNewEntry();
         } else {
             // Show success with redirect countdown
             const isUpdate = this.form.querySelector('[name="record_id"]')?.value;
@@ -1115,6 +1127,105 @@ class CertificateFormHandler {
         this.form.addEventListener('submit', () => {
             formChanged = false;
         });
+    }
+
+    /**
+     * Show duplicate registration notification after save/update.
+     * Triggered when the API returns potential_duplicates in the response.
+     */
+    showDuplicateNotification(duplicates, savedRecordId, successMessage, addNew) {
+        if (!duplicates || duplicates.length === 0) return;
+
+        // Clear autosave since save was successful
+        this.clearAutoSave();
+
+        const topMatch = duplicates[0];
+        const scoreLabel = topMatch.match_score >= 80 ? 'High confidence'
+                         : topMatch.match_score >= 50 ? 'Moderate match'
+                         : 'Weak match';
+
+        const matchInfo = `Possible double registration with Registry No. ${topMatch.registry_no || 'N/A'} ` +
+            `(${topMatch.child_name || 'Unknown'}) — ${topMatch.match_score}% match (${scoreLabel}).` +
+            (duplicates.length > 1 ? ` +${duplicates.length - 1} more potential match(es).` : '');
+
+        const message = `${successMessage}\n\n⚠️ ${matchInfo}`;
+
+        // Determine the secondary action based on addNew
+        const secondaryLabel = addNew ? 'Save Another' : 'Go to Records';
+
+        if (typeof Notiflix !== 'undefined' && Notiflix.Confirm) {
+            Notiflix.Confirm.show(
+                'Saved — Possible Double Registration',
+                message,
+                'Compare Now',
+                secondaryLabel,
+                () => {
+                    // Compare Now — open the comparison modal
+                    if (typeof DoubleRegComparisonModal !== 'undefined') {
+                        const modal = new DoubleRegComparisonModal();
+                        // When modal closes, handle form reset or stay on page
+                        if (addNew) {
+                            modal.onClose = () => this._resetFormForNewEntry();
+                        }
+                        modal.open(savedRecordId, topMatch.id, 'birth');
+                    } else {
+                        if (typeof Notiflix !== 'undefined' && Notiflix.Notify) {
+                            Notiflix.Notify.info('Comparison modal not available. You can review from the Records page.', { timeout: 5000 });
+                        }
+                    }
+                },
+                () => {
+                    // Secondary action: Save Another or Go to Records
+                    if (addNew) {
+                        this._resetFormForNewEntry();
+                        if (typeof Notiflix !== 'undefined' && Notiflix.Notify) {
+                            Notiflix.Notify.success('Ready to create another record.', { timeout: 3000, position: 'right-top' });
+                        }
+                    } else {
+                        const base = window.APP_BASE || '';
+                        const redirectUrls = {
+                            'birth': base + '/public/birth_records.php',
+                            'marriage': base + '/public/marriage_records.php',
+                            'death': base + '/public/death_records.php',
+                            'marriage_license': base + '/public/marriage_license_records.php'
+                        };
+                        window.location.href = redirectUrls[this.formType] || base + '/admin/dashboard.php';
+                    }
+                },
+                {
+                    width: '500px',
+                    borderRadius: '12px',
+                    titleColor: '#DC2626',
+                    okButtonBackground: '#DC2626',
+                    cancelButtonBackground: '#2563EB',
+                    titleFontSize: '16px',
+                    messageFontSize: '14px',
+                    plainText: false,
+                }
+            );
+        } else {
+            // Fallback: native confirm
+            if (confirm('SAVED — POSSIBLE DOUBLE REGISTRATION\n\n' + matchInfo + '\n\nClick OK to compare records.')) {
+                if (typeof DoubleRegComparisonModal !== 'undefined') {
+                    const modal = new DoubleRegComparisonModal();
+                    if (addNew) {
+                        modal.onClose = () => this._resetFormForNewEntry();
+                    }
+                    modal.open(savedRecordId, topMatch.id, 'birth');
+                }
+            } else if (addNew) {
+                this._resetFormForNewEntry();
+            } else {
+                const base = window.APP_BASE || '';
+                const redirectUrls = {
+                    'birth': base + '/public/birth_records.php',
+                    'marriage': base + '/public/marriage_records.php',
+                    'death': base + '/public/death_records.php',
+                    'marriage_license': base + '/public/marriage_license_records.php'
+                };
+                window.location.href = redirectUrls[this.formType] || base + '/admin/dashboard.php';
+            }
+        }
     }
 
 }

@@ -664,4 +664,363 @@ function log_activity($pdo, $action, $details, $user_id = null) {
         return false;
     }
 }
+
+// ============================================================================
+// Double Registration Detection Functions (PSA MC 2019-23)
+// ============================================================================
+
+/**
+ * Normalize a registry number for comparison.
+ * Strips hyphens, spaces, and leading zeros from numeric portions.
+ */
+function normalize_registry_no($registry_no) {
+    if (empty($registry_no)) return '';
+    return preg_replace('/[\s\-]/', '', strtoupper(trim($registry_no)));
+}
+
+/**
+ * Find potential duplicate records for a given birth certificate.
+ *
+ * Phase 1: SQL pre-filter on high-weight field combinations (fast).
+ * Phase 2: PHP scoring with weighted fuzzy matching (accurate).
+ *
+ * @param PDO    $pdo              Database connection
+ * @param int    $source_id        ID of the record to check
+ * @param string $certificate_type 'birth' (marriage/death reserved for future)
+ * @return array Candidates with scores >= 40, sorted by score descending
+ */
+function find_potential_duplicates($pdo, $source_id, $certificate_type = 'birth') {
+    if ($certificate_type !== 'birth') {
+        return []; // Only birth supported for now
+    }
+
+    // Fetch the source record
+    $stmt = $pdo->prepare("SELECT * FROM certificate_of_live_birth WHERE id = :id LIMIT 1");
+    $stmt->execute([':id' => $source_id]);
+    $source = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$source) return [];
+
+    // Normalize source fields for comparison
+    $dob = $source['child_date_of_birth'] ?: null;
+    $dor = $source['date_of_registration'] ?: null;
+    $m_ln = mb_strtolower(trim($source['mother_last_name'] ?? ''));
+    $f_ln = mb_strtolower(trim($source['father_last_name'] ?? ''));
+    $birth_order = trim($source['birth_order'] ?? '');
+    $norm_reg = normalize_registry_no($source['registry_no'] ?? '');
+
+    // Phase 1: SQL pre-filter — must match at least 2 high-weight fields
+    $sql = "SELECT * FROM certificate_of_live_birth
+            WHERE id != :source_id AND status = 'Active' AND (";
+    $conditions = [];
+    $params = [':source_id' => $source_id];
+
+    if ($dob) {
+        $conditions[] = "(child_date_of_birth = :dob AND LOWER(TRIM(mother_last_name)) = :m_ln1)";
+        $conditions[] = "(child_date_of_birth = :dob2 AND LOWER(TRIM(father_last_name)) = :f_ln1)";
+        $params[':dob'] = $dob;
+        $params[':dob2'] = $dob;
+        $params[':m_ln1'] = $m_ln;
+        $params[':f_ln1'] = $f_ln;
+
+        if (!empty($birth_order)) {
+            $conditions[] = "(child_date_of_birth = :dob3 AND birth_order = :bo1)";
+            $params[':dob3'] = $dob;
+            $params[':bo1'] = $birth_order;
+        }
+    }
+
+    if (!empty($m_ln) && !empty($f_ln)) {
+        $conditions[] = "(LOWER(TRIM(mother_last_name)) = :m_ln2 AND LOWER(TRIM(father_last_name)) = :f_ln2)";
+        $params[':m_ln2'] = $m_ln;
+        $params[':f_ln2'] = $f_ln;
+    }
+
+    if (!empty($norm_reg)) {
+        $conditions[] = "(REPLACE(REPLACE(registry_no, '-', ''), ' ', '') = :norm_reg)";
+        $params[':norm_reg'] = $norm_reg;
+    }
+
+    // If no usable fields for pre-filter, return empty
+    if (empty($conditions)) return [];
+
+    $sql .= implode(' OR ', $conditions) . ") LIMIT 50";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $candidates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if (empty($candidates)) return [];
+
+    // Phase 2: PHP scoring with weighted fields
+    $weights = [
+        'child_date_of_birth' => 18,
+        'child_first_name'    => 7,
+        'child_last_name'     => 5,
+        'date_of_registration'=> 8,
+        'mother_last_name'    => 14,
+        'mother_first_name'   => 9,
+        'mother_middle_name'  => 4,
+        'father_last_name'    => 14,
+        'father_first_name'   => 9,
+        'father_middle_name'  => 4,
+        'birth_order'         => 8,
+    ];
+
+    $results = [];
+    foreach ($candidates as $candidate) {
+        $score = 0;
+        $matched_fields = [];
+
+        foreach ($weights as $field => $weight) {
+            $src_val = trim($source[$field] ?? '');
+            $cand_val = trim($candidate[$field] ?? '');
+
+            // Skip if both empty
+            if ($src_val === '' && $cand_val === '') continue;
+
+            if ($field === 'child_date_of_birth' || $field === 'date_of_registration') {
+                // Exact date comparison
+                if (!empty($src_val) && !empty($cand_val) && $src_val === $cand_val) {
+                    $score += $weight;
+                    $matched_fields[] = $field;
+                }
+            } elseif ($field === 'birth_order') {
+                // Exact match
+                if (!empty($src_val) && !empty($cand_val) && mb_strtolower($src_val) === mb_strtolower($cand_val)) {
+                    $score += $weight;
+                    $matched_fields[] = $field;
+                }
+            } else {
+                // Fuzzy name matching using similar_text
+                if (!empty($src_val) && !empty($cand_val)) {
+                    $s = mb_strtoupper($src_val);
+                    $c = mb_strtoupper($cand_val);
+                    similar_text($s, $c, $percent);
+                    if ($percent >= 85) {
+                        // Scale weight by similarity percentage
+                        $score += $weight * ($percent / 100);
+                        $matched_fields[] = $field;
+                    }
+                }
+            }
+        }
+
+        $score = round($score, 2);
+        if ($score >= 40) {
+            $child_name = trim(($candidate['child_first_name'] ?? '') . ' ' . ($candidate['child_last_name'] ?? ''));
+            $results[] = [
+                'id'            => (int)$candidate['id'],
+                'registry_no'   => $candidate['registry_no'] ?? '',
+                'child_name'    => $child_name,
+                'match_score'   => $score,
+                'match_fields'  => $matched_fields,
+                'date_of_registration' => $candidate['date_of_registration'] ?? null,
+            ];
+        }
+    }
+
+    // Sort by score descending
+    usort($results, function($a, $b) {
+        return $b['match_score'] <=> $a['match_score'];
+    });
+
+    return $results;
+}
+
+/**
+ * Get the link status for a single record.
+ * Returns link details if the record is involved in any active link.
+ *
+ * @return array|null Link info with 'role' = 'primary' or 'duplicate', or null if not linked
+ */
+function get_record_link_status($pdo, $certificate_id, $certificate_type = 'birth') {
+    $sql = "SELECT rl.*,
+                CASE
+                    WHEN rl.primary_certificate_type = :type1 AND rl.primary_certificate_id = :id1 THEN 'primary'
+                    WHEN rl.duplicate_certificate_type = :type2 AND rl.duplicate_certificate_id = :id2 THEN 'duplicate'
+                END AS role
+            FROM record_links rl
+            WHERE rl.status = 'active' AND (
+                (rl.primary_certificate_type = :type3 AND rl.primary_certificate_id = :id3)
+                OR (rl.duplicate_certificate_type = :type4 AND rl.duplicate_certificate_id = :id4)
+            )
+            ORDER BY rl.linked_at DESC
+            LIMIT 1";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+        ':type1' => $certificate_type, ':id1' => $certificate_id,
+        ':type2' => $certificate_type, ':id2' => $certificate_id,
+        ':type3' => $certificate_type, ':id3' => $certificate_id,
+        ':type4' => $certificate_type, ':id4' => $certificate_id,
+    ]);
+    $link = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $link ?: null;
+}
+
+/**
+ * Batch query link status for multiple records at once.
+ * Returns an associative array keyed by certificate_id.
+ *
+ * @param PDO    $pdo
+ * @param string $certificate_type
+ * @param array  $record_ids
+ * @return array [certificate_id => ['role' => 'primary'|'duplicate', 'link_id' => int, ...]]
+ */
+function get_record_links_batch($pdo, $certificate_type, array $record_ids) {
+    if (empty($record_ids)) return [];
+
+    $placeholders = implode(',', array_fill(0, count($record_ids), '?'));
+    $params = array_merge(
+        [$certificate_type], $record_ids,
+        [$certificate_type], $record_ids
+    );
+
+    $sql = "SELECT rl.*,
+                CASE
+                    WHEN rl.primary_certificate_type = ? AND rl.primary_certificate_id IN ($placeholders) THEN 'primary'
+                    WHEN rl.duplicate_certificate_type = ? AND rl.duplicate_certificate_id IN ($placeholders) THEN 'duplicate'
+                END AS role,
+                CASE
+                    WHEN rl.primary_certificate_type = ? AND rl.primary_certificate_id IN ($placeholders) THEN rl.primary_certificate_id
+                    ELSE rl.duplicate_certificate_id
+                END AS matched_record_id
+            FROM record_links rl
+            WHERE rl.status = 'active' AND (
+                (rl.primary_certificate_type = ? AND rl.primary_certificate_id IN ($placeholders))
+                OR (rl.duplicate_certificate_type = ? AND rl.duplicate_certificate_id IN ($placeholders))
+            )";
+    // Build params: type + ids repeated 5 times
+    $params = [];
+    // CASE 1: primary match
+    $params[] = $certificate_type;
+    $params = array_merge($params, $record_ids);
+    // CASE 2: duplicate match
+    $params[] = $certificate_type;
+    $params = array_merge($params, $record_ids);
+    // CASE 3: matched_record_id primary
+    $params[] = $certificate_type;
+    $params = array_merge($params, $record_ids);
+    // WHERE primary
+    $params[] = $certificate_type;
+    $params = array_merge($params, $record_ids);
+    // WHERE duplicate
+    $params[] = $certificate_type;
+    $params = array_merge($params, $record_ids);
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $result = [];
+    foreach ($rows as $row) {
+        $rec_id = (int)$row['matched_record_id'];
+        // Determine the paired record
+        if ($row['role'] === 'primary') {
+            $paired_id = (int)$row['duplicate_certificate_id'];
+            $paired_type = $row['duplicate_certificate_type'];
+        } else {
+            $paired_id = (int)$row['primary_certificate_id'];
+            $paired_type = $row['primary_certificate_type'];
+        }
+
+        // Fetch paired registry_no
+        $table_map = ['birth' => 'certificate_of_live_birth', 'marriage' => 'certificate_of_marriage', 'death' => 'certificate_of_death'];
+        $paired_table = $table_map[$paired_type] ?? null;
+        $paired_reg = '';
+        if ($paired_table) {
+            $s2 = $pdo->prepare("SELECT registry_no FROM {$paired_table} WHERE id = ? LIMIT 1");
+            $s2->execute([$paired_id]);
+            $paired_reg = $s2->fetchColumn() ?: '';
+        }
+
+        $result[$rec_id] = [
+            'link_id'           => (int)$row['id'],
+            'role'              => $row['role'],
+            'paired_id'         => $paired_id,
+            'paired_type'       => $paired_type,
+            'paired_registry_no'=> $paired_reg,
+            'match_score'       => $row['match_score'],
+            'has_discrepancies' => (bool)$row['has_discrepancies'],
+            'needs_correction'  => (bool)$row['needs_correction'],
+            'correction_status' => $row['correction_status'],
+        ];
+    }
+    return $result;
+}
+
+/**
+ * Detect discrepancies between two records.
+ * Compares all relevant fields and returns an array of differences.
+ *
+ * @param array  $primary_record   The 1st Registration record
+ * @param array  $duplicate_record The 2nd Registration record
+ * @param string $certificate_type
+ * @return array Array of ['field' => ..., 'primary_value' => ..., 'duplicate_value' => ...]
+ */
+function detect_discrepancies($primary_record, $duplicate_record, $certificate_type = 'birth') {
+    $fields_to_compare = [
+        'registry_no', 'date_of_registration',
+        'child_first_name', 'child_middle_name', 'child_last_name',
+        'child_date_of_birth', 'child_sex',
+        'mother_first_name', 'mother_middle_name', 'mother_last_name',
+        'father_first_name', 'father_middle_name', 'father_last_name',
+        'birth_order', 'child_place_of_birth', 'barangay',
+    ];
+
+    $discrepancies = [];
+    foreach ($fields_to_compare as $field) {
+        $pv = trim($primary_record[$field] ?? '');
+        $dv = trim($duplicate_record[$field] ?? '');
+
+        // Skip if both empty
+        if ($pv === '' && $dv === '') continue;
+
+        // Normalize for case-insensitive comparison
+        if (mb_strtoupper($pv) !== mb_strtoupper($dv)) {
+            $discrepancies[] = [
+                'field'           => $field,
+                'primary_value'   => $pv,
+                'duplicate_value' => $dv,
+            ];
+        }
+    }
+    return $discrepancies;
+}
+
+/**
+ * Check if a record is involved in any active link.
+ *
+ * @return bool True if record is linked (as primary or duplicate)
+ */
+function is_record_linked($pdo, $certificate_id, $certificate_type = 'birth') {
+    $sql = "SELECT COUNT(*) FROM record_links
+            WHERE status = 'active' AND (
+                (primary_certificate_type = :type1 AND primary_certificate_id = :id1)
+                OR (duplicate_certificate_type = :type2 AND duplicate_certificate_id = :id2)
+            )";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+        ':type1' => $certificate_type, ':id1' => $certificate_id,
+        ':type2' => $certificate_type, ':id2' => $certificate_id,
+    ]);
+    return (int)$stmt->fetchColumn() > 0;
+}
+
+/**
+ * Get timeline of events for a record link from activity_logs.
+ *
+ * @param PDO $pdo
+ * @param int $link_id
+ * @return array Activity log entries related to this link
+ */
+function get_link_timeline($pdo, $link_id) {
+    $sql = "SELECT al.*, u.full_name as user_name
+            FROM activity_logs al
+            LEFT JOIN users u ON al.user_id = u.id
+            WHERE al.details LIKE :pattern
+            ORDER BY al.created_at DESC
+            LIMIT 50";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([':pattern' => "%link_id:{$link_id}%"]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 ?>

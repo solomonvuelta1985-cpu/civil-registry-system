@@ -1,0 +1,804 @@
+/**
+ * Double Registration Comparison Modal Styles
+ * Corporate / institutional design aligned with Record Preview Modal
+ * Palette: navy primary, neutral greys, flat surfaces, minimal ornament
+ */
+
+/* ── Modal Backdrop ─────────────────────────────────────── */
+.double-reg-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(3px);
+    z-index: 10000;
+    display: none;
+    animation: drFadeIn 0.2s ease;
+}
+
+.double-reg-backdrop.show {
+    display: block;
+}
+
+@keyframes drFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* ── Modal Container ────────────────────────────────────── */
+.double-reg-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10001;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.double-reg-modal.show {
+    display: flex;
+}
+
+/* ── Modal Dialog ───────────────────────────────────────── */
+.double-reg-dialog {
+    background: #FFFFFF;
+    border-radius: 4px;
+    border: 1px solid #CBD5E1;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+    width: 100%;
+    max-width: 1600px;
+    max-height: 96vh;
+    display: flex;
+    flex-direction: column;
+    animation: drSlideUp 0.25s ease;
+    overflow: hidden;
+    position: relative;
+}
+
+@keyframes drSlideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Header — Institutional ribbon ──────────────────────── */
+.double-reg-header {
+    padding: 20px 32px;
+    background: #FFFFFF;
+    border-bottom: 1px solid #E2E8F0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.double-reg-header::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #0F2C5C 0%, #1E3A8A 100%);
+}
+
+.double-reg-header-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.double-reg-header-title h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0F172A;
+    margin: 0;
+    letter-spacing: -0.01em;
+    font-family: 'Georgia', 'Times New Roman', Cambria, serif;
+}
+
+.double-reg-header-title .dr-icon {
+    width: 22px;
+    height: 22px;
+    color: #1E3A8A;
+}
+
+.double-reg-header-subtitle {
+    font-size: 12px;
+    color: #475569;
+    margin: 4px 0 0 34px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.double-reg-close {
+    background: transparent;
+    border: 1px solid transparent;
+    width: 34px;
+    height: 34px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748B;
+    transition: all 0.15s ease;
+}
+
+.double-reg-close:hover {
+    background: #F1F5F9;
+    border-color: #CBD5E1;
+    color: #0F172A;
+}
+
+/* ── Body — scrollable content area ─────────────────────── */
+.double-reg-body {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* Custom scrollbar for body */
+.double-reg-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.double-reg-body::-webkit-scrollbar-track {
+    background: #F1F5F9;
+}
+
+.double-reg-body::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 4px;
+}
+
+.double-reg-body::-webkit-scrollbar-thumb:hover {
+    background: #94A3B8;
+}
+
+/* ── Summary Bar ────────────────────────────────────────── */
+.dr-summary-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 32px;
+    background: #F8FAFC;
+    border-bottom: 1px solid #E2E8F0;
+    flex-shrink: 0;
+}
+
+.dr-summary-stats {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    font-size: 13px;
+    color: #334155;
+    font-weight: 500;
+}
+
+.dr-summary-stats strong {
+    font-weight: 700;
+}
+
+.dr-stat-match,
+.dr-stat-differ {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dr-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.dr-dot-green {
+    background: #047857;
+}
+
+.dr-dot-amber {
+    background: #D97706;
+}
+
+.dr-dot-blue {
+    background: #1E3A8A;
+}
+
+.dr-summary-verdict {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1E293B;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dr-verdict-bar {
+    width: 120px;
+    height: 6px;
+    background: #E2E8F0;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.dr-verdict-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.dr-verdict-bar-fill.high {
+    background: #047857;
+}
+
+.dr-verdict-bar-fill.medium {
+    background: #D97706;
+}
+
+.dr-verdict-bar-fill.low {
+    background: #DC2626;
+}
+
+/* ── Collapsible Section ────────────────────────────────── */
+.dr-section-toggle {
+    font-size: 11px;
+    font-weight: 700;
+    color: #1E3A8A;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0 0 12px 0;
+    border-bottom: 1px solid #E2E8F0;
+    margin-bottom: 16px;
+}
+
+.dr-section-toggle:hover {
+    color: #0F2C5C;
+}
+
+.dr-section-toggle .dr-chevron {
+    width: 16px;
+    height: 16px;
+    transition: transform 0.2s ease;
+    color: #94A3B8;
+}
+
+.dr-section-toggle.collapsed .dr-chevron {
+    transform: rotate(-90deg);
+}
+
+.dr-section-body {
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.2s ease;
+    max-height: 2000px;
+    opacity: 1;
+}
+
+.dr-section-body.collapsed {
+    max-height: 0;
+    opacity: 0;
+}
+
+.dr-section-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #F1F5F9;
+    color: #475569;
+    margin-left: auto;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+/* ── Field Comparison Table ─────────────────────────────── */
+.double-reg-comparison-section {
+    padding: 24px 32px;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+.double-reg-comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.double-reg-comparison-table th {
+    padding: 10px 16px;
+    background: #F8FAFC;
+    border-bottom: 2px solid #E2E8F0;
+    font-weight: 700;
+    color: #475569;
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.double-reg-comparison-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #F1F5F9;
+    color: #1E293B;
+}
+
+.double-reg-comparison-table tbody tr:nth-child(even) {
+    background: #FAFBFC;
+}
+
+.double-reg-comparison-table tbody tr:hover {
+    background: #F1F5F9;
+}
+
+/* Left-border indicators */
+.double-reg-comparison-table tr.match-row td:first-child {
+    border-left: 3px solid #047857;
+}
+
+.double-reg-comparison-table tr.discrepancy-row td:first-child {
+    border-left: 3px solid #D97706;
+}
+
+.double-reg-comparison-table tr.match-row td:first-child {
+    padding-left: 13px;
+}
+
+.double-reg-comparison-table tr.discrepancy-row td:first-child {
+    padding-left: 13px;
+}
+
+.double-reg-comparison-table .dr-status-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.double-reg-comparison-table .match-icon {
+    color: #047857;
+}
+
+.double-reg-comparison-table .discrepancy-icon {
+    color: #D97706;
+}
+
+.dr-comparison-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding: 10px 16px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #475569;
+}
+
+.dr-comparison-footer strong {
+    color: #1E293B;
+}
+
+/* ── PDF Viewer — Side-by-Side ──────────────────────────── */
+.double-reg-pdf-section {
+    display: flex;
+    flex-direction: column;
+    min-height: 500px;
+    flex: 1 1 auto;
+    background: #F8FAFC;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+/* Toolbar */
+.dr-pdf-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 24px;
+    background: #FFFFFF;
+    border-bottom: 1px solid #E2E8F0;
+    flex-shrink: 0;
+}
+
+.dr-pdf-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.dr-toolbar-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #334155;
+}
+
+.dr-toolbar-label strong {
+    font-weight: 700;
+}
+
+.dr-toolbar-regnum {
+    font-size: 11px;
+    color: #94A3B8;
+    font-weight: 500;
+}
+
+.dr-toolbar-divider {
+    font-size: 11px;
+    color: #94A3B8;
+    font-weight: 500;
+    font-style: italic;
+}
+
+.dr-pdf-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Control buttons */
+.dr-pdf-ctrl-btn {
+    background: none;
+    border: 1px solid #CBD5E1;
+    border-radius: 4px;
+    padding: 5px 8px;
+    cursor: pointer;
+    font-size: 11px;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+}
+
+.dr-pdf-ctrl-btn:hover {
+    background: #F1F5F9;
+    border-color: #94A3B8;
+}
+
+.dr-pdf-ctrl-btn.active {
+    background: #EFF6FF;
+    border-color: #1E3A8A;
+    color: #1E3A8A;
+}
+
+.dr-pdf-ctrl-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.dr-zoom-display {
+    font-size: 11px;
+    color: #64748B;
+    min-width: 36px;
+    text-align: center;
+    font-weight: 600;
+}
+
+.dr-pdf-ctrl-separator {
+    width: 1px;
+    height: 20px;
+    background: #E2E8F0;
+    margin: 0 4px;
+}
+
+/* Side-by-side PDF viewer area */
+.dr-pdf-viewer {
+    flex: 1;
+    display: flex;
+    gap: 2px;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.dr-pdf-canvas-wrap {
+    flex: 1;
+    overflow: auto;
+    padding: 16px;
+    background: #F8FAFC;
+    text-align: center;
+}
+
+.dr-pdf-canvas-wrap canvas {
+    display: block;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+/* Pane labels */
+.dr-split-pane-label {
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: center;
+    border-bottom: 1px solid #E2E8F0;
+    flex-shrink: 0;
+}
+
+.dr-split-pane-label.primary {
+    background: #ECFDF5;
+    color: #065F46;
+}
+
+.dr-split-pane-label.duplicate {
+    background: #EFF6FF;
+    color: #1E3A8A;
+}
+
+/* PDF placeholder */
+.dr-pdf-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #94A3B8;
+    font-size: 14px;
+    padding: 40px;
+    text-align: center;
+    gap: 8px;
+    min-height: 200px;
+}
+
+/* ── Badges ─────────────────────────────────────────────── */
+.dr-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border: 1px solid transparent;
+}
+
+.dr-badge-green {
+    background: #ECFDF5;
+    color: #065F46;
+    border-color: #A7F3D0;
+}
+
+.dr-badge-blue {
+    background: #EFF6FF;
+    color: #1E3A8A;
+    border-color: #BFDBFE;
+}
+
+/* ── Confirmation Section ───────────────────────────────── */
+.double-reg-confirmation-section {
+    padding: 20px 32px;
+    background: #FFFFFF;
+}
+
+.dr-determination-box {
+    padding: 14px 20px;
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: #1E40AF;
+    line-height: 1.5;
+}
+
+.dr-determination-box strong {
+    color: #1E3A8A;
+}
+
+.dr-checkbox-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.dr-checkbox-row input[type="checkbox"] {
+    margin-top: 3px;
+    accent-color: #1E3A8A;
+}
+
+.dr-checkbox-row label {
+    font-size: 13px;
+    color: #1E293B;
+    line-height: 1.5;
+}
+
+.dr-notes-area {
+    width: 100%;
+    min-height: 80px;
+    padding: 10px 14px;
+    border: 1px solid #CBD5E1;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+    margin-bottom: 14px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.dr-notes-area:focus {
+    outline: none;
+    border-color: #93C5FD;
+    box-shadow: 0 0 0 2px rgba(30, 58, 138, 0.1);
+}
+
+/* ── Footer ─────────────────────────────────────────────── */
+.double-reg-footer {
+    padding: 16px 32px;
+    border-top: 1px solid #E2E8F0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    background: #F8FAFC;
+}
+
+.dr-btn {
+    padding: 9px 22px;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.dr-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.dr-btn svg {
+    width: 15px;
+    height: 15px;
+}
+
+.dr-btn-outline {
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    color: #475569;
+}
+
+.dr-btn-outline:hover:not(:disabled) {
+    background: #F1F5F9;
+    border-color: #94A3B8;
+}
+
+.dr-btn-primary {
+    background: #1E3A8A;
+    color: #FFFFFF;
+}
+
+.dr-btn-primary:hover:not(:disabled) {
+    background: #0F2C5C;
+}
+
+.dr-btn-secondary {
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    color: #64748B;
+}
+
+.dr-btn-secondary:hover:not(:disabled) {
+    background: #F1F5F9;
+    border-color: #94A3B8;
+    color: #334155;
+}
+
+/* ── Loading ────────────────────────────────────────────── */
+.double-reg-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 40px;
+    color: #64748B;
+    font-size: 14px;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.double-reg-loading .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #E2E8F0;
+    border-top-color: #1E3A8A;
+    border-radius: 50%;
+    animation: drSpin 0.8s linear infinite;
+}
+
+@keyframes drSpin {
+    to { transform: rotate(360deg); }
+}
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 900px) {
+    .double-reg-dialog {
+        max-width: 100%;
+        max-height: 98vh;
+    }
+
+    .double-reg-header {
+        padding: 16px 20px;
+    }
+
+    .dr-summary-bar {
+        padding: 12px 20px;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+    }
+
+    .double-reg-comparison-section {
+        padding: 16px 20px;
+    }
+
+    .dr-pdf-toolbar {
+        padding: 8px 16px;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .dr-pdf-toolbar-left {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .dr-pdf-viewer {
+        flex-direction: column;
+    }
+
+    .dr-pdf-canvas-wrap {
+        padding: 12px;
+        min-height: 250px;
+    }
+
+    .double-reg-confirmation-section {
+        padding: 16px 20px;
+    }
+
+    .double-reg-footer {
+        padding: 14px 20px;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .double-reg-footer .dr-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .double-reg-comparison-table {
+        font-size: 12px;
+    }
+
+    .double-reg-comparison-table th,
+    .double-reg-comparison-table td {
+        padding: 8px 10px;
+    }
+}

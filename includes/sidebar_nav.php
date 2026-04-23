@@ -81,6 +81,11 @@ $__is_admin = function_exists('isAdmin') ? isAdmin() : false;
                 <i data-lucide="folder-tree"></i> <span>Folder Browser</span>
             </a>
         </li>
+        <li>
+            <a href="../public/double_registration.php" class="<?php echo $current_page == 'double_registration.php' ? 'active' : ''; ?>" title="Double Registration Detection (PSA MC 2019-23)">
+                <i data-lucide="link-2"></i> <span>Double Registration</span>
+            </a>
+        </li>
 
         <?php if ($__is_admin): ?>
         <!-- Archives & Trash Section (Admin only) -->

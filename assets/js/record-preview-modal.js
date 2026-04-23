@@ -207,12 +207,20 @@ class RecordPreviewModal {
 
             if (data.success) {
                 this.currentRecord = data.record;
+                this.currentLinkInfo = data.link_info || null;
                 this.renderRecordDetails(data.record);
                 this.renderActionButtons(data.record);
+
+                // Show double registration banner if linked
+                this.renderLinkBanner();
 
                 // Load PDF if available
                 if (data.record.pdf_filename) {
                     await this.loadPDF(`../api/serve_pdf.php?file=${encodeURIComponent(data.record.pdf_filename)}`);
+                    // Apply watermark overlay for 2nd Registration
+                    if (this.currentLinkInfo && this.currentLinkInfo.role === 'duplicate') {
+                        this.applyWatermarkOverlay();
+                    }
                 } else {
                     this.showPDFError('No PDF available for this record');
                 }
@@ -1062,6 +1070,91 @@ class RecordPreviewModal {
         const date = new Date(dateString);
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+    }
+
+    /**
+     * Render double registration banner in the details panel
+     */
+    renderLinkBanner() {
+        const link = this.currentLinkInfo;
+        if (!link) return;
+
+        const detailsPanel = document.getElementById('recordDetailsPanel');
+        if (!detailsPanel) return;
+
+        // Remove any existing banner
+        const existing = detailsPanel.querySelector('.double-reg-banner');
+        if (existing) existing.remove();
+
+        let bannerHtml = '';
+        const regNo = link.paired_registry_no || 'N/A';
+
+        if (link.role === 'primary') {
+            bannerHtml = `
+                <div class="double-reg-banner" style="padding:10px 14px;margin-bottom:12px;border-radius:4px;font-size:13px;background:#F0FDF4;border:1px solid #BBF7D0;color:#166534;">
+                    <strong style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        1ST REGISTRATION (For Issuance)
+                    </strong>
+                    Double of Reg# ${this.escapeHtml(regNo)}
+                    ${link.needs_correction ? `<div style="margin-top:6px;padding:6px 10px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:3px;color:#92400E;font-size:12px;"><strong>Discrepancies found</strong> — RA 9048 correction ${link.correction_status === 'none' ? 'needed' : link.correction_status}</div>` : ''}
+                </div>`;
+        } else {
+            bannerHtml = `
+                <div class="double-reg-banner" style="padding:10px 14px;margin-bottom:12px;border-radius:4px;font-size:13px;background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;">
+                    <strong style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                        2ND REGISTRATION — DO NOT ISSUE
+                    </strong>
+                    1st Registration: Reg# ${this.escapeHtml(regNo)}
+                </div>`;
+        }
+
+        detailsPanel.insertAdjacentHTML('afterbegin', bannerHtml);
+    }
+
+    /**
+     * Apply a watermark overlay on the PDF canvas for 2nd Registration records
+     */
+    applyWatermarkOverlay() {
+        const container = document.getElementById('pdfPreviewContainer');
+        if (!container) return;
+
+        // Remove existing watermark
+        const existing = container.querySelector('.pdf-watermark-overlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'pdf-watermark-overlay';
+        overlay.style.cssText = `
+            position:absolute; top:0; left:0; right:0; bottom:0;
+            display:flex; align-items:center; justify-content:center;
+            pointer-events:none; z-index:5; overflow:hidden;
+        `;
+        overlay.innerHTML = `
+            <div style="
+                transform: rotate(-35deg);
+                font-size: 42px;
+                font-weight: 900;
+                color: rgba(220, 38, 38, 0.18);
+                text-align: center;
+                line-height: 1.3;
+                white-space: nowrap;
+                user-select: none;
+                letter-spacing: 2px;
+            ">2ND REGISTRATION<br>DOUBLE<br>DO NOT ISSUE</div>
+        `;
+
+        // Make the container relative so the overlay positions correctly
+        container.style.position = 'relative';
+        container.appendChild(overlay);
+    }
+
+    escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     }
 }
 

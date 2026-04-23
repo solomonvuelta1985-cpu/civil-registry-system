@@ -32,7 +32,8 @@ $migrations = [
     '004_add_citizenship_to_birth_certificates.sql',
     '005_add_barangay_and_time_of_birth.sql',
     '006_registered_devices.sql',
-    '007_add_pdf_hash.sql'
+    '007_add_pdf_hash.sql',
+    '020_double_registration_linking.sql'
 ];
 
 $results = [];

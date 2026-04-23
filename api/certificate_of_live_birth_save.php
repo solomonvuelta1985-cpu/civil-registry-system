@@ -381,11 +381,23 @@ try {
         // Commit transaction
         $pdo->commit();
 
+        // Run duplicate detection (non-blocking — failures don't affect save)
+        $potential_duplicates = [];
+        try {
+            $potential_duplicates = find_potential_duplicates($pdo, $inserted_id, 'birth');
+        } catch (Exception $dupEx) {
+            error_log("Duplicate detection error: " . $dupEx->getMessage());
+        }
+
         // Prepare success response
         $response_data = [
             'id' => $inserted_id,
             'registry_no' => $registry_no
         ];
+
+        if (!empty($potential_duplicates)) {
+            $response_data['potential_duplicates'] = $potential_duplicates;
+        }
 
         json_response(
             true,

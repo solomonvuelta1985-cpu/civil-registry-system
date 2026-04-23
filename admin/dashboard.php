@@ -45,6 +45,17 @@ try {
     );
     $stats['pdf_integrity_issues'] = (int)($stmt->fetch()['count'] ?? 0);
 
+    // Double registration link counts
+    $dr_stmt = $pdo->query(
+        "SELECT
+            SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_links,
+            SUM(CASE WHEN status = 'active' AND needs_correction = 1 THEN 1 ELSE 0 END) AS needs_correction
+         FROM record_links"
+    );
+    $dr_row = $dr_stmt->fetch(PDO::FETCH_ASSOC);
+    $stats['double_reg_active'] = (int)($dr_row['active_links'] ?? 0);
+    $stats['double_reg_needs_correction'] = (int)($dr_row['needs_correction'] ?? 0);
+
     // ── Single query for ALL totals, this month, and last month counts ──
     $combined_sql = "
         SELECT
@@ -3040,6 +3051,22 @@ $user_first_name = explode(' ', $user_name)[0];
                     </div>
                 </div>
             </div>
+
+            <?php if ($stats['double_reg_active'] > 0): ?>
+            <a href="../public/double_registration.php" style="text-decoration:none;">
+            <div class="stat-card red">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-number"><?php echo number_format($stats['double_reg_active']); ?></div>
+                        <div class="stat-label">Double Registrations<?php if ($stats['double_reg_needs_correction'] > 0): ?> <span style="font-size:11px;opacity:0.8;">(<?php echo $stats['double_reg_needs_correction']; ?> need correction)</span><?php endif; ?></div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-link"></i>
+                    </div>
+                </div>
+            </div>
+            </a>
+            <?php endif; ?>
         </div>
 
         <!-- Charts Section -->

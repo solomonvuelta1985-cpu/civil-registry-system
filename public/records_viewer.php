@@ -476,6 +476,17 @@ if ($total_records === 0 && count($search_tokens) > 1) {
 // (e.g. debug output). Not used by the queries themselves anymore.
 $params = array_merge($search_params, $filter_params);
 
+// Batch-load double registration link status for all visible records
+$record_link_map = [];
+if (!empty($records)) {
+    $visible_ids = array_column($records, 'id');
+    try {
+        $record_link_map = get_record_links_batch($pdo, $record_type, $visible_ids);
+    } catch (Exception $e) {
+        error_log("Record link batch query error: " . $e->getMessage());
+    }
+}
+
 // Helper function to build query string for pagination/sorting
 function build_query_string($exclude = []) {
     $params = $_GET;
@@ -682,6 +693,7 @@ function detect_late_registration($record, $record_type) {
         if (typeof pdfjsLib !== 'undefined') {
             pdfjsLib.GlobalWorkerOptions.workerSrc = '<?= asset_url("pdfjs_worker") ?>';
         }
+        window.APP_BASE = '<?= rtrim(BASE_URL, '/') ?>';
     </script>
 
     <style>
@@ -2225,6 +2237,7 @@ function detect_late_registration($record, $record_type) {
                         $can_delete = isAdmin();
                         foreach ($records as $record):
                             $is_archived_row = ($record['status'] ?? 'Active') === 'Archived';
+                            $is_linked = isset($record_link_map[(int)$record['id']]);
                         ?>
                         <tr class="<?php echo $is_archived_row ? 'row-archived' : ''; ?>" data-record-id="<?php echo (int)$record['id']; ?>" data-record-status="<?php echo htmlspecialchars($record['status'] ?? 'Active'); ?>">
                             <?php if ($can_archive): ?>
@@ -2252,6 +2265,22 @@ function detect_late_registration($record, $record_type) {
                                         Archived
                                     </span>
                                 <?php endif; ?>
+                                <?php
+                                // Double registration badge
+                                if ($is_first_name_cell && isset($record_link_map[(int)$record['id']])):
+                                    $link_info = $record_link_map[(int)$record['id']];
+                                    if ($link_info['role'] === 'primary'):
+                                ?>
+                                    <span class="status-badge double-reg-primary" title="1st Registration — For Issuance (linked to Reg# <?php echo htmlspecialchars($link_info['paired_registry_no']); ?>)" style="background:#DCFCE7;color:#166534;font-size:10px;padding:2px 6px;border-radius:3px;font-weight:600;">
+                                        <i data-lucide="link-2" style="width:10px;height:10px;"></i>
+                                        1st Reg
+                                    </span>
+                                <?php elseif ($link_info['role'] === 'duplicate'): ?>
+                                    <span class="status-badge double-reg-duplicate" title="2nd Registration — DO NOT ISSUE (1st Reg: Reg# <?php echo htmlspecialchars($link_info['paired_registry_no']); ?>)" style="background:#FEE2E2;color:#991B1B;font-size:10px;padding:2px 6px;border-radius:3px;font-weight:600;">
+                                        <i data-lucide="shield-alert" style="width:10px;height:10px;"></i>
+                                        2nd Reg - DO NOT ISSUE
+                                    </span>
+                                <?php endif; endif; ?>
                                 <?php
                                 if ($column['field'] === 'date_of_registration'
                                     && in_array($record_type, ['birth', 'death', 'marriage'], true)):
@@ -2293,7 +2322,7 @@ function detect_late_registration($record, $record_type) {
                                             <span>Edit</span>
                                         </button>
                                         <?php endif; ?>
-                                        <?php if ($can_archive): ?>
+                                        <?php if ($can_archive && !$is_linked): ?>
                                             <?php if ($is_archived_row): ?>
                                             <button class="action-dropdown-item unarchive-action"
                                                     onclick="toggleArchive(<?php echo $record['id']; ?>, 'unarchive', <?php echo htmlspecialchars(json_encode($record), ENT_QUOTES, 'UTF-8'); ?>); closeAllDropdowns();">
@@ -2308,11 +2337,35 @@ function detect_late_registration($record, $record_type) {
                                             </button>
                                             <?php endif; ?>
                                         <?php endif; ?>
-                                        <?php if ($can_delete): ?>
+                                        <?php
+                                        // Double registration actions
+                                        $link_perm = $record_type . '_link';
+                                        if (hasPermission($link_perm)):
+                                            if ($is_linked):
+                                                $li = $record_link_map[(int)$record['id']];
+                                        ?>
+                                        <button class="action-dropdown-item"
+                                                onclick="recordPreviewModal.open(<?php echo (int)$li['paired_id']; ?>, '<?php echo htmlspecialchars($li['paired_type']); ?>'); closeAllDropdowns();">
+                                            <i data-lucide="link-2"></i>
+                                            <span>View Linked Record</span>
+                                        </button>
+                                        <?php else: ?>
+                                        <button class="action-dropdown-item"
+                                                onclick="findDuplicates(<?php echo $record['id']; ?>, '<?php echo $record_type; ?>'); closeAllDropdowns();">
+                                            <i data-lucide="search"></i>
+                                            <span>Find Duplicates</span>
+                                        </button>
+                                        <?php endif; endif; ?>
+                                        <?php if ($can_delete && !$is_linked): ?>
                                         <button class="action-dropdown-item delete-action"
                                                 onclick="deleteRecord(<?php echo $record['id']; ?>, <?php echo htmlspecialchars(json_encode($record), ENT_QUOTES, 'UTF-8'); ?>); closeAllDropdowns();">
                                             <i data-lucide="x-circle"></i>
                                             <span>Delete</span>
+                                        </button>
+                                        <?php elseif ($can_delete && $is_linked): ?>
+                                        <button class="action-dropdown-item" disabled style="opacity:0.4;cursor:not-allowed;" title="Cannot delete a linked record. Unlink first.">
+                                            <i data-lucide="x-circle"></i>
+                                            <span>Delete (Linked)</span>
                                         </button>
                                         <?php endif; ?>
                                     </div>
@@ -3603,5 +3656,44 @@ function detect_late_registration($record, $record_type) {
 
     <!-- Record Preview Modal Script -->
     <script src="../assets/js/record-preview-modal.js?v=4"></script>
+
+    <!-- Double Registration Comparison Modal -->
+    <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css">
+    <script src="../assets/js/double-reg-comparison-modal.js?v=2"></script>
+    <script>
+        function findDuplicates(recordId, recordType) {
+            const base = window.APP_BASE || '';
+            fetch(`${base}/api/duplicate_search.php?id=${recordId}&type=${encodeURIComponent(recordType)}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) {
+                        Notiflix.Notify.failure(data.message || 'Search failed');
+                        return;
+                    }
+                    if (data.count === 0) {
+                        Notiflix.Notify.info('No potential duplicates found for this record.', { timeout: 4000 });
+                        return;
+                    }
+                    const top = data.duplicates[0];
+                    const extra = data.count > 1 ? ` (+${data.count - 1} more)` : '';
+                    Notiflix.Confirm.show(
+                        'Potential Duplicate Found',
+                        `Reg# ${top.registry_no || 'N/A'} (${top.child_name || 'Unknown'}) — ${top.match_score}% match${extra}. Compare now?`,
+                        'Compare',
+                        'Cancel',
+                        () => {
+                            const modal = new DoubleRegComparisonModal();
+                            modal.open(recordId, top.id, recordType);
+                        },
+                        () => {},
+                        { width: '420px', borderRadius: '12px', okButtonBackground: '#DC2626', titleColor: '#991B1B' }
+                    );
+                })
+                .catch(err => {
+                    console.error(err);
+                    Notiflix.Notify.failure('Error searching for duplicates');
+                });
+        }
+    </script>
 </body>
 </html>
