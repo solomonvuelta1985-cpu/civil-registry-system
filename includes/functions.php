@@ -231,7 +231,8 @@ function upload_file($file, $type = null, $year = null, $last_name_folder = null
     //             {type}/{year}/             when last name omitted (legacy caller).
     $sub_dir = '';
     if ($type) {
-        $allowed_types = ['birth', 'death', 'marriage', 'marriage_license'];
+        $allowed_types = ['birth', 'death', 'marriage', 'marriage_license',
+            'ra9048_petition', 'ra9048_legal_instrument', 'ra9048_court_decree'];
         if (!in_array($type, $allowed_types)) {
             return ['success' => false, 'errors' => ['Invalid certificate type for upload.']];
         }

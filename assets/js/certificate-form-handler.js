@@ -200,7 +200,10 @@ class CertificateFormHandler {
             'birth': 'Birth',
             'marriage': 'Marriage',
             'death': 'Death',
-            'marriage_license': 'Marriage License'
+            'marriage_license': 'Marriage License',
+            'petition': 'Petition',
+            'legal_instrument': 'Legal Instrument',
+            'court_decree': 'Court Decree'
         };
 
         const certificateType = formTypeNames[this.formType] || 'Certificate';
@@ -394,7 +397,10 @@ class CertificateFormHandler {
                 'birth': base + '/public/birth_records.php',
                 'marriage': base + '/public/marriage_records.php',
                 'death': base + '/public/death_records.php',
-                'marriage_license': base + '/public/marriage_license_records.php'
+                'marriage_license': base + '/public/marriage_license_records.php',
+                'petition': base + '/public/ra9048/records.php?type=petition',
+                'legal_instrument': base + '/public/ra9048/records.php?type=legal_instrument',
+                'court_decree': base + '/public/ra9048/records.php?type=court_decree'
             };
 
             const redirectUrl = redirectUrls[this.formType] || base + '/admin/dashboard.php';
@@ -1187,7 +1193,10 @@ class CertificateFormHandler {
                             'birth': base + '/public/birth_records.php',
                             'marriage': base + '/public/marriage_records.php',
                             'death': base + '/public/death_records.php',
-                            'marriage_license': base + '/public/marriage_license_records.php'
+                            'marriage_license': base + '/public/marriage_license_records.php',
+                            'petition': base + '/public/ra9048/records.php?type=petition',
+                            'legal_instrument': base + '/public/ra9048/records.php?type=legal_instrument',
+                            'court_decree': base + '/public/ra9048/records.php?type=court_decree'
                         };
                         window.location.href = redirectUrls[this.formType] || base + '/admin/dashboard.php';
                     }
@@ -1196,6 +1205,7 @@ class CertificateFormHandler {
                     width: '500px',
                     borderRadius: '12px',
                     titleColor: '#DC2626',
+                    titleMaxLength: 50,
                     okButtonBackground: '#DC2626',
                     cancelButtonBackground: '#2563EB',
                     titleFontSize: '16px',
@@ -1221,7 +1231,10 @@ class CertificateFormHandler {
                     'birth': base + '/public/birth_records.php',
                     'marriage': base + '/public/marriage_records.php',
                     'death': base + '/public/death_records.php',
-                    'marriage_license': base + '/public/marriage_license_records.php'
+                    'marriage_license': base + '/public/marriage_license_records.php',
+                    'petition': base + '/public/ra9048/records.php?type=petition',
+                    'legal_instrument': base + '/public/ra9048/records.php?type=legal_instrument',
+                    'court_decree': base + '/public/ra9048/records.php?type=court_decree'
                 };
                 window.location.href = redirectUrls[this.formType] || base + '/admin/dashboard.php';
             }

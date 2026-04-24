@@ -45,16 +45,21 @@ try {
     );
     $stats['pdf_integrity_issues'] = (int)($stmt->fetch()['count'] ?? 0);
 
-    // Double registration link counts
-    $dr_stmt = $pdo->query(
-        "SELECT
-            SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_links,
-            SUM(CASE WHEN status = 'active' AND needs_correction = 1 THEN 1 ELSE 0 END) AS needs_correction
-         FROM record_links"
-    );
-    $dr_row = $dr_stmt->fetch(PDO::FETCH_ASSOC);
-    $stats['double_reg_active'] = (int)($dr_row['active_links'] ?? 0);
-    $stats['double_reg_needs_correction'] = (int)($dr_row['needs_correction'] ?? 0);
+    // Double registration link counts (wrapped in own try/catch — table may not exist yet)
+    try {
+        $dr_stmt = $pdo->query(
+            "SELECT
+                SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_links,
+                SUM(CASE WHEN status = 'active' AND needs_correction = 1 THEN 1 ELSE 0 END) AS needs_correction
+             FROM record_links"
+        );
+        $dr_row = $dr_stmt->fetch(PDO::FETCH_ASSOC);
+        $stats['double_reg_active'] = (int)($dr_row['active_links'] ?? 0);
+        $stats['double_reg_needs_correction'] = (int)($dr_row['needs_correction'] ?? 0);
+    } catch (PDOException $e) {
+        $stats['double_reg_active'] = 0;
+        $stats['double_reg_needs_correction'] = 0;
+    }
 
     // ── Single query for ALL totals, this month, and last month counts ──
     $combined_sql = "
@@ -3052,7 +3057,7 @@ $user_first_name = explode(' ', $user_name)[0];
                 </div>
             </div>
 
-            <?php if ($stats['double_reg_active'] > 0): ?>
+            <?php if (($stats['double_reg_active'] ?? 0) > 0): ?>
             <a href="../public/double_registration.php" style="text-decoration:none;">
             <div class="stat-card red">
                 <div class="stat-header">
@@ -3091,8 +3096,8 @@ $user_first_name = explode(' ', $user_name)[0];
                 foreach ($monthly_chart_data as $month_data) {
                     $monthly_totals[] = $month_data['births'] + $month_data['marriages'] + $month_data['deaths'] + $month_data['licenses'];
                 }
-                $peak_month_index = array_search(max($monthly_totals), $monthly_totals);
-                $peak_month = $monthly_chart_data[$peak_month_index]['month'] ?? 'N/A';
+                $peak_month_index = $monthly_totals ? array_search(max($monthly_totals), $monthly_totals) : false;
+                $peak_month = ($peak_month_index !== false && isset($monthly_chart_data[$peak_month_index])) ? $monthly_chart_data[$peak_month_index]['month'] : 'N/A';
                 ?>
                 <div class="chart-insight">
                     <div class="chart-insight-text">

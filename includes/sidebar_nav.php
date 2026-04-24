@@ -87,6 +87,20 @@ $__is_admin = function_exists('isAdmin') ? isAdmin() : false;
             </a>
         </li>
 
+        <!-- RA 9048/10172 Section -->
+        <li class="sidebar-divider"></li>
+        <li class="sidebar-heading">RA 9048/10172</li>
+        <li>
+            <a href="<?= BASE_URL ?>public/ra9048/index.php" class="<?php echo ($current_page == 'index.php' && strpos($_SERVER['SCRIPT_NAME'], 'ra9048') !== false) ? 'active' : ''; ?>" title="RA 9048/10172 Transactions">
+                <i data-lucide="file-pen"></i> <span>Transactions</span>
+            </a>
+        </li>
+        <li>
+            <a href="<?= BASE_URL ?>public/ra9048/records.php" class="<?php echo ($current_page == 'records.php' && strpos($_SERVER['SCRIPT_NAME'], 'ra9048') !== false) ? 'active' : ''; ?>" title="View RA 9048 Records">
+                <i data-lucide="folder-open"></i> <span>RA 9048 Records</span>
+            </a>
+        </li>
+
         <?php if ($__is_admin): ?>
         <!-- Archives & Trash Section (Admin only) -->
         <li class="sidebar-divider"></li>

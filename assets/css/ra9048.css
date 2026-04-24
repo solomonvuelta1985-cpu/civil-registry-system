@@ -1,0 +1,650 @@
+/* ========================================
+   RA 9048/10172 MODULE STYLESHEET
+   Card landing page, form overrides, tabs,
+   records listing, export
+   ======================================== */
+
+/* ========================================
+   CARD GRID — Landing Page
+   ======================================== */
+.ra9048-page-header {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.ra9048-page-header h1 {
+    font-size: clamp(1.25rem, 2.5vw, 1.6rem);
+    font-weight: 700;
+    color: #0f2847;
+    margin-bottom: 6px;
+}
+
+.ra9048-page-header p {
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.ra9048-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+.ra9048-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 28px 24px;
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+.ra9048-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--card-accent, #3b82f6);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.ra9048-card:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    transform: translateY(-3px);
+    border-color: var(--card-accent, #3b82f6);
+}
+
+.ra9048-card:hover::before {
+    opacity: 1;
+}
+
+.ra9048-card--petition { --card-accent: #3b82f6; }
+.ra9048-card--legal { --card-accent: #8b5cf6; }
+.ra9048-card--decree { --card-accent: #f59e0b; }
+
+.ra9048-card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    background: color-mix(in srgb, var(--card-accent, #3b82f6) 10%, transparent);
+    color: var(--card-accent, #3b82f6);
+}
+
+.ra9048-card-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+.ra9048-card-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 6px;
+}
+
+.ra9048-card-desc {
+    font-size: 0.82rem;
+    color: #64748b;
+    line-height: 1.5;
+    margin-bottom: 16px;
+    flex: 1;
+}
+
+.ra9048-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.ra9048-card-count {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.ra9048-card-count strong {
+    color: #1e293b;
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.ra9048-card-arrow {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    transition: background 0.2s, color 0.2s;
+}
+
+.ra9048-card:hover .ra9048-card-arrow {
+    background: var(--card-accent, #3b82f6);
+    color: #fff;
+}
+
+.ra9048-card-arrow svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Quick links below cards */
+.ra9048-quick-links {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+
+.ra9048-quick-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    color: #475569;
+    font-size: 0.82rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s;
+}
+
+.ra9048-quick-link:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+.ra9048-quick-link svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* ========================================
+   CONDITIONAL FIELDS — Show/Hide animations
+   ======================================== */
+.ra9048-conditional-field {
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.3s ease, opacity 0.25s ease, margin 0.3s ease;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.ra9048-conditional-field.ra9048-conditional-visible {
+    max-height: 300px;
+    opacity: 1;
+}
+
+/* Fee display badge */
+.ra9048-fee-display {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    color: #166534;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.ra9048-fee-display.fee-cfn {
+    background: #fef3c7;
+    border-color: #fde68a;
+    color: #92400e;
+}
+
+/* ========================================
+   TAB BAR — Records page
+   ======================================== */
+.ra9048-tab-bar {
+    display: flex;
+    border-bottom: 2px solid #e2e8f0;
+    margin-bottom: 24px;
+    gap: 0;
+    overflow-x: auto;
+}
+
+.ra9048-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #64748b;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.ra9048-tab svg {
+    width: 16px;
+    height: 16px;
+}
+
+.ra9048-tab:hover {
+    color: #1e293b;
+}
+
+.ra9048-tab--active {
+    color: #3b82f6;
+    border-bottom-color: #3b82f6;
+    font-weight: 600;
+}
+
+.ra9048-tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 6px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    background: #f1f5f9;
+    color: #64748b;
+    border-radius: 10px;
+}
+
+.ra9048-tab--active .ra9048-tab-count {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+/* ========================================
+   FILTER BAR
+   ======================================== */
+.ra9048-filter-bar {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.ra9048-filter-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    flex: 1;
+}
+
+.ra9048-filter-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.ra9048-search-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    flex: 1;
+    min-width: 200px;
+    max-width: 360px;
+    transition: border-color 0.15s;
+}
+
+.ra9048-search-box:focus-within {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.ra9048-search-input {
+    border: none;
+    outline: none;
+    padding: 8px 0;
+    font-size: 0.82rem;
+    color: #334155;
+    flex: 1;
+    background: transparent;
+}
+
+.ra9048-date-input {
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    color: #334155;
+    background: #fff;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.ra9048-date-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.ra9048-btn-clear {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    background: #fff;
+    color: #64748b;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.ra9048-btn-clear:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+.ra9048-btn-clear svg {
+    width: 14px;
+    height: 14px;
+}
+
+.ra9048-btn-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    background: #fff;
+    color: #475569;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s;
+}
+
+.ra9048-btn-action:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+.ra9048-btn-action svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Export dropdown */
+.ra9048-export-dropdown {
+    position: relative;
+}
+
+.ra9048-export-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    z-index: 50;
+    min-width: 200px;
+    overflow: hidden;
+}
+
+.ra9048-export-menu--open {
+    display: block;
+}
+
+.ra9048-export-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    font-size: 0.82rem;
+    color: #334155;
+    text-decoration: none;
+    transition: background 0.15s;
+}
+
+.ra9048-export-option:hover {
+    background: #f1f5f9;
+}
+
+.ra9048-export-option svg {
+    width: 16px;
+    height: 16px;
+    color: #64748b;
+}
+
+/* ========================================
+   RECORDS TABLE
+   ======================================== */
+.ra9048-records-table-wrapper {
+    overflow-x: auto;
+    margin-bottom: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.ra9048-records-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+
+.ra9048-records-table thead th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
+}
+
+.ra9048-records-table tbody td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+    vertical-align: middle;
+}
+
+.ra9048-records-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.ra9048-records-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* ========================================
+   BADGES — Record type indicators
+   ======================================== */
+.ra9048-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.73rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.badge-cce { background: #dbeafe; color: #1e40af; }
+.badge-cfn { background: #fef3c7; color: #92400e; }
+.badge-ausf { background: #ede9fe; color: #5b21b6; }
+.badge-supplemental { background: #e0f2fe; color: #075985; }
+.badge-legitimation { background: #fce7f3; color: #9d174d; }
+.badge-default { background: #f1f5f9; color: #475569; }
+.badge-doc { background: #f1f5f9; color: #475569; }
+
+/* ========================================
+   ROW ACTIONS
+   ======================================== */
+.ra9048-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.ra9048-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #475569;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.ra9048-action-btn:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+.ra9048-action-edit:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+    background: #eff6ff;
+}
+
+.ra9048-action-delete {
+    color: #94a3b8;
+}
+
+.ra9048-action-delete:hover {
+    border-color: #ef4444;
+    color: #ef4444;
+    background: #fef2f2;
+}
+
+/* ========================================
+   PAGINATION
+   ======================================== */
+.ra9048-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
+.ra9048-pagination-info {
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+.ra9048-pagination-buttons {
+    display: flex;
+    gap: 4px;
+}
+
+.ra9048-page-btn {
+    padding: 6px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #fff;
+    color: #475569;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.ra9048-page-btn:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+.ra9048-page-btn--active {
+    background: #3b82f6;
+    color: #fff;
+    border-color: #3b82f6;
+}
+
+.ra9048-page-btn--active:hover {
+    background: #2563eb;
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+@media (max-width: 768px) {
+    .ra9048-card-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .ra9048-tab-bar {
+        gap: 0;
+    }
+
+    .ra9048-tab {
+        padding: 8px 14px;
+        font-size: 0.8rem;
+    }
+
+    .ra9048-filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ra9048-filter-group {
+        flex-direction: column;
+    }
+
+    .ra9048-search-box {
+        max-width: 100%;
+    }
+
+    .ra9048-filter-actions {
+        justify-content: flex-end;
+    }
+
+    .ra9048-pagination {
+        flex-direction: column;
+        align-items: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .ra9048-card {
+        padding: 20px 16px;
+    }
+
+    .ra9048-quick-links {
+        flex-direction: column;
+    }
+}

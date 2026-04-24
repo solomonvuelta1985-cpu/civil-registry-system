@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:mercedes.gov.ph)",
+      "WebFetch(domain:www.generalnakar.gov.ph)",
+      "WebFetch(domain:psaantique.6te.net)",
+      "WebFetch(domain:www.zamboangacity.gov.ph)"
+    ]
+  }
+}
