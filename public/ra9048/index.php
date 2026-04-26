@@ -71,13 +71,26 @@ try {
                 </div>
 
                 <!-- Page Header -->
-                <div class="ra9048-page-header">
-                    <h1>RA 9048 / 10172 Transactions</h1>
-                    <p>Select a transaction type to begin encoding</p>
+                <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; text-align: left;">
+                    <div>
+                        <h1 class="page-title" style="justify-content: flex-start;">
+                            <i data-lucide="file-stack"></i>
+                            RA 9048 / 10172 Transactions
+                        </h1>
+                        <p class="page-subtitle">Select a transaction type to begin encoding</p>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <a href="records.php" class="ra9048-btn-action">
+                            <i data-lucide="list"></i> All Records
+                        </a>
+                        <a href="export.php" class="ra9048-btn-action">
+                            <i data-lucide="download"></i> Export
+                        </a>
+                    </div>
                 </div>
 
                 <!-- 3 Transaction Cards -->
-                <div class="ra9048-card-grid">
+                <div class="ra9048-card-grid" style="padding: 28px 20px;">
                     <!-- Petition Card -->
                     <a href="petition.php" class="ra9048-card ra9048-card--petition">
                         <div class="ra9048-card-icon">
@@ -133,16 +146,6 @@ try {
                                 <i data-lucide="arrow-right"></i>
                             </div>
                         </div>
-                    </a>
-                </div>
-
-                <!-- Quick Links -->
-                <div class="ra9048-quick-links">
-                    <a href="records.php" class="ra9048-quick-link">
-                        <i data-lucide="list"></i> View All Records
-                    </a>
-                    <a href="export.php" class="ra9048-quick-link">
-                        <i data-lucide="download"></i> Export Data
                     </a>
                 </div>
 

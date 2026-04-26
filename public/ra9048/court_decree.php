@@ -87,12 +87,17 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
                         <div class="form-column">
 
                             <!-- Section: Decree Type -->
-                            <fieldset class="form-section">
-                                <legend class="section-title"><i data-lucide="gavel"></i> Decree Type</legend>
+                            <div class="form-section">
+                                <div class="section-header">
+                                    <h2 class="section-title">
+                                        <i data-lucide="gavel"></i>
+                                        Decree Type
+                                    </h2>
+                                </div>
                                 <div class="form-row">
-                                    <div class="form-group form-group-half">
-                                        <label for="decree_type" class="form-label required-field">Type of Court Decree</label>
-                                        <select id="decree_type" name="decree_type" class="form-input" required>
+                                    <div class="form-group">
+                                        <label for="decree_type">Type of Court Decree <span class="required">*</span></label>
+                                        <select id="decree_type" name="decree_type" required>
                                             <option value="">— Select —</option>
                                             <option value="Adoption" <?= ($record['decree_type'] ?? '') === 'Adoption' ? 'selected' : '' ?>>Adoption</option>
                                             <option value="Annulment" <?= ($record['decree_type'] ?? '') === 'Annulment' ? 'selected' : '' ?>>Annulment</option>
@@ -103,81 +108,96 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
                                             <option value="Other" <?= ($record['decree_type'] ?? '') === 'Other' ? 'selected' : '' ?>>Other</option>
                                         </select>
                                     </div>
-                                    <div class="form-group form-group-half ra9048-conditional-field" id="decreeTypeOtherRow">
-                                        <label for="decree_type_other" class="form-label">Specify Other Type</label>
-                                        <input type="text" id="decree_type_other" name="decree_type_other" class="form-input" value="<?= escape_html($record['decree_type_other'] ?? '') ?>" placeholder="Specify decree type">
+                                    <div class="form-group ra9048-conditional-field" id="decreeTypeOtherRow">
+                                        <label for="decree_type_other">Specify Other Type</label>
+                                        <input type="text" id="decree_type_other" name="decree_type_other" value="<?= escape_html($record['decree_type_other'] ?? '') ?>" placeholder="Specify decree type">
                                     </div>
                                 </div>
-                            </fieldset>
+                            </div>
 
                             <!-- Section: Court Information -->
-                            <fieldset class="form-section">
-                                <legend class="section-title"><i data-lucide="building-2"></i> Court Information</legend>
+                            <div class="form-section">
+                                <div class="section-header">
+                                    <h2 class="section-title">
+                                        <i data-lucide="building-2"></i>
+                                        Court Information
+                                    </h2>
+                                </div>
                                 <div class="form-row">
-                                    <div class="form-group form-group-half">
-                                        <label for="court_region" class="form-label">Region</label>
-                                        <input type="text" id="court_region" name="court_region" class="form-input" value="<?= escape_html($record['court_region'] ?? '') ?>" placeholder="e.g., Region II">
+                                    <div class="form-group">
+                                        <label for="court_region">Region</label>
+                                        <input type="text" id="court_region" name="court_region" value="<?= escape_html($record['court_region'] ?? '') ?>" placeholder="e.g., Region II">
                                     </div>
-                                    <div class="form-group form-group-half">
-                                        <label for="court_branch" class="form-label">Branch</label>
-                                        <input type="text" id="court_branch" name="court_branch" class="form-input" value="<?= escape_html($record['court_branch'] ?? '') ?>" placeholder="e.g., Branch 25">
+                                    <div class="form-group">
+                                        <label for="court_branch">Branch</label>
+                                        <input type="text" id="court_branch" name="court_branch" value="<?= escape_html($record['court_branch'] ?? '') ?>" placeholder="e.g., Branch 25">
                                     </div>
                                 </div>
                                 <div class="form-row">
-                                    <div class="form-group form-group-half">
-                                        <label for="court_city_municipality" class="form-label">City / Municipality</label>
-                                        <input type="text" id="court_city_municipality" name="court_city_municipality" class="form-input" value="<?= escape_html($record['court_city_municipality'] ?? '') ?>" placeholder="e.g., Tuguegarao City">
+                                    <div class="form-group">
+                                        <label for="court_city_municipality">City / Municipality</label>
+                                        <input type="text" id="court_city_municipality" name="court_city_municipality" value="<?= escape_html($record['court_city_municipality'] ?? '') ?>" placeholder="e.g., Tuguegarao City">
                                     </div>
-                                    <div class="form-group form-group-half">
-                                        <label for="court_province" class="form-label">Province</label>
-                                        <input type="text" id="court_province" name="court_province" class="form-input" value="<?= escape_html($record['court_province'] ?? '') ?>" placeholder="e.g., Cagayan">
+                                    <div class="form-group">
+                                        <label for="court_province">Province</label>
+                                        <input type="text" id="court_province" name="court_province" value="<?= escape_html($record['court_province'] ?? '') ?>" placeholder="e.g., Cagayan">
                                     </div>
                                 </div>
                                 <div class="form-row">
-                                    <div class="form-group form-group-half">
-                                        <label for="case_number" class="form-label">Case Number</label>
-                                        <input type="text" id="case_number" name="case_number" class="form-input" value="<?= escape_html($record['case_number'] ?? '') ?>" placeholder="Court case number">
+                                    <div class="form-group">
+                                        <label for="case_number">Case Number</label>
+                                        <input type="text" id="case_number" name="case_number" value="<?= escape_html($record['case_number'] ?? '') ?>" placeholder="Court case number">
                                     </div>
-                                    <div class="form-group form-group-half">
-                                        <label for="date_of_decree" class="form-label">Date of Decree</label>
-                                        <input type="date" id="date_of_decree" name="date_of_decree" class="form-input" value="<?= escape_html($record['date_of_decree'] ?? '') ?>">
+                                    <div class="form-group">
+                                        <label for="date_of_decree">Date of Decree</label>
+                                        <input type="date" id="date_of_decree" name="date_of_decree" value="<?= escape_html($record['date_of_decree'] ?? '') ?>">
                                     </div>
                                 </div>
-                            </fieldset>
+                            </div>
 
                             <!-- Section: Filing & Person Details -->
-                            <fieldset class="form-section">
-                                <legend class="section-title"><i data-lucide="user"></i> Filing & Person Details</legend>
+                            <div class="form-section">
+                                <div class="section-header">
+                                    <h2 class="section-title">
+                                        <i data-lucide="user"></i>
+                                        Filing & Person Details
+                                    </h2>
+                                </div>
                                 <div class="form-row">
-                                    <div class="form-group form-group-half">
-                                        <label for="date_of_filing" class="form-label">Date of Filing</label>
-                                        <input type="date" id="date_of_filing" name="date_of_filing" class="form-input" value="<?= escape_html($record['date_of_filing'] ?? '') ?>">
-                                        <small style="color: #64748b; font-size: 0.78rem;">Date filed at civil registry (optional)</small>
+                                    <div class="form-group">
+                                        <label for="date_of_filing">Date of Filing</label>
+                                        <input type="date" id="date_of_filing" name="date_of_filing" value="<?= escape_html($record['date_of_filing'] ?? '') ?>">
+                                        <span class="help-text">Date filed at civil registry (optional)</span>
                                     </div>
-                                    <div class="form-group form-group-half">
-                                        <label for="registry_number" class="form-label">Registry Number</label>
-                                        <input type="text" id="registry_number" name="registry_number" class="form-input" value="<?= escape_html($record['registry_number'] ?? '') ?>" placeholder="Registry number">
+                                    <div class="form-group">
+                                        <label for="registry_number">Registry Number</label>
+                                        <input type="text" id="registry_number" name="registry_number" value="<?= escape_html($record['registry_number'] ?? '') ?>" placeholder="Registry number">
                                     </div>
                                 </div>
                                 <div class="form-row">
-                                    <div class="form-group form-group-half">
-                                        <label for="document_owner_names" class="form-label required-field">Document Owner/s</label>
-                                        <input type="text" id="document_owner_names" name="document_owner_names" class="form-input" value="<?= escape_html($record['document_owner_names'] ?? '') ?>" placeholder="Name of document owner/s" required>
+                                    <div class="form-group">
+                                        <label for="document_owner_names">Document Owner/s <span class="required">*</span></label>
+                                        <input type="text" id="document_owner_names" name="document_owner_names" value="<?= escape_html($record['document_owner_names'] ?? '') ?>" placeholder="Name of document owner/s" required>
                                     </div>
-                                    <div class="form-group form-group-half">
-                                        <label for="petitioner_names" class="form-label">Petitioner/s</label>
-                                        <input type="text" id="petitioner_names" name="petitioner_names" class="form-input" value="<?= escape_html($record['petitioner_names'] ?? '') ?>" placeholder="Name of petitioner/s">
+                                    <div class="form-group">
+                                        <label for="petitioner_names">Petitioner/s</label>
+                                        <input type="text" id="petitioner_names" name="petitioner_names" value="<?= escape_html($record['petitioner_names'] ?? '') ?>" placeholder="Name of petitioner/s">
                                     </div>
                                 </div>
-                            </fieldset>
+                            </div>
 
                             <!-- Section: Document Details -->
-                            <fieldset class="form-section">
-                                <legend class="section-title"><i data-lucide="file-text"></i> Document Details</legend>
+                            <div class="form-section">
+                                <div class="section-header">
+                                    <h2 class="section-title">
+                                        <i data-lucide="file-text"></i>
+                                        Document Details
+                                    </h2>
+                                </div>
                                 <div class="form-row">
-                                    <div class="form-group form-group-half">
-                                        <label for="document_type" class="form-label">Type of Document</label>
-                                        <select id="document_type" name="document_type" class="form-input">
+                                    <div class="form-group">
+                                        <label for="document_type">Type of Document</label>
+                                        <select id="document_type" name="document_type">
                                             <option value="">— Select —</option>
                                             <option value="COLB" <?= ($record['document_type'] ?? '') === 'COLB' ? 'selected' : '' ?>>COLB — Certificate of Live Birth</option>
                                             <option value="COM" <?= ($record['document_type'] ?? '') === 'COM' ? 'selected' : '' ?>>COM — Certificate of Marriage</option>
@@ -185,37 +205,15 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
                                         </select>
                                     </div>
                                 </div>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="decree_details" class="form-label">Decree Details</label>
-                                        <textarea id="decree_details" name="decree_details" class="form-input" rows="3" placeholder="Summary of the court decree"><?= escape_html($record['decree_details'] ?? '') ?></textarea>
-                                    </div>
+                                <div class="form-group">
+                                    <label for="decree_details">Decree Details</label>
+                                    <textarea id="decree_details" name="decree_details" rows="3" placeholder="Summary of the court decree"><?= escape_html($record['decree_details'] ?? '') ?></textarea>
                                 </div>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="remarks" class="form-label">Remarks</label>
-                                        <textarea id="remarks" name="remarks" class="form-input" rows="3" placeholder="Optional remarks"><?= escape_html($record['remarks'] ?? '') ?></textarea>
-                                    </div>
+                                <div class="form-group">
+                                    <label for="remarks">Remarks</label>
+                                    <textarea id="remarks" name="remarks" rows="3" placeholder="Optional remarks"><?= escape_html($record['remarks'] ?? '') ?></textarea>
                                 </div>
-                            </fieldset>
-
-                            <!-- Section: PDF Upload -->
-                            <fieldset class="form-section">
-                                <legend class="section-title"><i data-lucide="upload"></i> PDF Upload</legend>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="pdf_file" class="form-label">Upload PDF Document</label>
-                                        <input type="file" id="pdf_file" name="pdf_file" class="form-input" accept=".pdf">
-                                        <small style="color: #64748b; font-size: 0.78rem;">Max 5MB. PDF files only.</small>
-                                        <?php if ($edit_mode && !empty($record['pdf_filename'])): ?>
-                                            <p style="margin-top: 6px; font-size: 0.82rem; color: #475569;">
-                                                <i data-lucide="paperclip" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i>
-                                                Current file: <strong><?= escape_html(basename($record['pdf_filename'])) ?></strong>
-                                            </p>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                            </fieldset>
+                            </div>
 
                             <!-- Action Buttons -->
                             <div class="sticky-buttons">
@@ -271,8 +269,72 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
                             </div>
 
                         </div><!-- /.form-column -->
+
+                <!-- RIGHT COLUMN: PDF Preview Drawer -->
+                <div class="pdf-column" id="pdfColumn">
+                    <div class="pdf-preview-header">
+                        <h3 class="pdf-preview-title">
+                            <i data-lucide="file-text"></i>
+                            PDF Upload
+                        </h3>
+                        <button type="button" id="togglePdfBtn" class="toggle-pdf-btn" title="Hide PDF Upload">
+                            <i data-lucide="eye-off"></i>
+                        </button>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pdf_file">
+                            Upload PDF Document
+                        </label>
+
+                        <div class="upload-scanner-container">
+                            <input
+                                type="file"
+                                id="pdf_file"
+                                name="pdf_file"
+                                accept=".pdf"
+                            >
+                        </div>
+
+                        <span class="help-text">Maximum file size: 5MB. Only PDF files are accepted.</span>
+                        <?php if ($edit_mode && !empty($record['pdf_filename'])): ?>
+                            <span class="help-text">Leave empty to keep existing file.</span>
+                        <?php endif; ?>
+                    </div>
+
+                    <?php if ($edit_mode && !empty($record['pdf_filename'])): ?>
+                    <div class="pdf-preview-container">
+                        <iframe id="pdfPreview" src="../../api/serve_pdf.php?file=<?= urlencode($record['pdf_filename']) ?>"></iframe>
+                    </div>
+                    <div class="pdf-info">
+                        <i data-lucide="info"></i>
+                        <span>Current File: <span class="pdf-filename"><?= escape_html(basename($record['pdf_filename'])) ?></span></span>
+                    </div>
+                    <?php else: ?>
+                    <div id="pdfUploadArea" class="pdf-upload-area">
+                        <i data-lucide="upload-cloud"></i>
+                        <p class="pdf-upload-text">Click "Choose File" above to upload PDF</p>
+                        <p class="pdf-upload-hint">The PDF will be previewed here after upload</p>
+                    </div>
+
+                    <div id="pdfPreviewArea" class="hidden">
+                        <div class="pdf-preview-container">
+                            <iframe id="pdfPreview" src=""></iframe>
+                        </div>
+                        <div class="pdf-info">
+                            <i data-lucide="info"></i>
+                            <span>File: <span id="pdfFileName" class="pdf-filename"></span></span>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                </div>
                     </div><!-- /.form-layout -->
                 </form>
+
+        <!-- Floating Toggle Button - opens PDF drawer -->
+        <button type="button" id="floatingToggleBtn" class="floating-toggle-btn" title="Open PDF Upload">
+            <i data-lucide="file-text"></i>
+        </button>
 
             </div>
         </div>

@@ -60,72 +60,81 @@ $can_delete = isAdmin();
                 </div>
 
                 <!-- Page Header -->
-                <div class="ra9048-page-header">
-                    <h1>RA 9048 / 10172 Records</h1>
-                    <p>View, search, and manage all RA 9048 transaction records</p>
+                <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; text-align: left;">
+                    <div>
+                        <h1 class="page-title" style="justify-content: flex-start;">
+                            <i data-lucide="folder-open"></i>
+                            RA 9048 / 10172 Records
+                        </h1>
+                        <p class="page-subtitle">View, search, and manage all transaction records</p>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <a href="index.php" class="ra9048-btn-action">
+                            <i data-lucide="plus"></i> New Record
+                        </a>
+                    </div>
                 </div>
 
-                <!-- Tab Bar -->
-                <div class="ra9048-tab-bar">
-                    <button class="ra9048-tab <?= $active_tab === 'petition' ? 'ra9048-tab--active' : '' ?>" data-tab="petition">
-                        <i data-lucide="file-pen"></i> Petition
-                        <span class="ra9048-tab-count" id="petitionCount">0</span>
-                    </button>
-                    <button class="ra9048-tab <?= $active_tab === 'legal_instrument' ? 'ra9048-tab--active' : '' ?>" data-tab="legal_instrument">
-                        <i data-lucide="scale"></i> Legal Instrument
-                        <span class="ra9048-tab-count" id="legalInstrumentCount">0</span>
-                    </button>
-                    <button class="ra9048-tab <?= $active_tab === 'court_decree' ? 'ra9048-tab--active' : '' ?>" data-tab="court_decree">
-                        <i data-lucide="gavel"></i> Court Decree
-                        <span class="ra9048-tab-count" id="courtDecreeCount">0</span>
-                    </button>
-                </div>
-
-                <!-- Filter Bar -->
-                <div class="ra9048-filter-bar">
-                    <div class="ra9048-filter-group">
-                        <div class="ra9048-search-box">
-                            <i data-lucide="search" style="width:16px;height:16px;color:#94a3b8;"></i>
-                            <input type="text" id="searchInput" placeholder="Search records..." class="ra9048-search-input">
-                        </div>
-                        <input type="date" id="dateFrom" class="ra9048-date-input" title="From date">
-                        <input type="date" id="dateTo" class="ra9048-date-input" title="To date">
-                        <button type="button" id="clearFilters" class="ra9048-btn-clear" title="Clear filters">
-                            <i data-lucide="x"></i> Clear
+                <div style="padding: 0 20px 20px;">
+                    <!-- Tab Bar -->
+                    <div class="ra9048-tab-bar">
+                        <button class="ra9048-tab <?= $active_tab === 'petition' ? 'ra9048-tab--active' : '' ?>" data-tab="petition">
+                            <i data-lucide="file-pen"></i> Petition
+                            <span class="ra9048-tab-count" id="petitionCount">0</span>
+                        </button>
+                        <button class="ra9048-tab <?= $active_tab === 'legal_instrument' ? 'ra9048-tab--active' : '' ?>" data-tab="legal_instrument">
+                            <i data-lucide="scale"></i> Legal Instrument
+                            <span class="ra9048-tab-count" id="legalInstrumentCount">0</span>
+                        </button>
+                        <button class="ra9048-tab <?= $active_tab === 'court_decree' ? 'ra9048-tab--active' : '' ?>" data-tab="court_decree">
+                            <i data-lucide="gavel"></i> Court Decree
+                            <span class="ra9048-tab-count" id="courtDecreeCount">0</span>
                         </button>
                     </div>
-                    <div class="ra9048-filter-actions">
-                        <a href="index.php" class="ra9048-btn-action" title="New Record">
-                            <i data-lucide="plus"></i> New
-                        </a>
-                        <div class="ra9048-export-dropdown">
-                            <button type="button" class="ra9048-btn-action ra9048-btn-export" id="exportBtn">
-                                <i data-lucide="download"></i> Export
+
+                    <!-- Filter Bar -->
+                    <div class="ra9048-filter-bar">
+                        <div class="ra9048-filter-group">
+                            <div class="ra9048-search-box">
+                                <i data-lucide="search" style="width:16px;height:16px;color:#94a3b8;"></i>
+                                <input type="text" id="searchInput" placeholder="Search records..." class="ra9048-search-input">
+                            </div>
+                            <input type="date" id="dateFrom" class="ra9048-date-input" title="From date">
+                            <input type="date" id="dateTo" class="ra9048-date-input" title="To date">
+                            <button type="button" id="clearFilters" class="ra9048-btn-clear" title="Clear filters">
+                                <i data-lucide="x"></i> Clear
                             </button>
-                            <div class="ra9048-export-menu" id="exportMenu">
-                                <a href="#" class="ra9048-export-option" data-format="xls">
-                                    <i data-lucide="file-spreadsheet"></i> Export as Excel (.xls)
-                                </a>
-                                <a href="#" class="ra9048-export-option" data-format="csv">
-                                    <i data-lucide="file-text"></i> Export as CSV (.csv)
-                                </a>
+                        </div>
+                        <div class="ra9048-filter-actions">
+                            <div class="ra9048-export-dropdown">
+                                <button type="button" class="ra9048-btn-action ra9048-btn-export" id="exportBtn">
+                                    <i data-lucide="download"></i> Export
+                                </button>
+                                <div class="ra9048-export-menu" id="exportMenu">
+                                    <a href="#" class="ra9048-export-option" data-format="xls">
+                                        <i data-lucide="file-spreadsheet"></i> Export as Excel (.xls)
+                                    </a>
+                                    <a href="#" class="ra9048-export-option" data-format="csv">
+                                        <i data-lucide="file-text"></i> Export as CSV (.csv)
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Records Table -->
-                <div class="ra9048-records-table-wrapper">
-                    <table class="ra9048-records-table" id="recordsTable">
-                        <thead id="tableHead"></thead>
-                        <tbody id="tableBody">
-                            <tr><td colspan="10" style="text-align:center;padding:40px;color:#94a3b8;">Loading records...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
+                    <!-- Records Table -->
+                    <div class="ra9048-records-table-wrapper">
+                        <table class="ra9048-records-table" id="recordsTable">
+                            <thead id="tableHead"></thead>
+                            <tbody id="tableBody">
+                                <tr><td colspan="10" style="text-align:center;padding:40px;color:#94a3b8;">Loading records...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
 
-                <!-- Pagination -->
-                <div class="ra9048-pagination" id="pagination"></div>
+                    <!-- Pagination -->
+                    <div class="ra9048-pagination" id="pagination"></div>
+                </div>
 
             </div>
         </div>
