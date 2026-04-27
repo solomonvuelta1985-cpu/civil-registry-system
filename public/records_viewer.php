@@ -77,7 +77,9 @@ $record_configs = [
             ['label' => 'Wife', 'field' => 'wife_name', 'sortable' => true, 'sort_field' => 'wife_first_name'],
             ['label' => 'Marriage Date', 'field' => 'date_of_marriage', 'sortable' => true, 'type' => 'date'],
             ['label' => 'Place of Marriage', 'field' => 'place_of_marriage', 'sortable' => true],
-            ['label' => 'Registration Date', 'field' => 'date_of_registration', 'sortable' => true, 'type' => 'date']
+            ['label' => 'Registration Date', 'field' => 'date_of_registration', 'sortable' => true, 'type' => 'date'],
+            ['label' => 'PDF', 'field' => 'has_pdf', 'sortable' => false, 'type' => 'icon'],
+            ['label' => 'Encoded By', 'field' => 'encoded_by', 'sortable' => false]
         ],
         'filters' => [
             ['name' => 'marriage_date_from', 'label' => 'Marriage Date From', 'type' => 'date', 'field' => 'date_of_marriage', 'operator' => '>='],
@@ -125,7 +127,9 @@ $record_configs = [
             ['label' => 'Father', 'field' => 'father_name', 'sortable' => true, 'sort_field' => 'father_first_name'],
             ['label' => 'Mother', 'field' => 'mother_name', 'sortable' => true, 'sort_field' => 'mother_first_name'],
             ['label' => 'Place of Birth', 'field' => 'child_place_of_birth', 'sortable' => true],
-            ['label' => 'Registration Date', 'field' => 'date_of_registration', 'sortable' => true, 'type' => 'date']
+            ['label' => 'Registration Date', 'field' => 'date_of_registration', 'sortable' => true, 'type' => 'date'],
+            ['label' => 'PDF', 'field' => 'has_pdf', 'sortable' => false, 'type' => 'icon'],
+            ['label' => 'Encoded By', 'field' => 'encoded_by', 'sortable' => false]
         ],
         'filters' => [
             ['name' => 'birth_date_from', 'label' => 'Birth Date From', 'type' => 'date', 'field' => 'child_date_of_birth', 'operator' => '>='],
@@ -224,7 +228,9 @@ $record_configs = [
             ['label' => 'Date of Birth', 'field' => 'date_of_birth', 'sortable' => true, 'type' => 'date'],
             ['label' => 'Date of Death', 'field' => 'date_of_death', 'sortable' => true, 'type' => 'date'],
             ['label' => 'Place of Death', 'field' => 'place_of_death', 'sortable' => true],
-            ['label' => 'Registration Date', 'field' => 'date_of_registration', 'sortable' => true, 'type' => 'date']
+            ['label' => 'Registration Date', 'field' => 'date_of_registration', 'sortable' => true, 'type' => 'date'],
+            ['label' => 'PDF', 'field' => 'has_pdf', 'sortable' => false, 'type' => 'icon'],
+            ['label' => 'Encoded By', 'field' => 'encoded_by', 'sortable' => false]
         ],
         'filters' => [
             ['name' => 'death_date_from', 'label' => 'Death Date From', 'type' => 'date', 'field' => 'date_of_death', 'operator' => '>='],
@@ -282,7 +288,9 @@ $record_configs = [
             ['label' => 'Bride', 'field' => 'bride_name', 'sortable' => true, 'sort_field' => 'bride_first_name'],
             ['label' => 'Application Date', 'field' => 'date_of_application', 'sortable' => true, 'type' => 'date'],
             ['label' => 'Groom Residence', 'field' => 'groom_residence', 'sortable' => true],
-            ['label' => 'Bride Residence', 'field' => 'bride_residence', 'sortable' => true]
+            ['label' => 'Bride Residence', 'field' => 'bride_residence', 'sortable' => true],
+            ['label' => 'PDF', 'field' => 'has_pdf', 'sortable' => false, 'type' => 'icon'],
+            ['label' => 'Encoded By', 'field' => 'encoded_by', 'sortable' => false]
         ],
         'filters' => [
             ['name' => 'app_date_from', 'label' => 'Application Date From', 'type' => 'date', 'field' => 'date_of_application', 'operator' => '>='],
@@ -487,6 +495,20 @@ if (!empty($records)) {
     }
 }
 
+// Preload user lookup map for "Encoded By" column (avoids N+1 queries)
+$user_map = [];
+if (!empty($records)) {
+    $user_ids = array_unique(array_filter(array_column($records, 'created_by')));
+    if (!empty($user_ids)) {
+        $placeholders = implode(',', array_fill(0, count($user_ids), '?'));
+        $u_stmt = $pdo->prepare("SELECT id, full_name FROM users WHERE id IN ($placeholders)");
+        $u_stmt->execute(array_values($user_ids));
+        foreach ($u_stmt->fetchAll() as $u) {
+            $user_map[(int)$u['id']] = $u['full_name'];
+        }
+    }
+}
+
 // Helper function to build query string for pagination/sorting
 function build_query_string($exclude = []) {
     $params = $_GET;
@@ -613,6 +635,17 @@ function get_field_value($record, $field, $type = 'text') {
         $unit = $record['age_unit'] ?? 'years';
         $label = ucfirst($unit);
         return htmlspecialchars($record['age'] . ' ' . $label);
+    } elseif ($field === 'has_pdf') {
+        $has = !empty($record['pdf_filename']);
+        return $has
+            ? '<i data-lucide="file-check" style="width:16px;height:16px;color:#16a34a;" title="PDF attached"></i>'
+            : '<i data-lucide="file-x" style="width:16px;height:16px;color:#d1d5db;" title="No PDF"></i>';
+    } elseif ($field === 'encoded_by') {
+        global $user_map;
+        $uid = $record['created_by'] ?? null;
+        if (!$uid) return '<span style="color:#94a3b8;">—</span>';
+        $name = $user_map[(int)$uid] ?? 'Unknown';
+        return htmlspecialchars($name);
     } elseif ($type === 'date' && !empty($record[$field])) {
         return date('M d, Y', strtotime($record[$field]));
     } else {
@@ -1987,6 +2020,55 @@ function detect_late_registration($record, $record_type) {
                 font-size: 14px;
             }
         }
+
+        /* Export Dropdown */
+        .export-dropdown {
+            position: relative;
+        }
+
+        .export-dropdown-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            min-width: 180px;
+            z-index: 100;
+            overflow: hidden;
+        }
+
+        .export-dropdown-menu.show {
+            display: block;
+        }
+
+        .export-dropdown-menu a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .export-dropdown-menu a:hover {
+            background: var(--primary-lighter);
+            color: var(--primary);
+        }
+
+        .export-dropdown-menu a + a {
+            border-top: 1px solid var(--border-light);
+        }
+
+        /* Utility — center icon columns */
+        .text-center {
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -2023,6 +2105,22 @@ function detect_late_registration($record, $record_type) {
                         Add New Record
                     </a>
                     <?php endif; ?>
+                    <div class="export-dropdown">
+                        <button class="btn btn-outline" onclick="toggleExportMenu(event)" title="Export records">
+                            <i data-lucide="download"></i>
+                            Export
+                        </button>
+                        <div class="export-dropdown-menu" id="exportMenu">
+                            <a href="#" onclick="exportRecords('xls'); return false;">
+                                <i data-lucide="file-spreadsheet" style="width:15px;height:15px;"></i>
+                                Excel (.xls)
+                            </a>
+                            <a href="#" onclick="exportRecords('csv'); return false;">
+                                <i data-lucide="file-text" style="width:15px;height:15px;"></i>
+                                CSV
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -2238,6 +2336,9 @@ function detect_late_registration($record, $record_type) {
                         foreach ($records as $record):
                             $is_archived_row = ($record['status'] ?? 'Active') === 'Archived';
                             $is_linked = isset($record_link_map[(int)$record['id']]);
+                            // Strip sensitive server paths from JSON passed to JS handlers
+                            $record_safe = $record;
+                            unset($record_safe['pdf_filepath'], $record_safe['pdf_hash']);
                         ?>
                         <tr class="<?php echo $is_archived_row ? 'row-archived' : ''; ?>" data-record-id="<?php echo (int)$record['id']; ?>" data-record-status="<?php echo htmlspecialchars($record['status'] ?? 'Active'); ?>">
                             <?php if ($can_archive): ?>
@@ -2255,7 +2356,7 @@ function detect_late_registration($record, $record_type) {
                                 $is_first_name_cell = $is_name && !$first_name_shown;
                                 if ($is_name) $first_name_shown = true;
                             ?>
-                            <td>
+                            <td<?php echo (($column['type'] ?? '') === 'icon') ? ' class="text-center"' : ''; ?>>
                                 <?php if ($is_name): ?>
                                     <a href="javascript:void(0)" class="record-name-link" onclick="recordPreviewModal.open(<?php echo $record['id']; ?>, '<?php echo $record_type; ?>')"><?php echo $value; ?></a>
                                 <?php else: echo $value; endif; ?>
@@ -2317,7 +2418,7 @@ function detect_late_registration($record, $record_type) {
                                         </button>
                                         <?php if (hasPermission($edit_permission)): ?>
                                         <button class="action-dropdown-item edit-action"
-                                                onclick="editRecord(<?php echo $record['id']; ?>, '<?php echo $config['entry_form']; ?>', <?php echo htmlspecialchars(json_encode($record), ENT_QUOTES, 'UTF-8'); ?>); closeAllDropdowns();">
+                                                onclick="editRecord(<?php echo $record['id']; ?>, '<?php echo $config['entry_form']; ?>', <?php echo htmlspecialchars(json_encode($record_safe), ENT_QUOTES, 'UTF-8'); ?>); closeAllDropdowns();">
                                             <i data-lucide="pen-line"></i>
                                             <span>Edit</span>
                                         </button>
@@ -2325,13 +2426,13 @@ function detect_late_registration($record, $record_type) {
                                         <?php if ($can_archive && !$is_linked): ?>
                                             <?php if ($is_archived_row): ?>
                                             <button class="action-dropdown-item unarchive-action"
-                                                    onclick="toggleArchive(<?php echo $record['id']; ?>, 'unarchive', <?php echo htmlspecialchars(json_encode($record), ENT_QUOTES, 'UTF-8'); ?>); closeAllDropdowns();">
+                                                    onclick="toggleArchive(<?php echo $record['id']; ?>, 'unarchive', <?php echo htmlspecialchars(json_encode($record_safe), ENT_QUOTES, 'UTF-8'); ?>); closeAllDropdowns();">
                                                 <i data-lucide="archive-restore"></i>
                                                 <span>Unarchive</span>
                                             </button>
                                             <?php else: ?>
                                             <button class="action-dropdown-item archive-action"
-                                                    onclick="toggleArchive(<?php echo $record['id']; ?>, 'archive', <?php echo htmlspecialchars(json_encode($record), ENT_QUOTES, 'UTF-8'); ?>); closeAllDropdowns();">
+                                                    onclick="toggleArchive(<?php echo $record['id']; ?>, 'archive', <?php echo htmlspecialchars(json_encode($record_safe), ENT_QUOTES, 'UTF-8'); ?>); closeAllDropdowns();">
                                                 <i data-lucide="archive"></i>
                                                 <span>Archive</span>
                                             </button>
@@ -2358,7 +2459,7 @@ function detect_late_registration($record, $record_type) {
                                         <?php endif; endif; ?>
                                         <?php if ($can_delete && !$is_linked): ?>
                                         <button class="action-dropdown-item delete-action"
-                                                onclick="deleteRecord(<?php echo $record['id']; ?>, <?php echo htmlspecialchars(json_encode($record), ENT_QUOTES, 'UTF-8'); ?>); closeAllDropdowns();">
+                                                onclick="deleteRecord(<?php echo $record['id']; ?>, <?php echo htmlspecialchars(json_encode($record_safe), ENT_QUOTES, 'UTF-8'); ?>); closeAllDropdowns();">
                                             <i data-lucide="x-circle"></i>
                                             <span>Delete</span>
                                         </button>
@@ -2497,6 +2598,31 @@ function detect_late_registration($record, $record_type) {
                 });
             }
         });
+
+        // Export dropdown toggle
+        function toggleExportMenu(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('exportMenu');
+            menu.classList.toggle('show');
+        }
+        // Close export menu when clicking outside
+        document.addEventListener('click', function() {
+            const menu = document.getElementById('exportMenu');
+            if (menu) menu.classList.remove('show');
+        });
+
+        // Build export URL preserving current search/filter params
+        function exportRecords(format) {
+            const params = new URLSearchParams(window.location.search);
+            params.set('type', '<?php echo $record_type; ?>');
+            params.set('format', format);
+            // Remove pagination params — export all matching records
+            params.delete('page');
+            params.delete('per_page');
+            window.location.href = 'export.php?' + params.toString();
+            // Close the dropdown
+            document.getElementById('exportMenu').classList.remove('show');
+        }
 
         // Toggle advanced filters
         function toggleFilters() {
