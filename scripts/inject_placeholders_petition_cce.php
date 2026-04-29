@@ -62,25 +62,46 @@ $report = [];
 // then a closing } . We capture the inner identifier text.
 // ---------------------------------------------------------------------
 
+// IMPORTANT: only consume the SPECIFIC tag sequences Word inserts when it
+// fragments a placeholder ACROSS RUNS in a SINGLE PARAGRAPH:
+//   </w:t></w:r><w:proofErr .../><w:r ...><w:rPr>...</w:rPr><w:t...>
+// We must NOT consume <w:trPr>, <w:trHeight>, <w:jc>, etc. — those are
+// row/cell-level tags and swallowing them would tear the table apart.
+//
+// Strategy: a placeholder fragment is allowed to traverse only safe-to-skip
+// closure-and-reopen markup AND `<w:proofErr ...>` markers, then a new <w:t>.
+// We never let it cross a `</w:p>` (paragraph end), `<w:tr` (row start), or
+// `<w:tc` (cell start). Inner identifier chars are just [A-Za-z0-9_].
+
 $beforeNormalizationXml = $xml;
+
+// Allowed "bridge" segments inside a placeholder when split across runs.
+// Each bridge ends with a fresh <w:t...> opening tag.
+$bridge = '(?:'
+        . '</w:t>\s*</w:r>\s*'                               // close text + run
+        . '(?:<w:proofErr[^/]*/>\s*)*'                       // optional spell-check markers
+        . '<w:r(?:\s[^>]*)?>\s*'                             // open new run
+        . '(?:<w:rPr>(?:(?!</w:rPr>).)*</w:rPr>\s*)?'        // optional run properties
+        . '<w:t(?:\s[^>]*)?>'                                // open new text
+        . ')';
+
 $xml = preg_replace_callback(
-    '/\$(?:<[^>]+>|\s)*\{((?:<[^>]+>|[^}<])*)\}/s',
+    '#\$\s*\{((?:[A-Za-z0-9_]|' . $bridge . ')+)\}#s',
     function ($m) {
-        // Strip any XML tags AND whitespace from the captured identifier
+        // Strip any XML markup from the captured identifier (only bridges remain).
         $inner = preg_replace('/<[^>]+>/', '', $m[1]);
+        // Strip whitespace too (some splits leave residual spaces).
         $inner = preg_replace('/\s+/', '', $inner);
-        // Reject if the result isn't a valid placeholder name
         if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $inner)) {
-            return $m[0]; // leave alone
+            return $m[0]; // not actually a placeholder — leave untouched
         }
-        // Emit a clean ${name} as a single text run
         return '${' . $inner . '}';
     },
     $xml
 );
 
 if ($xml !== $beforeNormalizationXml) {
-    $report[] = "Normalized split placeholders (removed XML tags/whitespace inside \${...}).";
+    $report[] = "Normalized split placeholders (collapsed run-bridges inside \${...}).";
 }
 
 // ---------------------------------------------------------------------
