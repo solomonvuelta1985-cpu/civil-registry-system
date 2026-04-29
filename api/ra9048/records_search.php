@@ -37,9 +37,11 @@ if (!in_array($record_type, $valid_types)) {
 $configs = [
     'petition' => [
         'table' => 'petitions',
-        'search_fields' => ['document_owner_names', 'petitioner_names', 'petition_of', 'remarks'],
-        'columns' => ['id', 'petition_type', 'date_of_filing', 'document_owner_names', 'petitioner_names',
+        'search_fields' => ['document_owner_names', 'petitioner_names', 'petition_of', 'remarks', 'petition_number'],
+        'columns' => ['id', 'petition_number', 'petition_type', 'petition_subtype',
+                      'date_of_filing', 'document_owner_names', 'petitioner_names',
                       'document_type', 'petition_of', 'special_law', 'fee_amount', 'remarks',
+                      'status_workflow',
                       'pdf_filename', 'status', 'created_at'],
         'date_field' => 'date_of_filing',
     ],

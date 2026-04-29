@@ -155,19 +155,30 @@ $can_delete = isAdmin();
             petition: {
                 columns: [
                     { label: '#', field: 'id', width: '50px' },
-                    { label: 'Type', field: 'petition_type' },
+                    { label: 'Petition #', field: 'petition_number', width: '140px' },
+                    { label: 'Subtype', field: 'petition_subtype' },
                     { label: 'Date Filed', field: 'date_of_filing' },
                     { label: 'Document Owner/s', field: 'document_owner_names' },
-                    { label: 'Petitioner/s', field: 'petitioner_names' },
                     { label: 'Document', field: 'document_type' },
-                    { label: 'Fee', field: 'fee_amount' },
+                    { label: 'Status', field: 'status_workflow' },
+                    { label: 'Documents', field: '_documents', width: '120px' },
                     { label: 'PDF', field: 'pdf_filename' },
                     { label: 'Actions', field: '_actions' }
                 ],
                 editUrl: 'petition.php?id=',
                 deleteApi: '../../api/ra9048/petition_delete.php',
-                badgeField: 'petition_type',
-                badgeMap: { 'CCE': 'badge-cce', 'CFN': 'badge-cfn' }
+                badgeField: 'petition_subtype',
+                badgeMap: {
+                    'CCE_minor': 'badge-cce',
+                    'CCE_10172': 'badge-cce-10172',
+                    'CFN':       'badge-cfn',
+                    'CCE':       'badge-cce',
+                },
+                badgeLabels: {
+                    'CCE_minor': 'CCE',
+                    'CCE_10172': 'CCE/10172',
+                    'CFN':       'CFN',
+                }
             },
             legal_instrument: {
                 columns: [
@@ -266,6 +277,8 @@ $can_delete = isAdmin();
 
                     if (col.field === '_actions') {
                         td.innerHTML = renderActions(rec, config);
+                    } else if (col.field === '_documents') {
+                        td.innerHTML = renderDocsCell(rec);
                     } else if (col.field === '_court_info') {
                         const parts = [rec.court_branch, rec.court_city_municipality, rec.court_province].filter(Boolean);
                         td.textContent = parts.join(', ') || '—';
@@ -276,11 +289,19 @@ $can_delete = isAdmin();
                             : '<span style="color:#cbd5e1;">—</span>';
                     } else if (col.field === 'fee_amount') {
                         td.textContent = rec.fee_amount ? '₱' + parseFloat(rec.fee_amount).toLocaleString('en-PH', { minimumFractionDigits: 2 }) : '—';
+                    } else if (col.field === 'status_workflow') {
+                        td.innerHTML = renderStatusBadge(rec.status_workflow);
                     } else if (col.field === config.badgeField) {
                         const val = rec[col.field] || '';
                         const badgeClass = config.badgeMap[val] || 'badge-default';
-                        const label = col.field === 'decree_type' && val === 'Other' ? (rec.decree_type_other || 'Other') : val;
-                        td.innerHTML = '<span class="ra9048-badge ' + badgeClass + '">' + escapeHtml(label) + '</span>';
+                        const labels = config.badgeLabels || {};
+                        let label = labels[val] !== undefined ? labels[val] : val;
+                        if (col.field === 'decree_type' && val === 'Other') {
+                            label = rec.decree_type_other || 'Other';
+                        }
+                        td.innerHTML = val
+                            ? '<span class="ra9048-badge ' + badgeClass + '">' + escapeHtml(label) + '</span>'
+                            : '—';
                     } else if (col.field === 'date_of_filing' || col.field === 'date_of_decree') {
                         td.textContent = rec[col.field] ? formatDate(rec[col.field]) : '—';
                     } else if (col.field === 'document_type') {
@@ -300,11 +321,40 @@ $can_delete = isAdmin();
         function renderActions(rec, config) {
             let html = '<div class="ra9048-actions">';
             html += '<a href="' + config.editUrl + rec.id + '" class="ra9048-action-btn ra9048-action-edit" title="Edit"><i data-lucide="pencil" style="width:14px;height:14px;"></i></a>';
+            if (currentTab === 'petition') {
+                html += '<button type="button" class="ra9048-action-btn ra9048-action-download" data-id="' + rec.id + '" title="Download petition document"><i data-lucide="download" style="width:14px;height:14px;"></i></button>';
+                html += '<button type="button" class="ra9048-action-btn ra9048-action-regenerate" data-id="' + rec.id + '" title="Regenerate documents"><i data-lucide="refresh-cw" style="width:14px;height:14px;"></i></button>';
+            }
             if (CAN_DELETE) {
                 html += '<button type="button" class="ra9048-action-btn ra9048-action-delete" data-id="' + rec.id + '" data-name="' + escapeHtml(rec.document_owner_names) + '" title="Delete"><i data-lucide="trash-2" style="width:14px;height:14px;"></i></button>';
             }
             html += '</div>';
             return html;
+        }
+
+        // "Documents" column: a single button that opens a dropdown with the
+        // generated DOCX files. We lazy-load the list on click to avoid one
+        // extra request per row on initial page load.
+        function renderDocsCell(rec) {
+            return '<button type="button" class="ra9048-action-btn ra9048-action-docs" '
+                + 'data-id="' + rec.id + '" title="Generated documents">'
+                + '<i data-lucide="file-text" style="width:14px;height:14px;"></i> '
+                + '<span style="font-size:11px;">Files</span>'
+                + '</button>';
+        }
+
+        function renderStatusBadge(status) {
+            if (!status) return '<span style="color:#cbd5e1;">—</span>';
+            const map = {
+                'Filed':     'background:#dbeafe;color:#1e40af;',
+                'Posted':    'background:#fef3c7;color:#92400e;',
+                'Published': 'background:#fce7f3;color:#9d174d;',
+                'Decided':   'background:#dcfce7;color:#166534;',
+                'Endorsed':  'background:#e0e7ff;color:#3730a3;',
+            };
+            const style = map[status] || 'background:#f1f5f9;color:#475569;';
+            return '<span style="' + style + 'padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600;">'
+                + escapeHtml(status) + '</span>';
         }
 
         function showEmptyState(msg) {
@@ -435,6 +485,155 @@ $can_delete = isAdmin();
                         })
                         .catch(() => Notiflix.Notify.failure('Network error.'));
                 }
+            );
+        });
+
+        // ---- Documents popover (delegated) ----
+        // Click "Files" → fetch list_documents.php for that petition, render
+        // a small popover anchored under the button with download links.
+        document.getElementById('tableBody').addEventListener('click', function(e) {
+            const btn = e.target.closest('.ra9048-action-docs');
+            if (!btn) return;
+            e.stopPropagation();
+
+            // Toggle: if a popover is already open for this button, close it.
+            const existing = document.getElementById('ra9048DocsPopover');
+            const sameAnchor = existing && existing.dataset.anchorId === btn.dataset.id;
+            if (existing) existing.remove();
+            if (sameAnchor) return;
+
+            const id = btn.dataset.id;
+            const popover = document.createElement('div');
+            popover.id = 'ra9048DocsPopover';
+            popover.dataset.anchorId = id;
+            popover.className = 'ra9048-docs-popover';
+            popover.innerHTML = '<div class="ra9048-docs-popover-loading">Loading…</div>';
+
+            const rect = btn.getBoundingClientRect();
+            popover.style.top = (window.scrollY + rect.bottom + 6) + 'px';
+            popover.style.left = (window.scrollX + Math.min(rect.left, window.innerWidth - 320)) + 'px';
+            document.body.appendChild(popover);
+
+            fetch('../../api/ra9048/list_documents.php?petition_id=' + encodeURIComponent(id))
+                .then(r => r.json())
+                .then(json => {
+                    if (!json || !json.success || !json.data) {
+                        popover.innerHTML = '<div class="ra9048-docs-popover-empty">Failed to load documents.</div>';
+                        return;
+                    }
+                    const docs = json.data.documents || [];
+                    if (docs.length === 0) {
+                        popover.innerHTML = '<div class="ra9048-docs-popover-empty">No documents generated yet.<br><small>Click the regenerate button to create them.</small></div>';
+                        return;
+                    }
+                    let html = '<div class="ra9048-docs-popover-header">Generated Documents</div>';
+                    docs.forEach(d => {
+                        html += '<a class="ra9048-docs-popover-item" href="' + d.url + '" target="_blank" rel="noopener">'
+                              + '<i data-lucide="file-text" style="width:14px;height:14px;"></i> '
+                              + '<span>' + escapeHtml(d.label) + '</span>'
+                              + '</a>';
+                    });
+                    popover.innerHTML = html;
+                    if (window.lucide) lucide.createIcons();
+                })
+                .catch(() => {
+                    popover.innerHTML = '<div class="ra9048-docs-popover-empty">Network error.</div>';
+                });
+        });
+
+        // Close docs popover when clicking outside
+        document.addEventListener('click', function(e) {
+            const pop = document.getElementById('ra9048DocsPopover');
+            if (!pop) return;
+            if (e.target.closest('#ra9048DocsPopover') || e.target.closest('.ra9048-action-docs')) return;
+            pop.remove();
+        });
+
+        // ---- Download petition document (delegated) ----
+        // Fetches list_documents.php for the petition, then navigates to the
+        // petition .docx URL to trigger the browser download. If no document
+        // exists yet, offers to generate it first.
+        document.getElementById('tableBody').addEventListener('click', function(e) {
+            const btn = e.target.closest('.ra9048-action-download');
+            if (!btn) return;
+
+            const id = btn.dataset.id;
+            btn.disabled = true;
+
+            fetch('../../api/ra9048/list_documents.php?petition_id=' + encodeURIComponent(id))
+                .then(r => r.json())
+                .then(json => {
+                    btn.disabled = false;
+                    if (!json || !json.success || !json.data) {
+                        Notiflix.Notify.failure('Failed to load documents.');
+                        return;
+                    }
+                    const docs = json.data.documents || [];
+                    const petitionDoc = docs.find(d => d.doc_type === 'petition');
+                    if (petitionDoc) {
+                        window.location.href = petitionDoc.url;
+                    } else {
+                        Notiflix.Confirm.show(
+                            'No petition document yet',
+                            'Generate the petition document now?',
+                            'Generate', 'Cancel',
+                            function() { triggerRegenerate(id, true); }
+                        );
+                    }
+                })
+                .catch(() => {
+                    btn.disabled = false;
+                    Notiflix.Notify.failure('Network error.');
+                });
+        });
+
+        // Helper used by both Regenerate and Download flows.
+        // When `andDownload` is true, we re-fetch the document list after
+        // generation and trigger the petition download.
+        function triggerRegenerate(id, andDownload) {
+            Notiflix.Loading.standard('Generating documents…');
+
+            const formData = new FormData();
+            formData.append('petition_id', id);
+            formData.append('doc_type', 'all');
+            formData.append('csrf_token', CSRF_TOKEN);
+
+            return fetch('../../api/ra9048/generate_document.php', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(data => {
+                    Notiflix.Loading.remove();
+                    if (!data.success) {
+                        Notiflix.Notify.failure(data.message || 'Generation failed.');
+                        return;
+                    }
+                    const gen = (data.data && data.data.generated) || [];
+                    const skipped = (data.data && data.data.skipped) || [];
+                    Notiflix.Notify.success('Generated ' + gen.length + ' file(s).' + (skipped.length ? ' Skipped ' + skipped.length + '.' : ''));
+                    const pop = document.getElementById('ra9048DocsPopover');
+                    if (pop && pop.dataset.anchorId === id) pop.remove();
+
+                    if (andDownload) {
+                        const petitionDoc = gen.find(g => g.doc_type === 'petition');
+                        if (petitionDoc) window.location.href = petitionDoc.url;
+                    }
+                })
+                .catch(() => {
+                    Notiflix.Loading.remove();
+                    Notiflix.Notify.failure('Network error.');
+                });
+        }
+
+        // ---- Regenerate documents (delegated) ----
+        document.getElementById('tableBody').addEventListener('click', function(e) {
+            const btn = e.target.closest('.ra9048-action-regenerate');
+            if (!btn) return;
+
+            const id = btn.dataset.id;
+            Notiflix.Confirm.show(
+                'Regenerate Documents',
+                'Replace any previously generated DOCX files for petition #' + id + '?',
+                'Regenerate', 'Cancel',
+                function() { triggerRegenerate(id, false); }
             );
         });
 

@@ -433,143 +433,6 @@ $user_first_name = explode(' ', $user_name)[0];
             overflow-x: hidden;
         }
 
-        /* Search & Filter Bar — Formal */
-        .search-filter-bar {
-            background-color: var(--gov-surface);
-            border-radius: var(--radius-md);
-            border: 1px solid var(--gov-border);
-            padding: 16px 20px;
-            margin-bottom: 24px;
-            display: flex;
-            gap: 16px;
-            flex-wrap: wrap;
-            align-items: center;
-            box-shadow: var(--gov-shadow-sm);
-        }
-
-        .date-range-selector {
-            display: inline-flex;
-            align-items: center;
-            margin-left: auto;
-            gap: 10px;
-        }
-
-        .date-range-label {
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--gov-text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-        }
-
-        .date-range-group {
-            display: inline-flex;
-            border: 1px solid var(--gov-border);
-            border-radius: var(--radius-md);
-            overflow: hidden;
-            background: var(--gov-surface);
-        }
-
-        .date-range-btn {
-            padding: 8px 14px;
-            border: none;
-            border-right: 1px solid var(--gov-border);
-            background: transparent;
-            color: var(--gov-text-muted);
-            font-size: 12.5px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
-
-        .date-range-btn:last-child { border-right: none; }
-
-        .date-range-btn:hover {
-            background: var(--gov-primary-50);
-            color: var(--gov-primary);
-        }
-
-        .date-range-btn.active {
-            background: var(--gov-primary);
-            color: #ffffff;
-        }
-
-        .search-box {
-            flex: 1;
-            min-width: min(280px, 100%);
-            position: relative;
-        }
-
-        .search-box input {
-            width: 100%;
-            padding: 10px 14px 10px 40px;
-            border: 1px solid var(--gov-border);
-            border-radius: var(--radius-md);
-            font-size: 0.875rem;
-            font-family: inherit;
-            background-color: var(--gov-surface);
-            color: var(--gov-text);
-            transition: all 0.15s ease;
-            font-weight: 500;
-        }
-
-        .search-box input:focus {
-            outline: none;
-            border-color: var(--gov-primary);
-            background-color: #ffffff;
-            box-shadow: 0 0 0 3px rgba(15, 40, 71, 0.08);
-        }
-
-        .search-box input::placeholder {
-            color: #94a3b8;
-        }
-
-        .search-box i {
-            position: absolute;
-            left: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--gov-text-subtle);
-            font-size: 0.875rem;
-        }
-
-        .filter-group {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .filter-chip {
-            padding: 8px 14px;
-            border-radius: 999px;
-            border: 1px solid var(--gov-border);
-            background-color: var(--gov-surface);
-            color: var(--gov-text-muted);
-            font-size: 0.8125rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            position: relative;
-        }
-
-        .filter-chip:hover {
-            background-color: var(--gov-primary-50);
-            border-color: var(--gov-primary-600);
-            color: var(--gov-primary);
-        }
-
-        .filter-chip.active {
-            background-color: var(--gov-primary);
-            border-color: var(--gov-primary);
-            color: #ffffff;
-            box-shadow: inset 0 -2px 0 var(--gov-accent);
-        }
-
-        .filter-chip.active i { color: var(--gov-accent); }
-
         /* Header — Official Document Banner */
         .dashboard-header {
             background-color: var(--gov-surface);
@@ -672,83 +535,6 @@ $user_first_name = explode(' ', $user_name)[0];
         .header-date i {
             color: var(--gov-accent-600);
             margin-right: 6px;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            padding: 9px 16px;
-            border-radius: var(--radius-sm);
-            font-size: 0.8125rem;
-            font-weight: 600;
-            border: 1px solid transparent;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            text-decoration: none;
-            letter-spacing: 0.01em;
-        }
-
-        .btn:hover {
-            transform: translateY(-1px);
-            box-shadow: var(--gov-shadow-md);
-        }
-
-        .btn:active {
-            transform: translateY(0);
-        }
-
-        .btn-primary {
-            background-color: var(--gov-primary);
-            color: #ffffff;
-            border-color: var(--gov-primary);
-        }
-
-        .btn-primary:hover {
-            background-color: var(--gov-primary-600);
-            border-color: var(--gov-accent);
-        }
-
-        .btn-success {
-            background-color: var(--gov-surface);
-            color: var(--gov-primary);
-            border-color: var(--gov-border-strong);
-        }
-
-        .btn-success:hover {
-            background-color: var(--gov-primary-50);
-            border-color: var(--gov-primary);
-            color: var(--gov-primary);
-        }
-
-        .btn-warning {
-            background-color: var(--gov-surface);
-            color: var(--gov-primary);
-            border-color: var(--gov-border-strong);
-        }
-
-        .btn-warning:hover {
-            background-color: var(--gov-primary-50);
-            border-color: var(--gov-primary);
-            color: var(--gov-primary);
-        }
-
-        .btn-info {
-            background-color: var(--gov-surface);
-            color: var(--gov-primary);
-            border-color: var(--gov-border-strong);
-        }
-
-        .btn-info:hover {
-            background-color: var(--gov-primary-50);
-            border-color: var(--gov-primary);
-            color: var(--gov-primary);
         }
 
         /* Statistics Grid — Institutional Style */
@@ -986,136 +772,6 @@ $user_first_name = explode(' ', $user_name)[0];
             width: 100%;
         }
 
-        /* Quick Actions Widget */
-        .quick-actions-fab {
-            position: fixed;
-            bottom: clamp(16px, 2vw, 32px);
-            right: clamp(16px, 2vw, 32px);
-            z-index: 1000;
-        }
-
-        .fab-main {
-            width: clamp(48px, 4.5vw, 60px);
-            height: clamp(48px, 4.5vw, 60px);
-            border-radius: 50%;
-            background-color: var(--gov-primary);
-            color: #ffffff;
-            border: 2px solid var(--gov-accent);
-            box-shadow: 0 6px 20px rgba(15, 40, 71, 0.35);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            transition: all 0.2s ease;
-        }
-
-        .fab-main:hover {
-            background-color: var(--gov-primary-600);
-            transform: scale(1.06);
-            box-shadow: 0 10px 28px rgba(15, 40, 71, 0.45), 0 0 0 4px rgba(201, 169, 97, 0.2);
-        }
-
-        .fab-main:active {
-            transform: scale(0.95);
-        }
-
-        .fab-main.active {
-            transform: rotate(45deg);
-            background-color: var(--gov-danger);
-            border-color: var(--gov-danger);
-            box-shadow: 0 6px 20px rgba(153, 27, 27, 0.4);
-        }
-
-        .fab-main.active:hover {
-            background-color: #7f1d1d;
-            transform: rotate(45deg) scale(1.06);
-            box-shadow: 0 8px 24px rgba(153, 27, 27, 0.5);
-        }
-
-        .fab-menu {
-            position: absolute;
-            bottom: 70px;
-            right: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            opacity: 0;
-            pointer-events: none;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .fab-menu.active {
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        .fab-action {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            justify-content: flex-end;
-            transform: translateY(20px);
-            opacity: 0;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .fab-menu.active .fab-action {
-            transform: translateY(0);
-            opacity: 1;
-        }
-
-        .fab-menu.active .fab-action:nth-child(1) { transition-delay: 0.05s; }
-        .fab-menu.active .fab-action:nth-child(2) { transition-delay: 0.1s; }
-        .fab-menu.active .fab-action:nth-child(3) { transition-delay: 0.15s; }
-        .fab-menu.active .fab-action:nth-child(4) { transition-delay: 0.2s; }
-        .fab-menu.active .fab-action:nth-child(5) { transition-delay: 0.25s; }
-
-        .fab-label {
-            background-color: var(--gov-primary);
-            color: #ffffff;
-            padding: 8px 14px;
-            border-radius: var(--radius-sm);
-            font-size: 0.8125rem;
-            font-weight: 600;
-            box-shadow: var(--gov-shadow-lg);
-            white-space: nowrap;
-            letter-spacing: 0;
-            border: 1px solid var(--gov-accent);
-        }
-
-        .fab-button {
-            width: 48px;
-            height: 48px;
-            border-radius: var(--radius-md);
-            border: 1px solid var(--gov-border);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.125rem;
-            background-color: var(--gov-surface);
-            box-shadow: var(--gov-shadow-md);
-            transition: all 0.15s ease;
-            text-decoration: none;
-        }
-
-        .fab-button:hover {
-            transform: scale(1.05);
-            border-color: var(--gov-accent);
-            box-shadow: 0 6px 16px rgba(15, 40, 71, 0.15);
-        }
-
-        .fab-button:active {
-            transform: scale(0.95);
-        }
-
-        .fab-button.primary   { color: var(--stat-navy); }
-        .fab-button.success   { color: var(--stat-teal); }
-        .fab-button.warning   { color: var(--stat-maroon); }
-        .fab-button.info      { color: var(--stat-indigo); }
-        .fab-button.secondary { color: var(--stat-slate); }
-
         /* Recent Activity — Table-like Formal Rows */
         .activity-section {
             background-color: var(--gov-surface);
@@ -1136,6 +792,11 @@ $user_first_name = explode(' ', $user_name)[0];
             padding-bottom: 12px;
             border-bottom: 1px solid var(--gov-border);
             position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
         .activity-header::after {
@@ -1162,6 +823,37 @@ $user_first_name = explode(' ', $user_name)[0];
         .activity-title i {
             color: var(--gov-accent-600);
             font-size: 0.9375rem;
+        }
+
+        .activity-filters {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .activity-tab {
+            padding: 5px 12px;
+            border: 1px solid var(--gov-border);
+            border-radius: var(--radius-sm);
+            background: var(--gov-surface);
+            color: var(--gov-text-muted);
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            letter-spacing: 0.02em;
+        }
+
+        .activity-tab:hover {
+            background: var(--gov-primary-50);
+            border-color: var(--gov-primary);
+            color: var(--gov-primary);
+        }
+
+        .activity-tab.active {
+            background: var(--gov-primary);
+            border-color: var(--gov-primary);
+            color: #ffffff;
         }
 
         .activity-list {
@@ -2474,15 +2166,6 @@ $user_first_name = explode(' ', $user_name)[0];
             .charts-section {
                 grid-template-columns: 1fr;
             }
-
-            .search-filter-bar {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .search-box {
-                min-width: 100%;
-            }
         }
 
         @media (max-width: 768px) {
@@ -2500,22 +2183,16 @@ $user_first_name = explode(' ', $user_name)[0];
                 align-items: flex-start;
             }
 
-            .header-actions {
-                width: 100%;
-            }
-
-            .btn {
-                flex: 1;
-                justify-content: center;
-                min-width: 0;
-            }
-
             .calendar-notes-grid {
                 grid-template-columns: 1fr;
             }
 
             .stats-grid {
                 grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+            }
+
+            .activity-filters {
+                width: 100%;
             }
         }
 
@@ -2546,28 +2223,9 @@ $user_first_name = explode(' ', $user_name)[0];
                 font-size: 10px;
             }
 
-            .header-actions {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                width: 100%;
-                gap: 8px;
-            }
-
-            .header-actions .btn {
-                width: 100%;
-                padding: 10px 8px;
-                font-size: 0.75rem;
-            }
-
-            .date-range-selector {
-                width: 100%;
-                margin-left: 0;
-                flex-wrap: wrap;
-            }
-
-            .filter-chip {
+            .activity-tab {
+                padding: 4px 8px;
                 font-size: 0.7rem;
-                padding: 6px 10px;
             }
         }
 
@@ -2575,17 +2233,12 @@ $user_first_name = explode(' ', $user_name)[0];
             .stats-grid {
                 grid-template-columns: 1fr;
             }
-
-            .header-actions {
-                grid-template-columns: 1fr;
-            }
         }
 
         @media (hover: none) and (pointer: coarse) {
             .stat-card:hover,
             .chart-card:hover,
-            .activity-section:hover,
-            .btn:hover {
+            .activity-section:hover {
                 transform: none;
             }
         }
@@ -2617,56 +2270,34 @@ $user_first_name = explode(' ', $user_name)[0];
                             <i class="fas fa-calendar-day" aria-hidden="true"></i>
                             <?php echo date('l, d F Y'); ?>
                         </div>
-                        <div class="header-actions">
-                            <a href="../public/certificate_of_live_birth.php" class="btn btn-primary">
-                                <i class="fas fa-file-lines"></i> New Birth
-                            </a>
-                            <a href="../public/certificate_of_marriage.php" class="btn btn-success">
-                                <i class="fas fa-file-signature"></i> New Marriage
-                            </a>
-                            <a href="../public/certificate_of_death.php" class="btn btn-warning">
-                                <i class="fas fa-file-lines"></i> New Death
-                            </a>
-                            <a href="../public/application_for_marriage_license.php" class="btn btn-info">
-                                <i class="fas fa-stamp"></i> New License
-                            </a>
-                        </div>
                     </div>
                 </div>
             </div>
 
-        <!-- Search & Filter Bar -->
-        <div class="search-filter-bar" role="search" aria-label="Dashboard search and filters">
-            <div class="search-box">
-                <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
-                <input type="text" id="dashboardSearch" placeholder="Search records by name, registry number, or date..." aria-label="Search records">
-            </div>
-            <div class="filter-group" role="group" aria-label="Certificate type filters">
-                <button class="filter-chip active" data-filter="all" aria-pressed="true">
-                    <i class="fas fa-folder-open" aria-hidden="true"></i> All
-                </button>
-                <button class="filter-chip" data-filter="birth" aria-pressed="false">
-                    <i class="fas fa-file-lines" aria-hidden="true"></i> Birth
-                </button>
-                <button class="filter-chip" data-filter="marriage" aria-pressed="false">
-                    <i class="fas fa-file-signature" aria-hidden="true"></i> Marriage
-                </button>
-                <button class="filter-chip" data-filter="death" aria-pressed="false">
-                    <i class="fas fa-file-lines" aria-hidden="true"></i> Death
-                </button>
-                <button class="filter-chip" data-filter="license" aria-pressed="false">
-                    <i class="fas fa-stamp" aria-hidden="true"></i> License
-                </button>
-            </div>
-            <div class="date-range-selector" role="group" aria-label="Date range filters">
-                <span class="date-range-label">Period</span>
-                <div class="date-range-group">
-                    <button class="date-range-btn active" data-range="monthly" aria-pressed="true">Monthly</button>
-                    <button class="date-range-btn" data-range="quarterly" aria-pressed="false">Quarterly</button>
-                    <button class="date-range-btn" data-range="yearly" aria-pressed="false">Yearly</button>
+        <!-- PDF Integrity Status Widget -->
+        <?php if (getUserRole() === 'Admin'): ?>
+        <?php $pdf_has_issues = $stats['pdf_integrity_issues'] > 0; ?>
+        <div style="margin-bottom:24px;">
+            <a href="../admin/pdf_integrity_report.php" style="text-decoration:none;">
+                <div style="display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:var(--radius-md);background:<?= $pdf_has_issues ? 'var(--gov-danger-50)' : 'var(--gov-success-50)' ?>;border:1px solid <?= $pdf_has_issues ? 'rgba(153,27,27,0.2)' : 'rgba(15,118,110,0.2)' ?>;border-left:3px solid <?= $pdf_has_issues ? 'var(--gov-danger)' : 'var(--gov-success)' ?>;box-shadow:var(--gov-shadow-sm);">
+                    <i data-lucide="<?= $pdf_has_issues ? 'shield-alert' : 'shield-check' ?>"
+                       style="width:24px;height:24px;color:<?= $pdf_has_issues ? 'var(--gov-danger)' : 'var(--gov-success)' ?>;flex-shrink:0;"></i>
+                    <div>
+                        <div style="font-weight:700;font-size:0.875rem;color:<?= $pdf_has_issues ? 'var(--gov-danger)' : 'var(--gov-success)' ?>;text-transform:uppercase;letter-spacing:0.04em;">
+                            Document Integrity:
+                            <?= $pdf_has_issues
+                                ? $stats['pdf_integrity_issues'] . ' issue(s) detected (last 30 days)'
+                                : 'All checks passed' ?>
+                        </div>
+                        <div style="font-size:0.8125rem;color:var(--gov-text-muted);margin-top:2px;font-weight:500;">
+                            Open the full integrity report and restore backups
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--gov-text-subtle);margin-left:auto;"></i>
                 </div>
-            </div>
+            </a>
         </div>
+        <?php endif; ?>
 
         <!-- Security & System Status -->
         <div class="security-status-card" role="region" aria-label="Security and system status">
@@ -2879,31 +2510,6 @@ $user_first_name = explode(' ', $user_name)[0];
                 <?php endif; ?>
             </div>
         </div>
-
-        <!-- PDF Integrity Status Widget -->
-        <?php if (getUserRole() === 'Admin'): ?>
-        <?php $pdf_has_issues = $stats['pdf_integrity_issues'] > 0; ?>
-        <div style="margin-bottom:24px;">
-            <a href="../admin/pdf_integrity_report.php" style="text-decoration:none;">
-                <div style="display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:var(--radius-md);background:<?= $pdf_has_issues ? 'var(--gov-danger-50)' : 'var(--gov-success-50)' ?>;border:1px solid <?= $pdf_has_issues ? 'rgba(153,27,27,0.2)' : 'rgba(15,118,110,0.2)' ?>;border-left:3px solid <?= $pdf_has_issues ? 'var(--gov-danger)' : 'var(--gov-success)' ?>;box-shadow:var(--gov-shadow-sm);">
-                    <i data-lucide="<?= $pdf_has_issues ? 'shield-alert' : 'shield-check' ?>"
-                       style="width:24px;height:24px;color:<?= $pdf_has_issues ? 'var(--gov-danger)' : 'var(--gov-success)' ?>;flex-shrink:0;"></i>
-                    <div>
-                        <div style="font-weight:700;font-size:0.875rem;color:<?= $pdf_has_issues ? 'var(--gov-danger)' : 'var(--gov-success)' ?>;text-transform:uppercase;letter-spacing:0.04em;">
-                            Document Integrity:
-                            <?= $pdf_has_issues
-                                ? $stats['pdf_integrity_issues'] . ' issue(s) detected (last 30 days)'
-                                : 'All checks passed' ?>
-                        </div>
-                        <div style="font-size:0.8125rem;color:var(--gov-text-muted);margin-top:2px;font-weight:500;">
-                            Open the full integrity report and restore backups
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--gov-text-subtle);margin-left:auto;"></i>
-                </div>
-            </a>
-        </div>
-        <?php endif; ?>
 
         <!-- Statistics Cards -->
         <div class="stats-grid">
@@ -3161,6 +2767,13 @@ $user_first_name = explode(' ', $user_name)[0];
         <div class="activity-section">
             <div class="activity-header">
                 <h3 class="activity-title"><i class="fas fa-clock-rotate-left"></i> Recent Activity</h3>
+                <div class="activity-filters" role="group" aria-label="Filter activity by type">
+                    <button class="activity-tab active" data-filter="all" aria-pressed="true">All</button>
+                    <button class="activity-tab" data-filter="birth" aria-pressed="false">Birth</button>
+                    <button class="activity-tab" data-filter="marriage" aria-pressed="false">Marriage</button>
+                    <button class="activity-tab" data-filter="death" aria-pressed="false">Death</button>
+                    <button class="activity-tab" data-filter="license" aria-pressed="false">License</button>
+                </div>
             </div>
 
             <?php if (empty($recent_activities)): ?>
@@ -3230,120 +2843,38 @@ $user_first_name = explode(' ', $user_name)[0];
                         </li>
                     <?php endforeach; ?>
                 </ul>
+                <div style="text-align: center; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--gov-border);">
+                    <a href="../public/records_viewer.php" style="color: var(--gov-primary); font-size: 0.8125rem; font-weight: 600; text-decoration: none; letter-spacing: 0.02em; text-transform: uppercase;">
+                        View All Records <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
             <?php endif; ?>
         </div>
     </div>
 
-    <!-- Quick Actions FAB -->
-    <div class="quick-actions-fab">
-        <div class="fab-menu" id="fabMenu">
-            <div class="fab-action">
-                <span class="fab-label">New Birth Certificate</span>
-                <a href="../public/certificate_of_live_birth.php" class="fab-button primary">
-                    <i class="fas fa-file-lines"></i>
-                </a>
-            </div>
-            <div class="fab-action">
-                <span class="fab-label">New Marriage Certificate</span>
-                <a href="../public/certificate_of_marriage.php" class="fab-button success">
-                    <i class="fas fa-file-signature"></i>
-                </a>
-            </div>
-            <div class="fab-action">
-                <span class="fab-label">New Death Certificate</span>
-                <a href="../public/certificate_of_death.php" class="fab-button warning">
-                    <i class="fas fa-file-lines"></i>
-                </a>
-            </div>
-            <div class="fab-action">
-                <span class="fab-label">New Marriage License</span>
-                <a href="../public/application_for_marriage_license.php" class="fab-button info">
-                    <i class="fas fa-stamp"></i>
-                </a>
-            </div>
-            <div class="fab-action">
-                <span class="fab-label">Generate Report</span>
-                <a href="../admin/reports.php" class="fab-button secondary">
-                    <i class="fas fa-file-pdf"></i>
-                </a>
-            </div>
-        </div>
-        <button class="fab-main" id="fabMain" aria-label="Quick actions menu">
-            <i class="fas fa-plus"></i>
-        </button>
-    </div>
-
     <script>
-        // Quick Actions FAB Toggle
-        const fabMain = document.getElementById('fabMain');
-        const fabMenu = document.getElementById('fabMenu');
-
-        fabMain.addEventListener('click', () => {
-            fabMain.classList.toggle('active');
-            fabMenu.classList.toggle('active');
-        });
-
-        // Close FAB when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.quick-actions-fab')) {
-                fabMain.classList.remove('active');
-                fabMenu.classList.remove('active');
-            }
-        });
-
-        // Filter Chips Functionality with Accessibility
-        const filterChips = document.querySelectorAll('.filter-chip');
+        // Activity filter tabs
+        const activityTabs = document.querySelectorAll('.activity-tab');
         const activityItems = document.querySelectorAll('.activity-item');
 
-        filterChips.forEach(chip => {
-            chip.addEventListener('click', () => {
-                // Remove active class from all chips
-                filterChips.forEach(c => {
-                    c.classList.remove('active');
-                    c.setAttribute('aria-pressed', 'false');
+        activityTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                activityTabs.forEach(t => {
+                    t.classList.remove('active');
+                    t.setAttribute('aria-pressed', 'false');
                 });
-                // Add active class to clicked chip
-                chip.classList.add('active');
-                chip.setAttribute('aria-pressed', 'true');
+                tab.classList.add('active');
+                tab.setAttribute('aria-pressed', 'true');
 
-                const filter = chip.dataset.filter;
-
-                // Filter activity items
+                const filter = tab.dataset.filter;
                 activityItems.forEach(item => {
                     const icon = item.querySelector('.activity-icon');
                     if (filter === 'all') {
                         item.style.display = 'flex';
                     } else {
-                        if (icon.classList.contains(filter)) {
-                            item.style.display = 'flex';
-                        } else {
-                            item.style.display = 'none';
-                        }
+                        item.style.display = icon.classList.contains(filter) ? 'flex' : 'none';
                     }
                 });
-            });
-        });
-
-        // Date Range Filter Functionality
-        const dateRangeBtns = document.querySelectorAll('.date-range-btn');
-
-        dateRangeBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                // Remove active class from all date range buttons
-                dateRangeBtns.forEach(b => {
-                    b.classList.remove('active');
-                    b.setAttribute('aria-pressed', 'false');
-                });
-                // Add active class to clicked button
-                btn.classList.add('active');
-                btn.setAttribute('aria-pressed', 'true');
-
-                const range = btn.dataset.range;
-                console.log('Date range changed to:', range);
-
-                // TODO: Implement AJAX call to reload dashboard data with new date range
-                // For now, just show a message
-                // In production, this would trigger a data refresh via AJAX
             });
         });
 
@@ -3353,23 +2884,6 @@ $user_first_name = explode(' ', $user_name)[0];
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     item.click();
-                }
-            });
-        });
-
-        // Search Functionality
-        const searchInput = document.getElementById('dashboardSearch');
-        searchInput.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-
-            activityItems.forEach(item => {
-                const name = item.querySelector('.activity-name').textContent.toLowerCase();
-                const meta = item.querySelector('.activity-meta').textContent.toLowerCase();
-
-                if (name.includes(searchTerm) || meta.includes(searchTerm)) {
-                    item.style.display = 'flex';
-                } else {
-                    item.style.display = 'none';
                 }
             });
         });

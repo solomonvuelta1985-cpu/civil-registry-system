@@ -498,6 +498,7 @@
 }
 
 .badge-cce { background: #dbeafe; color: #1e40af; }
+.badge-cce-10172 { background: #fae8ff; color: #6b21a8; }
 .badge-cfn { background: #fef3c7; color: #92400e; }
 .badge-ausf { background: #ede9fe; color: #5b21b6; }
 .badge-supplemental { background: #e0f2fe; color: #075985; }
@@ -647,4 +648,87 @@
     .ra9048-quick-links {
         flex-direction: column;
     }
+}
+
+/* ========================================
+   DOCS POPOVER + REGENERATE / FILES BUTTONS
+   (added in Phase 4a — RA 9048 document automation)
+   ======================================== */
+
+.ra9048-action-docs {
+    width: auto !important;
+    padding: 0 10px;
+    gap: 6px;
+    color: #1e40af;
+    border-color: #bfdbfe;
+    background: #eff6ff;
+}
+
+.ra9048-action-docs:hover {
+    background: #dbeafe;
+    color: #1e3a8a;
+    border-color: #93c5fd;
+}
+
+.ra9048-action-regenerate:hover {
+    border-color: #f59e0b;
+    color: #b45309;
+    background: #fffbeb;
+}
+
+.ra9048-docs-popover {
+    position: absolute;
+    z-index: 9000;
+    min-width: 260px;
+    max-width: 320px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+    padding: 6px 0;
+    font-size: 13px;
+    color: #0f172a;
+}
+
+.ra9048-docs-popover-header {
+    padding: 8px 14px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.ra9048-docs-popover-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    color: #0f172a;
+    text-decoration: none;
+    transition: background 0.12s, color 0.12s;
+    font-weight: 500;
+}
+
+.ra9048-docs-popover-item:hover {
+    background: #eff6ff;
+    color: #1e40af;
+}
+
+.ra9048-docs-popover-item i {
+    color: #64748b;
+}
+
+.ra9048-docs-popover-loading,
+.ra9048-docs-popover-empty {
+    padding: 14px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 12.5px;
+}
+
+.ra9048-action-download:hover {
+    border-color: #10b981;
+    color: #047857;
+    background: #ecfdf5;
 }

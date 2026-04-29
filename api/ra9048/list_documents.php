@@ -1,0 +1,88 @@
+<?php
+/**
+ * RA 9048 — List Generated Documents
+ *
+ * Returns the list of .docx files that exist for a given petition under
+ * uploads/ra9048/generated/petition_{id}/. Used by the records page to
+ * decide whether to show a "Documents" column with download links and to
+ * power the post-save success panel on the petition form.
+ *
+ * Query params:
+ *   petition_id   int (required)
+ *
+ * Response (JSON):
+ *   {
+ *     success: true,
+ *     data: {
+ *       petition_id: 42,
+ *       documents: [
+ *         { doc_type: "petition", filename: "...", url: "...", size_bytes: 1234, modified_at: "..." },
+ *         ...
+ *       ]
+ *     }
+ *   }
+ */
+
+require_once '../../includes/config_ra9048.php';
+require_once '../../includes/functions.php';
+require_once '../../includes/auth.php';
+require_once '../../includes/security.php';
+
+header('Content-Type: application/json');
+
+requireAuth();
+
+$petition_id = (int) ($_GET['petition_id'] ?? $_POST['petition_id'] ?? 0);
+if ($petition_id <= 0) {
+    json_response(false, 'petition_id is required.', null, 400);
+}
+
+$dir = RA9048_UPLOAD_PATH . 'generated/petition_' . $petition_id . '/';
+
+$documents = [];
+if (is_dir($dir)) {
+    $stems = [
+        'petition'                => 'Petition',
+        'order_for_publication'   => 'Order for Publication',
+        'public_notice'           => 'Public Notice',
+        'cert_of_posting'         => 'Certificate of Posting',
+        'certification_of_filing' => 'Certification of Proof of Filing',
+    ];
+
+    // Use the application's absolute base URL so the link works regardless of
+    // which page (records list, post-save panel, etc.) is consuming this API.
+    $baseUrl = rtrim(defined('BASE_URL') ? BASE_URL : '/iscan/', '/');
+
+    $files = glob($dir . '*.docx') ?: [];
+    foreach ($files as $absPath) {
+        $name   = basename($absPath);
+        $stem   = preg_replace('/_' . $petition_id . '\.docx$/', '', $name);
+        $type   = $stem;
+        $label  = $stems[$stem] ?? ucwords(str_replace('_', ' ', $stem));
+        $relPath = 'ra9048/generated/petition_' . $petition_id . '/' . $name;
+
+        $documents[] = [
+            'doc_type'    => $type,
+            'label'       => $label,
+            'filename'    => $name,
+            'url'         => $baseUrl . '/api/serve_ra9048_doc.php?file=' . rawurlencode($relPath),
+            'size_bytes'  => filesize($absPath) ?: 0,
+            'modified_at' => date('Y-m-d H:i:s', filemtime($absPath) ?: time()),
+        ];
+    }
+
+    // Sort by a logical workflow order if known; otherwise alphabetical.
+    usort($documents, function ($a, $b) use ($stems) {
+        $order = array_keys($stems);
+        $ai = array_search($a['doc_type'], $order, true);
+        $bi = array_search($b['doc_type'], $order, true);
+        if ($ai === false) $ai = 999;
+        if ($bi === false) $bi = 999;
+        return $ai - $bi;
+    });
+}
+
+json_response(true, 'OK', [
+    'petition_id' => $petition_id,
+    'documents'   => $documents,
+]);

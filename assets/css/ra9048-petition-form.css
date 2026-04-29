@@ -1,0 +1,330 @@
+/**
+ * RA 9048 Petition Form — additions for new sections
+ * Builds on top of certificate-forms-shared.css and ra9048.css.
+ */
+
+/* ===== Subtype radios ===== */
+.subtype-radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.subtype-radio {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, background-color 0.15s;
+}
+
+.subtype-radio:hover {
+    border-color: #93c5fd;
+    background-color: #f8fafc;
+}
+
+.subtype-radio input[type="radio"] {
+    margin-top: 3px;
+    flex-shrink: 0;
+}
+
+.subtype-radio:has(input[type="radio"]:checked) {
+    border-color: #3b82f6;
+    background-color: #eff6ff;
+}
+
+.subtype-radio strong {
+    display: block;
+    font-size: 13.5px;
+    color: #0f172a;
+}
+
+.subtype-radio small {
+    display: block;
+    font-size: 11.5px;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+/* ===== Petition number prefix box ===== */
+.petition-number-wrap {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.petition-number-prefix {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 12px;
+    background: #f1f5f9;
+    color: #334155;
+    font-weight: 600;
+    font-size: 13px;
+    border-right: 1px solid #cbd5e1;
+}
+
+.petition-number-wrap input[type="text"] {
+    flex: 1;
+    border: 0;
+    outline: 0;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-family: inherit;
+}
+
+.petition-number-wrap input[type="text"]:focus {
+    background-color: #fffbeb;
+}
+
+/* ===== Section header action button ===== */
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.section-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: #f1f5f9;
+    color: #1e40af;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+
+.section-action:hover {
+    background: #e0e7ff;
+    border-color: #93c5fd;
+}
+
+.section-action i { width: 14px; height: 14px; }
+
+/* ===== Grid tables (corrections + supporting docs) ===== */
+.grid-table {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.grid-head, .grid-row {
+    display: grid;
+    align-items: center;
+    gap: 0;
+}
+
+#correctionsGrid .grid-head,
+#correctionsGrid .grid-row {
+    grid-template-columns: 40px 90px minmax(160px, 1.4fr) 1fr 1fr 50px;
+}
+
+#supportingGrid .grid-head,
+#supportingGrid .grid-row {
+    grid-template-columns: 40px 1fr 50px;
+}
+
+.grid-head {
+    background: #f8fafc;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.grid-col {
+    padding: 8px 10px;
+    border-right: 1px solid #f1f5f9;
+    min-width: 0;
+}
+
+.grid-head .grid-col { padding: 10px; }
+
+.grid-col:last-child { border-right: 0; }
+
+.grid-row {
+    border-bottom: 1px solid #f1f5f9;
+}
+.grid-row:last-child { border-bottom: 0; }
+
+.grid-col-num {
+    text-align: center;
+    color: #64748b;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.grid-col input,
+.grid-col select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    font-size: 12.5px;
+    font-family: inherit;
+    background: transparent;
+}
+
+.grid-col input:focus,
+.grid-col select:focus {
+    outline: 0;
+    border-color: #93c5fd;
+    background: #fffbeb;
+}
+
+.grid-col-action { text-align: center; }
+
+.row-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+
+.row-delete:hover {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.row-delete i { width: 15px; height: 15px; }
+
+/* ===== Conditional sections fade ===== */
+.conditional-section {
+    transition: opacity 0.2s;
+}
+
+/* ===== Checkbox inline ===== */
+.checkbox-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #334155;
+}
+
+/* ===== Lookup modal ===== */
+.lookup-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lookup-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+}
+
+.lookup-modal-panel {
+    position: relative;
+    width: min(640px, 92vw);
+    max-height: 80vh;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.lookup-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.lookup-modal-header h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.lookup-modal-close {
+    border: 0;
+    background: transparent;
+    font-size: 22px;
+    color: #64748b;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.lookup-modal-body {
+    padding: 16px 18px;
+    overflow-y: auto;
+}
+
+.lookup-modal-body input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 13.5px;
+    font-family: inherit;
+}
+
+.lookup-results {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.lookup-result-item {
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.12s, background 0.12s;
+    font-size: 13px;
+}
+
+.lookup-result-item:hover {
+    border-color: #93c5fd;
+    background: #eff6ff;
+}
+
+.lookup-result-empty {
+    padding: 12px;
+    color: #94a3b8;
+    font-size: 13px;
+    text-align: center;
+}
+
+/* ===== Tighter form rows on lookup-friendly screens ===== */
+@media (max-width: 1100px) {
+    #correctionsGrid .grid-head,
+    #correctionsGrid .grid-row {
+        grid-template-columns: 32px 80px minmax(120px, 1fr) 1fr 1fr 40px;
+    }
+}

@@ -4,7 +4,13 @@
       "WebFetch(domain:mercedes.gov.ph)",
       "WebFetch(domain:www.generalnakar.gov.ph)",
       "WebFetch(domain:psaantique.6te.net)",
-      "WebFetch(domain:www.zamboangacity.gov.ph)"
+      "WebFetch(domain:www.zamboangacity.gov.ph)",
+      "Bash(php -l public/ra9048/petition.php)",
+      "Bash(php -l api/ra9048/petition_save.php)",
+      "Bash(php -l api/ra9048/petition_update.php)",
+      "Bash(php -l api/ra9048/_petition_helpers.php)",
+      "Bash(php -l includes/DocxTemplateProcessor.php)",
+      "Bash('/c/xampp/php/php.exe' -l 'c:/xampp/htdocs/iscan/api/ra9048/lookup_owner.php')"
     ]
   }
 }

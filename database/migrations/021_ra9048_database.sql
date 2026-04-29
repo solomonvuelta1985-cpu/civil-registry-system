@@ -1,16 +1,13 @@
 -- Migration: 021_ra9048_database
 -- RA 9048/10172 Civil Registry Transactions Module
--- Creates separate database iscan_ra9048_db with 3 tables:
+-- Creates 3 tables in iscan_db:
 --   petitions, legal_instruments, court_decrees
 --
--- NOTE: This migration creates a SEPARATE database.
---       Run this directly in MySQL/phpMyAdmin, not via run_migrations.php.
+-- NOTE: Originally these tables lived in a separate `iscan_ra9048_db`.
+-- Migration 024 merged them into iscan_db and dropped the separate DB.
+-- New installs should run this migration against iscan_db directly.
 
-CREATE DATABASE IF NOT EXISTS `iscan_ra9048_db`
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
-
-USE `iscan_ra9048_db`;
+USE `iscan_db`;
 
 -- =====================================================
 -- Table 1: petitions (CCE / CFN under RA 9048 / 10172)
