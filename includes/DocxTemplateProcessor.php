@@ -186,20 +186,136 @@ class DocxTemplateProcessor
     }
 
     /**
-     * Word may split a single placeholder across multiple <w:r> runs (e.g. when
-     * the user typed it character-by-character or applied formatting). Collapse
-     * any ${...} that contains XML tags inside the braces back to a clean form.
+     * Word frequently splits a single ${placeholder} across multiple <w:r> runs —
+     * either because the user typed it character-by-character, applied formatting,
+     * or the spell/grammar checker injected <w:proofErr/> markers mid-token.
+     *
+     * Splits we have to handle:
+     *   A) "${" itself is broken — `$` ends one <w:t>, `{name}` starts another.
+     *   B) "${" survives but `name` is split across runs, `}` lives in yet another.
+     *   C) Both `${` and `}` are intact in one run but tags sit between them.
+     *
+     * Strategy: concatenate every <w:t> body into one logical text stream while
+     * remembering which <w:t> each char came from, scan that stream for ${...},
+     * and for any placeholder spanning 2+ <w:t>s, rewrite the document so the
+     * full token lands in the first <w:t> and the remainders are emptied.
      */
     private function normalizeSplitPlaceholders(): void
     {
+        // Pass 1: cheap fix for case (C) — placeholder fully inside one logical
+        // span but with tags between $, {, }. preg handles single-line splits well.
         $this->documentXml = preg_replace_callback(
-            '/\$\{([^}]*)\}/s',
+            '/\$(<[^>]+>)*\{((?:[^{}<]|<[^>]+>)*)\}/s',
             function ($m) {
-                $stripped = preg_replace('/<[^>]+>/', '', $m[1]);
+                $stripped = preg_replace('/<[^>]+>/', '', $m[2]);
                 return '${' . $stripped . '}';
             },
             $this->documentXml
         );
+
+        // Pass 2: rebuild via <w:t> aggregation for cases (A) and (B).
+        if (!preg_match_all('/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/s', $this->documentXml, $matches, PREG_OFFSET_CAPTURE)) {
+            return;
+        }
+
+        // Build the concatenated text and a char->segment map.
+        $segments = [];   // each: ['offset' => int in xml of inner text, 'len' => int, 'text' => string]
+        $concat = '';
+        $charToSeg = [];  // index: position in $concat -> segment index
+        foreach ($matches[1] as $i => $cap) {
+            $text = $cap[0];
+            $offset = $cap[1];
+            $segments[$i] = ['offset' => $offset, 'len' => strlen($text), 'text' => $text];
+            $segLen = strlen($text);
+            for ($k = 0; $k < $segLen; $k++) {
+                $charToSeg[strlen($concat) + $k] = $i;
+            }
+            $concat .= $text;
+        }
+
+        // Find all ${...} placeholders in the concatenated text. Use a pattern
+        // that allows the body to be empty and disallows nested { or }.
+        if (!preg_match_all('/\$\{([^${}]*)\}/', $concat, $pMatches, PREG_OFFSET_CAPTURE)) {
+            return;
+        }
+
+        // Plan rewrites per segment. For each multi-segment placeholder, we
+        // record: (a) the first segment gets the full "${name}" inserted in
+        // place of its starting char, (b) all other segments have their
+        // placeholder chars deleted.
+        // segmentEdits[segIdx] = list of ['start'=>int in seg.text, 'end'=>int, 'replacement'=>string]
+        $segmentEdits = [];
+        foreach ($pMatches[0] as $idx => $whole) {
+            $token = $whole[0];                    // e.g. "${item_no}"
+            $startInConcat = $whole[1];
+            $endInConcat = $startInConcat + strlen($token); // exclusive
+
+            $firstSeg = $charToSeg[$startInConcat] ?? null;
+            $lastSeg = $charToSeg[$endInConcat - 1] ?? null;
+            if ($firstSeg === null || $lastSeg === null || $firstSeg === $lastSeg) {
+                continue; // already in a single segment, nothing to do
+            }
+
+            // Compute the local start offset of the token inside firstSeg.text
+            $segStartInConcat = 0;
+            for ($s = 0; $s < $firstSeg; $s++) {
+                $segStartInConcat += $segments[$s]['len'];
+            }
+            $localStart = $startInConcat - $segStartInConcat;
+
+            // First segment: replace from localStart to end-of-segment with full token.
+            $firstLen = $segments[$firstSeg]['len'];
+            $segmentEdits[$firstSeg][] = [
+                'start' => $localStart,
+                'end' => $firstLen,
+                'replacement' => $token,
+            ];
+
+            // Middle segments: empty them entirely.
+            for ($s = $firstSeg + 1; $s < $lastSeg; $s++) {
+                $segmentEdits[$s][] = [
+                    'start' => 0,
+                    'end' => $segments[$s]['len'],
+                    'replacement' => '',
+                ];
+            }
+
+            // Last segment: drop chars from 0..localEnd.
+            $lastSegStartInConcat = 0;
+            for ($s = 0; $s < $lastSeg; $s++) {
+                $lastSegStartInConcat += $segments[$s]['len'];
+            }
+            $localEnd = $endInConcat - $lastSegStartInConcat;
+            $segmentEdits[$lastSeg][] = [
+                'start' => 0,
+                'end' => $localEnd,
+                'replacement' => '',
+            ];
+        }
+
+        if (empty($segmentEdits)) {
+            return;
+        }
+
+        // Apply edits to each segment's text, then splice back into the XML.
+        // Walk segments in REVERSE order so earlier offsets remain valid.
+        $newXml = $this->documentXml;
+        $segIndices = array_keys($segmentEdits);
+        rsort($segIndices);
+        foreach ($segIndices as $segIdx) {
+            $edits = $segmentEdits[$segIdx];
+            // Sort edits within a segment by descending start so we can apply in place.
+            usort($edits, function ($a, $b) { return $b['start'] - $a['start']; });
+            $text = $segments[$segIdx]['text'];
+            foreach ($edits as $edit) {
+                $text = substr($text, 0, $edit['start']) . $edit['replacement'] . substr($text, $edit['end']);
+            }
+            // Splice the new text into the XML.
+            $newXml = substr($newXml, 0, $segments[$segIdx]['offset'])
+                    . $text
+                    . substr($newXml, $segments[$segIdx]['offset'] + $segments[$segIdx]['len']);
+        }
+        $this->documentXml = $newXml;
     }
 
     private function xmlEscape(string $value): string

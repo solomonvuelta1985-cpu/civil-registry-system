@@ -219,6 +219,22 @@ foreach ($toGenerate as $type) {
 
         $processor->saveAs($outputPath);
 
+        // Auto-convert .docx → .pdf via LibreOffice headless. The PDF lives next
+        // to the .docx so the preview modal and "Download PDF" button can grab it.
+        // If conversion fails (LibreOffice missing on the host, etc.), the .docx
+        // is still usable — we just record pdf_url as null.
+        $pdfName = $def['output_stem'] . '_' . $petition_id . '.pdf';
+        $pdfPath = $outputDir . $pdfName;
+        $pdfUrl  = null;
+        $pdfError = ra9048_convert_to_pdf($outputPath, $outputDir);
+        if ($pdfError === null && is_file($pdfPath)) {
+            $pdfRelPath = 'ra9048/' . RA9048_GENERATED_SUBDIR . '/petition_' . $petition_id . '/' . $pdfName;
+            $pdfUrl = rtrim(defined('BASE_URL') ? BASE_URL : '/iscan/', '/')
+                    . '/api/serve_ra9048_doc.php?file=' . rawurlencode($pdfRelPath);
+        } elseif ($pdfError !== null) {
+            error_log("RA9048 PDF conversion failed for {$outputName}: {$pdfError}");
+        }
+
         // URL is served via api/serve_ra9048_doc.php?file=...
         $relPath  = 'ra9048/' . RA9048_GENERATED_SUBDIR . '/petition_' . $petition_id . '/' . $outputName;
         $baseUrl  = rtrim(defined('BASE_URL') ? BASE_URL : '/iscan/', '/');
@@ -227,6 +243,7 @@ foreach ($toGenerate as $type) {
             'label'    => $def['label'],
             'filename' => $outputName,
             'url'      => $baseUrl . '/api/serve_ra9048_doc.php?file=' . rawurlencode($relPath),
+            'pdf_url'  => $pdfUrl,
             'template' => $tplName,
         ];
     } catch (Throwable $e) {
@@ -266,6 +283,124 @@ json_response(true, $message, [
 // =====================================================================
 // Helpers (kept at the bottom so the request flow above reads top-down)
 // =====================================================================
+
+/**
+ * Convert a .docx to .pdf via LibreOffice headless. Returns null on success,
+ * or a short error string on failure. The PDF lands next to the source in
+ * $outDir with the same stem (LibreOffice's default behavior).
+ *
+ * Uses LIBREOFFICE_PATH from .env. If the env var is missing or the binary
+ * isn't found, returns "LibreOffice not configured" — caller treats that as a
+ * soft skip so the .docx is still served.
+ *
+ * --user-installation forces a private profile dir per request, so concurrent
+ * conversions don't fight over the same LibreOffice user profile (which is the
+ * #1 cause of "LibreOffice already running" hangs in CGI/Apache contexts).
+ */
+function ra9048_convert_to_pdf(string $docxPath, string $outDir): ?string
+{
+    $soffice = trim((string) env('LIBREOFFICE_PATH', ''));
+    if ($soffice === '') {
+        return 'LibreOffice not configured (LIBREOFFICE_PATH missing).';
+    }
+
+    // Two modes:
+    //   docker:<image-name>   → wrap soffice in `docker run`, mounting the docx's
+    //                           parent dir at /data inside the container.
+    //   <path-to-soffice>     → invoke the local binary directly.
+    if (strncmp($soffice, 'docker:', 7) === 0) {
+        return ra9048_convert_via_docker(substr($soffice, 7), $docxPath, $outDir);
+    }
+
+    if (!is_file($soffice)) {
+        return 'LibreOffice not configured (binary not found at ' . $soffice . ').';
+    }
+
+    $profileDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'lo_profile_' . bin2hex(random_bytes(4));
+    $profileUri = 'file:///' . str_replace('\\', '/', $profileDir);
+
+    $cmd = escapeshellarg($soffice)
+         . ' --headless'
+         . ' --norestore'
+         . ' --nolockcheck'
+         . ' --nodefault'
+         . ' --nofirststartwizard'
+         . ' -env:UserInstallation=' . escapeshellarg($profileUri)
+         . ' --convert-to pdf'
+         . ' --outdir ' . escapeshellarg(rtrim($outDir, "/\\"))
+         . ' ' . escapeshellarg($docxPath)
+         . ' 2>&1';
+
+    $output = [];
+    $exitCode = 0;
+    exec($cmd, $output, $exitCode);
+
+    // Best-effort cleanup of the throwaway profile dir.
+    if (is_dir($profileDir)) {
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($profileDir, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($files as $f) {
+            $f->isDir() ? @rmdir($f->getRealPath()) : @unlink($f->getRealPath());
+        }
+        @rmdir($profileDir);
+    }
+
+    if ($exitCode !== 0) {
+        return 'soffice exit ' . $exitCode . ': ' . implode(' | ', $output);
+    }
+    return null;
+}
+
+/**
+ * Convert a .docx via a containerized LibreOffice (Synology NAS path).
+ *
+ * Mounts the .docx's parent directory at /data inside the container so we can
+ * pass container-internal paths to soffice. Both $docxPath and $outDir must
+ * live under the same parent dir (which is true for our generator — the .docx
+ * is saved to $outDir, and the .pdf is also written to $outDir).
+ *
+ * The image must have soffice as its ENTRYPOINT (e.g. our custom
+ * iscan-libreoffice image built from a Debian + libreoffice + jre Dockerfile).
+ *
+ * Why `docker run --rm`: each call is one-shot, the throwaway container dies
+ * after conversion. Adds ~1s overhead vs reusing a long-lived container, but
+ * keeps deployment trivial — no daemon, no orchestration.
+ */
+function ra9048_convert_via_docker(string $image, string $docxPath, string $outDir): ?string
+{
+    $hostDir = realpath(dirname($docxPath));
+    if ($hostDir === false) {
+        return 'docker: source dir not found for ' . $docxPath;
+    }
+    $resolvedOutDir = realpath($outDir);
+    if ($resolvedOutDir === false || strpos($resolvedOutDir, $hostDir) !== 0) {
+        return 'docker: out dir must be inside source dir (got out=' . $outDir . ', src=' . $hostDir . ')';
+    }
+
+    // Translate host paths to container paths under /data.
+    $containerDocx   = '/data/' . basename($docxPath);
+    $relOut          = ltrim(substr($resolvedOutDir, strlen($hostDir)), DIRECTORY_SEPARATOR . '/');
+    $containerOutDir = '/data' . ($relOut !== '' ? '/' . str_replace('\\', '/', $relOut) : '');
+
+    $cmd = 'docker run --rm'
+         . ' -v ' . escapeshellarg($hostDir . ':/data')
+         . ' ' . escapeshellarg($image)
+         . ' --convert-to pdf'
+         . ' --outdir ' . escapeshellarg($containerOutDir)
+         . ' ' . escapeshellarg($containerDocx)
+         . ' 2>&1';
+
+    $output = [];
+    $exitCode = 0;
+    exec($cmd, $output, $exitCode);
+
+    if ($exitCode !== 0) {
+        return 'docker exit ' . $exitCode . ': ' . implode(' | ', $output);
+    }
+    return null;
+}
 
 /**
  * Build the placeholder bag for the template processor. Returns:

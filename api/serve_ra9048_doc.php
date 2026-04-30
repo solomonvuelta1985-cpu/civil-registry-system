@@ -1,8 +1,13 @@
 <?php
 /**
- * Secure DOCX serve endpoint for RA 9048 generated documents.
- * Mirrors api/serve_pdf.php but allows .docx instead of .pdf, and only
- * serves files under uploads/ra9048/generated/.
+ * Secure DOCX/PDF serve endpoint for RA 9048 generated documents.
+ * Only serves files under uploads/ra9048/generated/.
+ *
+ * Query params:
+ *   file=ra9048/generated/petition_X/foo.docx   (or .pdf)
+ *   inline=1                                    Optional. Serve with
+ *       Content-Disposition: inline so the browser renders it (PDF preview
+ *       in an <iframe>) instead of forcing a download.
  */
 
 require_once '../includes/session_config.php';
@@ -50,9 +55,9 @@ if (strpos($file, 'ra9048/generated/') !== 0) {
 
 // Allowed extensions
 $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-if (!in_array($ext, ['docx'], true)) {
+if (!in_array($ext, ['docx', 'pdf'], true)) {
     http_response_code(400);
-    echo 'Only DOCX files can be served';
+    echo 'Only DOCX or PDF files can be served';
     exit;
 }
 
@@ -65,16 +70,24 @@ if ($absPath === false || $baseAbs === false || strpos($absPath, $baseAbs) !== 0
     exit;
 }
 
-$mime     = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+$mime = $ext === 'pdf'
+    ? 'application/pdf'
+    : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 $filename = basename($absPath);
+
+// inline=1 lets the browser render the file (PDF preview in <iframe>) instead
+// of forcing a download. Only valid for PDF — DOCX has no native browser viewer.
+$inline = !empty($_GET['inline']) && $ext === 'pdf';
+$disposition = $inline ? 'inline' : 'attachment';
 
 while (ob_get_level() > 0) ob_end_clean();
 
 header('Content-Type: ' . $mime);
 header('Content-Length: ' . filesize($absPath));
-header('Content-Disposition: attachment; filename="' . $filename . '"');
+header('Content-Disposition: ' . $disposition . '; filename="' . $filename . '"');
 header('Cache-Control: private, max-age=0, must-revalidate');
 header('Pragma: public');
+header('X-Content-Type-Options: nosniff');
 
 readfile($absPath);
 exit;

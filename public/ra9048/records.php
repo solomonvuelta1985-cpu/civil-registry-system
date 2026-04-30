@@ -37,7 +37,7 @@ $can_delete = isAdmin();
 
     <link rel="stylesheet" href="../../assets/css/sidebar.css">
     <link rel="stylesheet" href="../../assets/css/certificate-forms-shared.css?v=2.1">
-    <link rel="stylesheet" href="../../assets/css/ra9048.css?v=1.0">
+    <link rel="stylesheet" href="../../assets/css/ra9048.css?v=1.1">
 </head>
 <body>
     <?php include '../../includes/preloader.php'; ?>
@@ -137,6 +137,26 @@ $can_delete = isAdmin();
                 </div>
 
             </div>
+        </div>
+    </div>
+
+    <!-- PDF Preview Modal (must be in DOM before the IIFE script binds its handlers) -->
+    <div id="pdfPreviewModal" class="ra9048-pdf-modal" aria-hidden="true">
+        <div id="pdfPreviewBackdrop" class="ra9048-pdf-modal__backdrop"></div>
+        <div class="ra9048-pdf-modal__panel" role="dialog" aria-modal="true" aria-labelledby="pdfPreviewTitle">
+            <div class="ra9048-pdf-modal__header">
+                <span id="pdfPreviewTitle" class="ra9048-pdf-modal__title">Document Preview</span>
+                <div class="ra9048-pdf-modal__actions">
+                    <button type="button" id="pdfPreviewPrintBtn" class="ra9048-pdf-modal__btn">
+                        <i data-lucide="printer" style="width:14px;height:14px;"></i> Print
+                    </button>
+                    <a id="pdfPreviewDownloadBtn" class="ra9048-pdf-modal__btn ra9048-pdf-modal__btn--primary" href="#">
+                        <i data-lucide="download" style="width:14px;height:14px;"></i> Download
+                    </a>
+                    <button type="button" id="pdfPreviewClose" class="ra9048-pdf-modal__close" aria-label="Close">&times;</button>
+                </div>
+            </div>
+            <iframe id="pdfPreviewFrame" class="ra9048-pdf-modal__frame" src="about:blank" title="PDF Preview"></iframe>
         </div>
     </div>
 
@@ -322,6 +342,7 @@ $can_delete = isAdmin();
             let html = '<div class="ra9048-actions">';
             html += '<a href="' + config.editUrl + rec.id + '" class="ra9048-action-btn ra9048-action-edit" title="Edit"><i data-lucide="pencil" style="width:14px;height:14px;"></i></a>';
             if (currentTab === 'petition') {
+                html += '<button type="button" class="ra9048-action-btn ra9048-action-preview" data-id="' + rec.id + '" title="Preview petition (PDF)"><i data-lucide="eye" style="width:14px;height:14px;"></i></button>';
                 html += '<button type="button" class="ra9048-action-btn ra9048-action-download" data-id="' + rec.id + '" title="Download petition document"><i data-lucide="download" style="width:14px;height:14px;"></i></button>';
                 html += '<button type="button" class="ra9048-action-btn ra9048-action-regenerate" data-id="' + rec.id + '" title="Regenerate documents"><i data-lucide="refresh-cw" style="width:14px;height:14px;"></i></button>';
             }
@@ -528,10 +549,16 @@ $can_delete = isAdmin();
                     }
                     let html = '<div class="ra9048-docs-popover-header">Generated Documents</div>';
                     docs.forEach(d => {
-                        html += '<a class="ra9048-docs-popover-item" href="' + d.url + '" target="_blank" rel="noopener">'
+                        html += '<div class="ra9048-docs-popover-row">';
+                        html += '<span class="ra9048-docs-popover-label">'
                               + '<i data-lucide="file-text" style="width:14px;height:14px;"></i> '
-                              + '<span>' + escapeHtml(d.label) + '</span>'
-                              + '</a>';
+                              + escapeHtml(d.label) + '</span>';
+                        html += '<span class="ra9048-docs-popover-formats">';
+                        if (d.pdf_url) {
+                            html += '<a href="' + d.pdf_url + '" target="_blank" rel="noopener" title="Download PDF" class="ra9048-docs-format-btn">PDF</a>';
+                        }
+                        html += '<a href="' + d.url + '" target="_blank" rel="noopener" title="Download DOCX" class="ra9048-docs-format-btn">DOCX</a>';
+                        html += '</span></div>';
                     });
                     popover.innerHTML = html;
                     if (window.lucide) lucide.createIcons();
@@ -550,13 +577,79 @@ $can_delete = isAdmin();
         });
 
         // ---- Download petition document (delegated) ----
-        // Fetches list_documents.php for the petition, then navigates to the
-        // petition .docx URL to trigger the browser download. If no document
-        // exists yet, offers to generate it first.
+        // Opens a small popover under the button offering "Download PDF" /
+        // "Download DOCX". If the petition doc hasn't been generated yet, prompts
+        // the user to generate first.
         document.getElementById('tableBody').addEventListener('click', function(e) {
             const btn = e.target.closest('.ra9048-action-download');
             if (!btn) return;
+            e.stopPropagation();
 
+            const existing = document.getElementById('ra9048DownloadPopover');
+            const sameAnchor = existing && existing.dataset.anchorId === btn.dataset.id;
+            if (existing) existing.remove();
+            if (sameAnchor) return;
+
+            const id = btn.dataset.id;
+            const popover = document.createElement('div');
+            popover.id = 'ra9048DownloadPopover';
+            popover.dataset.anchorId = id;
+            popover.className = 'ra9048-docs-popover';
+            popover.innerHTML = '<div class="ra9048-docs-popover-loading">Loading…</div>';
+
+            const rect = btn.getBoundingClientRect();
+            popover.style.top = (window.scrollY + rect.bottom + 6) + 'px';
+            popover.style.left = (window.scrollX + Math.min(rect.left, window.innerWidth - 260)) + 'px';
+            document.body.appendChild(popover);
+
+            fetch('../../api/ra9048/list_documents.php?petition_id=' + encodeURIComponent(id))
+                .then(r => r.json())
+                .then(json => {
+                    if (!json || !json.success || !json.data) {
+                        popover.innerHTML = '<div class="ra9048-docs-popover-empty">Failed to load documents.</div>';
+                        return;
+                    }
+                    const docs = json.data.documents || [];
+                    const petitionDoc = docs.find(d => d.doc_type === 'petition');
+                    if (!petitionDoc) {
+                        popover.remove();
+                        Notiflix.Confirm.show(
+                            'No petition document yet',
+                            'Generate the petition document now?',
+                            'Generate', 'Cancel',
+                            function() { triggerRegenerate(id, true); }
+                        );
+                        return;
+                    }
+                    let html = '<div class="ra9048-docs-popover-header">Download Petition</div>';
+                    if (petitionDoc.pdf_url) {
+                        html += '<a class="ra9048-docs-popover-item" href="' + petitionDoc.pdf_url + '" target="_blank" rel="noopener">'
+                              + '<i data-lucide="file-text" style="width:14px;height:14px;"></i> '
+                              + '<span>PDF (print-ready)</span></a>';
+                    }
+                    html += '<a class="ra9048-docs-popover-item" href="' + petitionDoc.url + '" target="_blank" rel="noopener">'
+                          + '<i data-lucide="file-text" style="width:14px;height:14px;"></i> '
+                          + '<span>DOCX (editable)</span></a>';
+                    popover.innerHTML = html;
+                    if (window.lucide) lucide.createIcons();
+                })
+                .catch(() => {
+                    popover.innerHTML = '<div class="ra9048-docs-popover-empty">Network error.</div>';
+                });
+        });
+
+        // Close download popover when clicking outside
+        document.addEventListener('click', function(e) {
+            const pop = document.getElementById('ra9048DownloadPopover');
+            if (!pop) return;
+            if (e.target.closest('#ra9048DownloadPopover') || e.target.closest('.ra9048-action-download')) return;
+            pop.remove();
+        });
+
+        // ---- Preview petition (PDF in modal) (delegated) ----
+        document.getElementById('tableBody').addEventListener('click', function(e) {
+            const btn = e.target.closest('.ra9048-action-preview');
+            if (!btn) return;
             const id = btn.dataset.id;
             btn.disabled = true;
 
@@ -570,21 +663,61 @@ $can_delete = isAdmin();
                     }
                     const docs = json.data.documents || [];
                     const petitionDoc = docs.find(d => d.doc_type === 'petition');
-                    if (petitionDoc) {
-                        window.location.href = petitionDoc.url;
-                    } else {
+                    if (!petitionDoc) {
                         Notiflix.Confirm.show(
                             'No petition document yet',
                             'Generate the petition document now?',
                             'Generate', 'Cancel',
                             function() { triggerRegenerate(id, true); }
                         );
+                        return;
                     }
+                    if (!petitionDoc.pdf_url) {
+                        Notiflix.Notify.warning('PDF preview unavailable. Regenerate the document to enable preview.');
+                        return;
+                    }
+                    openPdfPreviewModal(petitionDoc.pdf_url, petitionDoc.filename.replace(/\.docx$/, '.pdf'));
                 })
                 .catch(() => {
                     btn.disabled = false;
                     Notiflix.Notify.failure('Network error.');
                 });
+        });
+
+        // Open the PDF preview modal. Uses ?inline=1 so the browser renders the
+        // PDF in an <iframe> instead of forcing a download. Works in every modern
+        // browser via the built-in PDF viewer (which handles zoom + print natively).
+        function openPdfPreviewModal(pdfUrl, downloadName) {
+            const inlineUrl = pdfUrl + (pdfUrl.indexOf('?') >= 0 ? '&' : '?') + 'inline=1';
+            const modal = document.getElementById('pdfPreviewModal');
+            const iframe = document.getElementById('pdfPreviewFrame');
+            const dlBtn = document.getElementById('pdfPreviewDownloadBtn');
+            const printBtn = document.getElementById('pdfPreviewPrintBtn');
+            const titleEl = document.getElementById('pdfPreviewTitle');
+            iframe.src = inlineUrl;
+            titleEl.textContent = downloadName || 'Document Preview';
+            dlBtn.href = pdfUrl; // attachment download
+            dlBtn.setAttribute('download', downloadName || '');
+            printBtn.onclick = function() {
+                try { iframe.contentWindow.focus(); iframe.contentWindow.print(); }
+                catch (e) { window.open(inlineUrl, '_blank'); }
+            };
+            modal.classList.add('ra9048-pdf-modal--open');
+            document.body.style.overflow = 'hidden';
+        }
+        function closePdfPreviewModal() {
+            const modal = document.getElementById('pdfPreviewModal');
+            const iframe = document.getElementById('pdfPreviewFrame');
+            modal.classList.remove('ra9048-pdf-modal--open');
+            iframe.src = 'about:blank';
+            document.body.style.overflow = '';
+        }
+        document.getElementById('pdfPreviewClose').addEventListener('click', closePdfPreviewModal);
+        document.getElementById('pdfPreviewBackdrop').addEventListener('click', closePdfPreviewModal);
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && document.getElementById('pdfPreviewModal').classList.contains('ra9048-pdf-modal--open')) {
+                closePdfPreviewModal();
+            }
         });
 
         // Helper used by both Regenerate and Download flows.
