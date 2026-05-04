@@ -339,45 +339,49 @@
     color: #1E293B;
 }
 
-.double-reg-comparison-table tbody tr:nth-child(even) {
-    background: #FAFBFC;
+/* Whole-row status tints — primary at-a-glance signal */
+.double-reg-comparison-table tr.match-row {
+    background: #F0FDF4;
+    box-shadow: inset 4px 0 0 #047857;
 }
 
-.double-reg-comparison-table tbody tr:hover {
-    background: #F1F5F9;
+.double-reg-comparison-table tr.dr-row-minor {
+    background: #FFFBEB;
+    box-shadow: inset 4px 0 0 #D97706;
 }
 
-/* Left-border indicators */
-.double-reg-comparison-table tr.match-row td:first-child {
-    border-left: 3px solid #047857;
-}
-
-.double-reg-comparison-table tr.discrepancy-row td:first-child {
-    border-left: 3px solid #D97706;
-}
-
-.double-reg-comparison-table tr.match-row td:first-child {
-    padding-left: 13px;
-}
-
-.double-reg-comparison-table tr.discrepancy-row td:first-child {
-    padding-left: 13px;
-}
-
-/* Critical discrepancy = identity-determining field (name, DOB, sex, parents) */
-.double-reg-comparison-table tr.dr-row-critical td:first-child {
-    border-left: 3px solid #DC2626;
-}
 .double-reg-comparison-table tr.dr-row-critical {
     background: #FEF2F2;
+    box-shadow: inset 4px 0 0 #DC2626;
+}
+
+/* Status-aware hover deepens within the same hue */
+.double-reg-comparison-table tr.match-row:hover {
+    background: #DCFCE7;
+}
+.double-reg-comparison-table tr.dr-row-minor:hover {
+    background: #FEF3C7;
 }
 .double-reg-comparison-table tr.dr-row-critical:hover {
     background: #FEE2E2;
 }
 
-/* Minor discrepancy = cosmetic (registry no., place naming, barangay, etc.) */
-.double-reg-comparison-table tr.dr-row-minor td:first-child {
-    border-left: 3px solid #D97706;
+/* Pad the first cell so text clears the inset bar */
+.double-reg-comparison-table tr.match-row td:first-child,
+.double-reg-comparison-table tr.discrepancy-row td:first-child {
+    padding-left: 20px;
+}
+
+/* Highlight the actual differing values in Record A / Record B */
+.double-reg-comparison-table td.dr-cell-diff {
+    font-weight: 600;
+    color: #0F172A;
+}
+.double-reg-comparison-table tr.dr-row-critical td.dr-cell-diff {
+    background: #FEE2E2;
+}
+.double-reg-comparison-table tr.dr-row-minor td.dr-cell-diff {
+    background: #FEF3C7;
 }
 
 .dr-critical-tag {
@@ -393,20 +397,33 @@
     vertical-align: middle;
 }
 
+/* Status pill — colored fill, not just colored ink */
 .double-reg-comparison-table .dr-status-cell {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 6px;
-    font-size: 12px;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1;
 }
 
-.double-reg-comparison-table .match-icon {
+.double-reg-comparison-table tr.match-row .dr-status-cell {
+    background: #DCFCE7;
     color: #047857;
 }
 
-.double-reg-comparison-table .discrepancy-icon {
-    color: #D97706;
+.double-reg-comparison-table tr.dr-row-minor .dr-status-cell {
+    background: #FEF3C7;
+    color: #B45309;
+}
+
+.double-reg-comparison-table tr.dr-row-critical .dr-status-cell {
+    background: #FEE2E2;
+    color: #B91C1C;
 }
 
 .dr-comparison-footer {

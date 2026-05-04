@@ -447,12 +447,13 @@ class DoubleRegComparisonModal {
 
             const tr = document.createElement('tr');
             tr.className = rowClass;
+            const diffAttr = isMatch ? '' : ' class="dr-cell-diff"';
             tr.innerHTML = `
                 <td><strong>${label}</strong>${isCritical && !isMatch ? ' <span class="dr-critical-tag">CRITICAL</span>' : ''}</td>
-                <td>${this.escapeHtml(valA) || '<em style="color:#94A3B8">—</em>'}</td>
-                <td>${this.escapeHtml(valB) || '<em style="color:#94A3B8">—</em>'}</td>
+                <td${diffAttr}>${this.escapeHtml(valA) || '<em style="color:#94A3B8">—</em>'}</td>
+                <td${diffAttr}>${this.escapeHtml(valB) || '<em style="color:#94A3B8">—</em>'}</td>
                 <td>
-                    <span class="dr-status-cell ${isMatch ? 'match-icon' : 'discrepancy-icon'}">
+                    <span class="dr-status-cell">
                         ${isMatch ? matchSvg : differSvg} ${statusLabel}
                     </span>
                 </td>
