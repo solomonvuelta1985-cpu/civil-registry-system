@@ -56,13 +56,19 @@ try {
     $marriage_place = trim($source['place_of_marriage'] ?? '');
     $marriage_stated = ($marriage_date !== '');
 
+    // Find any other birth records that are linked to this one as
+    // double-registrations (per PSA MC 2019-23). Those are the *same person*,
+    // not siblings, and must be excluded from the sibling list.
+    $linked_birth_ids = fr_get_linked_birth_ids($pdo, $record_id);
+
     // ---- 1. SIBLINGS ----
     $siblings = [];
     $siblings_label = '';
     [$siblings, $siblings_label] = fr_find_siblings(
         $pdo, $record_id,
         $father_first, $father_mid, $father_last, $father_filled,
-        $mother_first, $mother_mid, $mother_last, $mother_filled
+        $mother_first, $mother_mid, $mother_last, $mother_filled,
+        $linked_birth_ids
     );
 
     // ---- 2. PARENTS' MARRIAGE ----
@@ -149,9 +155,39 @@ function fr_score_pair($srcFirst, $srcMid, $srcLast, $candFirst, $candMid, $cand
     ];
 }
 
+function fr_get_linked_birth_ids($pdo, $sourceId) {
+    // Returns IDs of any birth records linked to $sourceId via record_links
+    // (active links only). Both directions covered: source-as-primary and
+    // source-as-duplicate. These represent the SAME person, not siblings.
+    $sql = "SELECT primary_certificate_id AS linked_id
+              FROM record_links
+             WHERE status = 'active'
+               AND duplicate_certificate_type = 'birth'
+               AND duplicate_certificate_id = :sid
+               AND primary_certificate_type = 'birth'
+            UNION
+            SELECT duplicate_certificate_id AS linked_id
+              FROM record_links
+             WHERE status = 'active'
+               AND primary_certificate_type = 'birth'
+               AND primary_certificate_id = :sid2
+               AND duplicate_certificate_type = 'birth'";
+    try {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':sid' => $sourceId, ':sid2' => $sourceId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        return array_map('intval', $rows);
+    } catch (Throwable $e) {
+        // record_links table may not exist on older deployments — degrade gracefully
+        error_log('fr_get_linked_birth_ids: ' . $e->getMessage());
+        return [];
+    }
+}
+
 function fr_find_siblings($pdo, $sourceId,
         $fFirst, $fMid, $fLast, $fatherFilled,
-        $mFirst, $mMid, $mLast, $motherFilled) {
+        $mFirst, $mMid, $mLast, $motherFilled,
+        array $excludeIds = []) {
 
     $label = '';
     $useFather = $fatherFilled && $fLast !== '';
@@ -160,6 +196,10 @@ function fr_find_siblings($pdo, $sourceId,
     if (!$useFather && !$useMother) {
         return [[], ''];
     }
+
+    // Build a lookup set of IDs to skip (linked double-registrations of source)
+    $skip = [];
+    foreach ($excludeIds as $eid) { $skip[(int)$eid] = true; }
 
     if ($useFather && $useMother) {
         $label = 'Siblings';
@@ -195,6 +235,10 @@ function fr_find_siblings($pdo, $sourceId,
 
     $results = [];
     foreach ($candidates as $c) {
+        // Skip records that are linked to source as double-registrations
+        // (same person, not a sibling).
+        if (isset($skip[(int)$c['id']])) continue;
+
         $cFFirst = trim($c['father_first_name'] ?? '');
         $cFMid   = trim($c['father_middle_name'] ?? '');
         $cFLast  = trim($c['father_last_name'] ?? '');

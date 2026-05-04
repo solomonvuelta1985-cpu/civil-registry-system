@@ -30,6 +30,7 @@ $mode = $record_id > 0 ? 'family' : 'search';
 
 $search_results = [];
 $source_record  = null;
+$is_fuzzy_search = false;
 
 if ($mode === 'family') {
     $stmt = $pdo->prepare("SELECT * FROM certificate_of_live_birth WHERE id = ? LIMIT 1");
@@ -40,25 +41,79 @@ if ($mode === 'family') {
         $record_id = 0;
     }
 } elseif ($query !== '') {
-    $like = '%' . $query . '%';
-    $sql = "SELECT id, registry_no, child_first_name, child_middle_name, child_last_name,
-                   child_date_of_birth, mother_first_name, mother_last_name,
-                   father_first_name, father_last_name
-            FROM certificate_of_live_birth
-            WHERE status = 'Active'
-              AND (
-                child_first_name LIKE :q1 OR
-                child_middle_name LIKE :q2 OR
-                child_last_name LIKE :q3 OR
-                registry_no LIKE :q4
-              )
-            ORDER BY child_last_name, child_first_name
-            LIMIT 50";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([
-        ':q1' => $like, ':q2' => $like, ':q3' => $like, ':q4' => $like,
-    ]);
-    $search_results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Tokenized strict-then-fuzzy search, mirroring the pattern in
+    // public/records_viewer.php so multi-word queries like "Juan Dela Cruz"
+    // match across first_name + last_name fields rather than literal substring.
+    $tokens = [];
+    foreach (preg_split('/\s+/', $query) as $t) {
+        if ($t !== '') $tokens[] = $t;
+    }
+
+    $search_fields = [
+        'child_first_name',
+        'child_middle_name',
+        'child_last_name',
+        'mother_first_name',
+        'mother_last_name',
+        'father_first_name',
+        'father_last_name',
+        'registry_no',
+    ];
+
+    $build_clause = function (array $tokens, array $fields, string $mode) {
+        $params = [];
+        $i = 0;
+        if ($mode === 'strict') {
+            $token_clauses = [];
+            foreach ($tokens as $token) {
+                $field_clauses = [];
+                foreach ($fields as $f) {
+                    $name = ':s_' . $i++;
+                    $field_clauses[] = "{$f} LIKE {$name}";
+                    $params[$name] = "%{$token}%";
+                }
+                $token_clauses[] = '(' . implode(' OR ', $field_clauses) . ')';
+            }
+            return ['(' . implode(' AND ', $token_clauses) . ')', $params];
+        }
+        // fuzzy: any token in any field
+        $field_clauses = [];
+        foreach ($tokens as $token) {
+            foreach ($fields as $f) {
+                $name = ':s_' . $i++;
+                $field_clauses[] = "{$f} LIKE {$name}";
+                $params[$name] = "%{$token}%";
+            }
+        }
+        return ['(' . implode(' OR ', $field_clauses) . ')', $params];
+    };
+
+    $run_query = function (string $where, array $binds) use ($pdo) {
+        $sql = "SELECT id, registry_no, child_first_name, child_middle_name, child_last_name,
+                       child_date_of_birth, mother_first_name, mother_last_name,
+                       father_first_name, father_last_name
+                  FROM certificate_of_live_birth
+                 WHERE status = 'Active' AND {$where}
+              ORDER BY child_last_name, child_first_name
+                 LIMIT 50";
+        $stmt = $pdo->prepare($sql);
+        foreach ($binds as $k => $v) $stmt->bindValue($k, $v);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    };
+
+    // Pass 1: strict — every token must hit some field.
+    [$where, $binds] = $build_clause($tokens, $search_fields, 'strict');
+    $search_results = $run_query($where, $binds);
+
+    // Pass 2: fuzzy fallback — only when 2+ tokens AND strict returned nothing.
+    if (empty($search_results) && count($tokens) > 1) {
+        [$where, $binds] = $build_clause($tokens, $search_fields, 'fuzzy');
+        $search_results = $run_query($where, $binds);
+        if (!empty($search_results)) {
+            $is_fuzzy_search = true;
+        }
+    }
 }
 
 function fr_full_name($first, $middle, $last) {
@@ -251,7 +306,16 @@ function fr_full_name($first, $middle, $last) {
             <?php if ($query !== ''): ?>
                 <div class="results-card">
                     <div class="results-header">
-                        <?= count($search_results) ?> result<?= count($search_results) === 1 ? '' : 's' ?> for "<?= htmlspecialchars($query, ENT_QUOTES, 'UTF-8') ?>"
+                        <?php
+                        $count = count($search_results);
+                        $word  = $count === 1 ? 'result' : 'results';
+                        $label = $is_fuzzy_search ? 'possible matches' : $word;
+                        echo $count . ' ' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
+                            . ' for "' . htmlspecialchars($query, ENT_QUOTES, 'UTF-8') . '"';
+                        ?>
+                        <?php if ($is_fuzzy_search): ?>
+                            <span style="color:#92400E;font-weight:500;text-transform:none;letter-spacing:normal;">&middot; no exact match — showing near results</span>
+                        <?php endif; ?>
                     </div>
                     <?php if (empty($search_results)): ?>
                         <div class="empty-state">No matching birth records found.</div>
