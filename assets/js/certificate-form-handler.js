@@ -235,9 +235,10 @@ class CertificateFormHandler {
 
             // Show loading state
             this.setButtonLoading(this.submitButtons.save, true);
-            this.showLoadingOverlay(true);
             if (typeof Notiflix !== 'undefined') {
                 Notiflix.Loading.circle('Submitting certificate...');
+            } else {
+                this.showLoadingOverlay(true);
             }
 
             // Enable any disabled fields that have values (for cascading dropdowns)
@@ -301,9 +302,10 @@ class CertificateFormHandler {
             } finally {
                 this.isSubmitting = false;
                 this.setButtonLoading(this.submitButtons.save, false);
-                this.showLoadingOverlay(false);
                 if (typeof Notiflix !== 'undefined') {
                     Notiflix.Loading.remove();
+                } else {
+                    this.showLoadingOverlay(false);
                 }
             }
         };
