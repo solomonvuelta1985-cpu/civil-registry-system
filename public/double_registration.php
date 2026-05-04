@@ -367,7 +367,13 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
                         <td>
                             <a href="javascript:void(0)" class="action-link" onclick="openComparison(<?= (int)$lnk['primary_certificate_id'] ?>, <?= (int)$lnk['duplicate_certificate_id'] ?>, '<?= htmlspecialchars($lnk['primary_certificate_type']) ?>')">Compare</a>
                             <?php if ($is_admin && $lnk['status'] === 'active'): ?>
-                                <a href="javascript:void(0)" class="action-link danger" onclick="unlinkRecords(<?= (int)$lnk['id'] ?>)" style="margin-left:8px;">Unlink</a>
+                                <a href="javascript:void(0)" class="action-link danger"
+                                   onclick="unlinkRecords(<?= (int)$lnk['id'] ?>, '<?= htmlspecialchars(addslashes($lnk['primary_registry_no'] ?: 'N/A')) ?>', '<?= htmlspecialchars(addslashes($lnk['duplicate_registry_no'] ?: 'N/A')) ?>')"
+                                   style="margin-left:8px;">Unlink</a>
+                            <?php elseif ($is_admin && $lnk['status'] === 'unlinked'): ?>
+                                <a href="javascript:void(0)" class="action-link"
+                                   onclick="relinkRecords(<?= (int)$lnk['id'] ?>, '<?= htmlspecialchars(addslashes($lnk['primary_registry_no'] ?: 'N/A')) ?>', '<?= htmlspecialchars(addslashes($lnk['duplicate_registry_no'] ?: 'N/A')) ?>')"
+                                   style="margin-left:8px;color:#16A34A;">Re-link</a>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -534,41 +540,132 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
             return d.innerHTML;
         }
 
-        function unlinkRecords(linkId) {
+        function getCsrfToken() {
+            return document.querySelector('meta[name="csrf-token"]')?.content || '';
+        }
+
+        function unlinkRecords(linkId, primaryRegNo, duplicateRegNo) {
             if (typeof Notiflix === 'undefined') return;
 
+            const pair = `${primaryRegNo} ↔ ${duplicateRegNo}`;
+
+            // Step 1: confirm intent (separate from reason capture so a misclick can't slip through)
+            Notiflix.Confirm.show(
+                'Unlink these records?',
+                `You are about to unlink <strong>${pair}</strong>. Both records will become independent again. This action is logged.`,
+                'Continue',
+                'Cancel',
+                () => promptUnlinkReason(linkId, pair),
+                () => {},
+                { width: '440px', borderRadius: '12px', okButtonBackground: '#DC2626', plainText: false }
+            );
+        }
+
+        function promptUnlinkReason(linkId, pair) {
+            // Step 2: capture audit-trail reason (server enforces min 10 chars)
             Notiflix.Confirm.prompt(
-                'Unlink Records',
-                'Enter a reason for unlinking these records:',
+                `Unlink ${pair}`,
+                'Enter the reason (min. 10 characters — this is the audit trail):',
                 '',
                 'Unlink',
                 'Cancel',
                 (reason) => {
-                    if (!reason || !reason.trim()) {
-                        Notiflix.Notify.failure('A reason is required');
+                    const trimmed = (reason || '').trim();
+                    if (trimmed.length < 10) {
+                        Notiflix.Notify.failure('Reason must be at least 10 characters');
                         return;
                     }
-                    const base = window.APP_BASE || '';
-                    fetch(`${base}/api/record_unlink.php`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'same-origin',
-                        body: JSON.stringify({ link_id: linkId, reason: reason.trim() })
-                    })
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.success) {
-                            Notiflix.Notify.success(data.message);
-                            setTimeout(() => location.reload(), 1000);
-                        } else {
-                            Notiflix.Notify.failure(data.message || 'Unlink failed');
-                        }
-                    })
-                    .catch(() => Notiflix.Notify.failure('Network error'));
+                    submitUnlink(linkId, trimmed, pair);
                 },
                 () => {},
-                { width: '420px', borderRadius: '12px', okButtonBackground: '#DC2626' }
+                { width: '440px', borderRadius: '12px', okButtonBackground: '#DC2626' }
             );
+        }
+
+        function submitUnlink(linkId, reason, pair) {
+            const base = window.APP_BASE || '';
+            fetch(`${base}/api/record_unlink.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken() },
+                credentials: 'same-origin',
+                body: JSON.stringify({ link_id: linkId, reason: reason })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    Notiflix.Notify.success(data.message);
+                    // Offer a 30-second undo window before reloading
+                    showUndoToast(linkId, pair);
+                } else {
+                    Notiflix.Notify.failure(data.message || 'Unlink failed');
+                }
+            })
+            .catch(() => Notiflix.Notify.failure('Network error'));
+        }
+
+        function showUndoToast(linkId, pair) {
+            // Build a small floating toast with an Undo button. Auto-reloads after 30s.
+            const existing = document.getElementById('undoUnlinkToast');
+            if (existing) existing.remove();
+
+            const toast = document.createElement('div');
+            toast.id = 'undoUnlinkToast';
+            toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0F172A;color:#FFFFFF;padding:12px 18px;border-radius:8px;display:flex;align-items:center;gap:14px;z-index:9999;box-shadow:0 10px 25px rgba(0,0,0,0.25);font-size:13px;';
+            toast.innerHTML = `<span>Unlinked ${pair}.</span>
+                <button id="undoUnlinkBtn" style="background:#16A34A;color:#FFFFFF;border:none;padding:6px 14px;border-radius:4px;font-weight:600;cursor:pointer;">Undo</button>
+                <span id="undoCountdown" style="color:#94A3B8;font-size:12px;">30s</span>`;
+            document.body.appendChild(toast);
+
+            let remaining = 30;
+            const tick = setInterval(() => {
+                remaining -= 1;
+                const el = document.getElementById('undoCountdown');
+                if (el) el.textContent = `${remaining}s`;
+                if (remaining <= 0) {
+                    clearInterval(tick);
+                    location.reload();
+                }
+            }, 1000);
+
+            document.getElementById('undoUnlinkBtn').addEventListener('click', () => {
+                clearInterval(tick);
+                toast.remove();
+                submitRelink(linkId, /*silent=*/false);
+            });
+        }
+
+        function relinkRecords(linkId, primaryRegNo, duplicateRegNo) {
+            if (typeof Notiflix === 'undefined') return;
+            const pair = `${primaryRegNo} ↔ ${duplicateRegNo}`;
+            Notiflix.Confirm.show(
+                'Re-link these records?',
+                `Restore the link <strong>${pair}</strong>. The duplicate will be blocked from issuance again.`,
+                'Re-link',
+                'Cancel',
+                () => submitRelink(linkId, false),
+                () => {},
+                { width: '440px', borderRadius: '12px', okButtonBackground: '#16A34A', plainText: false }
+            );
+        }
+
+        function submitRelink(linkId, silent) {
+            const base = window.APP_BASE || '';
+            fetch(`${base}/api/record_relink.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken() },
+                credentials: 'same-origin',
+                body: JSON.stringify({ link_id: linkId })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    if (!silent) Notiflix.Notify.success(data.message);
+                    setTimeout(() => location.reload(), 800);
+                } else {
+                    Notiflix.Notify.failure(data.message || 'Re-link failed');
+                }
+            })
+            .catch(() => Notiflix.Notify.failure('Network error'));
         }
     </script>
 </body>

@@ -1,7 +1,7 @@
 <?php
 /**
- * Record Unlink API — Remove a double registration link
- * POST: Unlinks two previously linked records (admin only)
+ * Record Re-link API — Restore a previously unlinked double registration
+ * POST: Admin only. Sets status back to 'active' if neither record is bound elsewhere.
  */
 
 require_once '../includes/session_config.php';
@@ -18,10 +18,9 @@ if (!isLoggedIn()) {
     exit;
 }
 
-// Admin only
 if (!isAdmin()) {
     http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Only administrators can unlink records']);
+    echo json_encode(['success' => false, 'message' => 'Only administrators can re-link records']);
     exit;
 }
 
@@ -38,7 +37,6 @@ if (!$input) {
     exit;
 }
 
-// CSRF: accept token via header or JSON body (this endpoint reads JSON, not $_POST)
 $csrf = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($input['csrf_token'] ?? null);
 if (!verifyCSRFToken($csrf)) {
     http_response_code(403);
@@ -47,30 +45,30 @@ if (!verifyCSRFToken($csrf)) {
 }
 
 $link_id = (int)($input['link_id'] ?? 0);
-$reason = sanitize_input($input['reason'] ?? '');
-
 if ($link_id <= 0) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Invalid link ID']);
     exit;
 }
 
-// Audit-trail requirement (PSA MC 2019-23): meaningful justification, not a single character
-if (mb_strlen($reason) < 10) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Reason must be at least 10 characters so the unlink action is auditable.']);
-    exit;
-}
-
 try {
-    // Verify the link exists and is active
-    $stmt = $pdo->prepare("SELECT * FROM record_links WHERE id = :id AND status = 'active' LIMIT 1");
+    $stmt = $pdo->prepare("SELECT * FROM record_links WHERE id = :id AND status = 'unlinked' LIMIT 1");
     $stmt->execute([':id' => $link_id]);
     $link = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$link) {
         http_response_code(404);
-        echo json_encode(['success' => false, 'message' => 'Active link not found']);
+        echo json_encode(['success' => false, 'message' => 'Unlinked link not found (it may have already been re-linked).']);
+        exit;
+    }
+
+    // Either record may have been linked to a different record after the unlink — block re-link in that case
+    if (
+        is_record_linked($pdo, (int)$link['primary_certificate_id'], $link['primary_certificate_type']) ||
+        is_record_linked($pdo, (int)$link['duplicate_certificate_id'], $link['duplicate_certificate_type'])
+    ) {
+        http_response_code(409);
+        echo json_encode(['success' => false, 'message' => 'One or both records are now linked to a different record. Cannot re-link.']);
         exit;
     }
 
@@ -79,22 +77,18 @@ try {
     $pdo->beginTransaction();
 
     $sql = "UPDATE record_links SET
-                status = 'unlinked',
-                unlinked_reason = :reason,
-                unlinked_by = :user_id,
-                unlinked_at = NOW()
-            WHERE id = :id AND status = 'active'";
+                status = 'active',
+                unlinked_reason = NULL,
+                unlinked_by = NULL,
+                unlinked_at = NULL
+            WHERE id = :id AND status = 'unlinked'";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([
-        ':reason'  => $reason,
-        ':user_id' => $user_id,
-        ':id'      => $link_id,
-    ]);
+    $stmt->execute([':id' => $link_id]);
 
     log_activity(
         $pdo,
-        'UNLINK_DOUBLE_REGISTRATION',
-        "Unlinked double registration link #{$link_id}. Primary: {$link['primary_certificate_type']} ID:{$link['primary_certificate_id']}, Duplicate: {$link['duplicate_certificate_type']} ID:{$link['duplicate_certificate_id']}. Reason: {$reason}. link_id:{$link_id}",
+        'RELINK_DOUBLE_REGISTRATION',
+        "Re-linked double registration #{$link_id}. Primary: {$link['primary_certificate_type']} ID:{$link['primary_certificate_id']}, Duplicate: {$link['duplicate_certificate_type']} ID:{$link['duplicate_certificate_id']}. link_id:{$link_id}",
         $user_id
     );
 
@@ -102,12 +96,12 @@ try {
 
     echo json_encode([
         'success' => true,
-        'message' => 'Records unlinked successfully. Both records are now independent.',
+        'message' => 'Records re-linked. The duplicate is again blocked from issuance.',
     ]);
 
 } catch (PDOException $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
-    error_log("Record unlink error: " . $e->getMessage());
+    error_log("Record relink error: " . $e->getMessage());
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Database error occurred']);
 }

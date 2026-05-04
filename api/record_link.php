@@ -9,6 +9,7 @@ require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 header('Content-Type: application/json');
 
@@ -28,6 +29,14 @@ $input = json_decode(file_get_contents('php://input'), true);
 if (!$input) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Invalid JSON input']);
+    exit;
+}
+
+// CSRF: accept token via header or JSON body
+$csrf = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($input['csrf_token'] ?? null);
+if (!verifyCSRFToken($csrf)) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'CSRF token validation failed. Please refresh the page and try again.']);
     exit;
 }
 
