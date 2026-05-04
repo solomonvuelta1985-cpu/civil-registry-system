@@ -392,6 +392,10 @@
     box-shadow: inset 3px 0 0 #EF4444;
 }
 
+.double-reg-comparison-table tr.dr-row-missing {
+    box-shadow: inset 3px 0 0 #94A3B8;
+}
+
 /* Subtle neutral hover — no color shift */
 .double-reg-comparison-table tbody tr:hover {
     background: #F8FAFC;
@@ -449,6 +453,11 @@
 .double-reg-comparison-table tr.dr-row-critical .dr-status-cell {
     background: #FEE2E2;
     color: #B91C1C;
+}
+
+.double-reg-comparison-table tr.dr-row-missing .dr-status-cell {
+    background: #F1F5F9;
+    color: #64748B;
 }
 
 .dr-comparison-footer {

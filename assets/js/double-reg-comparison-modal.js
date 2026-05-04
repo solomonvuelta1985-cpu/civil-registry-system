@@ -413,6 +413,7 @@ class DoubleRegComparisonModal {
         let discrepancyCount = 0;
         let criticalDiscCount = 0;
         let minorDiscCount = 0;
+        let missingCount = 0;
         let totalFields = 0;
 
         comparisonFields.forEach(({ field, label }) => {
@@ -423,10 +424,14 @@ class DoubleRegComparisonModal {
             if (!valA && !valB) return;
 
             totalFields++;
-            const isMatch = valA.toUpperCase() === valB.toUpperCase();
+            const isMatch = valA && valB && valA.toUpperCase() === valB.toUpperCase();
+            const isMissing = !isMatch && (!valA || !valB); // one side blank = missing data, not a contradiction
             const isCritical = CRITICAL_BIRTH_FIELDS.has(field);
+
             if (isMatch) {
                 matchCount++;
+            } else if (isMissing) {
+                missingCount++;
             } else {
                 discrepancyCount++;
                 if (isCritical) criticalDiscCount++;
@@ -435,26 +440,39 @@ class DoubleRegComparisonModal {
 
             const matchSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
             const differSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+            const missingSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
 
-            // Row class: match | critical-discrepancy (red, identity-determining) | minor-discrepancy (amber, cosmetic)
-            const rowClass = isMatch
-                ? 'match-row'
-                : (isCritical ? 'discrepancy-row dr-row-critical' : 'discrepancy-row dr-row-minor');
-
-            const statusLabel = isMatch
-                ? 'Match'
-                : (isCritical ? 'Critical' : 'Minor');
+            // Row class: match | missing (gray, one side blank) | critical (red, identity conflict) | minor (amber, cosmetic)
+            let rowClass, statusLabel, statusSvg;
+            if (isMatch) {
+                rowClass = 'match-row';
+                statusLabel = 'Match';
+                statusSvg = matchSvg;
+            } else if (isMissing) {
+                rowClass = 'discrepancy-row dr-row-missing';
+                statusLabel = 'Missing';
+                statusSvg = missingSvg;
+            } else if (isCritical) {
+                rowClass = 'discrepancy-row dr-row-critical';
+                statusLabel = 'Critical';
+                statusSvg = differSvg;
+            } else {
+                rowClass = 'discrepancy-row dr-row-minor';
+                statusLabel = 'Minor';
+                statusSvg = differSvg;
+            }
 
             const tr = document.createElement('tr');
             tr.className = rowClass;
-            const diffAttr = isMatch ? '' : ' class="dr-cell-diff"';
+            const showCriticalTag = isCritical && !isMatch && !isMissing;
+            const diffAttr = (isMatch || isMissing) ? '' : ' class="dr-cell-diff"';
             tr.innerHTML = `
-                <td><strong>${label}</strong>${isCritical && !isMatch ? ' <span class="dr-critical-tag">CRITICAL</span>' : ''}</td>
+                <td><strong>${label}</strong>${showCriticalTag ? ' <span class="dr-critical-tag">CRITICAL</span>' : ''}</td>
                 <td${diffAttr}>${this.escapeHtml(valA) || '<em style="color:#94A3B8">—</em>'}</td>
                 <td${diffAttr}>${this.escapeHtml(valB) || '<em style="color:#94A3B8">—</em>'}</td>
                 <td>
                     <span class="dr-status-cell">
-                        ${isMatch ? matchSvg : differSvg} ${statusLabel}
+                        ${statusSvg} ${statusLabel}
                     </span>
                 </td>
             `;
@@ -465,11 +483,12 @@ class DoubleRegComparisonModal {
         document.getElementById('drComparisonFooter').innerHTML = `
             <span><strong>Matches:</strong> ${matchCount} fields</span>
             <span><strong>Discrepancies:</strong> ${discrepancyCount} (${criticalDiscCount} critical, ${minorDiscCount} minor)</span>
+            <span><strong>Missing:</strong> ${missingCount}</span>
         `;
 
         // Section badge
         document.getElementById('drComparisonBadge').textContent =
-            `${matchCount} match${matchCount !== 1 ? 'es' : ''}, ${criticalDiscCount} critical, ${minorDiscCount} minor`;
+            `${matchCount} match${matchCount !== 1 ? 'es' : ''}, ${criticalDiscCount} critical, ${minorDiscCount} minor, ${missingCount} missing`;
 
         // Summary bar
         document.getElementById('drMatchCount').textContent = matchCount;

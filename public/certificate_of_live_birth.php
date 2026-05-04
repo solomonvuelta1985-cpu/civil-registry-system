@@ -1020,8 +1020,8 @@ if ($edit_mode && $record) {
     <script src="../assets/js/certificate-form-handler.js?v=2.2"></script>
 
     <!-- Double Registration Comparison Modal (loads when duplicate detected on save) -->
-    <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=5">
-    <script src="../assets/js/double-reg-comparison-modal.js?v=3"></script>
+    <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=6">
+    <script src="../assets/js/double-reg-comparison-modal.js?v=6"></script>
 
     <!-- Birth Certificate Specific Logic -->
     <script>
