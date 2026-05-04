@@ -134,7 +134,7 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
     <script src="<?= asset_url('notiflix_js') ?>"></script>
     <script src="../assets/js/notiflix-config.js"></script>
     <link rel="stylesheet" href="../assets/css/sidebar.css">
-    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=4">
+    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=6">
     <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css">
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>
@@ -394,7 +394,7 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
         lucide.createIcons();
     </script>
 
-    <script src="../assets/js/family_relations_render.js?v=1"></script>
+    <script src="../assets/js/family_relations_render.js?v=2"></script>
     <script src="../assets/js/record-preview-modal.js?v=5"></script>
     <script src="../assets/js/double-reg-comparison-modal.js?v=2"></script>
 

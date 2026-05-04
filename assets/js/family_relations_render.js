@@ -41,14 +41,15 @@
     }
 
     function recordRow(item) {
-        const reg = item.registry_no ? `Reg# ${escapeHtml(item.registry_no)}` : 'No Reg#';
-        const dateLabel = item.date_label ? `${escapeHtml(item.date_label)} ${formatDate(item.date)}` : formatDate(item.date);
-        const place = item.place ? ` &middot; ${escapeHtml(item.place)}` : '';
+        const reg = item.registry_no ? `<span class="fr-pill fr-pill-reg">Reg# ${escapeHtml(item.registry_no)}</span>` : '<span class="fr-pill fr-pill-muted">No Reg#</span>';
+        const dateText = item.date_label ? `${escapeHtml(item.date_label)} ${formatDate(item.date)}` : formatDate(item.date);
+        const dateChip = item.date ? `<span class="fr-pill fr-pill-date">${dateText}</span>` : '';
+        const placeChip = item.place ? `<span class="fr-pill fr-pill-place">${escapeHtml(item.place)}</span>` : '';
         return `
             <div class="fr-row">
                 <div class="fr-row-main">
                     <div class="fr-row-name">${escapeHtml(item.display_name)}</div>
-                    <div class="fr-row-meta">${reg} &middot; ${dateLabel}${place}</div>
+                    <div class="fr-row-meta fr-row-pills">${reg}${dateChip}${placeChip}</div>
                 </div>
                 <div class="fr-row-actions">
                     ${confidenceBadge(item.confidence)}
@@ -63,37 +64,43 @@
     }
 
     function renderParents(source, parentsMarriage) {
-        const fatherText = source.father_filled
-            ? escapeHtml(source.father_name)
-            : '<em>Not stated on birth record</em>';
-        const motherText = source.mother_filled
-            ? escapeHtml(source.mother_name)
-            : '<em>Not stated on birth record</em>';
+        const fatherValue = source.father_filled
+            ? `<span class="fr-name-strong">${escapeHtml(source.father_name)}</span>`
+            : `<span class="fr-pill fr-pill-muted">Not stated on birth record</span>`;
+        const motherValue = source.mother_filled
+            ? `<span class="fr-name-strong">${escapeHtml(source.mother_name)}</span>`
+            : `<span class="fr-pill fr-pill-muted">Not stated on birth record</span>`;
 
         let marriageBlock;
         if (!parentsMarriage.stated) {
             marriageBlock = `
-                <div class="fr-row-meta fr-marriage-meta">
-                    <strong>Marriage:</strong> Parents not married per birth record
+                <div class="fr-marriage-meta">
+                    <span class="fr-marriage-label">Marriage</span>
+                    <span class="fr-pill fr-pill-muted">Parents not married per birth record</span>
                 </div>
             `;
         } else {
             const date = formatDate(parentsMarriage.date);
-            const place = parentsMarriage.place ? ` &middot; ${escapeHtml(parentsMarriage.place)}` : '';
+            const placePill = parentsMarriage.place ? `<span class="fr-pill fr-pill-place">${escapeHtml(parentsMarriage.place)}</span>` : '';
+            const datePill = date ? `<span class="fr-pill fr-pill-date">${date}</span>` : '';
             const matched = parentsMarriage.matched || [];
 
             if (matched.length === 0) {
                 marriageBlock = `
-                    <div class="fr-row-meta fr-marriage-meta">
-                        <strong>Marriage:</strong> ${date}${place}
+                    <div class="fr-marriage-meta">
+                        <span class="fr-marriage-label">Marriage</span>
+                        ${datePill}
+                        ${placePill}
                     </div>
-                    <div class="fr-empty fr-empty-inline">No marriage record found in this office.</div>
+                    <div class="fr-empty-inline">No marriage record found in this office.</div>
                 `;
             } else {
                 const rows = matched.map(recordRow).join('');
                 marriageBlock = `
-                    <div class="fr-row-meta fr-marriage-meta">
-                        <strong>Marriage:</strong> ${date}${place}
+                    <div class="fr-marriage-meta">
+                        <span class="fr-marriage-label">Marriage</span>
+                        ${datePill}
+                        ${placePill}
                     </div>
                     <div class="fr-sub-list">${rows}</div>
                 `;
@@ -101,18 +108,18 @@
         }
 
         return `
-            <section class="fr-section">
+            <section class="fr-section fr-section-parents">
                 <header class="fr-section-header">
                     <span class="fr-section-title">Parents</span>
                 </header>
                 <div class="fr-section-body">
                     <div class="fr-parent-row">
                         <span class="fr-parent-label">Father</span>
-                        <span class="fr-parent-value">${fatherText}</span>
+                        <span class="fr-parent-value">${fatherValue}</span>
                     </div>
                     <div class="fr-parent-row">
                         <span class="fr-parent-label">Mother</span>
-                        <span class="fr-parent-value">${motherText}</span>
+                        <span class="fr-parent-value">${motherValue}</span>
                     </div>
                     ${marriageBlock}
                 </div>
@@ -128,9 +135,10 @@
             ? emptyState('No matching sibling records found in this office.')
             : siblings.map(recordRow).join('');
         return `
-            <section class="fr-section">
+            <section class="fr-section fr-section-siblings">
                 <header class="fr-section-header">
-                    <span class="fr-section-title">${escapeHtml(titleLabel)} (${count})</span>
+                    <span class="fr-section-title">${escapeHtml(titleLabel)}</span>
+                    <span class="fr-count-badge">${count}</span>
                 </header>
                 <div class="fr-section-body">${body}</div>
             </section>
@@ -141,19 +149,24 @@
         if (!source.father_filled && !source.mother_filled) return '';
 
         function block(parentLabel, parentName, list) {
-            const label = `<strong>${escapeHtml(parentLabel)}:</strong> ${escapeHtml(parentName)}`;
+            const labelHtml = `
+                <div class="fr-death-label">
+                    <span class="fr-parent-label">${escapeHtml(parentLabel)}</span>
+                    <span class="fr-name-strong">${escapeHtml(parentName)}</span>
+                </div>
+            `;
             if (!list || list.length === 0) {
                 return `
                     <div class="fr-death-group">
-                        <div class="fr-death-label">${label}</div>
-                        <div class="fr-empty fr-empty-inline">No death record found in this office.</div>
+                        ${labelHtml}
+                        <div class="fr-empty-inline">No death record found in this office.</div>
                     </div>
                 `;
             }
             const rows = list.map(recordRow).join('');
             return `
-                <div class="fr-death-group">
-                    <div class="fr-death-label">${label}</div>
+                <div class="fr-death-group fr-death-group-found">
+                    ${labelHtml}
                     <div class="fr-sub-list">${rows}</div>
                 </div>
             `;
@@ -164,7 +177,7 @@
         if (source.mother_filled) body += block('Mother', source.mother_name, parentDeaths.mother || []);
 
         return `
-            <section class="fr-section">
+            <section class="fr-section fr-section-deaths">
                 <header class="fr-section-header">
                     <span class="fr-section-title">Parent Death Records</span>
                 </header>

@@ -734,6 +734,7 @@
 
 /* ============================================================
    Family Relations Panel (used by modal + public/family_relations.php)
+   Corporate / clean modern design
    ============================================================ */
 
 .fr-modal-section .fr-toggle {
@@ -752,21 +753,23 @@
 .fr-modal-section .fr-toggle .fr-toggle-chevron {
     width: 18px;
     height: 18px;
-    color: #64748B;
+    color: #94A3B8;
     transition: transform 0.2s ease;
 }
 .fr-modal-section .fr-toggle.fr-toggle-open .fr-toggle-chevron {
     transform: rotate(180deg);
+    color: #475569;
 }
 .fr-modal-section .fr-panel {
-    margin-top: 12px;
+    margin-top: 16px;
 }
 
 .fr-panel-loading {
-    padding: 20px;
+    padding: 32px 16px;
     text-align: center;
-    color: #64748B;
+    color: #94A3B8;
     font-size: 13px;
+    letter-spacing: 0.1px;
 }
 .fr-panel-loading .fa-spinner {
     animation: fr-spin 1s linear infinite;
@@ -774,167 +777,345 @@
 }
 @keyframes fr-spin { to { transform: rotate(360deg); } }
 
+/* --- Header (full-page view only) --- */
 .fr-header {
-    margin-bottom: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #E2E8F0;
 }
 .fr-header-title {
-    font-size: 18px;
-    font-weight: 700;
+    font-size: 22px;
+    font-weight: 600;
     color: #0F172A;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
+    letter-spacing: -0.2px;
 }
 .fr-header-meta {
     font-size: 13px;
     color: #64748B;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
 }
 
+/* --- Disclaimer (subdued, not loud yellow) --- */
 .fr-disclaimer {
-    background: #FEF3C7;
-    border: 1px solid #FCD34D;
-    color: #92400E;
-    padding: 10px 12px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-left: 3px solid #94A3B8;
+    color: #475569;
+    padding: 12px 14px;
     border-radius: 4px;
-    font-size: 12px;
-    margin-bottom: 16px;
-    line-height: 1.4;
+    font-size: 12.5px;
+    margin-bottom: 24px;
+    line-height: 1.5;
 }
 
+/* --- Section card --- */
 .fr-section {
     background: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 6px;
-    margin-bottom: 12px;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    margin-bottom: 16px;
     overflow: hidden;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
 }
 .fr-section-header {
-    background: #F8FAFC;
-    border-bottom: 1px solid #E2E8F0;
-    padding: 10px 14px;
+    padding: 14px 20px 10px;
+    border-bottom: 1px solid #F1F5F9;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 .fr-section-title {
-    font-size: 12px;
-    font-weight: 700;
-    color: #475569;
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748B;
     text-transform: uppercase;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.8px;
 }
 .fr-section-body {
-    padding: 12px 14px;
+    padding: 16px 20px;
 }
 
+/* --- Parents block --- */
 .fr-parent-row {
     display: flex;
-    gap: 12px;
-    padding: 6px 0;
-    font-size: 13px;
+    align-items: baseline;
+    gap: 16px;
+    padding: 8px 0;
+    font-size: 14px;
+    border-bottom: 1px solid #F8FAFC;
 }
+.fr-parent-row:last-of-type { border-bottom: none; }
 .fr-parent-label {
-    flex: 0 0 70px;
-    color: #64748B;
-    font-weight: 600;
+    flex: 0 0 80px;
+    color: #94A3B8;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 .fr-parent-value {
     color: #0F172A;
     flex: 1;
+    font-weight: 500;
+}
+.fr-parent-value em {
+    color: #94A3B8;
+    font-weight: 400;
+    font-style: normal;
 }
 .fr-marriage-meta {
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px dashed #E2E8F0;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #F1F5F9;
     font-size: 13px;
     color: #475569;
+    line-height: 1.5;
 }
 .fr-marriage-meta strong {
     color: #0F172A;
+    font-weight: 600;
+    margin-right: 4px;
 }
 
+/* --- Record rows --- */
 .fr-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding: 8px 0;
+    gap: 16px;
+    padding: 12px 0;
     border-bottom: 1px solid #F1F5F9;
 }
 .fr-row:last-child { border-bottom: none; }
+.fr-row:first-child { padding-top: 4px; }
 .fr-row-main { flex: 1; min-width: 0; }
 .fr-row-name {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: #0F172A;
+    line-height: 1.3;
 }
 .fr-row-meta {
-    font-size: 12px;
+    font-size: 12.5px;
     color: #64748B;
-    margin-top: 2px;
+    margin-top: 4px;
+    line-height: 1.4;
 }
 .fr-row-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     flex-shrink: 0;
 }
 
 .fr-sub-list {
     margin-top: 8px;
-    padding: 0 0 0 4px;
-    border-left: 2px solid #E2E8F0;
-    padding-left: 10px;
+    padding-left: 16px;
+    border-left: 2px solid #F1F5F9;
 }
 
+/* --- Parent death groups --- */
 .fr-death-group {
-    padding: 8px 0;
-    border-bottom: 1px dashed #E2E8F0;
+    padding: 12px 0;
+    border-bottom: 1px solid #F8FAFC;
 }
-.fr-death-group:last-child { border-bottom: none; }
+.fr-death-group:first-child { padding-top: 0; }
+.fr-death-group:last-child { border-bottom: none; padding-bottom: 0; }
 .fr-death-label {
     font-size: 13px;
     color: #475569;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
 }
 .fr-death-label strong {
-    color: #0F172A;
+    color: #94A3B8;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: 8px;
 }
 
+/* --- Empty states (muted, never alarmist) --- */
 .fr-empty {
-    padding: 16px;
+    padding: 20px 16px;
     text-align: center;
     color: #94A3B8;
     font-size: 13px;
-    background: #F8FAFC;
+    background: transparent;
     border-radius: 4px;
 }
 .fr-empty-inline {
-    padding: 8px 10px;
-    margin-top: 6px;
+    padding: 8px 0 0;
+    margin-top: 4px;
     text-align: left;
-    background: #F8FAFC;
-}
-
-.fr-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 3px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-}
-.fr-badge-high { background: #DCFCE7; color: #166534; }
-.fr-badge-medium { background: #FEF3C7; color: #92400E; }
-.fr-badge-low { background: #F1F5F9; color: #64748B; }
-
-.fr-view-btn {
     background: transparent;
-    border: 1px solid #2563EB;
-    color: #2563EB;
-    padding: 4px 10px;
-    border-radius: 3px;
-    font-size: 12px;
+    color: #94A3B8;
+    font-size: 12.5px;
+    font-style: italic;
+}
+
+/* --- Confidence badges (subdued) --- */
+.fr-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: 12px;
+    font-size: 10.5px;
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    line-height: 1;
+}
+.fr-badge::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 6px;
+}
+.fr-badge-high { background: #ECFDF5; color: #047857; }
+.fr-badge-high::before { background: #10B981; }
+.fr-badge-medium { background: #FFFBEB; color: #B45309; }
+.fr-badge-medium::before { background: #F59E0B; }
+.fr-badge-low { background: #F8FAFC; color: #64748B; }
+.fr-badge-low::before { background: #94A3B8; }
+
+/* --- View button (subtle, not loud) --- */
+.fr-view-btn {
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    color: #334155;
+    padding: 5px 12px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
 }
 .fr-view-btn:hover {
+    background: #F8FAFC;
+    border-color: #94A3B8;
+    color: #0F172A;
+}
+
+/* --- Pills (chips) for important values --- */
+.fr-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1.5;
+    letter-spacing: 0.1px;
+    white-space: nowrap;
+}
+.fr-pill-reg {
     background: #EFF6FF;
+    color: #1D4ED8;
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    font-size: 11px;
+    font-weight: 600;
+}
+.fr-pill-date {
+    background: #F1F5F9;
+    color: #334155;
+}
+.fr-pill-place {
+    background: #F5F3FF;
+    color: #6D28D9;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+}
+.fr-pill-muted {
+    background: #F8FAFC;
+    color: #94A3B8;
+    border: 1px dashed #E2E8F0;
+    font-style: italic;
+}
+
+.fr-row-pills {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 6px;
+}
+
+/* --- Strong-name highlight (when value is the headline) --- */
+.fr-name-strong {
+    color: #0F172A;
+    font-weight: 600;
+    letter-spacing: -0.1px;
+    font-size: 14px;
+}
+
+/* --- Count badge in section header --- */
+.fr-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 11px;
+    background: #0F172A;
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+/* --- Section accent colors (left border tint) --- */
+.fr-section-parents { border-left: 3px solid #2563EB; }
+.fr-section-siblings { border-left: 3px solid #10B981; }
+.fr-section-deaths { border-left: 3px solid #94A3B8; }
+
+/* --- Marriage meta refresh: pill-friendly --- */
+.fr-marriage-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #F1F5F9;
+}
+.fr-marriage-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #94A3B8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: 4px;
+}
+
+/* --- Death group "found" gets a soft success tint --- */
+.fr-death-group-found {
+    background: #F0FDF4;
+    margin: 0 -20px;
+    padding: 12px 20px;
+    border-radius: 0;
+    border-bottom: 1px solid #DCFCE7;
+}
+.fr-death-group-found:last-child { border-bottom: none; }
+.fr-death-group-found .fr-death-label .fr-parent-label { color: #047857; }
+
+/* --- Death label refresh --- */
+.fr-death-label {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+.fr-death-label .fr-parent-label {
+    flex: 0 0 auto;
 }
 

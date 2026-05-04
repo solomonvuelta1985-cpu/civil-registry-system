@@ -33,7 +33,7 @@ $csrfMeta = csrfTokenMeta();
     <script src="<?= asset_url('notiflix_js') ?>"></script>
 
     <link rel="stylesheet" href="../assets/css/sidebar.css">
-    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=4">
+    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=6">
 
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>
@@ -731,7 +731,7 @@ function openPreview(id, type) {
 }
 </script>
 
-<script src="../assets/js/family_relations_render.js?v=1"></script>
+<script src="../assets/js/family_relations_render.js?v=2"></script>
 <script src="../assets/js/record-preview-modal.js?v=5"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
 </body>
