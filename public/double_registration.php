@@ -367,12 +367,16 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
                         <td>
                             <a href="javascript:void(0)" class="action-link" onclick="openComparison(<?= (int)$lnk['primary_certificate_id'] ?>, <?= (int)$lnk['duplicate_certificate_id'] ?>, '<?= htmlspecialchars($lnk['primary_certificate_type']) ?>')">Compare</a>
                             <?php if ($is_admin && $lnk['status'] === 'active'): ?>
-                                <a href="javascript:void(0)" class="action-link danger"
-                                   onclick="unlinkRecords(<?= (int)$lnk['id'] ?>, '<?= htmlspecialchars(addslashes($lnk['primary_registry_no'] ?: 'N/A')) ?>', '<?= htmlspecialchars(addslashes($lnk['duplicate_registry_no'] ?: 'N/A')) ?>')"
+                                <a href="javascript:void(0)" class="action-link danger js-unlink-btn"
+                                   data-link-id="<?= (int)$lnk['id'] ?>"
+                                   data-primary-reg="<?= htmlspecialchars($lnk['primary_registry_no'] ?: 'N/A', ENT_QUOTES) ?>"
+                                   data-duplicate-reg="<?= htmlspecialchars($lnk['duplicate_registry_no'] ?: 'N/A', ENT_QUOTES) ?>"
                                    style="margin-left:8px;">Unlink</a>
                             <?php elseif ($is_admin && $lnk['status'] === 'unlinked'): ?>
-                                <a href="javascript:void(0)" class="action-link"
-                                   onclick="relinkRecords(<?= (int)$lnk['id'] ?>, '<?= htmlspecialchars(addslashes($lnk['primary_registry_no'] ?: 'N/A')) ?>', '<?= htmlspecialchars(addslashes($lnk['duplicate_registry_no'] ?: 'N/A')) ?>')"
+                                <a href="javascript:void(0)" class="action-link js-relink-btn"
+                                   data-link-id="<?= (int)$lnk['id'] ?>"
+                                   data-primary-reg="<?= htmlspecialchars($lnk['primary_registry_no'] ?: 'N/A', ENT_QUOTES) ?>"
+                                   data-duplicate-reg="<?= htmlspecialchars($lnk['duplicate_registry_no'] ?: 'N/A', ENT_QUOTES) ?>"
                                    style="margin-left:8px;color:#16A34A;">Re-link</a>
                             <?php endif; ?>
                         </td>
@@ -544,19 +548,51 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
             return document.querySelector('meta[name="csrf-token"]')?.content || '';
         }
 
-        function unlinkRecords(linkId, primaryRegNo, duplicateRegNo) {
-            if (typeof Notiflix === 'undefined') return;
+        // Event delegation: works for any rows present at load time
+        document.addEventListener('click', function(ev) {
+            const unlinkBtn = ev.target.closest('.js-unlink-btn');
+            if (unlinkBtn) {
+                ev.preventDefault();
+                console.log('[unlink] clicked', unlinkBtn.dataset);
+                unlinkRecords(
+                    parseInt(unlinkBtn.dataset.linkId, 10),
+                    unlinkBtn.dataset.primaryReg || 'N/A',
+                    unlinkBtn.dataset.duplicateReg || 'N/A'
+                );
+                return;
+            }
+            const relinkBtn = ev.target.closest('.js-relink-btn');
+            if (relinkBtn) {
+                ev.preventDefault();
+                console.log('[relink] clicked', relinkBtn.dataset);
+                relinkRecords(
+                    parseInt(relinkBtn.dataset.linkId, 10),
+                    relinkBtn.dataset.primaryReg || 'N/A',
+                    relinkBtn.dataset.duplicateReg || 'N/A'
+                );
+            }
+        });
 
-            const pair = `${primaryRegNo} ↔ ${duplicateRegNo}`;
+        function unlinkRecords(linkId, primaryRegNo, duplicateRegNo) {
+            if (typeof Notiflix === 'undefined') {
+                alert('Notiflix not loaded — cannot show confirmation. Falling back to native prompt.');
+                const reason = prompt('Reason for unlinking ' + primaryRegNo + ' <-> ' + duplicateRegNo + ' (min 10 chars):');
+                if (reason && reason.trim().length >= 10) {
+                    submitUnlink(linkId, reason.trim(), primaryRegNo + ' <-> ' + duplicateRegNo);
+                }
+                return;
+            }
+
+            const pair = primaryRegNo + ' <-> ' + duplicateRegNo;
 
             // Step 1: confirm intent (separate from reason capture so a misclick can't slip through)
             Notiflix.Confirm.show(
                 'Unlink these records?',
-                `You are about to unlink <strong>${pair}</strong>. Both records will become independent again. This action is logged.`,
+                'You are about to unlink <strong>' + pair + '</strong>. Both records will become independent again. This action is logged.',
                 'Continue',
                 'Cancel',
-                () => promptUnlinkReason(linkId, pair),
-                () => {},
+                function() { promptUnlinkReason(linkId, pair); },
+                function() {},
                 { width: '440px', borderRadius: '12px', okButtonBackground: '#DC2626', plainText: false }
             );
         }
@@ -564,12 +600,12 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
         function promptUnlinkReason(linkId, pair) {
             // Step 2: capture audit-trail reason (server enforces min 10 chars)
             Notiflix.Confirm.prompt(
-                `Unlink ${pair}`,
-                'Enter the reason (min. 10 characters — this is the audit trail):',
+                'Unlink ' + pair,
+                'Enter the reason (min. 10 characters - this is the audit trail):',
                 '',
                 'Unlink',
                 'Cancel',
-                (reason) => {
+                function(reason) {
                     const trimmed = (reason || '').trim();
                     if (trimmed.length < 10) {
                         Notiflix.Notify.failure('Reason must be at least 10 characters');
@@ -577,7 +613,7 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
                     }
                     submitUnlink(linkId, trimmed, pair);
                 },
-                () => {},
+                function() {},
                 { width: '440px', borderRadius: '12px', okButtonBackground: '#DC2626' }
             );
         }
@@ -635,15 +671,18 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
         }
 
         function relinkRecords(linkId, primaryRegNo, duplicateRegNo) {
-            if (typeof Notiflix === 'undefined') return;
-            const pair = `${primaryRegNo} ↔ ${duplicateRegNo}`;
+            if (typeof Notiflix === 'undefined') {
+                if (confirm('Re-link ' + primaryRegNo + ' <-> ' + duplicateRegNo + '?')) submitRelink(linkId, false);
+                return;
+            }
+            const pair = primaryRegNo + ' <-> ' + duplicateRegNo;
             Notiflix.Confirm.show(
                 'Re-link these records?',
-                `Restore the link <strong>${pair}</strong>. The duplicate will be blocked from issuance again.`,
+                'Restore the link <strong>' + pair + '</strong>. The duplicate will be blocked from issuance again.',
                 'Re-link',
                 'Cancel',
-                () => submitRelink(linkId, false),
-                () => {},
+                function() { submitRelink(linkId, false); },
+                function() {},
                 { width: '440px', borderRadius: '12px', okButtonBackground: '#16A34A', plainText: false }
             );
         }
