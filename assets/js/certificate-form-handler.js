@@ -364,6 +364,12 @@ class CertificateFormHandler {
             el.removeAttribute('aria-invalid');
         });
 
+        // Notify listeners (e.g. progress bar) that form values have changed
+        this.form.dispatchEvent(new Event('change', { bubbles: true }));
+        if (typeof updateFormProgress === 'function') {
+            updateFormProgress();
+        }
+
         // Scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -866,6 +872,12 @@ class CertificateFormHandler {
                     el.classList.remove('is-valid', 'is-invalid');
                     el.removeAttribute('aria-invalid');
                 });
+
+                // Notify listeners (e.g. progress bar) that form values have changed
+                this.form.dispatchEvent(new Event('change', { bubbles: true }));
+                if (typeof updateFormProgress === 'function') {
+                    updateFormProgress();
+                }
 
                 // Clear autosave
                 this.clearAutoSave();
