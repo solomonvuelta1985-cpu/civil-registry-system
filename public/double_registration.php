@@ -591,17 +591,34 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
                 'You are about to unlink <strong>' + pair + '</strong>. Both records will become independent again. This action is logged.',
                 'Continue',
                 'Cancel',
-                function() { promptUnlinkReason(linkId, pair); },
-                function() {},
+                function() {
+                    console.log('[unlink] continue clicked, opening reason prompt');
+                    // Defer so Notiflix's first dialog can close before opening the second
+                    setTimeout(function() { promptUnlinkReason(linkId, pair); }, 350);
+                },
+                function() { console.log('[unlink] cancelled at step 1'); },
                 { width: '440px', borderRadius: '12px', okButtonBackground: '#DC2626', plainText: false }
             );
         }
 
         function promptUnlinkReason(linkId, pair) {
+            console.log('[unlink] showing reason prompt for', pair);
+            if (typeof Notiflix.Confirm.prompt !== 'function') {
+                // Older Notiflix builds don't have prompt() — fall back to native
+                console.warn('[unlink] Notiflix.Confirm.prompt unavailable, using native prompt');
+                const reason = window.prompt('Reason for unlinking ' + pair + ' (min 10 characters):');
+                const t = (reason || '').trim();
+                if (t.length < 10) {
+                    if (reason !== null) Notiflix.Notify.failure('Reason must be at least 10 characters');
+                    return;
+                }
+                submitUnlink(linkId, t, pair);
+                return;
+            }
             // Step 2: capture audit-trail reason (server enforces min 10 chars)
             Notiflix.Confirm.prompt(
-                'Unlink ' + pair,
-                'Enter the reason (min. 10 characters - this is the audit trail):',
+                'Reason for unlinking',
+                'Pair: ' + pair + ' (min. 10 characters)',
                 '',
                 'Unlink',
                 'Cancel',
@@ -613,7 +630,7 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
                     }
                     submitUnlink(linkId, trimmed, pair);
                 },
-                function() {},
+                function() { console.log('[unlink] cancelled at step 2'); },
                 { width: '440px', borderRadius: '12px', okButtonBackground: '#DC2626' }
             );
         }
