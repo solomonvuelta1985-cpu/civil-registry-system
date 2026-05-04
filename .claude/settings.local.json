@@ -33,7 +33,10 @@
       "Bash(/c/xampp/php/php.exe -l c:/xampp/htdocs/iscan/includes/form_buttons.php)",
       "Bash(./mysql.exe -u root -N -B -e \"SHOW DATABASES\")",
       "Read(//tmp/**)",
-      "Bash(LC_ALL=C.UTF-8 unzip -p 'RA 9048 petition \\(birth\\) 2.docx' word/document.xml)"
+      "Bash(LC_ALL=C.UTF-8 unzip -p 'RA 9048 petition \\(birth\\) 2.docx' word/document.xml)",
+      "Bash(python3 -c ' *)",
+      "Bash(/c/xampp/php/php.exe -r ' *)",
+      "Bash(xargs ls *)"
     ]
   }
 }

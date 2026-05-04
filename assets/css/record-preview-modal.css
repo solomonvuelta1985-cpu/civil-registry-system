@@ -731,3 +731,210 @@
 .pdf-preview-container::-webkit-scrollbar-thumb:hover {
     background: #1E3A8A;
 }
+
+/* ============================================================
+   Family Relations Panel (used by modal + public/family_relations.php)
+   ============================================================ */
+
+.fr-modal-section .fr-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+}
+.fr-modal-section .fr-toggle .fr-toggle-chevron {
+    width: 18px;
+    height: 18px;
+    color: #64748B;
+    transition: transform 0.2s ease;
+}
+.fr-modal-section .fr-toggle.fr-toggle-open .fr-toggle-chevron {
+    transform: rotate(180deg);
+}
+.fr-modal-section .fr-panel {
+    margin-top: 12px;
+}
+
+.fr-panel-loading {
+    padding: 20px;
+    text-align: center;
+    color: #64748B;
+    font-size: 13px;
+}
+.fr-panel-loading .fa-spinner {
+    animation: fr-spin 1s linear infinite;
+    margin-right: 8px;
+}
+@keyframes fr-spin { to { transform: rotate(360deg); } }
+
+.fr-header {
+    margin-bottom: 12px;
+}
+.fr-header-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0F172A;
+    margin-bottom: 4px;
+}
+.fr-header-meta {
+    font-size: 13px;
+    color: #64748B;
+}
+
+.fr-disclaimer {
+    background: #FEF3C7;
+    border: 1px solid #FCD34D;
+    color: #92400E;
+    padding: 10px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-bottom: 16px;
+    line-height: 1.4;
+}
+
+.fr-section {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+.fr-section-header {
+    background: #F8FAFC;
+    border-bottom: 1px solid #E2E8F0;
+    padding: 10px 14px;
+}
+.fr-section-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+.fr-section-body {
+    padding: 12px 14px;
+}
+
+.fr-parent-row {
+    display: flex;
+    gap: 12px;
+    padding: 6px 0;
+    font-size: 13px;
+}
+.fr-parent-label {
+    flex: 0 0 70px;
+    color: #64748B;
+    font-weight: 600;
+}
+.fr-parent-value {
+    color: #0F172A;
+    flex: 1;
+}
+.fr-marriage-meta {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #E2E8F0;
+    font-size: 13px;
+    color: #475569;
+}
+.fr-marriage-meta strong {
+    color: #0F172A;
+}
+
+.fr-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid #F1F5F9;
+}
+.fr-row:last-child { border-bottom: none; }
+.fr-row-main { flex: 1; min-width: 0; }
+.fr-row-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0F172A;
+}
+.fr-row-meta {
+    font-size: 12px;
+    color: #64748B;
+    margin-top: 2px;
+}
+.fr-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.fr-sub-list {
+    margin-top: 8px;
+    padding: 0 0 0 4px;
+    border-left: 2px solid #E2E8F0;
+    padding-left: 10px;
+}
+
+.fr-death-group {
+    padding: 8px 0;
+    border-bottom: 1px dashed #E2E8F0;
+}
+.fr-death-group:last-child { border-bottom: none; }
+.fr-death-label {
+    font-size: 13px;
+    color: #475569;
+    margin-bottom: 4px;
+}
+.fr-death-label strong {
+    color: #0F172A;
+}
+
+.fr-empty {
+    padding: 16px;
+    text-align: center;
+    color: #94A3B8;
+    font-size: 13px;
+    background: #F8FAFC;
+    border-radius: 4px;
+}
+.fr-empty-inline {
+    padding: 8px 10px;
+    margin-top: 6px;
+    text-align: left;
+    background: #F8FAFC;
+}
+
+.fr-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.fr-badge-high { background: #DCFCE7; color: #166534; }
+.fr-badge-medium { background: #FEF3C7; color: #92400E; }
+.fr-badge-low { background: #F1F5F9; color: #64748B; }
+
+.fr-view-btn {
+    background: transparent;
+    border: 1px solid #2563EB;
+    color: #2563EB;
+    padding: 4px 10px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.fr-view-btn:hover {
+    background: #EFF6FF;
+}
+

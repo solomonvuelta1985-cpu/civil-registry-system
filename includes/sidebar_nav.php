@@ -86,8 +86,14 @@ $__is_admin = function_exists('isAdmin') ? isAdmin() : false;
                 <i data-lucide="link-2"></i> <span>Double Registration</span>
             </a>
         </li>
+        <li>
+            <a href="<?= BASE_URL ?>public/family_relations.php" class="<?php echo $current_page == 'family_relations.php' ? 'active' : ''; ?>" title="Discover siblings and related civil registry records">
+                <i data-lucide="users"></i> <span>Family Relations</span>
+            </a>
+        </li>
 
-        <!-- RA 9048/10172 Section -->
+        <?php if (defined('RA9048_FEATURE_ENABLED') && RA9048_FEATURE_ENABLED): ?>
+        <!-- RA 9048/10172 Section — gated by RA9048_FEATURE_ENABLED. See docs/RA9048_FEATURE_TOGGLE.md -->
         <li class="sidebar-divider"></li>
         <li class="sidebar-heading">RA 9048/10172</li>
         <li>
@@ -100,6 +106,7 @@ $__is_admin = function_exists('isAdmin') ? isAdmin() : false;
                 <i data-lucide="folder-open"></i> <span>RA 9048 Records</span>
             </a>
         </li>
+        <?php endif; ?>
 
         <?php if ($__is_admin): ?>
         <!-- Archives & Trash Section (Admin only) -->

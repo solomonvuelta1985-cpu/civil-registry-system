@@ -16,6 +16,13 @@ require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
 
+// Feature toggle — module paused. See docs/RA9048_FEATURE_TOGGLE.md
+if (!defined('RA9048_FEATURE_ENABLED') || !RA9048_FEATURE_ENABLED) {
+    http_response_code(503);
+    echo 'RA 9048/10172 module is temporarily disabled.';
+    exit;
+}
+
 if (!isLoggedIn()) {
     http_response_code(401);
     echo 'Unauthorized';

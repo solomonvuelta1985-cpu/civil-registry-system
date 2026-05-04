@@ -122,7 +122,17 @@ class DocxTemplateProcessor
         $guard = 0;
         while (($markerPos = strpos($this->documentXml, $marker)) !== false) {
             // Walk outward from the marker to find the enclosing <w:tr> ... </w:tr>.
-            $rowStart = strrpos(substr($this->documentXml, 0, $markerPos), '<w:tr');
+            // Naive prefix search for "<w:tr" is wrong: <w:trPr>, <w:trHeight>, etc.
+            // ALL start with "<w:tr" and live INSIDE a row, so strrpos would land on
+            // a child fragment instead of the row's opening tag. Match the actual
+            // <w:tr> element open: "<w:tr " (with attributes) or "<w:tr>" (no attrs),
+            // never <w:trPr / <w:trHeight / <w:trCantSplit / etc.
+            $haystack = substr($this->documentXml, 0, $markerPos);
+            $rowStart = false;
+            if (preg_match_all('/<w:tr(?=[ >\/])/', $haystack, $m, PREG_OFFSET_CAPTURE)) {
+                $last = end($m[0]);
+                $rowStart = $last[1];
+            }
             if ($rowStart === false) {
                 throw new RuntimeException("Block marker \${{$blockName}} is not inside a table row.");
             }

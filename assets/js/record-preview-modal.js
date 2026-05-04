@@ -170,6 +170,8 @@ class RecordPreviewModal {
     async open(recordId, recordType) {
         this.currentRecordId = recordId;
         this.currentRecordType = recordType;
+        this.familyRelationsCache = null;
+        this.familyRelationsLoading = false;
 
         // Show modal
         this.backdrop.classList.add('show');
@@ -285,6 +287,83 @@ class RecordPreviewModal {
         if (typeof lucide !== 'undefined') {
             lucide.createIcons();
         }
+
+        // Wire the Family Relations toggle (birth records only)
+        if (this.currentRecordType === 'birth') {
+            const toggleBtn = document.getElementById('frToggleBtn');
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', () => this.toggleFamilyRelations());
+            }
+        }
+    }
+
+    async toggleFamilyRelations() {
+        const panel = document.getElementById('frPanel');
+        const toggleBtn = document.getElementById('frToggleBtn');
+        if (!panel || !toggleBtn) return;
+
+        const isOpen = panel.style.display !== 'none';
+        if (isOpen) {
+            panel.style.display = 'none';
+            toggleBtn.setAttribute('aria-expanded', 'false');
+            toggleBtn.classList.remove('fr-toggle-open');
+            return;
+        }
+
+        panel.style.display = 'block';
+        toggleBtn.setAttribute('aria-expanded', 'true');
+        toggleBtn.classList.add('fr-toggle-open');
+
+        // Render from cache if available
+        if (this.familyRelationsCache) {
+            this.renderFamilyRelationsInto(panel, this.familyRelationsCache);
+            return;
+        }
+
+        if (this.familyRelationsLoading) return;
+        await this.loadFamilyRelations(panel);
+    }
+
+    async loadFamilyRelations(panel) {
+        this.familyRelationsLoading = true;
+        panel.innerHTML = `
+            <div class="fr-panel-loading">
+                <i class="fas fa-spinner"></i> Loading family relations...
+            </div>
+        `;
+
+        try {
+            const response = await fetch(`../api/family_relations.php?id=${this.currentRecordId}`);
+            const result = await response.json();
+
+            if (!result.success) {
+                panel.innerHTML = `<div class="fr-empty">${this.escapeHtml(result.message || 'Failed to load family relations.')}</div>`;
+                this.familyRelationsLoading = false;
+                return;
+            }
+
+            this.familyRelationsCache = result.data;
+            this.renderFamilyRelationsInto(panel, result.data);
+        } catch (err) {
+            console.error('Family relations error:', err);
+            panel.innerHTML = `<div class="fr-empty">An error occurred while loading family relations.</div>`;
+        } finally {
+            this.familyRelationsLoading = false;
+        }
+    }
+
+    renderFamilyRelationsInto(panel, data) {
+        if (typeof FamilyRelationsRender === 'undefined') {
+            panel.innerHTML = `<div class="fr-empty">Renderer not loaded.</div>`;
+            return;
+        }
+        const self = this;
+        FamilyRelationsRender.render(data, panel, {
+            skipHeader: true,
+            onView: function (id, type) {
+                self.open(id, type);
+            }
+        });
     }
 
     renderBirthDetails(record) {
@@ -368,6 +447,22 @@ class RecordPreviewModal {
                 <div class="record-detail-row">
                     <span class="record-detail-label">Citizenship</span>
                     <span class="record-detail-value">${this.formatValue(record.mother_citizenship)}</span>
+                </div>
+            </div>
+
+            <!-- Family Relations (lazy) -->
+            <div class="record-details-section fr-modal-section">
+                <button type="button" class="fr-toggle" id="frToggleBtn" aria-expanded="false">
+                    <span class="record-section-title" style="margin:0;">
+                        <i data-lucide="users"></i>
+                        Family Relations
+                    </span>
+                    <i data-lucide="chevron-down" class="fr-toggle-chevron"></i>
+                </button>
+                <div class="fr-panel" id="frPanel" style="display:none;">
+                    <div class="fr-panel-loading">
+                        <i class="fas fa-spinner"></i> Loading family relations...
+                    </div>
                 </div>
             </div>
         `;

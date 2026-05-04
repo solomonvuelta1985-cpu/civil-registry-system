@@ -394,7 +394,8 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
         lucide.createIcons();
     </script>
 
-    <script src="../assets/js/record-preview-modal.js?v=4"></script>
+    <script src="../assets/js/family_relations_render.js?v=1"></script>
+    <script src="../assets/js/record-preview-modal.js?v=5"></script>
     <script src="../assets/js/double-reg-comparison-modal.js?v=2"></script>
 
     <script>

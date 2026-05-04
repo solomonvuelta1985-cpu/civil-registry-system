@@ -731,7 +731,8 @@ function openPreview(id, type) {
 }
 </script>
 
-<script src="../assets/js/record-preview-modal.js?v=4"></script>
+<script src="../assets/js/family_relations_render.js?v=1"></script>
+<script src="../assets/js/record-preview-modal.js?v=5"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
 </body>
 </html>
