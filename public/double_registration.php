@@ -406,7 +406,7 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
 
     <script src="../assets/js/family_relations_render.js?v=2"></script>
     <script src="../assets/js/record-preview-modal.js?v=5"></script>
-    <script src="../assets/js/double-reg-comparison-modal.js?v=3"></script>
+    <script src="../assets/js/double-reg-comparison-modal.js?v=4"></script>
 
     <script>
         function openComparison(primaryId, duplicateId, certType, matchScore) {
