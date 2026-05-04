@@ -135,7 +135,7 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
     <script src="../assets/js/notiflix-config.js"></script>
     <link rel="stylesheet" href="../assets/css/sidebar.css">
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=6">
-    <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=2">
+    <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=3">
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>
         if (typeof pdfjsLib !== 'undefined') {
@@ -406,7 +406,7 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
 
     <script src="../assets/js/family_relations_render.js?v=2"></script>
     <script src="../assets/js/record-preview-modal.js?v=5"></script>
-    <script src="../assets/js/double-reg-comparison-modal.js?v=2"></script>
+    <script src="../assets/js/double-reg-comparison-modal.js?v=3"></script>
 
     <script>
         function openComparison(primaryId, duplicateId, certType, matchScore) {
