@@ -135,7 +135,7 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
     <script src="../assets/js/notiflix-config.js"></script>
     <link rel="stylesheet" href="../assets/css/sidebar.css">
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=6">
-    <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css">
+    <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=2">
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>
         if (typeof pdfjsLib !== 'undefined') {
@@ -365,7 +365,7 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
                             <?php endif; ?>
                         </td>
                         <td>
-                            <a href="javascript:void(0)" class="action-link" onclick="openComparison(<?= (int)$lnk['primary_certificate_id'] ?>, <?= (int)$lnk['duplicate_certificate_id'] ?>, '<?= htmlspecialchars($lnk['primary_certificate_type']) ?>')">Compare</a>
+                            <a href="javascript:void(0)" class="action-link" onclick="openComparison(<?= (int)$lnk['primary_certificate_id'] ?>, <?= (int)$lnk['duplicate_certificate_id'] ?>, '<?= htmlspecialchars($lnk['primary_certificate_type']) ?>', <?= $lnk['match_score'] !== null ? (float)$lnk['match_score'] : 'null' ?>)">Compare</a>
                             <?php if ($is_admin && $lnk['status'] === 'active'): ?>
                                 <a href="javascript:void(0)" class="action-link danger js-unlink-btn"
                                    data-link-id="<?= (int)$lnk['id'] ?>"
@@ -409,9 +409,9 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
     <script src="../assets/js/double-reg-comparison-modal.js?v=2"></script>
 
     <script>
-        function openComparison(primaryId, duplicateId, certType) {
+        function openComparison(primaryId, duplicateId, certType, matchScore) {
             const modal = new DoubleRegComparisonModal();
-            modal.open(primaryId, duplicateId, certType);
+            modal.open(primaryId, duplicateId, certType, matchScore);
         }
 
         // ── Bulk Scan ──────────────────────────────────────────
@@ -495,7 +495,7 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
                                         <br><span style="font-size:11px;color:#64748B;">${escHtml(m.child_name || '')}</span>
                                     </td>
                                     <td><span class="badge ${scoreClass}">${Number(m.match_score).toFixed(1)}%</span></td>
-                                    <td><a href="javascript:void(0)" class="action-link" onclick="openComparison(${r.source_id}, ${m.id}, 'birth')">Compare</a></td>
+                                    <td><a href="javascript:void(0)" class="action-link" onclick="openComparison(${r.source_id}, ${m.id}, 'birth', ${Number(m.match_score) || 'null'})">Compare</a></td>
                                 `;
                                 tbody.appendChild(row);
                             });

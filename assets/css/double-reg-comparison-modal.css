@@ -364,6 +364,35 @@
     padding-left: 13px;
 }
 
+/* Critical discrepancy = identity-determining field (name, DOB, sex, parents) */
+.double-reg-comparison-table tr.dr-row-critical td:first-child {
+    border-left: 3px solid #DC2626;
+}
+.double-reg-comparison-table tr.dr-row-critical {
+    background: #FEF2F2;
+}
+.double-reg-comparison-table tr.dr-row-critical:hover {
+    background: #FEE2E2;
+}
+
+/* Minor discrepancy = cosmetic (registry no., place naming, barangay, etc.) */
+.double-reg-comparison-table tr.dr-row-minor td:first-child {
+    border-left: 3px solid #D97706;
+}
+
+.dr-critical-tag {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    background: #DC2626;
+    color: #FFFFFF;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    vertical-align: middle;
+}
+
 .double-reg-comparison-table .dr-status-cell {
     display: flex;
     align-items: center;

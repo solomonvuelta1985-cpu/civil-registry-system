@@ -234,10 +234,15 @@ class DoubleRegComparisonModal {
         });
     }
 
-    async open(recordAId, recordBId, certificateType = 'birth') {
+    async open(recordAId, recordBId, certificateType = 'birth', matchScore = null) {
         this.recordAId = recordAId;
         this.recordBId = recordBId;
         this.certificateType = certificateType;
+        // Weighted similarity score (0-100) from find_potential_duplicates / record_links.match_score.
+        // Supplied by the caller so the modal headline matches the table headline.
+        this.matchScore = (matchScore === null || matchScore === undefined || isNaN(matchScore))
+            ? null
+            : Number(matchScore);
 
         // Show modal
         this.backdrop.classList.add('show');
@@ -373,6 +378,16 @@ class DoubleRegComparisonModal {
     }
 
     renderComparison() {
+        // Identity-determining fields per PSA MC 2019-23. A discrepancy in any of these
+        // means the records may NOT be the same person; minor field disagreements (typos,
+        // city naming) shouldn't outweigh a clean match on these.
+        const CRITICAL_BIRTH_FIELDS = new Set([
+            'child_first_name', 'child_middle_name', 'child_last_name',
+            'child_date_of_birth', 'child_sex',
+            'mother_first_name', 'mother_middle_name', 'mother_last_name',
+            'father_first_name', 'father_middle_name', 'father_last_name',
+        ]);
+
         const comparisonFields = [
             { field: 'registry_no', label: 'Registry No.' },
             { field: 'date_of_registration', label: 'Date of Registration' },
@@ -396,6 +411,8 @@ class DoubleRegComparisonModal {
         tbody.innerHTML = '';
         let matchCount = 0;
         let discrepancyCount = 0;
+        let criticalDiscCount = 0;
+        let minorDiscCount = 0;
         let totalFields = 0;
 
         comparisonFields.forEach(({ field, label }) => {
@@ -407,21 +424,36 @@ class DoubleRegComparisonModal {
 
             totalFields++;
             const isMatch = valA.toUpperCase() === valB.toUpperCase();
-            if (isMatch) matchCount++;
-            else discrepancyCount++;
+            const isCritical = CRITICAL_BIRTH_FIELDS.has(field);
+            if (isMatch) {
+                matchCount++;
+            } else {
+                discrepancyCount++;
+                if (isCritical) criticalDiscCount++;
+                else minorDiscCount++;
+            }
 
             const matchSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
             const differSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
 
+            // Row class: match | critical-discrepancy (red, identity-determining) | minor-discrepancy (amber, cosmetic)
+            const rowClass = isMatch
+                ? 'match-row'
+                : (isCritical ? 'discrepancy-row dr-row-critical' : 'discrepancy-row dr-row-minor');
+
+            const statusLabel = isMatch
+                ? 'Match'
+                : (isCritical ? 'Critical' : 'Minor');
+
             const tr = document.createElement('tr');
-            tr.className = isMatch ? 'match-row' : 'discrepancy-row';
+            tr.className = rowClass;
             tr.innerHTML = `
-                <td><strong>${label}</strong></td>
+                <td><strong>${label}</strong>${isCritical && !isMatch ? ' <span class="dr-critical-tag">CRITICAL</span>' : ''}</td>
                 <td>${this.escapeHtml(valA) || '<em style="color:#94A3B8">—</em>'}</td>
                 <td>${this.escapeHtml(valB) || '<em style="color:#94A3B8">—</em>'}</td>
                 <td>
                     <span class="dr-status-cell ${isMatch ? 'match-icon' : 'discrepancy-icon'}">
-                        ${isMatch ? matchSvg + ' Match' : differSvg + ' Differs'}
+                        ${isMatch ? matchSvg : differSvg} ${statusLabel}
                     </span>
                 </td>
             `;
@@ -431,35 +463,49 @@ class DoubleRegComparisonModal {
         // Footer summary
         document.getElementById('drComparisonFooter').innerHTML = `
             <span><strong>Matches:</strong> ${matchCount} fields</span>
-            <span><strong>Discrepancies:</strong> ${discrepancyCount} fields</span>
+            <span><strong>Discrepancies:</strong> ${discrepancyCount} (${criticalDiscCount} critical, ${minorDiscCount} minor)</span>
         `;
 
         // Section badge
         document.getElementById('drComparisonBadge').textContent =
-            `${matchCount} match${matchCount !== 1 ? 'es' : ''}, ${discrepancyCount} differ${discrepancyCount !== 1 ? 's' : ''}`;
+            `${matchCount} match${matchCount !== 1 ? 'es' : ''}, ${criticalDiscCount} critical, ${minorDiscCount} minor`;
 
         // Summary bar
         document.getElementById('drMatchCount').textContent = matchCount;
         document.getElementById('drDifferCount').textContent = discrepancyCount;
 
-        // Verdict
-        const pct = totalFields > 0 ? Math.round((matchCount / totalFields) * 100) : 0;
+        // Verdict — use the weighted match_score from the DB so this matches the table headline.
+        // Fall back to a plain field-equality percentage only if the caller didn't supply one.
+        const score = (this.matchScore !== null)
+            ? this.matchScore
+            : (totalFields > 0 ? (matchCount / totalFields) * 100 : 0);
+        const pct = Math.round(score * 10) / 10; // one decimal
+        const pctInt = Math.round(score);
+
+        // Verdict label is driven by critical discrepancies, not just the percentage.
+        // A 90% similarity score with a critical-field mismatch is NOT a confident match.
         let verdictText, fillClass;
-        if (pct >= 75) {
-            verdictText = 'High confidence match';
+        if (criticalDiscCount === 0 && score >= 75) {
+            verdictText = 'Likely the same person';
             fillClass = 'high';
-        } else if (pct >= 50) {
-            verdictText = 'Moderate confidence';
+        } else if (criticalDiscCount === 0 && score >= 50) {
+            verdictText = 'Probable match — review minor differences';
             fillClass = 'medium';
+        } else if (criticalDiscCount >= 1 && criticalDiscCount <= 2) {
+            verdictText = `Inconclusive — ${criticalDiscCount} critical field differ${criticalDiscCount === 1 ? 's' : ''}`;
+            fillClass = 'medium';
+        } else if (criticalDiscCount >= 3) {
+            verdictText = `Likely different people — ${criticalDiscCount} critical fields differ`;
+            fillClass = 'low';
         } else {
-            verdictText = 'Low confidence';
+            verdictText = 'Low similarity';
             fillClass = 'low';
         }
 
         document.getElementById('drSummaryVerdict').innerHTML = `
             ${verdictText}
             <div class="dr-verdict-bar">
-                <div class="dr-verdict-bar-fill ${fillClass}" style="width:${pct}%"></div>
+                <div class="dr-verdict-bar-fill ${fillClass}" style="width:${pctInt}%"></div>
             </div>
             ${pct}%
         `;
