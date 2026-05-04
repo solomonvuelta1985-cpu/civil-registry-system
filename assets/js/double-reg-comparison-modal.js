@@ -503,13 +503,57 @@ class DoubleRegComparisonModal {
             fillClass = 'low';
         }
 
+        // Two readings, side by side:
+        //   1. Algorithm similarity = the weighted match_score from find_potential_duplicates
+        //      (why the system flagged the pair). Doesn't say "same person."
+        //   2. Critical-field agreement = how many of the identity-determining fields actually agree.
+        //      This is what answers "are these the same person?".
+        const totalCritical = criticalDiscCount + this._countCriticalMatches();
+        const criticalAgreementPct = totalCritical > 0
+            ? Math.round(((totalCritical - criticalDiscCount) / totalCritical) * 100)
+            : 100;
+
+        const algoFill = score >= 75 ? 'high' : (score >= 50 ? 'medium' : 'low');
+        const critFill = criticalAgreementPct >= 90 ? 'high' : (criticalAgreementPct >= 60 ? 'medium' : 'low');
+
         document.getElementById('drSummaryVerdict').innerHTML = `
-            ${verdictText}
-            <div class="dr-verdict-bar">
-                <div class="dr-verdict-bar-fill ${fillClass}" style="width:${pctInt}%"></div>
+            <div class="dr-verdict-text ${fillClass}">${verdictText}</div>
+            <div class="dr-verdict-readings">
+                <div class="dr-reading">
+                    <span class="dr-reading-label">Algorithm similarity</span>
+                    <div class="dr-verdict-bar"><div class="dr-verdict-bar-fill ${algoFill}" style="width:${pctInt}%"></div></div>
+                    <span class="dr-reading-value">${pct}%</span>
+                </div>
+                <div class="dr-reading">
+                    <span class="dr-reading-label">Critical-field agreement</span>
+                    <div class="dr-verdict-bar"><div class="dr-verdict-bar-fill ${critFill}" style="width:${criticalAgreementPct}%"></div></div>
+                    <span class="dr-reading-value">${criticalAgreementPct}%</span>
+                </div>
             </div>
-            ${pct}%
         `;
+    }
+
+    /**
+     * Re-walk the comparison fields to count how many CRITICAL identity-determining fields
+     * actually agree (so we can compute "X of Y critical fields agree").
+     * Mirrors the field list + critical set used in renderComparison(); kept here as the
+     * cheapest way to surface the denominator without restructuring the renderer.
+     */
+    _countCriticalMatches() {
+        const CRITICAL_BIRTH_FIELDS = [
+            'child_first_name', 'child_middle_name', 'child_last_name',
+            'child_date_of_birth', 'child_sex',
+            'mother_first_name', 'mother_middle_name', 'mother_last_name',
+            'father_first_name', 'father_middle_name', 'father_last_name',
+        ];
+        let matches = 0;
+        CRITICAL_BIRTH_FIELDS.forEach(f => {
+            const a = (this.recordA[f] || '').toString().trim();
+            const b = (this.recordB[f] || '').toString().trim();
+            if (!a && !b) return; // skip both-empty (matches renderComparison)
+            if (a.toUpperCase() === b.toUpperCase()) matches++;
+        });
+        return matches;
     }
 
     renderDetermination() {

@@ -222,8 +222,48 @@
     font-weight: 600;
     color: #1E293B;
     display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    min-width: 320px;
+}
+
+.dr-verdict-text {
+    font-size: 13px;
+    font-weight: 700;
+}
+.dr-verdict-text.high { color: #047857; }
+.dr-verdict-text.medium { color: #B45309; }
+.dr-verdict-text.low { color: #B91C1C; }
+
+.dr-verdict-readings {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+}
+
+.dr-reading {
+    display: grid;
+    grid-template-columns: 160px 120px 40px;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #475569;
+}
+
+.dr-reading-label {
+    text-align: right;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.dr-reading-value {
+    text-align: right;
+    font-weight: 700;
+    color: #1E293B;
+    font-variant-numeric: tabular-nums;
 }
 
 .dr-verdict-bar {
