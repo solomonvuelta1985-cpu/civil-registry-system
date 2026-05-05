@@ -36,7 +36,8 @@
       "Bash(LC_ALL=C.UTF-8 unzip -p 'RA 9048 petition \\(birth\\) 2.docx' word/document.xml)",
       "Bash(python3 -c ' *)",
       "Bash(/c/xampp/php/php.exe -r ' *)",
-      "Bash(xargs ls *)"
+      "Bash(xargs ls *)",
+      "Bash(/c/xampp/mysql/bin/mysql.exe -u root iscan_db -e \"DESCRIBE pdf_backups;\")"
     ]
   }
 }
