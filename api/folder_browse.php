@@ -13,6 +13,7 @@ require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
+require_once '../includes/reorganize_uploads.php';
 
 header('Content-Type: application/json');
 
@@ -43,26 +44,35 @@ try {
 }
 
 function handle_tree(PDO $pdo) {
+    $reorgDefs = reorg_table_defs();
     $tables = [
         'birth' => [
             'table' => 'certificate_of_live_birth',
             'label' => 'Birth',
             'permission' => 'birth_view',
+            'event_date' => $reorgDefs['birth']['event_date'],
+            'last_name' => $reorgDefs['birth']['last_name'],
         ],
         'death' => [
             'table' => 'certificate_of_death',
             'label' => 'Death',
             'permission' => 'death_view',
+            'event_date' => $reorgDefs['death']['event_date'],
+            'last_name' => $reorgDefs['death']['last_name'],
         ],
         'marriage' => [
             'table' => 'certificate_of_marriage',
             'label' => 'Marriage',
             'permission' => 'marriage_view',
+            'event_date' => $reorgDefs['marriage']['event_date'],
+            'last_name' => $reorgDefs['marriage']['last_name'],
         ],
         'marriage_license' => [
             'table' => 'application_for_marriage_license',
             'label' => 'Marriage License',
             'permission' => 'marriage_license_view',
+            'event_date' => $reorgDefs['marriage_license']['event_date'],
+            'last_name' => $reorgDefs['marriage_license']['last_name'],
         ],
     ];
 
@@ -71,39 +81,48 @@ function handle_tree(PDO $pdo) {
     foreach ($tables as $type => $def) {
         if (!hasPermission($def['permission'])) continue;
 
-        $tbl = $def['table'];
-        $rows = $pdo->query(
-            "SELECT pdf_filename FROM `{$tbl}` WHERE pdf_filename IS NOT NULL AND pdf_filename != '' AND status = 'Active'"
-        )->fetchAll(PDO::FETCH_COLUMN);
+        $tbl     = $def['table'];
+        $evtCol  = $def['event_date'];
+        $nameCol = $def['last_name'];
+
+        $sql = "SELECT pdf_filename, registry_no,
+                       `{$evtCol}` AS event_date,
+                       `{$nameCol}` AS last_name
+                FROM `{$tbl}`
+                WHERE pdf_filename IS NOT NULL AND pdf_filename != '' AND status = 'Active'";
+        $rows = $pdo->query($sql)->fetchAll();
 
         $folders = [];
         $total = 0;
 
-        foreach ($rows as $path) {
-            $parts = explode('/', $path);
-            if (count($parts) < 2) continue;
-
+        foreach ($rows as $row) {
             $total++;
 
-            if (count($parts) === 4 && $parts[0] === $type) {
-                $year = $parts[1];
-                $lastName = $parts[2];
-            } elseif (count($parts) === 3 && $parts[0] === $type) {
-                if (ctype_digit($parts[1])) {
-                    $year = $parts[1];
-                    $lastName = null;
-                } else {
-                    $year = null;
-                    $lastName = $parts[1];
+            // Year priority: DB date column → registry-no prefix → file-path segment.
+            $year = year_from_date($row['event_date'])
+                 ?? registry_folder_year($row['registry_no']);
+
+            if ($year === null) {
+                $parts = explode('/', $row['pdf_filename']);
+                if (count($parts) >= 3 && $parts[0] === $type && ctype_digit($parts[1]) && strlen($parts[1]) === 4) {
+                    $year = (int)$parts[1];
                 }
-            } elseif (count($parts) === 2 && $parts[0] === $type) {
-                $year = null;
-                $lastName = null;
-            } else {
-                continue;
             }
 
-            $yearKey = $year ?? '__no_year__';
+            // Last-name bucket: prefer DB column, fall back to path segment.
+            $lastName = null;
+            if ($row['last_name'] !== null && trim($row['last_name']) !== '') {
+                $lastName = folder_safe_last_name($row['last_name']);
+            } else {
+                $parts = explode('/', $row['pdf_filename']);
+                if (count($parts) === 4 && $parts[0] === $type) {
+                    $lastName = $parts[2];
+                } elseif (count($parts) === 3 && $parts[0] === $type && !ctype_digit($parts[1])) {
+                    $lastName = $parts[1];
+                }
+            }
+
+            $yearKey = $year !== null ? (string)$year : '__no_year__';
             if (!isset($folders[$yearKey])) {
                 $folders[$yearKey] = ['count' => 0, 'children' => []];
             }
@@ -158,10 +177,13 @@ function handle_list(PDO $pdo) {
     $page = max(1, (int)($_GET['page'] ?? 1));
     $perPage = min(100, max(1, (int)($_GET['per_page'] ?? 25)));
 
+    $reorgDefs = reorg_table_defs();
     $tableDefs = [
         'birth' => [
             'table' => 'certificate_of_live_birth',
             'permission' => 'birth_view',
+            'event_date' => $reorgDefs['birth']['event_date'],
+            'last_name_col' => $reorgDefs['birth']['last_name'],
             'columns' => 'id, registry_no, child_first_name, child_middle_name, child_last_name, child_sex,
                           child_date_of_birth, father_first_name, father_middle_name, father_last_name,
                           mother_first_name, mother_middle_name, mother_last_name,
@@ -174,6 +196,8 @@ function handle_list(PDO $pdo) {
         'death' => [
             'table' => 'certificate_of_death',
             'permission' => 'death_view',
+            'event_date' => $reorgDefs['death']['event_date'],
+            'last_name_col' => $reorgDefs['death']['last_name'],
             'columns' => 'id, registry_no, deceased_first_name, deceased_middle_name, deceased_last_name, sex,
                           date_of_death, date_of_birth, age, age_unit, place_of_death,
                           father_first_name, father_middle_name, father_last_name,
@@ -187,6 +211,8 @@ function handle_list(PDO $pdo) {
         'marriage' => [
             'table' => 'certificate_of_marriage',
             'permission' => 'marriage_view',
+            'event_date' => $reorgDefs['marriage']['event_date'],
+            'last_name_col' => $reorgDefs['marriage']['last_name'],
             'columns' => 'id, registry_no, husband_first_name, husband_middle_name, husband_last_name,
                           wife_first_name, wife_middle_name, wife_last_name,
                           date_of_marriage, place_of_marriage,
@@ -199,6 +225,8 @@ function handle_list(PDO $pdo) {
         'marriage_license' => [
             'table' => 'application_for_marriage_license',
             'permission' => 'marriage_license_view',
+            'event_date' => $reorgDefs['marriage_license']['event_date'],
+            'last_name_col' => $reorgDefs['marriage_license']['last_name'],
             'columns' => 'id, registry_no, groom_first_name, groom_middle_name, groom_last_name,
                           bride_first_name, bride_middle_name, bride_last_name,
                           date_of_application,
@@ -221,25 +249,36 @@ function handle_list(PDO $pdo) {
         return;
     }
 
-    $tbl = $def['table'];
-    $where = ["status = 'Active'"];
+    $tbl     = $def['table'];
+    $evtCol  = $def['event_date'];
+    $nameCol = $def['last_name_col'];
+
+    $where = ["status = 'Active'", "pdf_filename IS NOT NULL", "pdf_filename != ''"];
     $params = [];
 
     if ($year !== null && $year !== '') {
-        $where[] = "pdf_filename LIKE :year_pattern";
+        // Year folder: match by event-date column OR registry-number prefix,
+        // mirroring the year-derivation logic in handle_tree().
+        $yearInt = (int)$year;
+        $where[] = "(YEAR(`{$evtCol}`) = :year_val
+                     OR (`{$evtCol}` IS NULL AND registry_no LIKE :reg_yyyy)
+                     OR (`{$evtCol}` IS NULL AND registry_no LIKE :reg_yy))";
+        $params[':year_val'] = $yearInt;
+        $params[':reg_yyyy'] = $yearInt . '-%';
+        $params[':reg_yy']   = sprintf('%02d', $yearInt % 100) . '-%';
+
         if ($lastName !== null && $lastName !== '') {
-            $params[':year_pattern'] = "{$type}/{$year}/{$lastName}/%";
-        } else {
-            $params[':year_pattern'] = "{$type}/{$year}/%";
+            // Match the normalized last-name bucket: folder_safe_last_name() uppercases
+            // and replaces non-alphanumeric runs with '_'. Reversing that for SQL: turn
+            // each '_' in the bucket label into a '%' wildcard for a case-insensitive LIKE.
+            $where[] = "UPPER(`{$nameCol}`) LIKE :ln";
+            $params[':ln'] = str_replace('_', '%', strtoupper($lastName));
         }
     } elseif ($lastName !== null && $lastName !== '') {
-        $where[] = "(pdf_filename LIKE :ln_pattern_a OR pdf_filename LIKE :ln_pattern_b)";
-        $params[':ln_pattern_a'] = "{$type}/{$lastName}/%";
-        $params[':ln_pattern_b'] = "{$type}/%/{$lastName}/%";
-    } else {
-        $where[] = "pdf_filename LIKE :type_pattern";
-        $params[':type_pattern'] = "{$type}/%";
+        $where[] = "UPPER(`{$nameCol}`) LIKE :ln";
+        $params[':ln'] = str_replace('_', '%', strtoupper($lastName));
     }
+    // else: no year + no last-name -> all records of this type.
 
     if ($search !== '') {
         $searchClauses = [];
