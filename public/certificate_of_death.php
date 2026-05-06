@@ -452,7 +452,6 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
                                         type="number"
                                         id="age"
                                         name="age"
-                                        required
                                         <?php echo $manual_age_mode ? '' : 'readonly'; ?>
                                         placeholder="<?php echo $manual_age_mode ? 'Enter age manually' : 'Auto-calculated'; ?>"
                                         value="<?php echo $edit_mode ? htmlspecialchars($record['age']) : ''; ?>"

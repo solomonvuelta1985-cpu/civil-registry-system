@@ -102,10 +102,6 @@ try {
         $errors[] = "Date of death is required.";
     }
 
-    if (empty($age)) {
-        $errors[] = "Age is required.";
-    }
-
     if (empty($sex)) {
         $errors[] = "Sex is required.";
     } elseif (!in_array($sex, ['Male', 'Female'], true)) {
@@ -317,7 +313,7 @@ try {
             ':date_of_birth_partial_year'  => $dob_stored_year,
             ':date_of_birth_partial_day'   => $dob_stored_day,
             ':date_of_death' => $date_of_death,
-            ':age' => $age,
+            ':age' => ($age === '' ? null : $age),
             ':age_unit' => $age_unit,
             ':occupation' => $occupation,
             ':place_of_death' => $place_of_death,
