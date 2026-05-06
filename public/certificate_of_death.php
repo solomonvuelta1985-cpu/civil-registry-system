@@ -459,9 +459,9 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
                                         style="flex:1 1 auto; <?php echo $manual_age_mode ? '' : 'background-color: #e9ecef; cursor: not-allowed;'; ?>"
                                     >
                                     <select id="age_unit" name="age_unit" style="flex:0 0 110px;">
-                                        <option value="years"  <?= $age_unit_selected === 'years'  ? 'selected' : '' ?>>Years</option>
-                                        <option value="months" <?= $age_unit_selected === 'months' ? 'selected' : '' ?>>Months</option>
-                                        <option value="days"   <?= $age_unit_selected === 'days'   ? 'selected' : '' ?>>Days</option>
+                                        <option value="years"  <?= $age_unit_selected === 'years'  ? 'selected' : '' ?>>y/o</option>
+                                        <option value="months" <?= $age_unit_selected === 'months' ? 'selected' : '' ?>>m/o</option>
+                                        <option value="days"   <?= $age_unit_selected === 'days'   ? 'selected' : '' ?>>days</option>
                                     </select>
                                 </div>
                                 <span class="help-text">Auto-calculated from DOB and date of death (picks smallest whole unit for infants), or enter manually.</span>

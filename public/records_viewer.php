@@ -631,10 +631,7 @@ function get_field_value($record, $field, $type = 'text') {
         }
         return htmlspecialchars($result);
     } elseif ($field === 'age' && $record_type === 'death') {
-        if (!isset($record['age']) || $record['age'] === null || $record['age'] === '') return 'N/A';
-        $unit = $record['age_unit'] ?? 'years';
-        $label = ucfirst($unit);
-        return htmlspecialchars($record['age'] . ' ' . $label);
+        return htmlspecialchars(format_death_age($record['age'] ?? null, $record['age_unit'] ?? 'years'));
     } elseif ($field === 'has_pdf') {
         $has = !empty($record['pdf_filename']);
         return $has

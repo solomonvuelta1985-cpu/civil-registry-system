@@ -578,7 +578,7 @@ $field_groups = $certificate_type === 'birth' ? $birth_fields : $marriage_fields
                                         isset($certificate_data[$field . '_partial_day'])   ? (int)$certificate_data[$field . '_partial_day']   : null
                                     )) ?>
                                 <?php elseif ($field === 'age' && isset($certificate_data['age_unit'])): ?>
-                                    <?= !empty($certificate_data['age']) ? htmlspecialchars($certificate_data['age'] . ' ' . ucfirst($certificate_data['age_unit'] ?? 'years')) : '(Not provided)' ?>
+                                    <?= !empty($certificate_data['age']) ? htmlspecialchars(format_death_age($certificate_data['age'], $certificate_data['age_unit'] ?? 'years')) : '(Not provided)' ?>
                                 <?php else: ?>
                                     <?= !empty($certificate_data[$field]) ? htmlspecialchars($certificate_data[$field]) : '(Not provided)' ?>
                                 <?php endif; ?>

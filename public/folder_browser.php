@@ -598,6 +598,14 @@ function getColumnsForType(type) {
         if (isNaN(d)) return esc(v);
         return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
     };
+    const fmtDeathAge = (age, unit) => {
+        if (age === null || age === undefined || age === '') return '';
+        unit = unit || 'years';
+        if (unit === 'years')  return esc(age) + ' y/o';
+        if (unit === 'months') return esc(age) + ' m/o';
+        if (unit === 'days')   return esc(age) + ' ' + (Number(age) === 1 ? 'day' : 'days');
+        return esc(age) + ' ' + esc(unit);
+    };
 
     switch (type) {
         case 'birth': return [
@@ -613,7 +621,7 @@ function getColumnsForType(type) {
             { label: 'Deceased', cls: 'col-name', render: r => nameLink(r, r.id, type, 'deceased_first_name', 'deceased_middle_name', 'deceased_last_name') },
             { label: 'Sex', cls: '', render: r => esc(r.sex || '') },
             { label: 'Date of Death', cls: 'col-date', render: r => fmtDate(r.date_of_death) },
-            { label: 'Age', cls: '', render: r => r.age ? `${esc(r.age)} ${esc(r.age_unit || 'years')}` : '' },
+            { label: 'Age', cls: '', render: r => fmtDeathAge(r.age, r.age_unit) },
             { label: 'Place', cls: 'col-place', render: r => esc(r.place_of_death || '') },
         ];
         case 'marriage': return [

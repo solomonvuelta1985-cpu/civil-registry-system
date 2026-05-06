@@ -247,8 +247,8 @@ function resolve_export_value($col, $row, $type, $user_map) {
     // Age with unit for death records
     if ($col === 'age' && $type === 'death') {
         $age = $row['age'] ?? '';
-        $unit = $row['age_unit'] ?? 'years';
-        return ($age !== '' && $age !== null) ? $age . ' ' . ucfirst($unit) : '';
+        if ($age === '' || $age === null) return '';
+        return format_death_age($age, $row['age_unit'] ?? 'years');
     }
 
     // Date formatting
