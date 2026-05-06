@@ -445,7 +445,7 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
 
                             <div class="form-group">
                                 <label for="age">
-                                    Age <span class="required">*</span>
+                                    Age
                                 </label>
                                 <div style="display:flex; gap:0.5rem;">
                                     <input
