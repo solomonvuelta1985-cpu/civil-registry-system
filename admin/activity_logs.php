@@ -127,6 +127,32 @@ foreach ($leaderboard as $row) {
     $totals['total'] += (int)$row['total_count'];
 }
 
+// Presence map (user_id => 'online'|'away'|'offline') — computed entirely in
+// MySQL so it doesn't drift if PHP and MySQL run with different timezones.
+// Activity recency is the latest of users.last_login and the user's most
+// recent row in activity_logs, so the dot reflects real action, not just
+// initial sign-in.
+$presence_sql = "
+    SELECT
+        u.id,
+        TIMESTAMPDIFF(SECOND, GREATEST(
+            COALESCE(u.last_login, '1970-01-01'),
+            COALESCE((SELECT MAX(created_at) FROM activity_logs WHERE user_id = u.id), '1970-01-01')
+        ), NOW()) AS seconds_since
+    FROM users u
+";
+$presence_map = [];
+foreach ($pdo->query($presence_sql)->fetchAll() as $row) {
+    $secs = (int)$row['seconds_since'];
+    if ($secs < 0 || $secs > 60 * 60) {
+        $presence_map[(int)$row['id']] = 'offline';
+    } elseif ($secs <= 15 * 60) {
+        $presence_map[(int)$row['id']] = 'online';
+    } else {
+        $presence_map[(int)$row['id']] = 'away';
+    }
+}
+
 // KPI: total events across the whole audit log (unfiltered)
 $kpi_total_events = (int)$pdo->query("SELECT COUNT(*) FROM activity_logs")->fetchColumn();
 $kpi_events_today = (int)$pdo->query("SELECT COUNT(*) FROM activity_logs WHERE DATE(created_at) = CURDATE()")->fetchColumn();
@@ -162,19 +188,6 @@ function activity_category($action) {
 
 function activity_badge_class($action) {
     return 'badge-' . activity_category($action);
-}
-
-/**
- * Derive a presence status from the user's last_login timestamp.
- * online: <= 15 min ago, away: <= 60 min, offline: older or null.
- */
-function user_presence($last_login) {
-    if (empty($last_login)) return 'offline';
-    $diff = time() - strtotime($last_login);
-    if ($diff < 0) return 'offline';
-    if ($diff <= 15 * 60) return 'online';
-    if ($diff <= 60 * 60) return 'away';
-    return 'offline';
 }
 
 function user_presence_label($status) {
@@ -1141,7 +1154,7 @@ foreach ($CATEGORY_LABELS as $cat => $_) {
                                     $palette = ['#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#ef4444','#6366f1'];
                                     $avatar_color = $palette[((int)$row['id']) % count($palette)];
                                     $initial = strtoupper(substr($row['full_name'] ?: $row['username'], 0, 1));
-                                    $presence = user_presence($row['last_login'] ?? null);
+                                    $presence = $presence_map[(int)$row['id']] ?? 'offline';
                                 ?>
                                     <tr>
                                         <td><span class="rank"><?php echo $i + 1; ?></span></td>
@@ -1382,7 +1395,7 @@ foreach ($CATEGORY_LABELS as $cat => $_) {
                                     $uid = (int)($log['user_id'] ?? 0);
                                     $avatar_color = $uid > 0 ? $palette[$uid % count($palette)] : '#94a3b8';
                                     $initial = strtoupper(substr($log['full_name'] ?: ($log['username'] ?: '?'), 0, 1));
-                                    $presence = user_presence($log['last_login'] ?? null);
+                                    $presence = $uid > 0 ? ($presence_map[$uid] ?? 'offline') : 'offline';
                                 ?>
                                     <tr class="row-<?php echo $cat; ?>">
                                         <td class="timestamp">
