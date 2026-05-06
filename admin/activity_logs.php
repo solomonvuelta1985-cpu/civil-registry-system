@@ -68,7 +68,7 @@ $total_records = (int)$count_stmt->fetch()['total'];
 $total_pages = max(1, (int)ceil($total_records / $per_page));
 
 // Logs with user info
-$sql = "SELECT al.*, u.username, u.full_name, u.role
+$sql = "SELECT al.*, u.username, u.full_name, u.role, u.last_login
         FROM activity_logs al
         LEFT JOIN users u ON al.user_id = u.id
         {$where_sql}
@@ -96,6 +96,7 @@ $leaderboard_sql = "
         u.full_name,
         u.username,
         u.role,
+        u.last_login,
         SUM(CASE WHEN DATE(c.created_at) = CURDATE() THEN 1 ELSE 0 END) AS today_count,
         SUM(CASE WHEN YEARWEEK(c.created_at, 1) = YEARWEEK(CURDATE(), 1) THEN 1 ELSE 0 END) AS week_count,
         SUM(CASE WHEN YEAR(c.created_at) = YEAR(CURDATE()) AND MONTH(c.created_at) = MONTH(CURDATE()) THEN 1 ELSE 0 END) AS month_count,
@@ -110,7 +111,7 @@ $leaderboard_sql = "
         SELECT created_by, created_at FROM application_for_marriage_license WHERE status <> 'Deleted' AND created_by IS NOT NULL
     ) c
     INNER JOIN users u ON c.created_by = u.id
-    GROUP BY u.id, u.full_name, u.username, u.role
+    GROUP BY u.id, u.full_name, u.username, u.role, u.last_login
     ORDER BY month_count DESC, total_count DESC
 ";
 $leaderboard = $pdo->query($leaderboard_sql)->fetchAll();
@@ -161,6 +162,27 @@ function activity_category($action) {
 
 function activity_badge_class($action) {
     return 'badge-' . activity_category($action);
+}
+
+/**
+ * Derive a presence status from the user's last_login timestamp.
+ * online: <= 15 min ago, away: <= 60 min, offline: older or null.
+ */
+function user_presence($last_login) {
+    if (empty($last_login)) return 'offline';
+    $diff = time() - strtotime($last_login);
+    if ($diff < 0) return 'offline';
+    if ($diff <= 15 * 60) return 'online';
+    if ($diff <= 60 * 60) return 'away';
+    return 'offline';
+}
+
+function user_presence_label($status) {
+    switch ($status) {
+        case 'online': return 'Online (active in last 15 min)';
+        case 'away':   return 'Away (active in last hour)';
+        default:       return 'Offline';
+    }
 }
 
 $CATEGORY_LABELS = [
@@ -803,6 +825,12 @@ foreach ($CATEGORY_LABELS as $cat => $_) {
 
         /* ===== Avatar + user cell ===== */
         .user-cell { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+        .avatar-wrap {
+            position: relative;
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+        }
         .avatar {
             width: 32px;
             height: 32px;
@@ -816,6 +844,33 @@ foreach ($CATEGORY_LABELS as $cat => $_) {
             flex-shrink: 0;
             box-shadow: inset 0 -1px 0 rgba(0,0,0,0.08);
         }
+        .presence-dot {
+            position: absolute;
+            right: -2px;
+            bottom: -2px;
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.04);
+        }
+        .presence-dot.online  { background: #22c55e; }
+        .presence-dot.online::after {
+            content: '';
+            position: absolute;
+            inset: -3px;
+            border-radius: 50%;
+            border: 2px solid rgba(34, 197, 94, 0.5);
+            animation: presence-pulse 1.8s ease-out infinite;
+        }
+        .presence-dot.away    { background: #f59e0b; }
+        .presence-dot.offline { background: #cbd5e1; }
+        @keyframes presence-pulse {
+            0%   { transform: scale(0.8); opacity: 0.8; }
+            100% { transform: scale(1.6); opacity: 0; }
+        }
+        /* Stripe row hover keeps dot border crisp */
+        tr:hover .presence-dot { border-color: #f8fafc; }
         .user-meta { display: flex; flex-direction: column; min-width: 0; }
         .user-name {
             font-weight: 600;
@@ -1086,12 +1141,16 @@ foreach ($CATEGORY_LABELS as $cat => $_) {
                                     $palette = ['#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#ef4444','#6366f1'];
                                     $avatar_color = $palette[((int)$row['id']) % count($palette)];
                                     $initial = strtoupper(substr($row['full_name'] ?: $row['username'], 0, 1));
+                                    $presence = user_presence($row['last_login'] ?? null);
                                 ?>
                                     <tr>
                                         <td><span class="rank"><?php echo $i + 1; ?></span></td>
                                         <td>
                                             <div class="user-cell">
-                                                <span class="avatar" style="background: <?php echo $avatar_color; ?>;"><?php echo htmlspecialchars($initial); ?></span>
+                                                <span class="avatar-wrap" title="<?php echo htmlspecialchars(user_presence_label($presence)); ?>">
+                                                    <span class="avatar" style="background: <?php echo $avatar_color; ?>;"><?php echo htmlspecialchars($initial); ?></span>
+                                                    <span class="presence-dot <?php echo $presence; ?>" aria-label="<?php echo htmlspecialchars(user_presence_label($presence)); ?>"></span>
+                                                </span>
                                                 <div class="user-meta">
                                                     <span class="user-name">
                                                         <?php echo htmlspecialchars($row['full_name'] ?: $row['username']); ?>
@@ -1323,6 +1382,7 @@ foreach ($CATEGORY_LABELS as $cat => $_) {
                                     $uid = (int)($log['user_id'] ?? 0);
                                     $avatar_color = $uid > 0 ? $palette[$uid % count($palette)] : '#94a3b8';
                                     $initial = strtoupper(substr($log['full_name'] ?: ($log['username'] ?: '?'), 0, 1));
+                                    $presence = user_presence($log['last_login'] ?? null);
                                 ?>
                                     <tr class="row-<?php echo $cat; ?>">
                                         <td class="timestamp">
@@ -1331,7 +1391,10 @@ foreach ($CATEGORY_LABELS as $cat => $_) {
                                         <td>
                                             <?php if ($log['username']): ?>
                                                 <div class="user-cell">
-                                                    <span class="avatar" style="background: <?php echo $avatar_color; ?>;"><?php echo htmlspecialchars($initial); ?></span>
+                                                    <span class="avatar-wrap" title="<?php echo htmlspecialchars(user_presence_label($presence)); ?>">
+                                                        <span class="avatar" style="background: <?php echo $avatar_color; ?>;"><?php echo htmlspecialchars($initial); ?></span>
+                                                        <span class="presence-dot <?php echo $presence; ?>" aria-label="<?php echo htmlspecialchars(user_presence_label($presence)); ?>"></span>
+                                                    </span>
                                                     <div class="user-meta">
                                                         <span class="user-name">
                                                             <?php echo htmlspecialchars($log['full_name'] ?: $log['username']); ?>
