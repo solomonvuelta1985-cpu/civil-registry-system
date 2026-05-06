@@ -857,8 +857,9 @@ if ($edit_mode && $record) {
                         </div>
 
                         <?php
-                        $marriage_dom_val = $edit_mode ? ($record['date_of_marriage'] ?? '') : '';
-                        $marriage_is_others = $edit_mode && in_array($marriage_dom_val, ['Not Married', "Don't Know", 'Forgotten', 'Not Stated']);
+                        $marriage_dom_val    = $edit_mode ? ($record['date_of_marriage'] ?? '') : '';
+                        $marriage_others_val = $edit_mode ? ($record['date_of_marriage_others'] ?? null) : null;
+                        $marriage_is_others  = $edit_mode && !empty($marriage_others_val);
                         ?>
 
                         <!-- "Others" checkbox (always visible) -->
@@ -895,10 +896,10 @@ if ($edit_mode && $record) {
                                     style="<?php echo $marriage_is_others ? '' : 'display:none;'; ?>"
                                     <?php echo $marriage_is_others ? '' : 'disabled'; ?>
                                 >
-                                    <option value="Not Married" <?php echo $marriage_dom_val === 'Not Married' ? 'selected' : ''; ?>>Not Married</option>
-                                    <option value="Don't Know" <?php echo $marriage_dom_val === "Don't Know" ? 'selected' : ''; ?>>Don't Know</option>
-                                    <option value="Forgotten" <?php echo $marriage_dom_val === 'Forgotten' ? 'selected' : ''; ?>>Forgotten</option>
-                                    <option value="Not Stated" <?php echo $marriage_dom_val === 'Not Stated' ? 'selected' : ''; ?>>Not Stated</option>
+                                    <option value="Not Married" <?php echo $marriage_others_val === 'Not Married' ? 'selected' : ''; ?>>Not Married</option>
+                                    <option value="Don't Know" <?php echo $marriage_others_val === "Don't Know" ? 'selected' : ''; ?>>Don't Know</option>
+                                    <option value="Forgotten" <?php echo $marriage_others_val === 'Forgotten' ? 'selected' : ''; ?>>Forgotten</option>
+                                    <option value="Not Stated" <?php echo $marriage_others_val === 'Not Stated' ? 'selected' : ''; ?>>Not Stated</option>
                                 </select>
                             </div>
 

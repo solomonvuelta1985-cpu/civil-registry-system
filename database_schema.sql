@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS certificate_of_live_birth (
 
     -- Marriage Information
     date_of_marriage DATE NULL,
+    date_of_marriage_others VARCHAR(20) NULL,
     place_of_marriage VARCHAR(255) NULL,
 
     -- File Information

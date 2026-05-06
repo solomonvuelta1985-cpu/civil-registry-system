@@ -250,6 +250,7 @@ CREATE TABLE `certificate_of_live_birth` (
   `father_middle_name` varchar(100) DEFAULT NULL,
   `father_last_name` varchar(100) DEFAULT NULL,
   `date_of_marriage` date DEFAULT NULL,
+  `date_of_marriage_others` varchar(20) DEFAULT NULL,
   `place_of_marriage` varchar(255) DEFAULT NULL,
   `pdf_filename` varchar(255) DEFAULT NULL,
   `pdf_filepath` varchar(500) DEFAULT NULL,

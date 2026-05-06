@@ -93,6 +93,7 @@ try {
     // Marriage information
     $date_of_marriage = sanitize_input($_POST['date_of_marriage'] ?? null);
     $place_of_marriage = sanitize_input($_POST['place_of_marriage'] ?? null);
+    $marriage_others_checked = !empty($_POST['marriage_others']);
 
     // Validation
     $errors = [];
@@ -235,8 +236,17 @@ try {
     $child_dob_stored_day   = ($child_dob_format === 'month_day')
         ? ((int)$child_dob_partial_day ?: null) : null;
 
-    // Convert date format if provided
-    $date_of_marriage = !empty($date_of_marriage) ? safe_date_convert($date_of_marriage) : null;
+    // Marriage date: when "Others" is checked the posted date_of_marriage is one of the
+    // enum strings ("Not Married" etc.) which can't be stored in the DATE column. Split it
+    // out to the dedicated date_of_marriage_others varchar column instead.
+    $marriage_others_allowed = ['Not Married', "Don't Know", 'Forgotten', 'Not Stated'];
+    if ($marriage_others_checked && in_array($date_of_marriage, $marriage_others_allowed, true)) {
+        $date_of_marriage_others = $date_of_marriage;
+        $date_of_marriage = null;
+    } else {
+        $date_of_marriage_others = null;
+        $date_of_marriage = !empty($date_of_marriage) ? safe_date_convert($date_of_marriage) : null;
+    }
 
     // Reconcile PDF folder with (possibly renamed) last name / event date.
     // Only runs when no new PDF was uploaded — new uploads already land in the right folder.
@@ -289,6 +299,7 @@ try {
                     father_last_name = :father_last_name,
                     father_citizenship = :father_citizenship,
                     date_of_marriage = :date_of_marriage,
+                    date_of_marriage_others = :date_of_marriage_others,
                     place_of_marriage = :place_of_marriage,
                     pdf_filename = :pdf_filename,
                     pdf_filepath = :pdf_filepath,
@@ -333,6 +344,7 @@ try {
             ':father_last_name' => $father_last_name,
             ':father_citizenship' => $father_citizenship,
             ':date_of_marriage' => $date_of_marriage,
+            ':date_of_marriage_others' => $date_of_marriage_others,
             ':place_of_marriage' => $place_of_marriage,
             ':pdf_filename' => $pdf_filename,
             ':pdf_filepath' => $pdf_filepath,

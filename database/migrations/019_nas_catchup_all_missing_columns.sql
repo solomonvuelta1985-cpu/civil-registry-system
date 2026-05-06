@@ -87,6 +87,13 @@ ALTER TABLE `certificate_of_live_birth`
         TINYINT(2) UNSIGNED NULL
         AFTER `child_date_of_birth_partial_year`;
 
+-- "Others" choice for Date of Marriage (Not Married / Don't Know / Forgotten / Not Stated).
+-- Stored separately so the date column stays a real date type and the Others choice
+-- survives a save/reopen round-trip on the edit form.
+ALTER TABLE `certificate_of_live_birth`
+    ADD COLUMN IF NOT EXISTS `date_of_marriage_others` VARCHAR(20) NULL
+        AFTER `date_of_marriage`;
+
 
 -- ─────────────────────────────────────────────────────────────────────
 -- CERTIFICATE OF DEATH — missing columns
