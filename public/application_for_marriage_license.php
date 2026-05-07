@@ -9,6 +9,7 @@ require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
+require_once '../includes/settings.php';
 
 // Check authentication
 if (!isLoggedIn()) {
@@ -948,7 +949,8 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
     <!-- Certificate Skeleton Loader -->
     <script src="../assets/js/certificate-skeleton-loader.js"></script>
 
-    <!-- OCR Feature Integration - Professional Modal System -->
+    <?php if (get_setting('ocr_enabled', true)): ?>
+    <!-- OCR Feature Integration - Professional Modal System (gated by admin/settings.php) -->
     <!-- Page Range Selector -->
     <link rel="stylesheet" href="../assets/css/ocr-page-selector.css">
     <script src="../assets/js/ocr-page-selector.js"></script>
@@ -968,7 +970,6 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 
     <!-- Initialize OCR Modal -->
     <script>
-        // Initialize professional modal OCR interface
         window.ocrModal = new OCRModal({
             autoProcess: true,
             autoFill: false,
@@ -976,5 +977,6 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
             formType: 'marriage_license'
         });
     </script>
+    <?php endif; ?>
 </body>
 </html>

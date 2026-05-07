@@ -8,6 +8,7 @@
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/settings.php';
 require_once '../includes/security.php';
 
 // Check authentication
@@ -950,7 +951,8 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
 
     <?php include '../includes/sidebar_scripts.php'; ?>
 
-    <!-- OCR Feature Integration - Professional Modal System -->
+    <?php if (get_setting('ocr_enabled', true)): ?>
+    <!-- OCR Feature Integration - Professional Modal System (gated by admin/settings.php) -->
     <!-- Page Range Selector -->
     <link rel="stylesheet" href="../assets/css/ocr-page-selector.css">
     <script src="../assets/js/ocr-page-selector.js"></script>
@@ -970,14 +972,16 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
 
     <!-- Initialize OCR Modal -->
     <script>
-        // Initialize professional modal OCR interface
         window.ocrModal = new OCRModal({
             autoProcess: true,
             autoFill: false,
             confidenceThreshold: 75,
             formType: 'marriage'
         });
+    </script>
+    <?php endif; ?>
 
+    <script>
         // Sticky detection for progress bar
         (function() {
             const progressBar = document.getElementById('formProgressBar');

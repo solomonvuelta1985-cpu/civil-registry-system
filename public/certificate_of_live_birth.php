@@ -8,6 +8,7 @@
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/settings.php';
 require_once '../includes/security.php';
 
 // Check authentication
@@ -1535,7 +1536,11 @@ if ($edit_mode && $record) {
 
     <?php include '../includes/sidebar_scripts.php'; ?>
 
-    <!-- OCR Feature Integration - Professional Modal System -->
+    <!-- Certificate Skeleton Loader -->
+    <script src="../assets/js/certificate-skeleton-loader.js"></script>
+
+    <?php if (get_setting('ocr_enabled', true)): ?>
+    <!-- OCR Feature Integration - Professional Modal System (gated by admin/settings.php) -->
     <!-- Page Range Selector -->
     <link rel="stylesheet" href="../assets/css/ocr-page-selector.css">
     <script src="../assets/js/ocr-page-selector.js"></script>
@@ -1553,12 +1558,8 @@ if ($edit_mode && $record) {
     <script src="../assets/js/ocr-field-mapper.js"></script>
     <script src="../assets/js/ocr-modal.js"></script>
 
-    <!-- Certificate Skeleton Loader -->
-    <script src="../assets/js/certificate-skeleton-loader.js"></script>
-
     <!-- Initialize OCR Modal -->
     <script>
-        // Initialize professional modal OCR interface
         window.ocrModal = new OCRModal({
             autoProcess: true,
             autoFill: false,
@@ -1566,5 +1567,6 @@ if ($edit_mode && $record) {
             formType: 'birth'
         });
     </script>
+    <?php endif; ?>
 </body>
 </html>

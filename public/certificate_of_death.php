@@ -9,6 +9,7 @@ require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
+require_once '../includes/settings.php';
 
 // Check authentication
 if (!isLoggedIn()) {
@@ -1147,7 +1148,11 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
 
     <?php include '../includes/sidebar_scripts.php'; ?>
 
-    <!-- OCR Feature Integration - Professional Modal System -->
+    <!-- Certificate Skeleton Loader -->
+    <script src="../assets/js/certificate-skeleton-loader.js"></script>
+
+    <?php if (get_setting('ocr_enabled', true)): ?>
+    <!-- OCR Feature Integration - Professional Modal System (gated by admin/settings.php) -->
     <!-- Page Range Selector -->
     <link rel="stylesheet" href="../assets/css/ocr-page-selector.css">
     <script src="../assets/js/ocr-page-selector.js"></script>
@@ -1165,12 +1170,8 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
     <script src="../assets/js/ocr-field-mapper.js"></script>
     <script src="../assets/js/ocr-modal.js"></script>
 
-    <!-- Certificate Skeleton Loader -->
-    <script src="../assets/js/certificate-skeleton-loader.js"></script>
-
     <!-- Initialize OCR Modal -->
     <script>
-        // Initialize professional modal OCR interface
         window.ocrModal = new OCRModal({
             autoProcess: true,
             autoFill: false,
@@ -1178,5 +1179,6 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
             formType: 'death'
         });
     </script>
+    <?php endif; ?>
 </body>
 </html>
