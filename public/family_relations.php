@@ -410,7 +410,7 @@ function fr_full_name($first, $middle, $last) {
                 </div>
 
                 <script src="../assets/js/family_relations_render.js?v=2"></script>
-                <script src="../assets/js/record-preview-modal.js?v=5"></script>
+                <script src="../assets/js/record-preview-modal.js?v=6"></script>
                 <script>
                     (function () {
                         const cache = {};
@@ -495,7 +495,7 @@ function fr_full_name($first, $middle, $last) {
             </div>
 
             <script src="../assets/js/family_relations_render.js?v=2"></script>
-            <script src="../assets/js/record-preview-modal.js?v=5"></script>
+            <script src="../assets/js/record-preview-modal.js?v=6"></script>
             <script>
                 (function () {
                     const recordId = <?= (int)$record_id ?>;
