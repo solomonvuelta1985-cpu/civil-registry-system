@@ -710,6 +710,265 @@ $user_first_name = explode(' ', $user_name)[0];
             background-color: var(--gov-surface-alt);
         }
 
+        /* ============================================================
+           Totals Banner — Records Overview Header
+           ============================================================ */
+        .totals-banner {
+            display: grid;
+            grid-template-columns: minmax(260px, 1fr) auto;
+            gap: clamp(20px, 3vw, 40px);
+            align-items: center;
+            padding: clamp(20px, 2.4vw, 28px) clamp(22px, 2.6vw, 32px);
+            background: linear-gradient(135deg, var(--gov-primary) 0%, #1a3a5c 100%);
+            color: #ffffff;
+            border-radius: var(--radius-md);
+            box-shadow: var(--gov-shadow-md);
+            margin-bottom: clamp(16px, 2vw, 22px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .totals-banner::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 220px;
+            height: 100%;
+            background: radial-gradient(circle at top right, rgba(201, 169, 97, 0.18), transparent 70%);
+            pointer-events: none;
+        }
+
+        .totals-banner-main {
+            position: relative;
+            z-index: 1;
+        }
+
+        .totals-banner-eyebrow {
+            font-size: 0.7rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.7);
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .totals-banner-eyebrow::before {
+            content: '';
+            display: inline-block;
+            width: 24px;
+            height: 2px;
+            background-color: var(--stat-gold, #c9a961);
+        }
+
+        .totals-banner-number {
+            font-size: clamp(2rem, 1.6vw + 1.6rem, 3rem);
+            font-weight: 700;
+            line-height: 1;
+            letter-spacing: -0.02em;
+            font-variant-numeric: tabular-nums;
+            color: #ffffff;
+        }
+
+        .totals-banner-sublabel {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.78);
+            margin-top: 8px;
+            font-weight: 500;
+        }
+
+        .totals-breakdown {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .totals-breakdown-item {
+            padding: 4px clamp(14px, 1.6vw, 22px);
+            border-left: 1px solid rgba(255, 255, 255, 0.18);
+            min-width: 90px;
+        }
+
+        .totals-breakdown-item:first-child {
+            border-left: 0;
+            padding-left: 0;
+        }
+
+        .totals-breakdown-num {
+            font-size: 1.25rem;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            color: #ffffff;
+            line-height: 1.1;
+        }
+
+        .totals-breakdown-label {
+            font-size: 0.68rem;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 4px;
+            font-weight: 600;
+        }
+
+        .totals-banner-meta {
+            grid-column: 1 / -1;
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.65);
+            padding-top: 14px;
+            margin-top: 4px;
+            border-top: 1px solid rgba(255, 255, 255, 0.14);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .totals-banner-meta a {
+            color: rgba(255, 255, 255, 0.85);
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: color 0.15s ease;
+        }
+
+        .totals-banner-meta a:hover {
+            color: var(--stat-gold, #c9a961);
+        }
+
+        @media (max-width: 720px) {
+            .totals-banner {
+                grid-template-columns: 1fr;
+            }
+            .totals-breakdown {
+                width: 100%;
+                justify-content: space-between;
+            }
+            .totals-breakdown-item {
+                min-width: auto;
+                flex: 1 1 45%;
+                padding: 8px 10px;
+                border-left: 0;
+                border-top: 1px solid rgba(255, 255, 255, 0.14);
+            }
+        }
+
+        /* ============================================================
+           Stat Groups — Sectioned KPI Tiers
+           ============================================================ */
+        .stat-group {
+            margin-bottom: clamp(16px, 2vw, 22px);
+        }
+
+        .stat-group-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 0 0 12px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--gov-text-muted);
+        }
+
+        .stat-group-header .stat-group-title {
+            white-space: nowrap;
+        }
+
+        .stat-group-header::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--gov-border);
+        }
+
+        .stat-group-header .stat-group-count {
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            color: var(--gov-text-subtle);
+            background: var(--gov-surface-alt);
+            border: 1px solid var(--gov-border);
+            border-radius: 999px;
+            padding: 2px 10px;
+        }
+
+        .stat-group.alerts .stat-group-header {
+            color: var(--gov-danger);
+        }
+
+        .stat-group.alerts .stat-group-header::after {
+            background: rgba(153, 27, 27, 0.25);
+        }
+
+        /* ============================================================
+           Modern Card Visual Override (Quiet Corporate)
+           ============================================================ */
+        .stat-card::before { display: none; }
+
+        .stat-card {
+            padding: clamp(16px, 1.6vw, 20px) clamp(18px, 1.8vw, 22px);
+            border-radius: 10px;
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--gov-border-strong);
+            opacity: 0.55;
+            transition: opacity 0.15s ease;
+        }
+
+        .stat-card.blue::after,
+        .stat-card.green::after,
+        .stat-card.purple::after,
+        .stat-card.red::after,
+        .stat-card.orange::after,
+        .stat-card.indigo::after,
+        .stat-card.gray::after,
+        .stat-card.teal::after {
+            background: var(--gov-primary);
+            opacity: 0.85;
+        }
+
+        .stat-group.alerts .stat-card::after {
+            background: var(--gov-danger);
+            opacity: 0.9;
+        }
+
+        .stat-card:hover::after {
+            opacity: 1;
+        }
+
+        /* Neutralize icon chip background; preserve glyph color */
+        .stats-grid .stat-card .stat-icon {
+            background-color: var(--gov-surface-alt) !important;
+            border: 1px solid var(--gov-border);
+            border-radius: 8px;
+        }
+
+        /* Tighter, pill-shaped trend */
+        .stats-grid .stat-trend {
+            padding: 2px 8px;
+            font-size: 0.7rem;
+            border-radius: 999px;
+        }
+
         /* Charts Section — Formal Style */
         .charts-section {
             display: grid;
@@ -2274,30 +2533,46 @@ $user_first_name = explode(' ', $user_name)[0];
                 </div>
             </div>
 
-        <!-- PDF Integrity Status Widget -->
-        <?php if (getUserRole() === 'Admin'): ?>
-        <?php $pdf_has_issues = $stats['pdf_integrity_issues'] > 0; ?>
-        <div style="margin-bottom:24px;">
-            <a href="../admin/pdf_integrity_report.php" style="text-decoration:none;">
-                <div style="display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:var(--radius-md);background:<?= $pdf_has_issues ? 'var(--gov-danger-50)' : 'var(--gov-success-50)' ?>;border:1px solid <?= $pdf_has_issues ? 'rgba(153,27,27,0.2)' : 'rgba(15,118,110,0.2)' ?>;border-left:3px solid <?= $pdf_has_issues ? 'var(--gov-danger)' : 'var(--gov-success)' ?>;box-shadow:var(--gov-shadow-sm);">
-                    <i data-lucide="<?= $pdf_has_issues ? 'shield-alert' : 'shield-check' ?>"
-                       style="width:24px;height:24px;color:<?= $pdf_has_issues ? 'var(--gov-danger)' : 'var(--gov-success)' ?>;flex-shrink:0;"></i>
-                    <div>
-                        <div style="font-weight:700;font-size:0.875rem;color:<?= $pdf_has_issues ? 'var(--gov-danger)' : 'var(--gov-success)' ?>;text-transform:uppercase;letter-spacing:0.04em;">
-                            Document Integrity:
-                            <?= $pdf_has_issues
-                                ? $stats['pdf_integrity_issues'] . ' issue(s) detected (last 30 days)'
-                                : 'All checks passed' ?>
-                        </div>
-                        <div style="font-size:0.8125rem;color:var(--gov-text-muted);margin-top:2px;font-weight:500;">
-                            Open the full integrity report and restore backups
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--gov-text-subtle);margin-left:auto;"></i>
+        <!-- Totals Banner -->
+        <?php
+            $grand_total_records = ($stats['total_births'] ?? 0)
+                                 + ($stats['total_marriages'] ?? 0)
+                                 + ($stats['total_deaths'] ?? 0)
+                                 + ($stats['total_licenses'] ?? 0);
+            $this_month_total = ($stats['this_month_births'] ?? 0)
+                              + ($stats['this_month_marriages'] ?? 0)
+                              + ($stats['this_month_deaths'] ?? 0)
+                              + ($stats['this_month_licenses'] ?? 0);
+        ?>
+        <div class="totals-banner">
+            <div class="totals-banner-main">
+                <div class="totals-banner-eyebrow">Records Overview</div>
+                <div class="totals-banner-number"><?php echo number_format($grand_total_records); ?></div>
+                <div class="totals-banner-sublabel">Total Records on File &middot; <?php echo number_format($this_month_total); ?> registered this month</div>
+            </div>
+            <div class="totals-breakdown">
+                <div class="totals-breakdown-item">
+                    <div class="totals-breakdown-num"><?php echo number_format($stats['total_births'] ?? 0); ?></div>
+                    <div class="totals-breakdown-label">Births</div>
                 </div>
-            </a>
+                <div class="totals-breakdown-item">
+                    <div class="totals-breakdown-num"><?php echo number_format($stats['total_marriages'] ?? 0); ?></div>
+                    <div class="totals-breakdown-label">Marriages</div>
+                </div>
+                <div class="totals-breakdown-item">
+                    <div class="totals-breakdown-num"><?php echo number_format($stats['total_deaths'] ?? 0); ?></div>
+                    <div class="totals-breakdown-label">Deaths</div>
+                </div>
+                <div class="totals-breakdown-item">
+                    <div class="totals-breakdown-num"><?php echo number_format($stats['total_licenses'] ?? 0); ?></div>
+                    <div class="totals-breakdown-label">Licenses</div>
+                </div>
+            </div>
+            <div class="totals-banner-meta">
+                <span><i class="fas fa-clock" style="margin-right:6px;opacity:0.7;"></i>As of <?php echo date('F j, Y'); ?></span>
+                <a href="reports.php"><i class="fas fa-chart-line"></i> View Reports</a>
+            </div>
         </div>
-        <?php endif; ?>
 
         <!-- Security & System Status -->
         <div class="security-status-card" role="region" aria-label="Security and system status">
@@ -2512,173 +2787,224 @@ $user_first_name = explode(' ', $user_name)[0];
         </div>
 
         <!-- Statistics Cards -->
-        <div class="stats-grid">
-            <!-- Total Birth Certificates -->
-            <div class="stat-card blue">
-                <div class="stat-header">
+
+        <!-- PDF Integrity Status Widget -->
+        <?php if (getUserRole() === 'Admin'): ?>
+        <?php $pdf_has_issues = $stats['pdf_integrity_issues'] > 0; ?>
+        <div style="margin-bottom:24px;">
+            <a href="../admin/pdf_integrity_report.php" style="text-decoration:none;">
+                <div style="display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:var(--radius-md);background:<?= $pdf_has_issues ? 'var(--gov-danger-50)' : 'var(--gov-success-50)' ?>;border:1px solid <?= $pdf_has_issues ? 'rgba(153,27,27,0.2)' : 'rgba(15,118,110,0.2)' ?>;border-left:3px solid <?= $pdf_has_issues ? 'var(--gov-danger)' : 'var(--gov-success)' ?>;box-shadow:var(--gov-shadow-sm);">
+                    <i data-lucide="<?= $pdf_has_issues ? 'shield-alert' : 'shield-check' ?>"
+                       style="width:24px;height:24px;color:<?= $pdf_has_issues ? 'var(--gov-danger)' : 'var(--gov-success)' ?>;flex-shrink:0;"></i>
                     <div>
-                        <div class="stat-number"><?php echo $stats['total_births'] > 0 ? number_format($stats['total_births']) : '—'; ?></div>
-                        <div class="stat-label">
-                            <span>Total Birth Certificates</span>
-                            <i class="fas fa-info-circle stat-label-info" data-tooltip="All birth certificates registered in the system"></i>
+                        <div style="font-weight:700;font-size:0.875rem;color:<?= $pdf_has_issues ? 'var(--gov-danger)' : 'var(--gov-success)' ?>;text-transform:uppercase;letter-spacing:0.04em;">
+                            Document Integrity:
+                            <?= $pdf_has_issues
+                                ? $stats['pdf_integrity_issues'] . ' issue(s) detected (last 30 days)'
+                                : 'All checks passed' ?>
                         </div>
-                        <?php if ($stats['total_births'] == 0): ?>
-                            <div class="stat-empty-state">No birth certificates registered yet</div>
-                        <?php elseif ($stats['birth_trend'] != 0): ?>
-                            <div class="stat-trend <?php echo $stats['birth_trend'] > 0 ? 'up' : 'down'; ?>">
-                                <i class="fas fa-<?php echo $stats['birth_trend'] > 0 ? 'arrow-up' : 'arrow-down'; ?>"></i>
-                                <?php echo abs($stats['birth_trend']); ?>% from last month
-                            </div>
-                        <?php else: ?>
-                            <div class="stat-trend neutral">
-                                <i class="fas fa-minus"></i>
-                                No change from last month
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                    <div class="stat-icon">
-                        <i class="fas fa-file-lines"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Total Marriage Certificates -->
-            <div class="stat-card red">
-                <div class="stat-header">
-                    <div>
-                        <div class="stat-number"><?php echo number_format($stats['total_marriages']); ?></div>
-                        <div class="stat-label">Total Marriage Certificates</div>
-                        <?php if ($stats['marriage_trend'] != 0): ?>
-                            <div class="stat-trend <?php echo $stats['marriage_trend'] > 0 ? 'up' : 'down'; ?>">
-                                <i class="fas fa-<?php echo $stats['marriage_trend'] > 0 ? 'arrow-up' : 'arrow-down'; ?>"></i>
-                                <?php echo abs($stats['marriage_trend']); ?>% from last month
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                    <div class="stat-icon">
-                        <i class="fas fa-file-signature"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- This Month Births -->
-            <div class="stat-card green">
-                <div class="stat-header">
-                    <div>
-                        <div class="stat-number"><?php echo $stats['this_month_births'] > 0 ? number_format($stats['this_month_births']) : '—'; ?></div>
-                        <div class="stat-label">
-                            <span>Births This Month</span>
-                            <i class="fas fa-info-circle stat-label-info" data-tooltip="Registered in <?php echo date('F Y'); ?>"></i>
+                        <div style="font-size:0.8125rem;color:var(--gov-text-muted);margin-top:2px;font-weight:500;">
+                            Open the full integrity report and restore backups
                         </div>
-                        <?php if ($stats['this_month_births'] == 0): ?>
-                            <div class="stat-empty-state">No births recorded this month</div>
-                        <?php endif; ?>
                     </div>
-                    <div class="stat-icon">
-                        <i class="fas fa-calendar-check"></i>
-                    </div>
+                    <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--gov-text-subtle);margin-left:auto;"></i>
                 </div>
-            </div>
-
-            <!-- This Month Marriages -->
-            <div class="stat-card purple">
-                <div class="stat-header">
-                    <div>
-                        <div class="stat-number"><?php echo $stats['this_month_marriages'] > 0 ? number_format($stats['this_month_marriages']) : '—'; ?></div>
-                        <div class="stat-label">
-                            <span>Marriages This Month</span>
-                            <i class="fas fa-info-circle stat-label-info" data-tooltip="Registered in <?php echo date('F Y'); ?>"></i>
-                        </div>
-                        <?php if ($stats['this_month_marriages'] == 0): ?>
-                            <div class="stat-empty-state">No marriages recorded this month</div>
-                        <?php endif; ?>
-                    </div>
-                    <div class="stat-icon">
-                        <i class="fas fa-file-signature"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Total Death Certificates -->
-            <div class="stat-card orange">
-                <div class="stat-header">
-                    <div>
-                        <div class="stat-number"><?php echo number_format($stats['total_deaths']); ?></div>
-                        <div class="stat-label">Total Death Certificates</div>
-                        <?php if ($stats['death_trend'] != 0): ?>
-                            <div class="stat-trend <?php echo $stats['death_trend'] > 0 ? 'up' : 'down'; ?>">
-                                <i class="fas fa-<?php echo $stats['death_trend'] > 0 ? 'arrow-up' : 'arrow-down'; ?>"></i>
-                                <?php echo abs($stats['death_trend']); ?>% from last month
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                    <div class="stat-icon">
-                        <i class="fas fa-file-lines"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Total Marriage Licenses -->
-            <div class="stat-card indigo">
-                <div class="stat-header">
-                    <div>
-                        <div class="stat-number"><?php echo number_format($stats['total_licenses']); ?></div>
-                        <div class="stat-label">Total Marriage Licenses</div>
-                        <?php if ($stats['license_trend'] != 0): ?>
-                            <div class="stat-trend <?php echo $stats['license_trend'] > 0 ? 'up' : 'down'; ?>">
-                                <i class="fas fa-<?php echo $stats['license_trend'] > 0 ? 'arrow-up' : 'arrow-down'; ?>"></i>
-                                <?php echo abs($stats['license_trend']); ?>% from last month
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                    <div class="stat-icon">
-                        <i class="fas fa-stamp"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- This Month Deaths -->
-            <div class="stat-card gray">
-                <div class="stat-header">
-                    <div>
-                        <div class="stat-number"><?php echo number_format($stats['this_month_deaths']); ?></div>
-                        <div class="stat-label">Deaths This Month</div>
-                    </div>
-                    <div class="stat-icon">
-                        <i class="fas fa-calendar-xmark"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- This Month Licenses -->
-            <div class="stat-card teal">
-                <div class="stat-header">
-                    <div>
-                        <div class="stat-number"><?php echo number_format($stats['this_month_licenses']); ?></div>
-                        <div class="stat-label">Licenses This Month</div>
-                    </div>
-                    <div class="stat-icon">
-                        <i class="fas fa-clipboard-list"></i>
-                    </div>
-                </div>
-            </div>
-
-            <?php if (($stats['double_reg_active'] ?? 0) > 0): ?>
-            <a href="../public/double_registration.php" style="text-decoration:none;">
-            <div class="stat-card red">
-                <div class="stat-header">
-                    <div>
-                        <div class="stat-number"><?php echo number_format($stats['double_reg_active']); ?></div>
-                        <div class="stat-label">Double Registrations<?php if ($stats['double_reg_needs_correction'] > 0): ?> <span style="font-size:11px;opacity:0.8;">(<?php echo $stats['double_reg_needs_correction']; ?> need correction)</span><?php endif; ?></div>
-                    </div>
-                    <div class="stat-icon">
-                        <i class="fas fa-link"></i>
-                    </div>
-                </div>
-            </div>
             </a>
-            <?php endif; ?>
         </div>
+        <?php endif; ?>
+
+        <!-- Lifetime Totals -->
+        <div class="stat-group">
+            <div class="stat-group-header">
+                <span class="stat-group-title">Lifetime Totals</span>
+                <span class="stat-group-count">4</span>
+            </div>
+            <div class="stats-grid">
+                <!-- Total Birth Certificates -->
+                <div class="stat-card blue">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-number"><?php echo $stats['total_births'] > 0 ? number_format($stats['total_births']) : '—'; ?></div>
+                            <div class="stat-label">
+                                <span>Total Birth Certificates</span>
+                                <i class="fas fa-info-circle stat-label-info" data-tooltip="All birth certificates registered in the system"></i>
+                            </div>
+                            <?php if ($stats['total_births'] == 0): ?>
+                                <div class="stat-empty-state">No birth certificates registered yet</div>
+                            <?php elseif ($stats['birth_trend'] != 0): ?>
+                                <div class="stat-trend <?php echo $stats['birth_trend'] > 0 ? 'up' : 'down'; ?>">
+                                    <i class="fas fa-<?php echo $stats['birth_trend'] > 0 ? 'arrow-up' : 'arrow-down'; ?>"></i>
+                                    <?php echo abs($stats['birth_trend']); ?>% from last month
+                                </div>
+                            <?php else: ?>
+                                <div class="stat-trend neutral">
+                                    <i class="fas fa-minus"></i>
+                                    No change from last month
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-file-lines"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total Marriage Certificates -->
+                <div class="stat-card red">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-number"><?php echo number_format($stats['total_marriages']); ?></div>
+                            <div class="stat-label">Total Marriage Certificates</div>
+                            <?php if ($stats['marriage_trend'] != 0): ?>
+                                <div class="stat-trend <?php echo $stats['marriage_trend'] > 0 ? 'up' : 'down'; ?>">
+                                    <i class="fas fa-<?php echo $stats['marriage_trend'] > 0 ? 'arrow-up' : 'arrow-down'; ?>"></i>
+                                    <?php echo abs($stats['marriage_trend']); ?>% from last month
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-file-signature"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total Death Certificates -->
+                <div class="stat-card orange">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-number"><?php echo number_format($stats['total_deaths']); ?></div>
+                            <div class="stat-label">Total Death Certificates</div>
+                            <?php if ($stats['death_trend'] != 0): ?>
+                                <div class="stat-trend <?php echo $stats['death_trend'] > 0 ? 'up' : 'down'; ?>">
+                                    <i class="fas fa-<?php echo $stats['death_trend'] > 0 ? 'arrow-up' : 'arrow-down'; ?>"></i>
+                                    <?php echo abs($stats['death_trend']); ?>% from last month
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-file-lines"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total Marriage Licenses -->
+                <div class="stat-card indigo">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-number"><?php echo number_format($stats['total_licenses']); ?></div>
+                            <div class="stat-label">Total Marriage Licenses</div>
+                            <?php if ($stats['license_trend'] != 0): ?>
+                                <div class="stat-trend <?php echo $stats['license_trend'] > 0 ? 'up' : 'down'; ?>">
+                                    <i class="fas fa-<?php echo $stats['license_trend'] > 0 ? 'arrow-up' : 'arrow-down'; ?>"></i>
+                                    <?php echo abs($stats['license_trend']); ?>% from last month
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-stamp"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- This Month -->
+        <div class="stat-group">
+            <div class="stat-group-header">
+                <span class="stat-group-title">This Month &middot; <?php echo date('F Y'); ?></span>
+                <span class="stat-group-count">4</span>
+            </div>
+            <div class="stats-grid">
+                <!-- This Month Births -->
+                <div class="stat-card green">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-number"><?php echo $stats['this_month_births'] > 0 ? number_format($stats['this_month_births']) : '—'; ?></div>
+                            <div class="stat-label">
+                                <span>Births This Month</span>
+                                <i class="fas fa-info-circle stat-label-info" data-tooltip="Registered in <?php echo date('F Y'); ?>"></i>
+                            </div>
+                            <?php if ($stats['this_month_births'] == 0): ?>
+                                <div class="stat-empty-state">No births recorded this month</div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- This Month Marriages -->
+                <div class="stat-card purple">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-number"><?php echo $stats['this_month_marriages'] > 0 ? number_format($stats['this_month_marriages']) : '—'; ?></div>
+                            <div class="stat-label">
+                                <span>Marriages This Month</span>
+                                <i class="fas fa-info-circle stat-label-info" data-tooltip="Registered in <?php echo date('F Y'); ?>"></i>
+                            </div>
+                            <?php if ($stats['this_month_marriages'] == 0): ?>
+                                <div class="stat-empty-state">No marriages recorded this month</div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-file-signature"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- This Month Deaths -->
+                <div class="stat-card gray">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-number"><?php echo number_format($stats['this_month_deaths']); ?></div>
+                            <div class="stat-label">Deaths This Month</div>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-calendar-xmark"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- This Month Licenses -->
+                <div class="stat-card teal">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-number"><?php echo number_format($stats['this_month_licenses']); ?></div>
+                            <div class="stat-label">Licenses This Month</div>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-clipboard-list"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <?php if (($stats['double_reg_active'] ?? 0) > 0): ?>
+        <!-- Alerts -->
+        <div class="stat-group alerts">
+            <div class="stat-group-header">
+                <span class="stat-group-title"><i class="fas fa-triangle-exclamation" style="margin-right:6px;"></i>Alerts</span>
+                <span class="stat-group-count">1</span>
+            </div>
+            <div class="stats-grid">
+                <a href="../public/double_registration.php" style="text-decoration:none;">
+                <div class="stat-card red">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-number"><?php echo number_format($stats['double_reg_active']); ?></div>
+                            <div class="stat-label">Double Registrations<?php if ($stats['double_reg_needs_correction'] > 0): ?> <span style="font-size:11px;opacity:0.8;">(<?php echo $stats['double_reg_needs_correction']; ?> need correction)</span><?php endif; ?></div>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-link"></i>
+                        </div>
+                    </div>
+                </div>
+                </a>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- Charts Section -->
         <div class="charts-section">
