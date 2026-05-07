@@ -436,11 +436,12 @@ $user_first_name = explode(' ', $user_name)[0];
         /* Header — Official Document Banner */
         .dashboard-header {
             background-color: var(--gov-surface);
-            border-radius: var(--radius-md);
+            border-radius: var(--radius-md) var(--radius-md) 0 0;
             border: 1px solid var(--gov-border);
+            border-bottom: 0;
             border-top: 3px solid var(--gov-accent);
             padding: clamp(16px, 2vw, 24px) clamp(16px, 2.4vw, 28px);
-            margin-bottom: clamp(16px, 2vw, 24px);
+            margin-bottom: 0;
             box-shadow: var(--gov-shadow-sm);
             position: relative;
         }
@@ -721,7 +722,7 @@ $user_first_name = explode(' ', $user_name)[0];
             padding: clamp(20px, 2.4vw, 28px) clamp(22px, 2.6vw, 32px);
             background: linear-gradient(135deg, var(--gov-primary) 0%, #1a3a5c 100%);
             color: #ffffff;
-            border-radius: var(--radius-md);
+            border-radius: 0 0 var(--radius-md) var(--radius-md);
             box-shadow: var(--gov-shadow-md);
             margin-bottom: clamp(16px, 2vw, 22px);
             position: relative;
