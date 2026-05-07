@@ -253,15 +253,14 @@ class RecordPreviewModal {
             'marriage_license': 'Marriage License Application'
         };
 
-        const statusClass = record.status === 'Active' ? 'active' : 'pending';
-        const statusIcon = record.status === 'Active' ? 'badge-check' : 'hourglass';
+        const badge = this.getRegistrationBadge(record);
 
         document.getElementById('modalRecordTitle').textContent = titleMap[this.currentRecordType] || 'Record Preview';
 
         document.getElementById('modalRecordSubtitle').innerHTML = `
             Registry No. ${record.registry_no || 'N/A'}
-            <span class="header-status-badge ${statusClass}">
-                <i data-lucide="${statusIcon}"></i> ${record.status || 'Active'}
+            <span class="header-status-badge ${badge.cls}"${badge.tooltip ? ` title="${this.escapeHtml(badge.tooltip)}"` : ''}>
+                <i data-lucide="${badge.icon}"></i> ${badge.label}
             </span>
         `;
 
@@ -1104,6 +1103,44 @@ class RecordPreviewModal {
         const date = new Date(dateString);
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+    }
+
+    getRegistrationBadge(record) {
+        const eventFieldMap = {
+            birth: 'child_date_of_birth',
+            death: 'date_of_death',
+            marriage: 'date_of_marriage'
+        };
+        const eventField = eventFieldMap[this.currentRecordType];
+        const threshold = this.currentRecordType === 'marriage' ? 15 : 30;
+
+        if (eventField && record[eventField] && record.date_of_registration) {
+            const eventTs = Date.parse(record[eventField]);
+            const regTs = Date.parse(record.date_of_registration);
+            if (!isNaN(eventTs) && !isNaN(regTs)) {
+                const daysDelayed = Math.floor((regTs - eventTs) / 86400000);
+                const isLate = daysDelayed > threshold;
+                return isLate ? {
+                    cls: 'late-registration',
+                    icon: 'alert-triangle',
+                    label: 'Late Registration',
+                    tooltip: `Registered ${daysDelayed} days after event (threshold: ${threshold} days)`
+                } : {
+                    cls: 'timely-registration',
+                    icon: 'badge-check',
+                    label: 'Timely Registration',
+                    tooltip: `Registered within the ${threshold}-day timely period`
+                };
+            }
+        }
+
+        const isActive = record.status === 'Active';
+        return {
+            cls: isActive ? 'active' : 'pending',
+            icon: isActive ? 'badge-check' : 'hourglass',
+            label: record.status || 'Active',
+            tooltip: ''
+        };
     }
 
     formatDateTime(dateTimeString) {

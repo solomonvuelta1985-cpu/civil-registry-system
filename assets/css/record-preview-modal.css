@@ -142,6 +142,18 @@
     border-color: #FDE68A;
 }
 
+.header-status-badge.timely-registration {
+    background: #ECFDF5;
+    color: #065F46;
+    border-color: #A7F3D0;
+}
+
+.header-status-badge.late-registration {
+    background: #FEF2F2;
+    color: #991B1B;
+    border-color: #FECACA;
+}
+
 .header-status-badge i {
     width: 11px;
     height: 11px;
