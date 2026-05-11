@@ -132,6 +132,8 @@ $pendingCount   = count($pendingDevices);
         .btn-revoke:hover { background: #fed7d7; }
         .btn-reactivate { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
         .btn-reactivate:hover { background: #c6f6d5; }
+        .btn-delete     { background: #2d3748; color: #fff; border: 1px solid #1a202c; padding: 6px 10px; }
+        .btn-delete:hover { background: #1a202c; }
 
         .empty-state { text-align: center; padding: 52px; color: #a0aec0; }
         .empty-state svg { width: 52px; height: 52px; margin-bottom: 14px; opacity: 0.4; }
@@ -410,7 +412,7 @@ $pendingCount   = count($pendingDevices);
                             <?= htmlspecialchars($d['status']) ?>
                         </span>
                     </td>
-                    <td>
+                    <td style="white-space:nowrap;">
                         <?php if ($d['status'] === 'Active'): ?>
                             <button class="btn-action btn-revoke"
                                     onclick="confirmAction(<?= $d['id'] ?>, 'revoke', '<?= htmlspecialchars(addslashes($d['device_name'])) ?>')">
@@ -422,6 +424,12 @@ $pendingCount   = count($pendingDevices);
                                 Reactivate
                             </button>
                         <?php endif; ?>
+                        <button class="btn-action btn-delete"
+                                onclick="deleteDevice(<?= $d['id'] ?>, '<?= htmlspecialchars(addslashes($d['device_name'])) ?>', '<?= htmlspecialchars($d['fingerprint_hash']) ?>')"
+                                style="margin-left:4px;"
+                                title="Permanently delete this device row">
+                            <i data-lucide="trash-2" style="width:12px;height:12px;vertical-align:middle;"></i>
+                        </button>
                     </td>
                 </tr>
             <?php endforeach; ?>
@@ -676,6 +684,50 @@ $pendingCount   = count($pendingDevices);
             },
             null,
             { okButtonBackground: '#e53e3e' }
+        );
+    }
+
+    // ── Permanently delete a device row ──────────────────────────────────
+    async function deleteDevice(deviceId, deviceName, fingerprint) {
+        // Safety: if the row being deleted is THIS browser's fingerprint, warn
+        // extra strongly because the admin will lock themselves out next login.
+        let isCurrentDevice = false;
+        try {
+            const currentFp = await window.DeviceFingerprint.get();
+            isCurrentDevice = (currentFp === fingerprint);
+        } catch (_) { /* if fingerprint unavailable, skip the extra warning */ }
+
+        const baseMsg = 'Permanently delete "' + deviceName + '"? This cannot be undone — the row will be removed from the database. '
+                      + 'If you want to keep audit history, use Revoke instead.';
+        const dangerMsg = '⚠ DANGER: this row matches THIS BROWSER. Deleting it means you will be blocked the next time you log in (if Device Lock is enabled). Continue ONLY if you are sure.\n\n' + baseMsg;
+        const finalMsg  = isCurrentDevice ? dangerMsg : baseMsg;
+
+        Notiflix.Confirm.show(
+            isCurrentDevice ? '⚠ Delete YOUR OWN device?' : 'Delete Device',
+            finalMsg,
+            'Delete Permanently',
+            'Cancel',
+            async () => {
+                const formData = new FormData();
+                formData.append('csrf_token', CSRF_TOKEN);
+                formData.append('device_id', deviceId);
+                formData.append('action', 'delete');
+
+                try {
+                    const res  = await fetch('../api/device_delete.php', { method: 'POST', body: formData });
+                    const data = await res.json();
+                    if (data.success) {
+                        Notiflix.Notify.success(data.message);
+                        setTimeout(() => location.reload(), 1200);
+                    } else {
+                        Notiflix.Notify.failure(data.message);
+                    }
+                } catch (err) {
+                    Notiflix.Notify.failure('Network error.');
+                }
+            },
+            null,
+            { okButtonBackground: '#1a202c' }
         );
     }
 

@@ -244,7 +244,10 @@ function requestDeviceApproval(string $hash, int $userId, string $ip, string $us
             elseif (stripos($userAgent, 'Safari/') !== false)  $uaShort = 'Safari';
             else                                                $uaShort = 'Browser';
         }
-        $deviceName = trim('Pending: ' . $username . ' (' . $uaShort . ') ' . date('M d'));
+        // Placeholder name shown in the Pending Approval section. Kept short
+        // and prefix-free so it reads sensibly once the device is approved
+        // (admin can still rename in the approval input).
+        $deviceName = trim($username . ' (' . $uaShort . ') ' . date('M d'));
         if (strlen($deviceName) > 100) $deviceName = substr($deviceName, 0, 100);
 
         $stmt = $pdo->prepare(
@@ -281,9 +284,15 @@ function requestDeviceApproval(string $hash, int $userId, string $ip, string $us
 function approveDevice(int $deviceId, int $adminUserId): bool {
     global $pdo;
     try {
+        // Flip to Active + record approving admin. Also strip any legacy
+        // "Pending:" prefix from the device_name so the row reads cleanly
+        // in the registry after approval. Admin's own rename (via the
+        // approval API's new_name field) takes precedence and runs separately.
         $stmt = $pdo->prepare(
             "UPDATE registered_devices
-                SET status = 'Active', registered_by = :uid
+                SET status = 'Active',
+                    registered_by = :uid,
+                    device_name = TRIM(REGEXP_REPLACE(device_name, '^Pending:\\\\s*', ''))
               WHERE id = :id AND status = 'Pending'"
         );
         $stmt->execute([':id' => $deviceId, ':uid' => $adminUserId]);
