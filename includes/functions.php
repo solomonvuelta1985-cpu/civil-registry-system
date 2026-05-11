@@ -503,7 +503,7 @@ function safe_date_convert($date_string, $output_format = 'Y-m-d') {
 function normalize_registration_date(string $format, string $full_date = '',
     ?string $month = null, ?string $year = null, ?string $day = null): array
 {
-    $allowed = ['full', 'month_only', 'year_only', 'month_year', 'month_day', 'na'];
+    $allowed = ['full', 'month_only', 'year_only', 'month_year', 'month_day', 'na', 'dont_know'];
     if (!in_array($format, $allowed, true)) {
         return ['date' => null, 'error' => 'Invalid date format type.'];
     }
@@ -554,6 +554,7 @@ function normalize_registration_date(string $format, string $full_date = '',
             return ['date' => null, 'error' => null];
 
         case 'na':
+        case 'dont_know':
             return ['date' => null, 'error' => null];
     }
 

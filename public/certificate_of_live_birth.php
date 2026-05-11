@@ -917,6 +917,7 @@ if ($edit_mode && $record) {
                                         <option value="month_year"  <?= $marriage_partial_format === 'month_year'  ? 'selected' : '' ?>>Month and Year Only</option>
                                         <option value="month_day"   <?= $marriage_partial_format === 'month_day'   ? 'selected' : '' ?>>Month and Date Only</option>
                                         <option value="na"          <?= $marriage_partial_format === 'na'          ? 'selected' : '' ?>>N/A (no date)</option>
+                                        <option value="dont_know"   <?= $marriage_partial_format === 'dont_know'   ? 'selected' : '' ?>>Don't Know</option>
                                     </select>
                                 </div>
                                 <div class="form-group" id="marriage_partial_month_group" style="<?php echo in_array($marriage_partial_format, ['month_only','month_year','month_day']) ? '' : 'display:none;'; ?>">

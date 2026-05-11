@@ -89,6 +89,7 @@ try {
     $errors = [];
 
     $allowed_formats = ['full', 'month_only', 'year_only', 'month_year', 'month_day', 'na'];
+    $allowed_marriage_formats = ['full', 'month_only', 'year_only', 'month_year', 'month_day', 'na', 'dont_know'];
     if (!in_array($date_of_registration_format, $allowed_formats, true)) {
         $errors[] = "Invalid date format type.";
     }
@@ -98,7 +99,7 @@ try {
     if (!in_array($child_dob_format, $allowed_formats, true)) {
         $errors[] = "Invalid child date of birth format type.";
     }
-    if (!in_array($date_of_marriage_format, $allowed_formats, true)) {
+    if (!in_array($date_of_marriage_format, $allowed_marriage_formats, true)) {
         $errors[] = "Invalid date of marriage format type.";
     }
 
