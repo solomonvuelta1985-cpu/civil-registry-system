@@ -3782,8 +3782,8 @@ function detect_late_registration($record, $record_type) {
     <script src="../assets/js/record-preview-modal.js?v=7"></script>
 
     <!-- Double Registration Comparison Modal -->
-    <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=6">
-    <script src="../assets/js/double-reg-comparison-modal.js?v=7"></script>
+    <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=7">
+    <script src="../assets/js/double-reg-comparison-modal.js?v=8"></script>
     <script>
         function findDuplicates(recordId, recordType) {
             const base = window.APP_BASE || '';

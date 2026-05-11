@@ -113,24 +113,37 @@ class DoubleRegComparisonModal {
                                 <button type="button" class="dr-pdf-ctrl-btn" data-action="zoom-in" title="Zoom In">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="11" x2="11" y1="8" y2="14"/><line x1="8" x2="14" y1="11" y2="11"/></svg>
                                 </button>
-                                <div class="dr-pdf-ctrl-separator"></div>
-                                <button type="button" class="dr-pdf-ctrl-btn" data-action="rotate-left" title="Rotate Left (90° counterclockwise)">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-                                </button>
-                                <button type="button" class="dr-pdf-ctrl-btn" data-action="rotate-right" title="Rotate Right (90° clockwise)">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                                </button>
                             </div>
                         </div>
 
                         <!-- Side-by-side PDF viewer -->
                         <div class="dr-pdf-viewer">
                             <div class="dr-pdf-canvas-wrap" id="drCanvasWrapA">
-                                <div class="dr-split-pane-label primary" id="drSplitLabelA">1st Registration</div>
+                                <div class="dr-split-pane-label primary" id="drSplitLabelA">
+                                    <span>1st Registration</span>
+                                    <span class="dr-pane-rotate-controls">
+                                        <button type="button" class="dr-pane-rotate-btn" data-action="rotate-left" data-pane="A" title="Rotate Left (90° counterclockwise)">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                                        </button>
+                                        <button type="button" class="dr-pane-rotate-btn" data-action="rotate-right" data-pane="A" title="Rotate Right (90° clockwise)">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                                        </button>
+                                    </span>
+                                </div>
                                 <div class="dr-pdf-placeholder">No PDF available</div>
                             </div>
                             <div class="dr-pdf-canvas-wrap" id="drCanvasWrapB">
-                                <div class="dr-split-pane-label duplicate" id="drSplitLabelB">2nd Registration</div>
+                                <div class="dr-split-pane-label duplicate" id="drSplitLabelB">
+                                    <span>2nd Registration</span>
+                                    <span class="dr-pane-rotate-controls">
+                                        <button type="button" class="dr-pane-rotate-btn" data-action="rotate-left" data-pane="B" title="Rotate Left (90° counterclockwise)">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                                        </button>
+                                        <button type="button" class="dr-pane-rotate-btn" data-action="rotate-right" data-pane="B" title="Rotate Right (90° clockwise)">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                                        </button>
+                                    </span>
+                                </div>
                                 <div class="dr-pdf-placeholder">No PDF available</div>
                             </div>
                         </div>
@@ -223,8 +236,8 @@ class DoubleRegComparisonModal {
             const action = btn.dataset.action;
             if (action === 'zoom-in') this.zoom(0.25);
             if (action === 'zoom-out') this.zoom(-0.25);
-            if (action === 'rotate-left') this.rotate(-90);
-            if (action === 'rotate-right') this.rotate(90);
+            if (action === 'rotate-left') this.rotate(btn.dataset.pane, -90);
+            if (action === 'rotate-right') this.rotate(btn.dataset.pane, 90);
         });
 
         // Collapsible sections
@@ -352,29 +365,33 @@ class DoubleRegComparisonModal {
         const splitLabelA = document.getElementById('drSplitLabelA');
         const splitLabelB = document.getElementById('drSplitLabelB');
 
+        // Update the text span inside each split label without removing the rotate-controls span
+        const splitLabelTextA = splitLabelA.querySelector('span:not(.dr-pane-rotate-controls)');
+        const splitLabelTextB = splitLabelB.querySelector('span:not(.dr-pane-rotate-controls)');
+
         if (isPrimaryA) {
             toolbarLabelA.querySelector('strong').textContent = '1st Registration';
             toolbarLabelA.querySelector('.dr-dot').className = 'dr-dot dr-dot-green';
             toolbarRegA.textContent = `Reg# ${regA}`;
-            splitLabelA.textContent = `1st Reg — Reg# ${regA}`;
+            if (splitLabelTextA) splitLabelTextA.textContent = `1st Reg — Reg# ${regA}`;
             splitLabelA.className = 'dr-split-pane-label primary';
 
             toolbarLabelB.querySelector('strong').textContent = '2nd Registration';
             toolbarLabelB.querySelector('.dr-dot').className = 'dr-dot dr-dot-blue';
             toolbarRegB.textContent = `Reg# ${regB}`;
-            splitLabelB.textContent = `2nd Reg — Reg# ${regB}`;
+            if (splitLabelTextB) splitLabelTextB.textContent = `2nd Reg — Reg# ${regB}`;
             splitLabelB.className = 'dr-split-pane-label duplicate';
         } else {
             toolbarLabelA.querySelector('strong').textContent = '2nd Registration';
             toolbarLabelA.querySelector('.dr-dot').className = 'dr-dot dr-dot-blue';
             toolbarRegA.textContent = `Reg# ${regA}`;
-            splitLabelA.textContent = `2nd Reg — Reg# ${regA}`;
+            if (splitLabelTextA) splitLabelTextA.textContent = `2nd Reg — Reg# ${regA}`;
             splitLabelA.className = 'dr-split-pane-label duplicate';
 
             toolbarLabelB.querySelector('strong').textContent = '1st Registration';
             toolbarLabelB.querySelector('.dr-dot').className = 'dr-dot dr-dot-green';
             toolbarRegB.textContent = `Reg# ${regB}`;
-            splitLabelB.textContent = `1st Reg — Reg# ${regB}`;
+            if (splitLabelTextB) splitLabelTextB.textContent = `1st Reg — Reg# ${regB}`;
             splitLabelB.className = 'dr-split-pane-label primary';
         }
 
@@ -723,13 +740,12 @@ class DoubleRegComparisonModal {
         document.getElementById('drZoomDisplay').textContent = Math.round(this.pdfA.scale * 100) + '%';
     }
 
-    rotate(delta) {
-        // Rotate both panes together (delta: 90 or -90)
-        ['A', 'B'].forEach(pane => {
-            const pdfState = this['pdf' + pane];
-            pdfState.rotation = ((pdfState.rotation + delta) % 360 + 360) % 360;
-            if (pdfState.doc) this.renderPdfPage(pane);
-        });
+    rotate(pane, delta) {
+        // Rotate one pane independently (delta: 90 or -90)
+        if (pane !== 'A' && pane !== 'B') return;
+        const pdfState = this['pdf' + pane];
+        pdfState.rotation = ((pdfState.rotation + delta) % 360 + 360) % 360;
+        if (pdfState.doc) this.renderPdfPage(pane);
     }
 
     // ── Actions ────────────────────────────────────────────

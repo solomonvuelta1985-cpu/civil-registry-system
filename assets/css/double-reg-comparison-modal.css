@@ -605,7 +605,7 @@
 
 /* Pane labels */
 .dr-split-pane-label {
-    padding: 6px 12px;
+    padding: 4px 12px;
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
@@ -613,6 +613,11 @@
     text-align: center;
     border-bottom: 1px solid #E2E8F0;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 28px;
 }
 
 .dr-split-pane-label.primary {
@@ -623,6 +628,42 @@
 .dr-split-pane-label.duplicate {
     background: #EFF6FF;
     color: #1E3A8A;
+}
+
+/* Per-pane rotate controls (sit inside the pane label) */
+.dr-pane-rotate-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.dr-pane-rotate-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.dr-pane-rotate-btn:hover {
+    background: rgba(15, 23, 42, 0.08);
+    border-color: rgba(15, 23, 42, 0.15);
+}
+
+.dr-pane-rotate-btn:active {
+    background: rgba(15, 23, 42, 0.14);
+}
+
+.dr-pane-rotate-btn svg {
+    width: 14px;
+    height: 14px;
 }
 
 /* PDF placeholder */
