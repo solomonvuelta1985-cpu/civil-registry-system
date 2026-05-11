@@ -197,6 +197,18 @@ $csrfMeta     = csrfTokenMeta();
     </div>
     <?php endif; ?>
 
+    <!-- Pre-flight: Current Device Status (so admin doesn't lock themselves out) -->
+    <div id="currentDeviceCard" class="banner" style="background:#edf2f7;border:1px solid #cbd5e0;color:#2d3748;">
+        <i data-lucide="loader" id="currentDeviceIcon"></i>
+        <div style="flex:1;">
+            <strong id="currentDeviceTitle">Checking this device&hellip;</strong>
+            <div id="currentDeviceDetail" style="font-size:0.85rem;margin-top:2px;color:#4a5568;">
+                Generating fingerprint for the browser you are using right now.
+            </div>
+        </div>
+        <span id="currentDeviceFpPreview" style="font-family:monospace;font-size:0.75rem;color:#718096;"></span>
+    </div>
+
     <!-- Stats -->
     <div class="stats-row">
         <div class="stat-card">
@@ -344,6 +356,68 @@ $csrfMeta     = csrfTokenMeta();
     lucide.createIcons();
 
     const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+    // ── Pre-flight: check if THIS browser/device is already registered ─────
+    // Runs on page load so admin can see (before flipping ENABLE_DEVICE_LOCK)
+    // whether their current device would be allowed in.
+    (async function checkCurrentDevice() {
+        const card    = document.getElementById('currentDeviceCard');
+        const icon    = document.getElementById('currentDeviceIcon');
+        const title   = document.getElementById('currentDeviceTitle');
+        const detail  = document.getElementById('currentDeviceDetail');
+        const fpPrev  = document.getElementById('currentDeviceFpPreview');
+
+        try {
+            const fp = await window.DeviceFingerprint.get();
+            fpPrev.textContent = fp.substring(0, 16) + '…';
+
+            const res = await fetch('../api/device_check.php?fp=' + encodeURIComponent(fp));
+            const data = await res.json();
+
+            if (data.registered) {
+                // ✓ Safe to enable the lock
+                card.style.background = '#f0fff4';
+                card.style.border     = '1px solid #68d391';
+                card.style.color      = '#22543d';
+                icon.setAttribute('data-lucide', 'shield-check');
+                title.textContent = '✓ This device IS registered — safe to enable Device Lock';
+                detail.innerHTML  = 'Registered as <strong>' + escapeHtml(data.device_name) + '</strong>. '
+                                  + 'You can safely set <code>ENABLE_DEVICE_LOCK=true</code> in .env without losing access from this browser.';
+            } else if (data.status === 'Revoked') {
+                // Registered but revoked — would be blocked
+                card.style.background = '#fffbeb';
+                card.style.border     = '1px solid #f6ad55';
+                card.style.color      = '#744210';
+                icon.setAttribute('data-lucide', 'alert-triangle');
+                title.textContent = '⚠ This device is REVOKED — you would be blocked';
+                detail.innerHTML  = 'Found as <strong>' + escapeHtml(data.device_name) + '</strong> but status is Revoked. '
+                                  + 'Reactivate it below before enabling Device Lock.';
+            } else {
+                // Not registered at all — DO NOT enable lock
+                card.style.background = '#fff5f5';
+                card.style.border     = '1px solid #fc8181';
+                card.style.color      = '#742a2a';
+                icon.setAttribute('data-lucide', 'shield-alert');
+                title.textContent = '⚠ This device is NOT registered — DO NOT enable Device Lock yet';
+                detail.innerHTML  = 'If you enable <code>ENABLE_DEVICE_LOCK=true</code> right now, this browser will be blocked at the next login. '
+                                  + 'Click <strong>Register This Device</strong> first to add it.';
+            }
+            lucide.createIcons();
+        } catch (err) {
+            card.style.background = '#fff5f5';
+            card.style.border     = '1px solid #fc8181';
+            card.style.color      = '#742a2a';
+            title.textContent = 'Could not check this device';
+            detail.textContent = 'Error: ' + (err.message || err);
+        }
+    })();
+
+    function escapeHtml(s) {
+        if (s == null) return '';
+        return String(s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
 
     // ── Modal ──────────────────────────────────────────────────────────────
     async function openRegisterModal() {
