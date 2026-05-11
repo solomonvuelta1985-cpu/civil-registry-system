@@ -92,6 +92,27 @@ if ($edit_mode && $record) {
         }
     }
 }
+
+// Partial date mode state (for date_of_marriage)
+$marriage_partial_mode   = false;
+$marriage_partial_format = 'full';
+$marriage_partial_month  = '';
+$marriage_partial_year   = '';
+$marriage_partial_day    = '';
+if ($edit_mode && $record) {
+    $mfmt = $record['date_of_marriage_format'] ?? 'full';
+    if ($mfmt !== 'full') {
+        $marriage_partial_mode   = true;
+        $marriage_partial_format = $mfmt;
+        $marriage_partial_month  = $record['date_of_marriage_partial_month'] ?? '';
+        $marriage_partial_year   = $record['date_of_marriage_partial_year'] ?? '';
+        $marriage_partial_day    = $record['date_of_marriage_partial_day'] ?? '';
+        if ($mfmt === 'month_year' && !empty($record['date_of_marriage'])) {
+            if (!$marriage_partial_month) $marriage_partial_month = date('n', strtotime($record['date_of_marriage']));
+            if (!$marriage_partial_year)  $marriage_partial_year  = date('Y', strtotime($record['date_of_marriage']));
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -857,28 +878,22 @@ if ($edit_mode && $record) {
                             </h2>
                         </div>
 
-                        <?php
-                        $marriage_dom_val    = $edit_mode ? ($record['date_of_marriage'] ?? '') : '';
-                        $marriage_others_val = $edit_mode ? ($record['date_of_marriage_others'] ?? null) : null;
-                        $marriage_is_others  = $edit_mode && !empty($marriage_others_val);
-                        ?>
-
-                        <!-- "Others" checkbox (always visible) -->
-                        <div id="marriage_others_container" style="margin-bottom:1rem; padding:0.75rem 1rem; background:var(--bg-secondary, #f8f9fa); border-radius:6px; border:1px solid var(--border-color, #e0e0e0);">
+                        <!-- Partial date toggle for Date of Marriage -->
+                        <div style="margin-bottom:0.75rem; padding:0.75rem 1rem; background:var(--bg-secondary, #f8f9fa); border-radius:6px; border:1px solid var(--border-color, #e0e0e0);">
                             <label style="display:flex; align-items:center; gap:0.625rem; cursor:pointer; font-weight:500; font-size:0.9rem;">
                                 <input
                                     type="checkbox"
-                                    id="marriage_others_checkbox"
-                                    name="marriage_others"
+                                    id="marriage_date_partial_toggle"
                                     style="width:1rem; height:1rem; cursor:pointer;"
-                                    <?php echo $marriage_is_others ? 'checked' : ''; ?>
+                                    <?php echo $marriage_partial_mode ? 'checked' : ''; ?>
                                 >
-                                Others
+                                Date of marriage is incomplete (partial date)
                             </label>
                         </div>
 
                         <div class="form-row">
-                            <div class="form-group">
+                            <!-- Full date input -->
+                            <div class="form-group" id="marriage_full_date_group" style="<?php echo $marriage_partial_mode ? 'display:none;' : ''; ?>">
                                 <label for="date_of_marriage">
                                     Date of Marriage
                                 </label>
@@ -886,23 +901,53 @@ if ($edit_mode && $record) {
                                     type="date"
                                     id="date_of_marriage"
                                     name="date_of_marriage"
-                                    class="marriage-input-field"
-                                    value="<?php echo (!$marriage_is_others && $edit_mode) ? htmlspecialchars($marriage_dom_val) : ''; ?>"
-                                    <?php echo $marriage_is_others ? 'disabled style="display:none;"' : ''; ?>
+                                    value="<?php echo ($edit_mode && !$marriage_partial_mode && !empty($record['date_of_marriage'])) ? date('Y-m-d', strtotime($record['date_of_marriage'])) : ''; ?>"
+                                    <?php echo $marriage_partial_mode ? 'disabled' : ''; ?>
                                 >
-                                <select
-                                    class="marriage-others-select"
-                                    data-skip-reenable="true"
-                                    name="date_of_marriage"
-                                    style="<?php echo $marriage_is_others ? '' : 'display:none;'; ?>"
-                                    <?php echo $marriage_is_others ? '' : 'disabled'; ?>
-                                >
-                                    <option value="Not Married" <?php echo $marriage_others_val === 'Not Married' ? 'selected' : ''; ?>>Not Married</option>
-                                    <option value="Don't Know" <?php echo $marriage_others_val === "Don't Know" ? 'selected' : ''; ?>>Don't Know</option>
-                                    <option value="Forgotten" <?php echo $marriage_others_val === 'Forgotten' ? 'selected' : ''; ?>>Forgotten</option>
-                                    <option value="Not Stated" <?php echo $marriage_others_val === 'Not Stated' ? 'selected' : ''; ?>>Not Stated</option>
-                                </select>
                             </div>
+
+                            <!-- Partial date inputs -->
+                            <div id="marriage_partial_date_group" style="<?php echo $marriage_partial_mode ? '' : 'display:none;'; ?>">
+                                <div class="form-group">
+                                    <label for="marriage_partial_type">Date Type</label>
+                                    <select id="marriage_partial_type" name="marriage_partial_type" <?php echo $marriage_partial_mode ? '' : 'disabled'; ?>>
+                                        <option value="">-- Select Type --</option>
+                                        <option value="month_only"  <?= $marriage_partial_format === 'month_only'  ? 'selected' : '' ?>>Month Only</option>
+                                        <option value="year_only"   <?= $marriage_partial_format === 'year_only'   ? 'selected' : '' ?>>Year Only</option>
+                                        <option value="month_year"  <?= $marriage_partial_format === 'month_year'  ? 'selected' : '' ?>>Month and Year Only</option>
+                                        <option value="month_day"   <?= $marriage_partial_format === 'month_day'   ? 'selected' : '' ?>>Month and Date Only</option>
+                                        <option value="na"          <?= $marriage_partial_format === 'na'          ? 'selected' : '' ?>>N/A (no date)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="marriage_partial_month_group" style="<?php echo in_array($marriage_partial_format, ['month_only','month_year','month_day']) ? '' : 'display:none;'; ?>">
+                                    <label for="marriage_partial_month">Month</label>
+                                    <select id="marriage_partial_month" name="marriage_partial_month" <?= in_array($marriage_partial_format, ['month_only','month_year','month_day']) ? '' : 'disabled' ?>>
+                                        <option value="">-- Select Month --</option>
+                                        <?php
+                                        $months_marriage = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                                        foreach ($months_marriage as $i => $mname): $mval = $i + 1; ?>
+                                        <option value="<?= $mval ?>" <?= ((int)$marriage_partial_month === $mval) ? 'selected' : '' ?>><?= $mname ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="marriage_partial_year_group" style="<?php echo in_array($marriage_partial_format, ['year_only','month_year']) ? '' : 'display:none;'; ?>">
+                                    <label for="marriage_partial_year">Year</label>
+                                    <input type="number" id="marriage_partial_year" name="marriage_partial_year"
+                                        min="1800" max="<?= date('Y') + 1 ?>" placeholder="e.g. 1995"
+                                        value="<?= htmlspecialchars($marriage_partial_year ?? '') ?>"
+                                        <?= in_array($marriage_partial_format, ['year_only','month_year']) ? '' : 'disabled' ?>>
+                                </div>
+                                <div class="form-group" id="marriage_partial_day_group" style="<?php echo ($marriage_partial_format === 'month_day') ? '' : 'display:none;'; ?>">
+                                    <label for="marriage_partial_day">Day</label>
+                                    <select id="marriage_partial_day" name="marriage_partial_day" <?= ($marriage_partial_format === 'month_day') ? '' : 'disabled' ?>>
+                                        <option value="">-- Select Day --</option>
+                                        <?php for ($d = 1; $d <= 31; $d++): ?>
+                                        <option value="<?= $d ?>" <?= ((int)$marriage_partial_day === $d) ? 'selected' : '' ?>><?= $d ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                </div>
+                            </div>
+                            <input type="hidden" id="date_of_marriage_format" name="date_of_marriage_format" value="<?= htmlspecialchars($marriage_partial_format) ?>">
 
                             <div class="form-group">
                                 <label for="place_of_marriage">
@@ -912,21 +957,9 @@ if ($edit_mode && $record) {
                                     type="text"
                                     id="place_of_marriage"
                                     name="place_of_marriage"
-                                    class="marriage-input-field"
                                     placeholder="Enter place of marriage"
-                                    value="<?php echo (!$marriage_is_others && $edit_mode) ? htmlspecialchars($record['place_of_marriage'] ?? '') : ''; ?>"
-                                    <?php echo $marriage_is_others ? 'disabled style="display:none;"' : ''; ?>
+                                    value="<?php echo $edit_mode ? htmlspecialchars($record['place_of_marriage'] ?? '') : ''; ?>"
                                 >
-                                <select
-                                    class="marriage-others-select"
-                                    data-skip-reenable="true"
-                                    name="place_of_marriage"
-                                    style="<?php echo $marriage_is_others ? '' : 'display:none;'; ?>"
-                                    <?php echo $marriage_is_others ? '' : 'disabled'; ?>
-                                >
-                                    <option value="Not Applicable" <?php echo (($record['place_of_marriage'] ?? '') === 'Not Applicable' || !$edit_mode) ? 'selected' : ''; ?>>Not Applicable</option>
-                                    <option value="Not Stated" <?php echo (($record['place_of_marriage'] ?? '') === 'Not Stated') ? 'selected' : ''; ?>>Not Stated</option>
-                                </select>
                             </div>
                         </div>
                     </div>
@@ -1358,22 +1391,64 @@ if ($edit_mode && $record) {
             updateFormProgress();
         });
 
-        // "Marriage Others" checkbox — toggle marriage inputs vs Others selects (always available)
-        const marriageOthersCb = document.getElementById('marriage_others_checkbox');
-        marriageOthersCb.addEventListener('change', function() {
-            const checked = this.checked;
+        // ── Partial Date Toggle for Date of Marriage ──────────────────────────
+        (function() {
+            const toggle       = document.getElementById('marriage_date_partial_toggle');
+            const fullGroup    = document.getElementById('marriage_full_date_group');
+            const partialGroup = document.getElementById('marriage_partial_date_group');
+            const fullInput    = document.getElementById('date_of_marriage');
+            const typeSelect   = document.getElementById('marriage_partial_type');
+            const monthGroup   = document.getElementById('marriage_partial_month_group');
+            const yearGroup    = document.getElementById('marriage_partial_year_group');
+            const dayGroup     = document.getElementById('marriage_partial_day_group');
+            const monthSelect  = document.getElementById('marriage_partial_month');
+            const yearInput    = document.getElementById('marriage_partial_year');
+            const daySelect    = document.getElementById('marriage_partial_day');
+            const formatHidden = document.getElementById('date_of_marriage_format');
 
-            document.querySelectorAll('.marriage-input-field').forEach(el => {
-                el.disabled = checked;
-                el.style.display = checked ? 'none' : '';
-            });
-            document.querySelectorAll('.marriage-others-select').forEach(el => {
-                el.style.display = checked ? '' : 'none';
-                el.disabled = !checked;
-            });
+            if (!toggle) return;
 
-            updateFormProgress();
-        });
+            function applyTypeSelection(typeVal) {
+                const needsMonth = (typeVal === 'month_only' || typeVal === 'month_year' || typeVal === 'month_day');
+                const needsYear  = (typeVal === 'year_only'  || typeVal === 'month_year');
+                const needsDay   = (typeVal === 'month_day');
+                monthGroup.style.display = needsMonth ? '' : 'none';
+                monthSelect.disabled     = !needsMonth;
+                if (!needsMonth) monthSelect.value = '';
+                yearGroup.style.display  = needsYear ? '' : 'none';
+                yearInput.disabled       = !needsYear;
+                if (!needsYear) yearInput.value = '';
+                dayGroup.style.display   = needsDay ? '' : 'none';
+                daySelect.disabled       = !needsDay;
+                if (!needsDay) daySelect.value = '';
+                formatHidden.value = typeVal || 'full';
+                if (typeof updateFormProgress === 'function') updateFormProgress();
+            }
+
+            function applyPartialMode(isPartial) {
+                fullGroup.style.display    = isPartial ? 'none' : '';
+                fullInput.disabled         = isPartial;
+                if (isPartial) fullInput.value = '';
+                partialGroup.style.display = isPartial ? '' : 'none';
+                typeSelect.disabled        = !isPartial;
+                if (isPartial) {
+                    applyTypeSelection(typeSelect.value);
+                } else {
+                    monthGroup.style.display = 'none';
+                    yearGroup.style.display  = 'none';
+                    dayGroup.style.display   = 'none';
+                    monthSelect.disabled     = true;
+                    yearInput.disabled       = true;
+                    daySelect.disabled       = true;
+                    formatHidden.value       = 'full';
+                }
+                if (typeof updateFormProgress === 'function') updateFormProgress();
+            }
+
+            toggle.addEventListener('change', function() { applyPartialMode(this.checked); });
+            typeSelect.addEventListener('change', function() { applyTypeSelection(this.value); });
+            applyPartialMode(toggle.checked);
+        })();
 
         // Sticky detection for progress bar
         (function() {

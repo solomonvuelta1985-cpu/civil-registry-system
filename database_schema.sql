@@ -45,6 +45,10 @@ CREATE TABLE IF NOT EXISTS certificate_of_live_birth (
     -- Marriage Information
     date_of_marriage DATE NULL,
     date_of_marriage_others VARCHAR(20) NULL,
+    date_of_marriage_format VARCHAR(20) NULL DEFAULT 'full',
+    date_of_marriage_partial_month TINYINT NULL,
+    date_of_marriage_partial_year SMALLINT NULL,
+    date_of_marriage_partial_day TINYINT NULL,
     place_of_marriage VARCHAR(255) NULL,
 
     -- File Information

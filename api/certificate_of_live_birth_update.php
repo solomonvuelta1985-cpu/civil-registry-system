@@ -93,7 +93,10 @@ try {
     // Marriage information
     $date_of_marriage = sanitize_input($_POST['date_of_marriage'] ?? null);
     $place_of_marriage = sanitize_input($_POST['place_of_marriage'] ?? null);
-    $marriage_others_checked = !empty($_POST['marriage_others']);
+    $date_of_marriage_format = sanitize_input($_POST['date_of_marriage_format'] ?? 'full');
+    $marriage_partial_month  = sanitize_input($_POST['marriage_partial_month'] ?? null) ?: null;
+    $marriage_partial_year   = sanitize_input($_POST['marriage_partial_year'] ?? null) ?: null;
+    $marriage_partial_day    = sanitize_input($_POST['marriage_partial_day'] ?? null) ?: null;
 
     // Validation
     $errors = [];
@@ -107,6 +110,9 @@ try {
     }
     if (!in_array($child_dob_format, $allowed_formats, true)) {
         $errors[] = "Invalid child date of birth format type.";
+    }
+    if (!in_array($date_of_marriage_format, $allowed_formats, true)) {
+        $errors[] = "Invalid date of marriage format type.";
     }
 
     if (empty($type_of_birth)) {
@@ -236,17 +242,33 @@ try {
     $child_dob_stored_day   = ($child_dob_format === 'month_day')
         ? ((int)$child_dob_partial_day ?: null) : null;
 
-    // Marriage date: when "Others" is checked the posted date_of_marriage is one of the
-    // enum strings ("Not Married" etc.) which can't be stored in the DATE column. Split it
-    // out to the dedicated date_of_marriage_others varchar column instead.
-    $marriage_others_allowed = ['Not Married', "Don't Know", 'Forgotten', 'Not Stated'];
-    if ($marriage_others_checked && in_array($date_of_marriage, $marriage_others_allowed, true)) {
-        $date_of_marriage_others = $date_of_marriage;
-        $date_of_marriage = null;
-    } else {
-        $date_of_marriage_others = null;
-        $date_of_marriage = !empty($date_of_marriage) ? safe_date_convert($date_of_marriage) : null;
+    // Marriage date: supports full date, partial formats (month_only / year_only /
+    // month_year / month_day), and 'na' (no entry). Place of Marriage is independent —
+    // it can be filled even when date is N/A and vice versa. The legacy
+    // date_of_marriage_others column is always nulled on updates; partial state
+    // is now captured by date_of_marriage_format + the three partial_* columns.
+    $marriage_norm = normalize_registration_date(
+        $date_of_marriage_format,
+        (string)($date_of_marriage ?? ''),
+        $marriage_partial_month,
+        $marriage_partial_year,
+        $marriage_partial_day
+    );
+    if ($marriage_norm['error'] !== null && $date_of_marriage_format !== 'full') {
+        json_response(false, 'Date of marriage: ' . $marriage_norm['error'], null, 400);
     }
+    if ($date_of_marriage_format === 'full') {
+        $date_of_marriage = !empty($date_of_marriage) ? safe_date_convert($date_of_marriage) : null;
+    } else {
+        $date_of_marriage = $marriage_norm['date'];
+    }
+    $date_of_marriage_others = null;
+    $marriage_stored_month = in_array($date_of_marriage_format, ['month_only', 'month_year', 'month_day'])
+        ? ((int)$marriage_partial_month ?: null) : null;
+    $marriage_stored_year  = in_array($date_of_marriage_format, ['year_only', 'month_year'])
+        ? ((int)$marriage_partial_year ?: null) : null;
+    $marriage_stored_day   = ($date_of_marriage_format === 'month_day')
+        ? ((int)$marriage_partial_day ?: null) : null;
 
     // Reconcile PDF folder with (possibly renamed) last name / event date.
     // Only runs when no new PDF was uploaded — new uploads already land in the right folder.
@@ -300,6 +322,10 @@ try {
                     father_citizenship = :father_citizenship,
                     date_of_marriage = :date_of_marriage,
                     date_of_marriage_others = :date_of_marriage_others,
+                    date_of_marriage_format = :date_of_marriage_format,
+                    date_of_marriage_partial_month = :date_of_marriage_partial_month,
+                    date_of_marriage_partial_year = :date_of_marriage_partial_year,
+                    date_of_marriage_partial_day = :date_of_marriage_partial_day,
                     place_of_marriage = :place_of_marriage,
                     pdf_filename = :pdf_filename,
                     pdf_filepath = :pdf_filepath,
@@ -345,6 +371,10 @@ try {
             ':father_citizenship' => $father_citizenship,
             ':date_of_marriage' => $date_of_marriage,
             ':date_of_marriage_others' => $date_of_marriage_others,
+            ':date_of_marriage_format' => $date_of_marriage_format,
+            ':date_of_marriage_partial_month' => $marriage_stored_month,
+            ':date_of_marriage_partial_year'  => $marriage_stored_year,
+            ':date_of_marriage_partial_day'   => $marriage_stored_day,
             ':place_of_marriage' => $place_of_marriage,
             ':pdf_filename' => $pdf_filename,
             ':pdf_filepath' => $pdf_filepath,
