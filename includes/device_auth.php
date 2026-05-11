@@ -184,3 +184,151 @@ function countActiveDevices(): int {
         return 0;
     }
 }
+
+/**
+ * Get a single device row by fingerprint hash (any status).
+ * Used by login.php to decide between Active/Pending/Revoked/new.
+ *
+ * @param  string      $hash
+ * @return array|false
+ */
+function getDeviceByFingerprint(string $hash): array|false {
+    if (empty($hash) || strlen($hash) < 8) return false;
+
+    global $pdo;
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT id, device_name, status, requested_by, requested_at
+               FROM registered_devices
+              WHERE fingerprint_hash = :hash
+              LIMIT 1"
+        );
+        $stmt->execute([':hash' => $hash]);
+        $row = $stmt->fetch();
+        return $row ?: false;
+    } catch (PDOException $e) {
+        error_log('getDeviceByFingerprint error: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Create a Pending device row when a user logs in (with valid credentials)
+ * from an unregistered device while Device Lock is enabled.
+ *
+ * @param  string $hash    SHA-256 fingerprint hash
+ * @param  int    $userId  ID of the user requesting access (the encoder)
+ * @param  string $ip      Client IP
+ * @param  string $userAgent Optional UA string for naming the row
+ * @return int|false       Row id on success, false on failure / duplicate
+ */
+function requestDeviceApproval(string $hash, int $userId, string $ip, string $userAgent = ''): int|false {
+    if (empty($hash) || strlen($hash) < 8) return false;
+
+    global $pdo;
+    try {
+        // Auto-generate a placeholder device name so admin can identify it.
+        // Format: "Pending: <username> <short_ua> <date>"
+        $username = '';
+        try {
+            $stmt = $pdo->prepare("SELECT username FROM users WHERE id = :id LIMIT 1");
+            $stmt->execute([':id' => $userId]);
+            $username = (string) $stmt->fetchColumn();
+        } catch (PDOException $e) { /* ignore */ }
+
+        $uaShort = '';
+        if (!empty($userAgent)) {
+            if (stripos($userAgent, 'Edg/') !== false)         $uaShort = 'Edge';
+            elseif (stripos($userAgent, 'Chrome/') !== false)  $uaShort = 'Chrome';
+            elseif (stripos($userAgent, 'Firefox/') !== false) $uaShort = 'Firefox';
+            elseif (stripos($userAgent, 'Safari/') !== false)  $uaShort = 'Safari';
+            else                                                $uaShort = 'Browser';
+        }
+        $deviceName = trim('Pending: ' . $username . ' (' . $uaShort . ') ' . date('M d'));
+        if (strlen($deviceName) > 100) $deviceName = substr($deviceName, 0, 100);
+
+        $stmt = $pdo->prepare(
+            "INSERT INTO registered_devices
+                (fingerprint_hash, device_name, registered_by, requested_by, requested_at, request_ip, status)
+             VALUES
+                (:hash, :name, NULL, :uid, NOW(), :ip, 'Pending')"
+        );
+        $stmt->execute([
+            ':hash' => $hash,
+            ':name' => $deviceName,
+            ':uid'  => $userId,
+            ':ip'   => $ip,
+        ]);
+        return (int) $pdo->lastInsertId();
+    } catch (PDOException $e) {
+        // Duplicate fingerprint (SQLSTATE 23000) means a row already exists —
+        // the row is either already Pending (request again is a no-op) or
+        // Active/Revoked (shouldn't reach this path). Caller decides.
+        if (str_starts_with($e->getCode(), '23')) return false;
+        error_log('requestDeviceApproval error: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Approve a Pending device — flips its status to Active and records the
+ * approving admin in registered_by.
+ *
+ * @param  int $deviceId
+ * @param  int $adminUserId
+ * @return bool
+ */
+function approveDevice(int $deviceId, int $adminUserId): bool {
+    global $pdo;
+    try {
+        $stmt = $pdo->prepare(
+            "UPDATE registered_devices
+                SET status = 'Active', registered_by = :uid
+              WHERE id = :id AND status = 'Pending'"
+        );
+        $stmt->execute([':id' => $deviceId, ':uid' => $adminUserId]);
+        return $stmt->rowCount() > 0;
+    } catch (PDOException $e) {
+        error_log('approveDevice error: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Reject a Pending device — flips its status to Revoked.
+ *
+ * @param  int $deviceId
+ * @param  int $adminUserId
+ * @return bool
+ */
+function rejectDevice(int $deviceId, int $adminUserId): bool {
+    global $pdo;
+    try {
+        $stmt = $pdo->prepare(
+            "UPDATE registered_devices
+                SET status = 'Revoked', registered_by = :uid
+              WHERE id = :id AND status = 'Pending'"
+        );
+        $stmt->execute([':id' => $deviceId, ':uid' => $adminUserId]);
+        return $stmt->rowCount() > 0;
+    } catch (PDOException $e) {
+        error_log('rejectDevice error: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Count devices that are awaiting admin approval.
+ *
+ * @return int
+ */
+function countPendingDevices(): int {
+    global $pdo;
+    try {
+        return (int) $pdo->query(
+            "SELECT COUNT(*) FROM registered_devices WHERE status = 'Pending'"
+        )->fetchColumn();
+    } catch (PDOException $e) {
+        return 0;
+    }
+}

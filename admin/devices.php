@@ -24,6 +24,11 @@ $activeCount  = countActiveDevices();
 $lockEnabled  = isDeviceLockEnabled();
 $csrfField    = csrfTokenField();
 $csrfMeta     = csrfTokenMeta();
+
+// Separate Pending devices for the dedicated approval section.
+$pendingDevices = array_values(array_filter($devices, fn($d) => $d['status'] === 'Pending'));
+$otherDevices   = array_values(array_filter($devices, fn($d) => $d['status'] !== 'Pending'));
+$pendingCount   = count($pendingDevices);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -181,19 +186,32 @@ $csrfMeta     = csrfTokenMeta();
 
     <!-- Device lock status banner -->
     <?php if (!$lockEnabled): ?>
-    <div class="banner warning">
-        <i data-lucide="alert-triangle"></i>
-        <div>
-            <strong>Device Lock is DISABLED.</strong>
-            All devices can currently log in. After registering your devices below,
-            set <code>ENABLE_DEVICE_LOCK=true</code> in your <code>.env</code> file to enforce the restriction.
+    <div class="banner warning" style="justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <i data-lucide="alert-triangle"></i>
+            <div>
+                <strong>Device Lock is DISABLED.</strong>
+                All devices can currently log in.
+                Once your device shows green below, click <strong>Enable Device Lock</strong> to enforce the restriction.
+            </div>
         </div>
+        <button class="btn-action btn-reactivate" onclick="toggleLock(true)" id="enableLockBtn"
+                title="Enable Device Lock so only registered/approved devices can log in"
+                style="white-space:nowrap;">
+            <i data-lucide="shield-check" style="width:13px;height:13px;vertical-align:middle;"></i>
+            Enable Device Lock
+        </button>
     </div>
     <?php else: ?>
-    <div class="banner success">
-        <i data-lucide="shield-check"></i>
-        <strong>Device Lock is ACTIVE.</strong>&nbsp;
-        Only registered devices listed below can log in.
+    <div class="banner success" style="justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <i data-lucide="shield-check"></i>
+            <span><strong>Device Lock is ACTIVE.</strong>&nbsp;Only registered devices can log in. New devices require your approval.</span>
+        </div>
+        <button class="btn-action btn-revoke" onclick="toggleLock(false)" title="Disable Device Lock immediately (emergency recovery)">
+            <i data-lucide="shield-off" style="width:13px;height:13px;vertical-align:middle;"></i>
+            Emergency Disable
+        </button>
     </div>
     <?php endif; ?>
 
@@ -209,6 +227,94 @@ $csrfMeta     = csrfTokenMeta();
         <span id="currentDeviceFpPreview" style="font-family:monospace;font-size:0.75rem;color:#718096;"></span>
     </div>
 
+    <!-- Pending Approval Section -->
+    <?php if ($pendingCount > 0): ?>
+    <div class="card" style="margin-bottom:24px;border:2px solid #f6ad55;">
+        <div class="card-header" style="background:#fffbeb;">
+            <h2 style="color:#744210;">
+                <i data-lucide="clock" style="display:inline;vertical-align:middle;margin-right:6px;width:18px;height:18px;"></i>
+                Pending Approval (<?= $pendingCount ?>)
+            </h2>
+            <span style="font-size:0.85rem;color:#744210;">
+                These users tried to log in from a new device and are waiting for you to approve.
+            </span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Requested By</th>
+                    <th>Device ID (fingerprint)</th>
+                    <th>Requested</th>
+                    <th>IP</th>
+                    <th>Suggested Name</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($pendingDevices as $i => $d): ?>
+                <?php
+                  // Try to surface the requesting user's name. registered_by_name from
+                  // getAllDevices() refers to the admin — for Pending rows we want
+                  // requested_by instead. Look it up inline.
+                  $requesterName = 'Unknown';
+                  if (!empty($d['requested_by'])) {
+                      try {
+                          $rs = $pdo->prepare("SELECT full_name, username FROM users WHERE id = :id LIMIT 1");
+                          $rs->execute([':id' => $d['requested_by']]);
+                          if ($row = $rs->fetch()) {
+                              $requesterName = $row['full_name'] ?: $row['username'];
+                          }
+                      } catch (PDOException $e) { /* ignore */ }
+                  }
+                ?>
+                <tr style="background:#fffdf5;">
+                    <td><?= $i + 1 ?></td>
+                    <td>
+                        <strong><?= htmlspecialchars($requesterName) ?></strong>
+                    </td>
+                    <td>
+                        <span class="fp-code"
+                              title="<?= htmlspecialchars($d['fingerprint_hash']) ?>"
+                              onclick="copyText('<?= htmlspecialchars($d['fingerprint_hash']) ?>', this)">
+                            <?= substr($d['fingerprint_hash'], 0, 18) ?>…
+                        </span>
+                    </td>
+                    <td style="white-space:nowrap;color:#718096;font-size:0.83rem;">
+                        <?= $d['requested_at']
+                            ? date('M d, g:i A', strtotime($d['requested_at']))
+                            : '<em style="color:#cbd5e0;">—</em>' ?>
+                    </td>
+                    <td style="font-size:0.83rem;color:#718096;">
+                        <?= htmlspecialchars($d['request_ip'] ?? '—') ?>
+                    </td>
+                    <td>
+                        <input type="text"
+                               id="newName_<?= $d['id'] ?>"
+                               value="<?= htmlspecialchars($d['device_name']) ?>"
+                               maxlength="100"
+                               style="width:100%;min-width:160px;padding:6px 10px;border:1px solid #cbd5e0;border-radius:6px;font-size:0.82rem;">
+                    </td>
+                    <td style="white-space:nowrap;">
+                        <button class="btn-action btn-reactivate"
+                                onclick="approveDevice(<?= $d['id'] ?>)">
+                            <i data-lucide="check" style="width:12px;height:12px;vertical-align:middle;"></i>
+                            Approve
+                        </button>
+                        <button class="btn-action btn-revoke"
+                                onclick="rejectDevice(<?= $d['id'] ?>, '<?= htmlspecialchars(addslashes($requesterName)) ?>')"
+                                style="margin-left:4px;">
+                            <i data-lucide="x" style="width:12px;height:12px;vertical-align:middle;"></i>
+                            Reject
+                        </button>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    <?php endif; ?>
+
     <!-- Stats -->
     <div class="stats-row">
         <div class="stat-card">
@@ -220,8 +326,14 @@ $csrfMeta     = csrfTokenMeta();
             <div class="value"><?= $activeCount ?></div>
         </div>
         <div class="stat-card">
+            <div class="label">Pending</div>
+            <div class="value" style="color:<?= $pendingCount > 0 ? '#c05621' : '#2d3748' ?>;">
+                <?= $pendingCount ?>
+            </div>
+        </div>
+        <div class="stat-card">
             <div class="label">Revoked</div>
-            <div class="value"><?= count($devices) - $activeCount ?></div>
+            <div class="value"><?= count($devices) - $activeCount - $pendingCount ?></div>
         </div>
         <div class="stat-card">
             <div class="label">Lock Status</div>
@@ -242,7 +354,7 @@ $csrfMeta     = csrfTokenMeta();
             </button>
         </div>
 
-        <?php if (empty($devices)): ?>
+        <?php if (empty($otherDevices)): ?>
         <div class="empty-state">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                 <rect x="2" y="3" width="20" height="14" rx="2"/>
@@ -265,7 +377,7 @@ $csrfMeta     = csrfTokenMeta();
                 </tr>
             </thead>
             <tbody>
-            <?php foreach ($devices as $i => $d): ?>
+            <?php foreach ($otherDevices as $i => $d): ?>
                 <tr>
                     <td><?= $i + 1 ?></td>
                     <td>
@@ -511,6 +623,93 @@ $csrfMeta     = csrfTokenMeta();
             el.textContent = 'Copied!';
             setTimeout(() => { el.textContent = orig; }, 1800);
         });
+    }
+
+    // ── Approve / Reject pending device ──────────────────────────────────
+    async function approveDevice(deviceId) {
+        const newName = document.getElementById('newName_' + deviceId)?.value.trim() || '';
+
+        const formData = new FormData();
+        formData.append('csrf_token', CSRF_TOKEN);
+        formData.append('device_id', deviceId);
+        formData.append('action', 'approve');
+        formData.append('new_name', newName);
+
+        try {
+            const res  = await fetch('../api/device_approve.php', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.success) {
+                Notiflix.Notify.success(data.message);
+                setTimeout(() => location.reload(), 1100);
+            } else {
+                Notiflix.Notify.failure(data.message);
+            }
+        } catch (err) {
+            Notiflix.Notify.failure('Network error.');
+        }
+    }
+
+    function rejectDevice(deviceId, requesterName) {
+        Notiflix.Confirm.show(
+            'Reject Device',
+            'Reject the device request from "' + requesterName + '"? They will not be able to log in until they request again from this device.',
+            'Reject',
+            'Cancel',
+            async () => {
+                const formData = new FormData();
+                formData.append('csrf_token', CSRF_TOKEN);
+                formData.append('device_id', deviceId);
+                formData.append('action', 'reject');
+
+                try {
+                    const res  = await fetch('../api/device_approve.php', { method: 'POST', body: formData });
+                    const data = await res.json();
+                    if (data.success) {
+                        Notiflix.Notify.success(data.message);
+                        setTimeout(() => location.reload(), 1100);
+                    } else {
+                        Notiflix.Notify.failure(data.message);
+                    }
+                } catch (err) {
+                    Notiflix.Notify.failure('Network error.');
+                }
+            },
+            null,
+            { okButtonBackground: '#e53e3e' }
+        );
+    }
+
+    // ── Toggle ENABLE_DEVICE_LOCK in .env ────────────────────────────────
+    function toggleLock(enable) {
+        const title   = enable ? 'Enable Device Lock' : 'Emergency Disable Device Lock';
+        const okLabel = enable ? 'Enable Now'         : 'Disable Now';
+        const color   = enable ? '#38a169'            : '#e53e3e';
+        const msg     = enable
+            ? 'This will start blocking logins from any device that is not Active. Make sure THIS device shows the green "registered" banner above before enabling. Continue?'
+            : 'This will TURN OFF device-based access control. Any device with valid credentials will be able to log in until you re-enable it. Use this only for emergency recovery. Continue?';
+
+        Notiflix.Confirm.show(title, msg, okLabel, 'Cancel',
+            async () => {
+                const formData = new FormData();
+                formData.append('csrf_token', CSRF_TOKEN);
+                formData.append('enable', enable ? '1' : '0');
+
+                try {
+                    const res  = await fetch('../api/device_lock_toggle.php', { method: 'POST', body: formData });
+                    const data = await res.json();
+                    if (data.success) {
+                        Notiflix.Notify.success(data.message);
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        Notiflix.Report.failure(title + ' Failed', data.message, 'OK');
+                    }
+                } catch (err) {
+                    Notiflix.Notify.failure('Network error.');
+                }
+            },
+            null,
+            { okButtonBackground: color }
+        );
     }
 </script>
 </body>

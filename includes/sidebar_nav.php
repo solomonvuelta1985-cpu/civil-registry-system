@@ -9,6 +9,18 @@ if (!function_exists('isAdmin')) {
     require_once __DIR__ . '/auth.php';
 }
 $__is_admin = function_exists('isAdmin') ? isAdmin() : false;
+
+// Pending device approval count (admin only) — drives the badge on the
+// "Devices" link so the admin sees new requests at a glance.
+$__pending_devices = 0;
+if ($__is_admin) {
+    if (!function_exists('countPendingDevices')) {
+        @require_once __DIR__ . '/device_auth.php';
+    }
+    if (function_exists('countPendingDevices')) {
+        try { $__pending_devices = countPendingDevices(); } catch (Throwable $e) { $__pending_devices = 0; }
+    }
+}
 ?>
 
 <!-- Sidebar Navigation -->
@@ -138,8 +150,11 @@ $__is_admin = function_exists('isAdmin') ? isAdmin() : false;
         <li class="sidebar-divider"></li>
         <li class="sidebar-heading">Maintenance</li>
         <li>
-            <a href="<?= BASE_URL ?>admin/devices.php" class="<?php echo $current_page == 'devices.php' ? 'active' : ''; ?>" title="Registered Devices">
-                <i data-lucide="monitor"></i> <span>Devices</span>
+            <a href="<?= BASE_URL ?>admin/devices.php" class="<?php echo $current_page == 'devices.php' ? 'active' : ''; ?>" title="Registered Devices<?= $__pending_devices > 0 ? ' (' . $__pending_devices . ' pending approval)' : '' ?>">
+                <i data-lucide="monitor"></i>
+                <span>Devices<?php if ($__pending_devices > 0): ?>
+                    <span style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 6px;margin-left:6px;background:#e53e3e;color:#fff;font-size:0.7rem;font-weight:700;border-radius:999px;vertical-align:middle;"><?= (int) $__pending_devices ?></span>
+                <?php endif; ?></span>
             </a>
         </li>
         <li>

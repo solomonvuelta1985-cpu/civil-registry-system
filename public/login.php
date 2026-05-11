@@ -22,6 +22,82 @@ if (isset($_GET['timeout']) && $_GET['timeout'] == '1') {
     $timeout_message = 'Your session has expired. Please login again.';
 }
 
+/**
+ * Device-lock gate that runs AFTER successful credential auth.
+ *
+ * Decision table when ENABLE_DEVICE_LOCK is on:
+ *   - Active device   → allow, update last_seen, return true
+ *   - Pending device  → redirect to device_pending.php (no session), exits
+ *   - Revoked device  → redirect to device_blocked.php (no session), exits
+ *   - Unknown device  → create Pending row, redirect to device_pending.php, exits
+ *
+ * Returns true only when login may proceed. If it returns at all, the caller
+ * MUST establish the session (setUserSession) only after a true return.
+ */
+function deviceLockGate(array $user): bool {
+    if (!isDeviceLockEnabled()) return true;
+
+    $fp = trim($_POST['device_fingerprint'] ?? '');
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
+
+    // Reject obviously bad / missing fingerprints — don't auto-enroll garbage.
+    if (empty($fp) || strlen($fp) < 32) {
+        logSecurityEvent('DEVICE_BLOCKED', 'HIGH', null, json_encode([
+            'reason'         => 'missing_or_invalid_fingerprint',
+            'attempted_user' => $user['username'] ?? '',
+            'ip'             => $ip,
+        ]));
+        header('Location: device_blocked.php');
+        exit;
+    }
+
+    $device = getDeviceByFingerprint($fp);
+
+    if ($device && $device['status'] === 'Active') {
+        updateDeviceLastSeen($fp, $ip);
+        return true;
+    }
+
+    if ($device && $device['status'] === 'Pending') {
+        logSecurityEvent('DEVICE_PENDING_RETRY', 'LOW', $user['id'] ?? null, json_encode([
+            'fp_prefix' => substr($fp, 0, 16),
+            'device_id' => $device['id'],
+        ]));
+        $_SESSION['pending_device_id'] = (int) $device['id'];
+        $_SESSION['pending_device_fp'] = $fp;
+        header('Location: device_pending.php');
+        exit;
+    }
+
+    if ($device && $device['status'] === 'Revoked') {
+        logSecurityEvent('DEVICE_BLOCKED', 'HIGH', $user['id'] ?? null, json_encode([
+            'reason'    => 'revoked_device',
+            'fp_prefix' => substr($fp, 0, 16),
+            'device_id' => $device['id'],
+        ]));
+        header('Location: device_blocked.php');
+        exit;
+    }
+
+    // Unknown device — create a Pending request and send user to waiting page.
+    $newId = requestDeviceApproval($fp, (int) $user['id'], $ip, $ua);
+    if (!$newId) {
+        // Insert failed (e.g. race condition created a duplicate). Refetch.
+        $device = getDeviceByFingerprint($fp);
+        $newId = $device ? (int) $device['id'] : 0;
+    }
+    logSecurityEvent('DEVICE_APPROVAL_REQUESTED', 'MEDIUM', (int) $user['id'], json_encode([
+        'fp_prefix' => substr($fp, 0, 16),
+        'device_id' => $newId,
+        'ip'        => $ip,
+    ]));
+    $_SESSION['pending_device_id'] = $newId;
+    $_SESSION['pending_device_fp'] = $fp;
+    header('Location: device_pending.php');
+    exit;
+}
+
 // Handle login submission
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -35,24 +111,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($error)) {
-        // ── Device Lock Check (before credential validation) ──────────────
-        if (isDeviceLockEnabled()) {
-            $device_fp = trim($_POST['device_fingerprint'] ?? '');
-            if (empty($device_fp) || !checkDeviceRegistered($device_fp)) {
-                logSecurityEvent('DEVICE_BLOCKED', 'HIGH', null,
-                    json_encode([
-                        'fp_prefix'        => substr($device_fp, 0, 16),
-                        'attempted_user'   => sanitize_input($_POST['username'] ?? ''),
-                        'ip'               => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-                    ]));
-                header('Location: device_blocked.php');
-                exit;
-            }
-            // Device is registered — record the visit
-            updateDeviceLastSeen($device_fp, $_SERVER['REMOTE_ADDR'] ?? '');
-        }
-        // ─────────────────────────────────────────────────────────────────
-
         $username = sanitize_input($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
 
@@ -75,6 +133,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // Clear rate limit on successful login
                         clearRateLimit($rate_limit_identifier);
 
+                        // Device Lock Gate — runs only when ENABLE_DEVICE_LOCK=true.
+                        // Exits internally if device is not Active (Pending/Revoked/Unknown).
+                        deviceLockGate($user);
+
                         // Set user session
                         setUserSession($user);
 
@@ -94,6 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $user = authenticateUser($username, $password);
 
                 if ($user) {
+                    deviceLockGate($user);
                     setUserSession($user);
                     log_activity($pdo, 'login', 'User logged in', $user['id']);
                     logSecurityEvent('LOGIN_SUCCESS', 'LOW', "Successful login for user: {$username}", $user['id']);
