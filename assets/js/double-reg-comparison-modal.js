@@ -18,8 +18,8 @@ class DoubleRegComparisonModal {
         this.certificateType = 'birth';
 
         // PDF state for each pane — default scale 1.5 for readable size
-        this.pdfA = { doc: null, page: 1, total: 0, scale: 1.5, canvas: null, ctx: null };
-        this.pdfB = { doc: null, page: 1, total: 0, scale: 1.5, canvas: null, ctx: null };
+        this.pdfA = { doc: null, page: 1, total: 0, scale: 1.5, rotation: 0, canvas: null, ctx: null };
+        this.pdfB = { doc: null, page: 1, total: 0, scale: 1.5, rotation: 0, canvas: null, ctx: null };
 
         // PDF viewer state
         this.syncScroll = true;
@@ -112,6 +112,13 @@ class DoubleRegComparisonModal {
                                 <span class="dr-zoom-display" id="drZoomDisplay">150%</span>
                                 <button type="button" class="dr-pdf-ctrl-btn" data-action="zoom-in" title="Zoom In">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="11" x2="11" y1="8" y2="14"/><line x1="8" x2="14" y1="11" y2="11"/></svg>
+                                </button>
+                                <div class="dr-pdf-ctrl-separator"></div>
+                                <button type="button" class="dr-pdf-ctrl-btn" data-action="rotate-left" title="Rotate Left (90° counterclockwise)">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                                </button>
+                                <button type="button" class="dr-pdf-ctrl-btn" data-action="rotate-right" title="Rotate Right (90° clockwise)">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                                 </button>
                             </div>
                         </div>
@@ -216,6 +223,8 @@ class DoubleRegComparisonModal {
             const action = btn.dataset.action;
             if (action === 'zoom-in') this.zoom(0.25);
             if (action === 'zoom-out') this.zoom(-0.25);
+            if (action === 'rotate-left') this.rotate(-90);
+            if (action === 'rotate-right') this.rotate(90);
         });
 
         // Collapsible sections
@@ -690,7 +699,7 @@ class DoubleRegComparisonModal {
         if (!pdfState.doc) return;
 
         const page = await pdfState.doc.getPage(pdfState.page);
-        const scaledViewport = page.getViewport({ scale: pdfState.scale });
+        const scaledViewport = page.getViewport({ scale: pdfState.scale, rotation: pdfState.rotation });
 
         pdfState.canvas.width = scaledViewport.width;
         pdfState.canvas.height = scaledViewport.height;
@@ -712,6 +721,15 @@ class DoubleRegComparisonModal {
         });
 
         document.getElementById('drZoomDisplay').textContent = Math.round(this.pdfA.scale * 100) + '%';
+    }
+
+    rotate(delta) {
+        // Rotate both panes together (delta: 90 or -90)
+        ['A', 'B'].forEach(pane => {
+            const pdfState = this['pdf' + pane];
+            pdfState.rotation = ((pdfState.rotation + delta) % 360 + 360) % 360;
+            if (pdfState.doc) this.renderPdfPage(pane);
+        });
     }
 
     // ── Actions ────────────────────────────────────────────
