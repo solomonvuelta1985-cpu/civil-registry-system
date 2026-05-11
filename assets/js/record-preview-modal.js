@@ -14,6 +14,7 @@ class RecordPreviewModal {
         this.currentPage = 1;
         this.totalPages = 0;
         this.scale = 1.5;
+        this.rotation = 0;
         this.canvas = null;
         this.ctx = null;
 
@@ -86,6 +87,15 @@ class RecordPreviewModal {
                                 </span>
                                 <button type="button" class="pdf-control-btn" id="pdfNextPage" title="Next Page">
                                     <i data-lucide="chevron-right"></i>
+                                </button>
+
+                                <div class="pdf-divider"></div>
+
+                                <button type="button" class="pdf-control-btn" id="pdfRotateLeft" title="Rotate Left (90° counterclockwise)">
+                                    <i data-lucide="rotate-ccw"></i>
+                                </button>
+                                <button type="button" class="pdf-control-btn" id="pdfRotateRight" title="Rotate Right (90° clockwise)">
+                                    <i data-lucide="rotate-cw"></i>
                                 </button>
                             </div>
                         </div>
@@ -165,6 +175,8 @@ class RecordPreviewModal {
         document.getElementById('pdfZoomOut').addEventListener('click', () => this.zoomOut());
         document.getElementById('pdfPrevPage').addEventListener('click', () => this.previousPage());
         document.getElementById('pdfNextPage').addEventListener('click', () => this.nextPage());
+        document.getElementById('pdfRotateLeft').addEventListener('click', () => this.rotateLeft());
+        document.getElementById('pdfRotateRight').addEventListener('click', () => this.rotateRight());
     }
 
     async open(recordId, recordType) {
@@ -192,6 +204,7 @@ class RecordPreviewModal {
         this.currentPage = 1;
         this.totalPages = 0;
         this.scale = 1.5;
+        this.rotation = 0;
     }
 
     async loadRecordData() {
@@ -773,14 +786,14 @@ class RecordPreviewModal {
             const containerWidth = container.clientWidth - 48; // Account for padding
 
             // Get viewport at scale 1
-            const viewport = page.getViewport({ scale: 1.0 });
+            const viewport = page.getViewport({ scale: 1.0, rotation: this.rotation });
 
             // Calculate scale to fit width while maintaining aspect ratio
             const scaleToFit = containerWidth / viewport.width;
             const actualScale = this.scale * scaleToFit;
 
             // Get final viewport with calculated scale
-            const scaledViewport = page.getViewport({ scale: actualScale });
+            const scaledViewport = page.getViewport({ scale: actualScale, rotation: this.rotation });
 
             this.canvas.height = scaledViewport.height;
             this.canvas.width = scaledViewport.width;
@@ -824,6 +837,16 @@ class RecordPreviewModal {
         this.scale = Math.max(this.scale - 0.25, 0.5);
         document.getElementById('pdfZoomDisplay').textContent = Math.round(this.scale * 100) + '%';
         await this.renderPage(this.currentPage);
+    }
+
+    async rotateLeft() {
+        this.rotation = (this.rotation + 270) % 360;
+        if (this.pdfDoc) await this.renderPage(this.currentPage);
+    }
+
+    async rotateRight() {
+        this.rotation = (this.rotation + 90) % 360;
+        if (this.pdfDoc) await this.renderPage(this.currentPage);
     }
 
     showError(message) {
