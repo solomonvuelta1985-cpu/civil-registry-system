@@ -912,11 +912,12 @@ if ($edit_mode && $record) {
                                     <label for="marriage_partial_type">Date Type</label>
                                     <select id="marriage_partial_type" name="marriage_partial_type" <?php echo $marriage_partial_mode ? '' : 'disabled'; ?>>
                                         <option value="">-- Select Type --</option>
-                                        <option value="month_only"  <?= $marriage_partial_format === 'month_only'  ? 'selected' : '' ?>>Month Only</option>
-                                        <option value="year_only"   <?= $marriage_partial_format === 'year_only'   ? 'selected' : '' ?>>Year Only</option>
                                         <option value="month_year"  <?= $marriage_partial_format === 'month_year'  ? 'selected' : '' ?>>Month and Year Only</option>
                                         <option value="month_day"   <?= $marriage_partial_format === 'month_day'   ? 'selected' : '' ?>>Month and Date Only</option>
+                                        <option value="month_only"  <?= $marriage_partial_format === 'month_only'  ? 'selected' : '' ?>>Month Only</option>
+                                        <option value="year_only"   <?= $marriage_partial_format === 'year_only'   ? 'selected' : '' ?>>Year Only</option>
                                         <option value="na"          <?= $marriage_partial_format === 'na'          ? 'selected' : '' ?>>N/A (no date)</option>
+                                        <option value="forgotten"   <?= $marriage_partial_format === 'forgotten'   ? 'selected' : '' ?>>Forgotten</option>
                                         <option value="dont_know"   <?= $marriage_partial_format === 'dont_know'   ? 'selected' : '' ?>>Don't Know</option>
                                     </select>
                                 </div>
