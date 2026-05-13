@@ -102,7 +102,7 @@ try {
     $errors = [];
 
     $allowed_formats = ['full', 'month_only', 'year_only', 'month_year', 'month_day', 'na'];
-    $allowed_marriage_formats = ['full', 'month_only', 'year_only', 'month_year', 'month_day', 'na', 'dont_know', 'forgotten'];
+    $allowed_marriage_formats = ['full', 'month_only', 'year_only', 'month_year', 'month_day', 'na', 'dont_know', 'forgotten', 'not_married'];
     if (!in_array($date_of_registration_format, $allowed_formats, true)) {
         $errors[] = "Invalid date format type.";
     }
