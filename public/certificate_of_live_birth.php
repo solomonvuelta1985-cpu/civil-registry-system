@@ -1059,7 +1059,11 @@ if ($edit_mode && $record) {
 
     <!-- Double Registration Comparison Modal (loads when duplicate detected on save) -->
     <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=7">
-    <script src="../assets/js/double-reg-comparison-modal.js?v=8"></script>
+    <script src="../assets/js/double-reg-comparison-modal.js?v=9"></script>
+
+    <!-- PDF.js (required by the comparison modal even when OCR is disabled) -->
+    <script src="<?= asset_url('pdfjs') ?>"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = '<?= asset_url("pdfjs_worker") ?>';</script>
 
     <!-- Birth Certificate Specific Logic -->
     <script>
@@ -1627,8 +1631,7 @@ if ($edit_mode && $record) {
     <script src="../assets/js/ocr-server-client.js"></script>
 
     <!-- Browser OCR (Fallback) -->
-    <script src="<?= asset_url('pdfjs') ?>"></script>
-    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = '<?= asset_url("pdfjs_worker") ?>';</script>
+    <!-- pdf.js is loaded earlier (required by comparison modal); Tesseract is OCR-only. -->
     <script src="<?= asset_url('tesseractjs') ?>"></script>
     <script src="../assets/js/ocr-processor.js"></script>
 

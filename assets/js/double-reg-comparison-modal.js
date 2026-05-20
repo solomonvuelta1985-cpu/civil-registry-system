@@ -248,12 +248,14 @@ class DoubleRegComparisonModal {
             }
         });
 
-        // ESC key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.modal.classList.contains('show')) {
+        // ESC key — keep a reference so close() can detach it (prevents listener accumulation
+        // when the modal is reinstantiated per-click from compare buttons).
+        this._escHandler = (e) => {
+            if (e.key === 'Escape' && this.modal && this.modal.classList.contains('show')) {
                 this.close();
             }
-        });
+        };
+        document.addEventListener('keydown', this._escHandler);
     }
 
     async open(recordAId, recordBId, certificateType = 'birth', matchScore = null) {
@@ -816,13 +818,29 @@ class DoubleRegComparisonModal {
     }
 
     close() {
-        this.backdrop.classList.remove('show');
-        this.modal.classList.remove('show');
+        // Guard against double-close (e.g. ESC + backdrop click in quick succession).
+        if (this._closed) return;
+        this._closed = true;
+
         document.body.style.overflow = '';
 
-        // Clean up PDF docs
+        // Clean up PDF docs (worker threads + render contexts) before removing the canvases.
         if (this.pdfA.doc) { this.pdfA.doc.destroy(); this.pdfA.doc = null; }
         if (this.pdfB.doc) { this.pdfB.doc.destroy(); this.pdfB.doc = null; }
+
+        // Remove document-level listener so it doesn't accumulate across instances.
+        if (this._escHandler) {
+            document.removeEventListener('keydown', this._escHandler);
+            this._escHandler = null;
+        }
+
+        // Remove the modal + backdrop from the DOM. Callers (double_registration.php,
+        // certificate-form-handler.js) do `new DoubleRegComparisonModal()` on every Compare
+        // click — leaving these in the DOM caused stacked hidden modals and slow PDF re-render.
+        if (this.modal && this.modal.parentNode) this.modal.parentNode.removeChild(this.modal);
+        if (this.backdrop && this.backdrop.parentNode) this.backdrop.parentNode.removeChild(this.backdrop);
+        this.modal = null;
+        this.backdrop = null;
 
         // Fire onClose callback if set
         if (typeof this.onClose === 'function') {

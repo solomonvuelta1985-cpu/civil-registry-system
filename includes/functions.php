@@ -556,6 +556,7 @@ function normalize_registration_date(string $format, string $full_date = '',
         case 'na':
         case 'dont_know':
         case 'forgotten':
+        case 'not_married':
             return ['date' => null, 'error' => null];
     }
 
@@ -609,6 +610,12 @@ function format_registration_date(?string $date, string $format = 'full',
 
         case 'na':
             return 'N/A';
+        case 'dont_know':
+            return "Don't Know";
+        case 'forgotten':
+            return 'Forgotten';
+        case 'not_married':
+            return 'Not Married';
     }
 
     return 'N/A';
