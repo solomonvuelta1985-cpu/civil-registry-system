@@ -1,0 +1,235 @@
+/**
+ * Manual Compare Picker — search/select dialog for picking a second birth
+ * record to feed into DoubleRegComparisonModal. Palette aligns with
+ * double-reg-comparison-modal.css (navy primary, neutral greys).
+ */
+
+.mcp-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(3px);
+    z-index: 10000;
+    display: none;
+    animation: mcpFadeIn 0.18s ease;
+}
+.mcp-backdrop.show { display: block; }
+
+@keyframes mcpFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.mcp-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10001;
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 60px 20px 20px;
+    overflow-y: auto;
+}
+.mcp-modal.show { display: flex; }
+
+.mcp-dialog {
+    background: #FFFFFF;
+    border-radius: 4px;
+    border: 1px solid #CBD5E1;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+    width: 100%;
+    max-width: 1100px;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    animation: mcpSlideUp 0.22s ease;
+    overflow: hidden;
+    position: relative;
+}
+
+@keyframes mcpSlideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Header */
+.mcp-header {
+    padding: 16px 24px;
+    background: #FFFFFF;
+    border-bottom: 1px solid #E2E8F0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    position: relative;
+}
+.mcp-header::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #0F2C5C 0%, #1E3A8A 100%);
+}
+.mcp-header-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #0F2C5C;
+}
+.mcp-header-title h2 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    color: #0F2C5C;
+}
+.mcp-close {
+    background: transparent;
+    border: 1px solid transparent;
+    color: #64748B;
+    border-radius: 4px;
+    padding: 4px;
+    cursor: pointer;
+    line-height: 0;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.mcp-close:hover {
+    background: #F1F5F9;
+    color: #0F172A;
+    border-color: #E2E8F0;
+}
+
+/* Body */
+.mcp-body {
+    padding: 18px 24px;
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #F8FAFC;
+}
+
+.mcp-search-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.mcp-search-icon {
+    position: absolute;
+    left: 12px;
+    color: #64748B;
+    pointer-events: none;
+}
+.mcp-search-input {
+    width: 100%;
+    padding: 10px 12px 10px 38px;
+    font-size: 14px;
+    color: #0F172A;
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.mcp-search-input:focus {
+    border-color: #1E3A8A;
+    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.12);
+}
+
+.mcp-status {
+    font-size: 13px;
+    color: #64748B;
+    padding: 2px 2px;
+}
+.mcp-status-error { color: #B91C1C; }
+.mcp-status-fuzzy { color: #92400E; }
+
+.mcp-results-wrap {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.mcp-results-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.mcp-results-table thead th {
+    text-align: left;
+    padding: 10px 12px;
+    background: #F1F5F9;
+    border-bottom: 1px solid #E2E8F0;
+    color: #334155;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.mcp-results-table tbody td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #F1F5F9;
+    color: #0F172A;
+    vertical-align: middle;
+}
+.mcp-results-table tbody tr:last-child td { border-bottom: none; }
+.mcp-results-table tbody tr:hover { background: #F8FAFC; }
+.mcp-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12.5px;
+    color: #1E3A8A;
+}
+
+.mcp-select-btn {
+    background: #1E3A8A;
+    color: #FFFFFF;
+    border: 1px solid #1E3A8A;
+    padding: 6px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+.mcp-select-btn:hover {
+    background: #0F2C5C;
+    border-color: #0F2C5C;
+}
+
+/* Footer */
+.mcp-footer {
+    padding: 12px 24px;
+    border-top: 1px solid #E2E8F0;
+    background: #FFFFFF;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.mcp-btn {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.mcp-btn-outline {
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    color: #334155;
+}
+.mcp-btn-outline:hover {
+    background: #F1F5F9;
+    border-color: #94A3B8;
+}
+
+@media (max-width: 768px) {
+    .mcp-modal { padding: 20px 12px; }
+    .mcp-header { padding: 14px 16px; }
+    .mcp-body { padding: 14px 16px; }
+    .mcp-footer { padding: 10px 16px; }
+    .mcp-results-table thead { display: none; }
+    .mcp-results-table tbody td { display: block; padding: 6px 12px; }
+    .mcp-results-table tbody tr { padding: 8px 0; border-bottom: 1px solid #E2E8F0; }
+}

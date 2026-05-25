@@ -2454,6 +2454,13 @@ function detect_late_registration($record, $record_type) {
                                             <span>Find Duplicates</span>
                                         </button>
                                         <?php endif; endif; ?>
+                                        <?php if ($record_type === 'birth' && hasPermission('birth_link')): ?>
+                                        <button class="action-dropdown-item"
+                                                onclick="openManualCompare(<?php echo (int)$record['id']; ?>); closeAllDropdowns();">
+                                            <i data-lucide="git-compare"></i>
+                                            <span>Manual Compare</span>
+                                        </button>
+                                        <?php endif; ?>
                                         <?php if ($can_delete && !$is_linked): ?>
                                         <button class="action-dropdown-item delete-action"
                                                 onclick="deleteRecord(<?php echo $record['id']; ?>, <?php echo htmlspecialchars(json_encode($record_safe), ENT_QUOTES, 'UTF-8'); ?>); closeAllDropdowns();">
@@ -3784,6 +3791,10 @@ function detect_late_registration($record, $record_type) {
     <!-- Double Registration Comparison Modal -->
     <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=7">
     <script src="../assets/js/double-reg-comparison-modal.js?v=9"></script>
+
+    <!-- Manual Compare Picker -->
+    <link rel="stylesheet" href="../assets/css/manual-compare-picker.css?v=1">
+    <script src="../assets/js/manual-compare-picker.js?v=1"></script>
     <script>
         function findDuplicates(recordId, recordType) {
             const base = window.APP_BASE || '';
@@ -3817,6 +3828,16 @@ function detect_late_registration($record, $record_type) {
                     console.error(err);
                     Notiflix.Notify.failure('Error searching for duplicates');
                 });
+        }
+
+        function openManualCompare(recordId) {
+            if (typeof ManualComparePicker !== 'function') {
+                console.error('ManualComparePicker is not loaded.');
+                Notiflix.Notify.failure('Manual compare picker is not available.');
+                return;
+            }
+            window.__manualComparePicker = window.__manualComparePicker || new ManualComparePicker();
+            window.__manualComparePicker.open(recordId);
         }
     </script>
 </body>
