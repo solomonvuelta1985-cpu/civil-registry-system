@@ -168,6 +168,20 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                 <!-- LEFT COLUMN: Form Fields -->
                 <div class="form-column">
 
+                    <?php
+                    $baggao_barangays = [
+                        'Adaoag','Agaman (Proper)','Agaman Norte','Agaman Sur','Alba','Annayatan',
+                        'Asassi','Asinga-Via','Awallan','Bacagan','Bagunot','Barsat East',
+                        'Barsat West','Bitag Grande','Bitag Pequeño','Bunugan','C. Verzosa (Valley Cove)',
+                        'Canagatan','Carupian','Catugay','Dabbac Grande','Dalin','Dalla',
+                        'Hacienda Intal','Ibulo','Imurung','J. Pallagao','Lasilat','Mabini',
+                        'Masical','Mocag','Nangalinan','Poblacion (Centro)','Remus','San Antonio',
+                        'San Francisco','San Isidro','San Jose','San Miguel','San Vicente',
+                        'Santa Margarita','Santor','Taguing','Taguntungan','Tallang','Taytay',
+                        'Temblique','Tungel',
+                    ];
+                    ?>
+
                     <!-- Registry Information Section -->
                     <div class="form-section" id="registry_section">
                         <div class="section-header">
@@ -311,19 +325,54 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 <label for="groom_citizenship_other">Specify Citizenship</label>
                                 <input type="text" id="groom_citizenship_other" name="groom_citizenship_other" placeholder="Please specify" value="<?php echo $groom_cit_is_other ? htmlspecialchars($groom_cit_val) : ''; ?>">
                             </div>
+                        </div>
 
+                        <?php
+                        $gr_val     = $edit_mode ? ($record['groom_residence'] ?? '') : '';
+                        $gr_outside = $gr_val !== '' && !in_array($gr_val, $baggao_barangays, true);
+                        ?>
+                        <div class="form-row">
                             <div class="form-group">
                                 <label for="groom_residence">
                                     Residence <span class="required">*</span>
                                 </label>
+                                <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; color:#495057; margin-bottom:6px; font-weight:normal; cursor:pointer;">
+                                    <input
+                                        type="checkbox"
+                                        id="groom_residence_outside"
+                                        class="residence-outside-toggle"
+                                        style="width:1rem; height:1rem; cursor:pointer; margin:0;"
+                                        <?php echo $gr_outside ? 'checked' : ''; ?>
+                                    >
+                                    Outside Baggao
+                                </label>
+                                <select
+                                    id="groom_residence"
+                                    name="<?php echo $gr_outside ? '' : 'groom_residence'; ?>"
+                                    required
+                                    style="display: <?php echo $gr_outside ? 'none' : 'block'; ?>;"
+                                >
+                                    <option value="">-- Select Barangay --</option>
+                                    <?php foreach ($baggao_barangays as $b):
+                                        $sel = (!$gr_outside && $gr_val === $b) ? 'selected' : '';
+                                    ?>
+                                    <option value="<?php echo htmlspecialchars($b); ?>" <?php echo $sel; ?>><?php echo htmlspecialchars($b); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                                 <input
                                     type="text"
-                                    id="groom_residence"
-                                    name="groom_residence"
-                                    required
+                                    id="groom_residence_other"
+                                    name="<?php echo $gr_outside ? 'groom_residence' : ''; ?>"
                                     placeholder="Enter complete address"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_residence']) : ''; ?>"
+                                    value="<?php echo $gr_outside ? htmlspecialchars($gr_val) : ''; ?>"
+                                    <?php echo $gr_outside ? 'required' : ''; ?>
+                                    style="display: <?php echo $gr_outside ? 'block' : 'none'; ?>;"
                                 >
+                                <div id="groom_residence_locality" class="residence-locality" style="display: <?php echo $gr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
+                                    Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
+                                    <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
+                                    Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
+                                </div>
                             </div>
                         </div>
 
@@ -383,15 +432,50 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 <label for="groom_father_citizenship_other">Specify Citizenship</label>
                                 <input type="text" id="groom_father_citizenship_other" name="groom_father_citizenship_other" placeholder="Please specify" value="<?php echo $gf_cit_is_other ? htmlspecialchars($gf_cit_val) : ''; ?>">
                             </div>
+                        </div>
+
+                        <?php
+                        $gfr_val     = $edit_mode ? ($record['groom_father_residence'] ?? '') : '';
+                        $gfr_outside = $gfr_val !== '' && !in_array($gfr_val, $baggao_barangays, true);
+                        ?>
+                        <div class="form-row">
                             <div class="form-group">
                                 <label for="groom_father_residence">Residence</label>
+                                <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; color:#495057; margin-bottom:6px; font-weight:normal; cursor:pointer;">
+                                    <input
+                                        type="checkbox"
+                                        id="groom_father_residence_outside"
+                                        class="residence-outside-toggle"
+                                        style="width:1rem; height:1rem; cursor:pointer; margin:0;"
+                                        <?php echo $gfr_outside ? 'checked' : ''; ?>
+                                    >
+                                    Outside Baggao
+                                </label>
+                                <select
+                                    id="groom_father_residence"
+                                    name="<?php echo $gfr_outside ? '' : 'groom_father_residence'; ?>"
+                                    style="display: <?php echo $gfr_outside ? 'none' : 'block'; ?>;"
+                                >
+                                    <option value="">-- Select Barangay --</option>
+                                    <?php foreach ($baggao_barangays as $b):
+                                        $sel = (!$gfr_outside && $gfr_val === $b) ? 'selected' : '';
+                                    ?>
+                                    <option value="<?php echo htmlspecialchars($b); ?>" <?php echo $sel; ?>><?php echo htmlspecialchars($b); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                                 <input
                                     type="text"
-                                    id="groom_father_residence"
-                                    name="groom_father_residence"
+                                    id="groom_father_residence_other"
+                                    name="<?php echo $gfr_outside ? 'groom_father_residence' : ''; ?>"
                                     placeholder="Enter address"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_father_residence'] ?? '') : ''; ?>"
+                                    value="<?php echo $gfr_outside ? htmlspecialchars($gfr_val) : ''; ?>"
+                                    style="display: <?php echo $gfr_outside ? 'block' : 'none'; ?>;"
                                 >
+                                <div id="groom_father_residence_locality" class="residence-locality" style="display: <?php echo $gfr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
+                                    Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
+                                    <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
+                                    Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
+                                </div>
                             </div>
                         </div>
 
@@ -451,15 +535,50 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 <label for="groom_mother_citizenship_other">Specify Citizenship</label>
                                 <input type="text" id="groom_mother_citizenship_other" name="groom_mother_citizenship_other" placeholder="Please specify" value="<?php echo $gm_cit_is_other ? htmlspecialchars($gm_cit_val) : ''; ?>">
                             </div>
+                        </div>
+
+                        <?php
+                        $gmr_val     = $edit_mode ? ($record['groom_mother_residence'] ?? '') : '';
+                        $gmr_outside = $gmr_val !== '' && !in_array($gmr_val, $baggao_barangays, true);
+                        ?>
+                        <div class="form-row">
                             <div class="form-group">
                                 <label for="groom_mother_residence">Residence</label>
+                                <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; color:#495057; margin-bottom:6px; font-weight:normal; cursor:pointer;">
+                                    <input
+                                        type="checkbox"
+                                        id="groom_mother_residence_outside"
+                                        class="residence-outside-toggle"
+                                        style="width:1rem; height:1rem; cursor:pointer; margin:0;"
+                                        <?php echo $gmr_outside ? 'checked' : ''; ?>
+                                    >
+                                    Outside Baggao
+                                </label>
+                                <select
+                                    id="groom_mother_residence"
+                                    name="<?php echo $gmr_outside ? '' : 'groom_mother_residence'; ?>"
+                                    style="display: <?php echo $gmr_outside ? 'none' : 'block'; ?>;"
+                                >
+                                    <option value="">-- Select Barangay --</option>
+                                    <?php foreach ($baggao_barangays as $b):
+                                        $sel = (!$gmr_outside && $gmr_val === $b) ? 'selected' : '';
+                                    ?>
+                                    <option value="<?php echo htmlspecialchars($b); ?>" <?php echo $sel; ?>><?php echo htmlspecialchars($b); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                                 <input
                                     type="text"
-                                    id="groom_mother_residence"
-                                    name="groom_mother_residence"
+                                    id="groom_mother_residence_other"
+                                    name="<?php echo $gmr_outside ? 'groom_mother_residence' : ''; ?>"
                                     placeholder="Enter address"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['groom_mother_residence'] ?? '') : ''; ?>"
+                                    value="<?php echo $gmr_outside ? htmlspecialchars($gmr_val) : ''; ?>"
+                                    style="display: <?php echo $gmr_outside ? 'block' : 'none'; ?>;"
                                 >
+                                <div id="groom_mother_residence_locality" class="residence-locality" style="display: <?php echo $gmr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
+                                    Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
+                                    <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
+                                    Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -567,18 +686,54 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 <label for="bride_citizenship_other">Specify Citizenship</label>
                                 <input type="text" id="bride_citizenship_other" name="bride_citizenship_other" placeholder="Please specify" value="<?php echo $bride_cit_is_other ? htmlspecialchars($bride_cit_val) : ''; ?>">
                             </div>
+                        </div>
+
+                        <?php
+                        $br_val     = $edit_mode ? ($record['bride_residence'] ?? '') : '';
+                        $br_outside = $br_val !== '' && !in_array($br_val, $baggao_barangays, true);
+                        ?>
+                        <div class="form-row">
                             <div class="form-group">
                                 <label for="bride_residence">
                                     Residence <span class="required">*</span>
                                 </label>
+                                <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; color:#495057; margin-bottom:6px; font-weight:normal; cursor:pointer;">
+                                    <input
+                                        type="checkbox"
+                                        id="bride_residence_outside"
+                                        class="residence-outside-toggle"
+                                        style="width:1rem; height:1rem; cursor:pointer; margin:0;"
+                                        <?php echo $br_outside ? 'checked' : ''; ?>
+                                    >
+                                    Outside Baggao
+                                </label>
+                                <select
+                                    id="bride_residence"
+                                    name="<?php echo $br_outside ? '' : 'bride_residence'; ?>"
+                                    required
+                                    style="display: <?php echo $br_outside ? 'none' : 'block'; ?>;"
+                                >
+                                    <option value="">-- Select Barangay --</option>
+                                    <?php foreach ($baggao_barangays as $b):
+                                        $sel = (!$br_outside && $br_val === $b) ? 'selected' : '';
+                                    ?>
+                                    <option value="<?php echo htmlspecialchars($b); ?>" <?php echo $sel; ?>><?php echo htmlspecialchars($b); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                                 <input
                                     type="text"
-                                    id="bride_residence"
-                                    name="bride_residence"
-                                    required
+                                    id="bride_residence_other"
+                                    name="<?php echo $br_outside ? 'bride_residence' : ''; ?>"
                                     placeholder="Enter complete address"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_residence']) : ''; ?>"
+                                    value="<?php echo $br_outside ? htmlspecialchars($br_val) : ''; ?>"
+                                    <?php echo $br_outside ? 'required' : ''; ?>
+                                    style="display: <?php echo $br_outside ? 'block' : 'none'; ?>;"
                                 >
+                                <div id="bride_residence_locality" class="residence-locality" style="display: <?php echo $br_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
+                                    Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
+                                    <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
+                                    Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
+                                </div>
                             </div>
                         </div>
 
@@ -638,15 +793,50 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 <label for="bride_father_citizenship_other">Specify Citizenship</label>
                                 <input type="text" id="bride_father_citizenship_other" name="bride_father_citizenship_other" placeholder="Please specify" value="<?php echo $bf_cit_is_other ? htmlspecialchars($bf_cit_val) : ''; ?>">
                             </div>
+                        </div>
+
+                        <?php
+                        $bfr_val     = $edit_mode ? ($record['bride_father_residence'] ?? '') : '';
+                        $bfr_outside = $bfr_val !== '' && !in_array($bfr_val, $baggao_barangays, true);
+                        ?>
+                        <div class="form-row">
                             <div class="form-group">
                                 <label for="bride_father_residence">Residence</label>
+                                <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; color:#495057; margin-bottom:6px; font-weight:normal; cursor:pointer;">
+                                    <input
+                                        type="checkbox"
+                                        id="bride_father_residence_outside"
+                                        class="residence-outside-toggle"
+                                        style="width:1rem; height:1rem; cursor:pointer; margin:0;"
+                                        <?php echo $bfr_outside ? 'checked' : ''; ?>
+                                    >
+                                    Outside Baggao
+                                </label>
+                                <select
+                                    id="bride_father_residence"
+                                    name="<?php echo $bfr_outside ? '' : 'bride_father_residence'; ?>"
+                                    style="display: <?php echo $bfr_outside ? 'none' : 'block'; ?>;"
+                                >
+                                    <option value="">-- Select Barangay --</option>
+                                    <?php foreach ($baggao_barangays as $b):
+                                        $sel = (!$bfr_outside && $bfr_val === $b) ? 'selected' : '';
+                                    ?>
+                                    <option value="<?php echo htmlspecialchars($b); ?>" <?php echo $sel; ?>><?php echo htmlspecialchars($b); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                                 <input
                                     type="text"
-                                    id="bride_father_residence"
-                                    name="bride_father_residence"
+                                    id="bride_father_residence_other"
+                                    name="<?php echo $bfr_outside ? 'bride_father_residence' : ''; ?>"
                                     placeholder="Enter address"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_father_residence'] ?? '') : ''; ?>"
+                                    value="<?php echo $bfr_outside ? htmlspecialchars($bfr_val) : ''; ?>"
+                                    style="display: <?php echo $bfr_outside ? 'block' : 'none'; ?>;"
                                 >
+                                <div id="bride_father_residence_locality" class="residence-locality" style="display: <?php echo $bfr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
+                                    Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
+                                    <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
+                                    Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
+                                </div>
                             </div>
                         </div>
 
@@ -706,15 +896,50 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 <label for="bride_mother_citizenship_other">Specify Citizenship</label>
                                 <input type="text" id="bride_mother_citizenship_other" name="bride_mother_citizenship_other" placeholder="Please specify" value="<?php echo $bm_cit_is_other ? htmlspecialchars($bm_cit_val) : ''; ?>">
                             </div>
+                        </div>
+
+                        <?php
+                        $bmr_val     = $edit_mode ? ($record['bride_mother_residence'] ?? '') : '';
+                        $bmr_outside = $bmr_val !== '' && !in_array($bmr_val, $baggao_barangays, true);
+                        ?>
+                        <div class="form-row">
                             <div class="form-group">
                                 <label for="bride_mother_residence">Residence</label>
+                                <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; color:#495057; margin-bottom:6px; font-weight:normal; cursor:pointer;">
+                                    <input
+                                        type="checkbox"
+                                        id="bride_mother_residence_outside"
+                                        class="residence-outside-toggle"
+                                        style="width:1rem; height:1rem; cursor:pointer; margin:0;"
+                                        <?php echo $bmr_outside ? 'checked' : ''; ?>
+                                    >
+                                    Outside Baggao
+                                </label>
+                                <select
+                                    id="bride_mother_residence"
+                                    name="<?php echo $bmr_outside ? '' : 'bride_mother_residence'; ?>"
+                                    style="display: <?php echo $bmr_outside ? 'none' : 'block'; ?>;"
+                                >
+                                    <option value="">-- Select Barangay --</option>
+                                    <?php foreach ($baggao_barangays as $b):
+                                        $sel = (!$bmr_outside && $bmr_val === $b) ? 'selected' : '';
+                                    ?>
+                                    <option value="<?php echo htmlspecialchars($b); ?>" <?php echo $sel; ?>><?php echo htmlspecialchars($b); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                                 <input
                                     type="text"
-                                    id="bride_mother_residence"
-                                    name="bride_mother_residence"
+                                    id="bride_mother_residence_other"
+                                    name="<?php echo $bmr_outside ? 'bride_mother_residence' : ''; ?>"
                                     placeholder="Enter address"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['bride_mother_residence'] ?? '') : ''; ?>"
+                                    value="<?php echo $bmr_outside ? htmlspecialchars($bmr_val) : ''; ?>"
+                                    style="display: <?php echo $bmr_outside ? 'block' : 'none'; ?>;"
                                 >
+                                <div id="bride_mother_residence_locality" class="residence-locality" style="display: <?php echo $bmr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
+                                    Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
+                                    <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
+                                    Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -842,6 +1067,42 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                         }
                     });
                 }
+            });
+        })();
+
+        // "Outside Baggao" residence toggle handlers
+        (function() {
+            const residenceFields = [
+                'groom_residence',
+                'groom_father_residence',
+                'groom_mother_residence',
+                'bride_residence',
+                'bride_father_residence',
+                'bride_mother_residence',
+            ];
+            residenceFields.forEach(function(fieldId) {
+                const toggle = document.getElementById(fieldId + '_outside');
+                const select = document.getElementById(fieldId);
+                const other  = document.getElementById(fieldId + '_other');
+                if (!toggle || !select || !other) return;
+
+                const locality = document.getElementById(fieldId + '_locality');
+
+                toggle.addEventListener('change', function() {
+                    const outside = toggle.checked;
+                    select.style.display = outside ? 'none'  : 'block';
+                    other.style.display  = outside ? 'block' : 'none';
+                    if (locality) locality.style.display = outside ? 'none' : 'block';
+                    select.name = outside ? '' : fieldId;
+                    other.name  = outside ? fieldId : '';
+                    const wasRequired = select.hasAttribute('required') || other.hasAttribute('required');
+                    if (wasRequired) {
+                        if (outside) { other.setAttribute('required',''); select.removeAttribute('required'); }
+                        else         { select.setAttribute('required',''); other.removeAttribute('required'); }
+                    }
+                    if (outside) select.value = '';
+                    else         other.value  = '';
+                });
             });
         })();
 

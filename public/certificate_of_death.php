@@ -514,15 +514,45 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
                                 <label for="place_of_death">
                                     Barangay/Hospital <span class="required">*</span>
                                 </label>
-                                <input
-                                    type="text"
+                                <select
                                     id="place_of_death"
                                     name="place_of_death"
                                     required
-                                    placeholder="Enter barangay or hospital name"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['place_of_death']) : ''; ?>"
                                 >
-                                <span class="help-text">Enter the specific barangay or hospital where death occurred</span>
+                                    <option value="">-- Select Location --</option>
+                                    <option value="" disabled>──────── Hospitals ────────</option>
+                                    <?php
+                                    $death_hospitals = [
+                                        'Baggao District Hospital',
+                                        'Municipal Health Office',
+                                        'Baggao Community Medicare (Poblacion)',
+                                        'Baggao Municipal Hospital (Tallang)',
+                                    ];
+                                    foreach ($death_hospitals as $h) {
+                                        $sel = ($edit_mode && ($record['place_of_death'] ?? '') === $h) ? 'selected' : '';
+                                        echo '<option value="' . htmlspecialchars($h) . '" ' . $sel . '>' . htmlspecialchars($h) . '</option>';
+                                    }
+                                    ?>
+                                    <option value="" disabled>──────── Barangays ────────</option>
+                                    <?php
+                                    $death_barangays = [
+                                        'Adaoag','Agaman (Proper)','Agaman Norte','Agaman Sur','Alba','Annayatan',
+                                        'Asassi','Asinga-Via','Awallan','Bacagan','Bagunot','Barsat East',
+                                        'Barsat West','Bitag Grande','Bitag Pequeño','Bunugan','C. Verzosa (Valley Cove)',
+                                        'Canagatan','Carupian','Catugay','Dabbac Grande','Dalin','Dalla',
+                                        'Hacienda Intal','Ibulo','Imurung','J. Pallagao','Lasilat','Mabini',
+                                        'Masical','Mocag','Nangalinan','Poblacion (Centro)','Remus','San Antonio',
+                                        'San Francisco','San Isidro','San Jose','San Miguel','San Vicente',
+                                        'Santa Margarita','Santor','Taguing','Taguntungan','Tallang','Taytay',
+                                        'Temblique','Tungel',
+                                    ];
+                                    foreach ($death_barangays as $b) {
+                                        $sel = ($edit_mode && ($record['place_of_death'] ?? '') === $b) ? 'selected' : '';
+                                        echo '<option value="' . htmlspecialchars($b) . '" ' . $sel . '>' . htmlspecialchars($b) . '</option>';
+                                    }
+                                    ?>
+                                </select>
+                                <span class="help-text">Select the hospital or barangay where the death occurred</span>
                             </div>
 
                             <div class="form-group">

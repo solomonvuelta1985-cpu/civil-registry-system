@@ -3152,6 +3152,10 @@ function detect_late_registration($record, $record_type) {
         let searchTimeout;
         let currentPage = 1;
         const recordType = '<?php echo $record_type; ?>';
+        const canLink = <?php echo (isset($link_perm) && hasPermission($link_perm)) ? 'true' : 'false'; ?>;
+        const canManualCompare = <?php echo ($record_type === 'birth' && hasPermission('birth_link')) ? 'true' : 'false'; ?>;
+        const entryFormUrl = '<?php echo $config['entry_form']; ?>';
+        let currentRecordLinkMap = {};
 
         // Initialize page load skeleton
         function initPageLoadSkeleton() {
@@ -3243,7 +3247,8 @@ function detect_late_registration($record, $record_type) {
                 const data = await response.json();
 
                 if (data.success) {
-                    updateTable(data.records, data.pagination, data.fuzzy === true);
+                    currentRecordLinkMap = data.record_link_map || {};
+                    updateTable(data.records, data.pagination, data.fuzzy === true, currentRecordLinkMap);
                 } else {
                     console.error('Search error:', data.error);
                 }
@@ -3256,7 +3261,8 @@ function detect_late_registration($record, $record_type) {
         }
 
         // Update table with new results
-        function updateTable(records, pagination, isFuzzy) {
+        function updateTable(records, pagination, isFuzzy, linkMap) {
+            if (linkMap) { currentRecordLinkMap = linkMap; }
             if (!recordsTable) return;
 
             // Update table body
@@ -3293,7 +3299,7 @@ function detect_late_registration($record, $record_type) {
                     `;
                 }
                 records.forEach((record, index) => {
-                    html += buildTableRow(record, pagination.from + index);
+                    html += buildTableRow(record, pagination.from + index, currentRecordLinkMap);
                 });
                 recordsTable.innerHTML = html;
             }
@@ -3311,10 +3317,12 @@ function detect_late_registration($record, $record_type) {
         }
 
         // Build table row HTML based on record type
-        function buildTableRow(record, rowNumber) {
+        function buildTableRow(record, rowNumber, linkMap) {
             const columns = <?php echo json_encode($config['table_columns']); ?>;
             const canArchive = <?php echo $can_archive ? 'true' : 'false'; ?>;
             const isArchived = (record.status || 'Active') === 'Archived';
+            const isLinked = linkMap && linkMap[record.id] ? true : false;
+            const linkInfo = linkMap && linkMap[record.id] || null;
             const rowClass = isArchived ? 'row-archived' : '';
             let html = `<tr class="${rowClass}" data-record-id="${record.id}" data-record-status="${escapeHtml(record.status || 'Active')}">`;
 
@@ -3378,6 +3386,27 @@ function detect_late_registration($record, $record_type) {
                                 <span>Archive</span>
                             </button>`;
                 }
+            }
+
+            if (canLink) {
+                if (isLinked) {
+                    const li = linkInfo;
+                    html += `<button class="action-dropdown-item" onclick="recordPreviewModal.open(${li.paired_id}, '${escapeHtml(li.paired_type || recordType)}'); closeAllDropdowns();">
+                                <i data-lucide="link-2"></i>
+                                <span>View Linked Record</span>
+                            </button>`;
+                } else {
+                    html += `<button class="action-dropdown-item" onclick="findDuplicates(${record.id}, '${recordType}'); closeAllDropdowns();">
+                                <i data-lucide="search"></i>
+                                <span>Find Duplicates</span>
+                            </button>`;
+                }
+            }
+            if (canManualCompare) {
+                html += `<button class="action-dropdown-item" onclick="openManualCompare(${record.id}); closeAllDropdowns();">
+                            <i data-lucide="git-compare"></i>
+                            <span>Manual Compare</span>
+                        </button>`;
             }
 
             <?php if ($can_delete): ?>

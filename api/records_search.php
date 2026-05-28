@@ -200,9 +200,22 @@ try {
         }
     }
 
+    // Batch-load double registration link status for all visible records
+    $record_link_map = [];
+    if (!empty($records)) {
+        $visible_ids = array_column($records, 'id');
+        try {
+            require_once __DIR__ . '/../includes/functions.php';
+            $record_link_map = get_record_links_batch($pdo, $record_type, $visible_ids);
+        } catch (Exception $e) {
+            error_log("Record link batch query error: " . $e->getMessage());
+        }
+    }
+
     echo json_encode([
         'success' => true,
         'records' => $records,
+        'record_link_map' => $record_link_map,
         'fuzzy' => $is_fuzzy,
         'search_tokens' => $tokens,
         'pagination' => [
