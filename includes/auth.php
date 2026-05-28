@@ -192,6 +192,58 @@ function requireAuth() {
 }
 
 /**
+ * Maintenance Mode guard.
+ *
+ * When the `maintenance_mode` system setting is ON:
+ *   - Admins pass through untouched.
+ *   - Anyone else (including unauthenticated visitors and any logged-in
+ *     Encoder/Viewer) has their session destroyed and is redirected to
+ *     public/maintenance.php.
+ *
+ * Skips itself on the maintenance page and the login page so that:
+ *   - The maintenance page can render without infinite redirect.
+ *   - Admins can still reach the login form to sign in.
+ *
+ * For API endpoints (script path contains "/api/"), responds with a JSON 503
+ * instead of redirecting, so JS clients get a usable error.
+ */
+function enforceMaintenanceMode() {
+    if (!function_exists('get_setting')) return;
+    if (!(bool) get_setting('maintenance_mode', false)) return;
+
+    // Admins always pass through.
+    if (isLoggedIn() && isAdmin()) return;
+
+    $script = $_SERVER['SCRIPT_NAME'] ?? '';
+    $basename = basename($script);
+
+    // Allow the maintenance page itself and the login page (so Admins can sign in).
+    if ($basename === 'maintenance.php' || $basename === 'login.php') return;
+
+    // Destroy any non-admin session so the user is fully logged out.
+    if (isLoggedIn()) {
+        logoutUser();
+    }
+
+    // API endpoints: respond with JSON 503 instead of redirecting.
+    if (strpos($script, '/api/') !== false) {
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+            http_response_code(503);
+        }
+        echo json_encode([
+            'success' => false,
+            'message' => (string) get_setting('maintenance_message', 'System under maintenance.'),
+            'data'    => null,
+        ]);
+        exit;
+    }
+
+    header('Location: ' . BASE_URL . 'public/maintenance.php');
+    exit;
+}
+
+/**
  * Require specific permission - show 403 if not authorized
  */
 function requirePermission($permission_name) {
@@ -332,3 +384,14 @@ function logoutUser() {
 
 // NOTE: Activity logging is handled by log_activity() in includes/functions.php.
 // Use: log_activity($pdo, $action, $details, $user_id)
+
+// Maintenance Mode enforcement runs on every page that includes auth.php.
+// Loaded here (not session_config.php) because get_setting() needs $pdo, which
+// is established by config.php — and the standard include order is
+// session_config -> config -> functions -> auth. By the time this line runs,
+// $pdo is available. Admins and the maintenance/login pages are exempted
+// inside enforceMaintenanceMode() itself.
+if (file_exists(__DIR__ . '/settings.php')) {
+    require_once __DIR__ . '/settings.php';
+    enforceMaintenanceMode();
+}

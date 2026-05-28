@@ -6,6 +6,7 @@ require_once '../includes/auth.php';
 require_once '../includes/security.php';
 require_once '../includes/security_headers.php';
 require_once '../includes/device_auth.php';
+require_once '../includes/settings.php';
 
 // Set security headers
 setSecurityHeaders();
@@ -133,6 +134,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // Clear rate limit on successful login
                         clearRateLimit($rate_limit_identifier);
 
+                        // Maintenance Mode — only Admins can log in while ON.
+                        if ((bool) get_setting('maintenance_mode', false) && ($user['role'] ?? '') !== 'Admin') {
+                            logSecurityEvent('LOGIN_BLOCKED_MAINTENANCE', 'LOW', "Non-admin login blocked during maintenance: {$username}", $user['id']);
+                            header('Location: maintenance.php');
+                            exit;
+                        }
+
                         // Device Lock Gate — runs only when ENABLE_DEVICE_LOCK=true.
                         // Exits internally if device is not Active (Pending/Revoked/Unknown).
                         deviceLockGate($user);
@@ -156,6 +164,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $user = authenticateUser($username, $password);
 
                 if ($user) {
+                    if ((bool) get_setting('maintenance_mode', false) && ($user['role'] ?? '') !== 'Admin') {
+                        logSecurityEvent('LOGIN_BLOCKED_MAINTENANCE', 'LOW', "Non-admin login blocked during maintenance: {$username}", $user['id']);
+                        header('Location: maintenance.php');
+                        exit;
+                    }
                     deviceLockGate($user);
                     setUserSession($user);
                     log_activity($pdo, 'login', 'User logged in', $user['id']);
@@ -674,6 +687,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php if ($timeout_message): ?>
                     <div class="alert" style="background: #fff3cd; color: #856404; border-left-color: #ffc107;">
                         <?php echo htmlspecialchars($timeout_message); ?>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ((bool) get_setting('maintenance_mode', false)): ?>
+                    <div class="alert" style="background: #fff3cd; color: #856404; border-left-color: #ffc107;">
+                        <strong>Maintenance Mode is active.</strong><br>
+                        Only administrators can sign in right now.
                     </div>
                 <?php endif; ?>
 

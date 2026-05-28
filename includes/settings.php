@@ -37,7 +37,9 @@ function __settings_bootstrap(PDO $pdo): bool {
             INSERT IGNORE INTO `system_settings`
                 (`setting_key`,`setting_value`,`setting_type`,`category`,`description`,`is_public`)
             VALUES
-                ('ocr_enabled','true','boolean','OCR','Show the floating Scan Now badge and load OCR engine on certificate forms.',0)
+                ('ocr_enabled','true','boolean','OCR','Show the floating Scan Now badge and load OCR engine on certificate forms.',0),
+                ('maintenance_mode','false','boolean','System','When ON, only Admins can use the system. All other users are logged out and shown the maintenance page.',0),
+                ('maintenance_message','The system is undergoing scheduled maintenance. Please try again shortly.','string','System','Message shown to non-admin users while maintenance mode is active. Include ETA here if known.',1)
         ");
         $initialized = true;
     } catch (PDOException $e) {

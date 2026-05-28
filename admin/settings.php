@@ -29,6 +29,13 @@ $TOGGLE_DEFINITIONS = [
         'description' => 'When ON, the floating "Scan Now" badge appears on certificate forms and OCR engines are loaded. Turn OFF to hide the badge and skip loading OCR scripts.',
         'category'    => 'OCR',
     ],
+    [
+        'key'         => 'maintenance_mode',
+        'label'       => 'Maintenance Mode',
+        'description' => 'When ON, all non-admin users (Encoders, Viewers) are immediately logged out on their next request and shown the maintenance page. Only Administrators can sign in or use the system. Use this during upgrades, database migrations, or scheduled downtime.',
+        'category'    => 'System',
+        'danger'      => true,
+    ],
 ];
 
 $flash = null;
@@ -45,6 +52,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($submitted !== $current) {
             if (set_setting($pdo, $key, $submitted ? 'true' : 'false', getUserId())) {
                 $changes[] = $key . '=' . ($submitted ? 'true' : 'false');
+            }
+        }
+    }
+
+    // Maintenance message (free-text). Trim and cap at 500 chars to keep the
+    // setting row sensible. An empty value falls back to the seeded default
+    // when read via get_setting().
+    if (isset($_POST['maintenance_message'])) {
+        $new_message = trim((string) $_POST['maintenance_message']);
+        if (mb_strlen($new_message) > 500) {
+            $new_message = mb_substr($new_message, 0, 500);
+        }
+        $current_message = (string) get_setting('maintenance_message', '');
+        if ($new_message !== $current_message) {
+            if (set_setting($pdo, 'maintenance_message', $new_message, getUserId())) {
+                $changes[] = 'maintenance_message updated';
             }
         }
     }
@@ -218,6 +241,56 @@ $csrf_token = generateCSRFToken();
         .btn-primary { background-color: #3b82f6; color: #ffffff; }
         .btn-primary:hover { background-color: #2563eb; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
 
+        /* Danger / System category styling */
+        .category-card.danger { border-color: #fde68a; }
+        .category-card.danger .category-header {
+            background: #fffbeb;
+            border-bottom-color: #fde68a;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .category-card.danger .category-title { color: #92400e; }
+        .category-card.danger .category-header [data-lucide] { color: #b45309; width: 18px; height: 18px; }
+        .toggle-row.danger input:checked + .slider { background-color: #d97706; }
+
+        /* Maintenance message textarea row */
+        .text-row {
+            padding: 20px 24px;
+            border-top: 1px solid #f3f4f6;
+        }
+        .text-row label {
+            display: block;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 4px;
+        }
+        .text-row .text-desc {
+            font-size: 0.8125rem;
+            color: #6b7280;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+        .text-row textarea {
+            width: 100%;
+            min-height: 84px;
+            padding: 10px 12px;
+            font-size: 0.875rem;
+            font-family: inherit;
+            color: #1f2937;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+        .text-row textarea:focus {
+            outline: none;
+            border-color: #d97706;
+            box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+        }
+
         @media (max-width: 991px) {
             .sidebar { transform: translateX(-100%); }
             .sidebar.show { transform: translateX(0); }
@@ -276,25 +349,46 @@ $csrf_token = generateCSRFToken();
                     $by_category[$def['category']][] = $def;
                 }
                 foreach ($by_category as $category => $defs):
+                    $is_system = ($category === 'System');
                 ?>
-                    <div class="category-card">
+                    <div class="category-card <?= $is_system ? 'danger' : '' ?>">
                         <div class="category-header">
+                            <?php if ($is_system): ?>
+                                <i data-lucide="alert-triangle"></i>
+                            <?php endif; ?>
                             <div class="category-title"><?= htmlspecialchars($category) ?></div>
                         </div>
                         <?php foreach ($defs as $def):
-                            $checked = (bool) get_setting($def['key'], true);
+                            $checked = (bool) get_setting($def['key'], false);
+                            $is_danger = !empty($def['danger']);
                         ?>
-                            <div class="toggle-row">
+                            <div class="toggle-row <?= $is_danger ? 'danger' : '' ?>">
                                 <div class="toggle-info">
                                     <div class="toggle-label"><?= htmlspecialchars($def['label']) ?></div>
                                     <div class="toggle-desc"><?= htmlspecialchars($def['description']) ?></div>
                                 </div>
                                 <label class="switch" title="<?= htmlspecialchars($def['label']) ?>">
-                                    <input type="checkbox" name="<?= htmlspecialchars($def['key']) ?>" value="1" <?= $checked ? 'checked' : '' ?>>
+                                    <input type="checkbox"
+                                           name="<?= htmlspecialchars($def['key']) ?>"
+                                           value="1"
+                                           <?= $checked ? 'checked' : '' ?>
+                                           <?= $is_danger ? 'data-confirm="1" data-confirm-label="' . htmlspecialchars($def['label'], ENT_QUOTES) . '"' : '' ?>>
                                     <span class="slider"></span>
                                 </label>
                             </div>
                         <?php endforeach; ?>
+
+                        <?php if ($is_system): ?>
+                            <?php $maintenance_message = (string) get_setting('maintenance_message', ''); ?>
+                            <div class="text-row">
+                                <label for="maintenance_message">Maintenance Message / ETA</label>
+                                <div class="text-desc">Shown to non-admin users on the maintenance page. Include an ETA here if known (e.g., &ldquo;Back online by 5:00 PM&rdquo;).</div>
+                                <textarea id="maintenance_message"
+                                          name="maintenance_message"
+                                          maxlength="500"
+                                          placeholder="The system is undergoing scheduled maintenance. Please try again shortly."><?= htmlspecialchars($maintenance_message) ?></textarea>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
 
@@ -311,6 +405,23 @@ $csrf_token = generateCSRFToken();
     <?php include '../includes/sidebar_scripts.php'; ?>
     <script>
         if (window.lucide) { lucide.createIcons(); }
+
+        // Confirmation prompt for destructive toggles (e.g. Maintenance Mode).
+        // Fires only when the user is turning the toggle ON.
+        document.querySelectorAll('input[type="checkbox"][data-confirm="1"]').forEach(function(cb) {
+            cb.addEventListener('change', function(e) {
+                if (!cb.checked) return; // turning OFF needs no confirmation
+                var label = cb.getAttribute('data-confirm-label') || 'this setting';
+                var ok = window.confirm(
+                    'Enable ' + label + '?\n\n' +
+                    'All non-admin users will be logged out on their next request ' +
+                    'and only Administrators will be able to use the system until you turn it back OFF.'
+                );
+                if (!ok) {
+                    cb.checked = false;
+                }
+            });
+        });
     </script>
 </body>
 </html>
