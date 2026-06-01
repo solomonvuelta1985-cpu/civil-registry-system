@@ -349,7 +349,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 <select
                                     id="groom_residence"
                                     name="<?php echo $gr_outside ? '' : 'groom_residence'; ?>"
-                                    required
+                                    <?php echo !$gr_outside ? 'required' : ''; ?>
                                     style="display: <?php echo $gr_outside ? 'none' : 'block'; ?>;"
                                 >
                                     <option value="">-- Select Barangay --</option>
@@ -710,7 +710,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                 <select
                                     id="bride_residence"
                                     name="<?php echo $br_outside ? '' : 'bride_residence'; ?>"
-                                    required
+                                    <?php echo !$br_outside ? 'required' : ''; ?>
                                     style="display: <?php echo $br_outside ? 'none' : 'block'; ?>;"
                                 >
                                     <option value="">-- Select Barangay --</option>

@@ -155,4 +155,41 @@ document.addEventListener('keydown', function(e) {
         }
     }
 });
+
+/**
+ * Maintenance Mode watcher.
+ *
+ * The server-side enforceMaintenanceMode() guard only fires when the user makes
+ * a request. An encoder idle on a static page would not be kicked until they
+ * clicked something. This heartbeat polls every 15 seconds and force-redirects
+ * to the maintenance page the moment an Admin flips the toggle ON.
+ */
+(function() {
+    var url = '<?= htmlspecialchars(BASE_URL, ENT_QUOTES) ?>api/maintenance_status.php';
+    var maintenanceUrl = '<?= htmlspecialchars(BASE_URL, ENT_QUOTES) ?>public/maintenance.php';
+    var redirected = false;
+    var POLL_MS = 15000;
+
+    function tick() {
+        if (redirected) return;
+        fetch(url, { credentials: 'same-origin', cache: 'no-store' })
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(data) {
+                if (!data) return;
+                if (data.logout === true) {
+                    redirected = true;
+                    window.location.replace(maintenanceUrl);
+                }
+            })
+            .catch(function() { /* network blip — try again on next tick */ });
+    }
+
+    // Poll on a steady interval...
+    setInterval(tick, POLL_MS);
+    // ...and also when the tab becomes visible again, so a user who leaves the
+    // page idle in another tab gets kicked out as soon as they come back.
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') tick();
+    });
+})();
 </script>
