@@ -215,6 +215,20 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                 <!-- LEFT COLUMN: Form Fields -->
                 <div class="form-column">
 
+                    <?php
+                    $baggao_barangays = [
+                        'Adaoag','Agaman (Proper)','Agaman Norte','Agaman Sur','Alba','Annayatan',
+                        'Asassi','Asinga-Via','Awallan','Bacagan','Bagunot','Barsat East',
+                        'Barsat West','Bitag Grande','Bitag Pequeño','Bunugan','C. Verzosa (Valley Cove)',
+                        'Canagatan','Carupian','Catugay','Dabbac Grande','Dalin','Dalla',
+                        'Hacienda Intal','Ibulo','Imurung','J. Pallagao','Lasilat','Mabini',
+                        'Masical','Mocag','Nangalinan','Poblacion (Centro)','Remus','San Antonio',
+                        'San Francisco','San Isidro','San Jose','San Miguel','San Vicente',
+                        'Santa Margarita','Santor','Taguing','Taguntungan','Tallang','Taytay',
+                        'Temblique','Tungel',
+                    ];
+                    ?>
+
                     <!-- Registry Information Section -->
                     <div class="form-section" id="registry_section">
                         <div class="section-header">
@@ -439,18 +453,51 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                             </div>
                         </div>
 
+                        <?php
+                        $hr_val     = $edit_mode ? ($record['husband_residence'] ?? '') : '';
+                        $hr_outside = $hr_val !== '' && !in_array($hr_val, $baggao_barangays, true);
+                        ?>
                         <div class="form-group">
                             <label for="husband_residence">
                                 Residence <span class="required">*</span>
                             </label>
+                            <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; color:#495057; margin-bottom:6px; font-weight:normal; cursor:pointer;">
+                                <input
+                                    type="checkbox"
+                                    id="husband_residence_outside"
+                                    class="residence-outside-toggle"
+                                    style="width:1rem; height:1rem; cursor:pointer; margin:0;"
+                                    <?php echo $hr_outside ? 'checked' : ''; ?>
+                                >
+                                Outside Baggao
+                            </label>
+                            <select
+                                id="husband_residence"
+                                name="<?php echo $hr_outside ? '' : 'husband_residence'; ?>"
+                                <?php echo !$hr_outside ? 'required' : ''; ?>
+                                style="display: <?php echo $hr_outside ? 'none' : 'block'; ?>;"
+                            >
+                                <option value="">-- Select Barangay --</option>
+                                <?php foreach ($baggao_barangays as $b):
+                                    $sel = (!$hr_outside && $hr_val === $b) ? 'selected' : '';
+                                ?>
+                                <option value="<?php echo htmlspecialchars($b); ?>" <?php echo $sel; ?>><?php echo htmlspecialchars($b); ?></option>
+                                <?php endforeach; ?>
+                            </select>
                             <input
                                 type="text"
-                                id="husband_residence"
-                                name="husband_residence"
-                                required
+                                id="husband_residence_other"
+                                name="<?php echo $hr_outside ? 'husband_residence' : ''; ?>"
                                 placeholder="Enter complete address"
-                                value="<?php echo $edit_mode ? htmlspecialchars($record['husband_residence']) : ''; ?>"
+                                value="<?php echo $hr_outside ? htmlspecialchars($hr_val) : ''; ?>"
+                                <?php echo $hr_outside ? 'required' : ''; ?>
+                                style="display: <?php echo $hr_outside ? 'block' : 'none'; ?>;"
                             >
+                            <div id="husband_residence_locality" class="residence-locality" style="display: <?php echo $hr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
+                                Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
+                                <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
+                                Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
+                            </div>
                         </div>
 
                         <div class="form-group">
@@ -495,17 +542,49 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 >
                             </div>
 
+                            <?php
+                            $hfr_val     = $edit_mode ? ($record['husband_father_residence'] ?? '') : '';
+                            $hfr_outside = $hfr_val !== '' && !in_array($hfr_val, $baggao_barangays, true);
+                            ?>
                             <div class="form-group">
                                 <label for="husband_father_residence">
                                     Father's Residence
                                 </label>
+                                <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; color:#495057; margin-bottom:6px; font-weight:normal; cursor:pointer;">
+                                    <input
+                                        type="checkbox"
+                                        id="husband_father_residence_outside"
+                                        class="residence-outside-toggle"
+                                        style="width:1rem; height:1rem; cursor:pointer; margin:0;"
+                                        <?php echo $hfr_outside ? 'checked' : ''; ?>
+                                    >
+                                    Outside Baggao
+                                </label>
+                                <select
+                                    id="husband_father_residence"
+                                    name="<?php echo $hfr_outside ? '' : 'husband_father_residence'; ?>"
+                                    style="display: <?php echo $hfr_outside ? 'none' : 'block'; ?>;"
+                                >
+                                    <option value="">-- Select Barangay --</option>
+                                    <?php foreach ($baggao_barangays as $b):
+                                        $sel = (!$hfr_outside && $hfr_val === $b) ? 'selected' : '';
+                                    ?>
+                                    <option value="<?php echo htmlspecialchars($b); ?>" <?php echo $sel; ?>><?php echo htmlspecialchars($b); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                                 <input
                                     type="text"
-                                    id="husband_father_residence"
-                                    name="husband_father_residence"
+                                    id="husband_father_residence_other"
+                                    name="<?php echo $hfr_outside ? 'husband_father_residence' : ''; ?>"
                                     placeholder="Enter father's address"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['husband_father_residence'] ?? '') : ''; ?>"
+                                    value="<?php echo $hfr_outside ? htmlspecialchars($hfr_val) : ''; ?>"
+                                    style="display: <?php echo $hfr_outside ? 'block' : 'none'; ?>;"
                                 >
+                                <div id="husband_father_residence_locality" class="residence-locality" style="display: <?php echo $hfr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
+                                    Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
+                                    <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
+                                    Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
+                                </div>
                             </div>
                         </div>
 
@@ -523,17 +602,49 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 >
                             </div>
 
+                            <?php
+                            $hmr_val     = $edit_mode ? ($record['husband_mother_residence'] ?? '') : '';
+                            $hmr_outside = $hmr_val !== '' && !in_array($hmr_val, $baggao_barangays, true);
+                            ?>
                             <div class="form-group">
                                 <label for="husband_mother_residence">
                                     Mother's Residence
                                 </label>
+                                <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; color:#495057; margin-bottom:6px; font-weight:normal; cursor:pointer;">
+                                    <input
+                                        type="checkbox"
+                                        id="husband_mother_residence_outside"
+                                        class="residence-outside-toggle"
+                                        style="width:1rem; height:1rem; cursor:pointer; margin:0;"
+                                        <?php echo $hmr_outside ? 'checked' : ''; ?>
+                                    >
+                                    Outside Baggao
+                                </label>
+                                <select
+                                    id="husband_mother_residence"
+                                    name="<?php echo $hmr_outside ? '' : 'husband_mother_residence'; ?>"
+                                    style="display: <?php echo $hmr_outside ? 'none' : 'block'; ?>;"
+                                >
+                                    <option value="">-- Select Barangay --</option>
+                                    <?php foreach ($baggao_barangays as $b):
+                                        $sel = (!$hmr_outside && $hmr_val === $b) ? 'selected' : '';
+                                    ?>
+                                    <option value="<?php echo htmlspecialchars($b); ?>" <?php echo $sel; ?>><?php echo htmlspecialchars($b); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                                 <input
                                     type="text"
-                                    id="husband_mother_residence"
-                                    name="husband_mother_residence"
+                                    id="husband_mother_residence_other"
+                                    name="<?php echo $hmr_outside ? 'husband_mother_residence' : ''; ?>"
                                     placeholder="Enter mother's address"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['husband_mother_residence'] ?? '') : ''; ?>"
+                                    value="<?php echo $hmr_outside ? htmlspecialchars($hmr_val) : ''; ?>"
+                                    style="display: <?php echo $hmr_outside ? 'block' : 'none'; ?>;"
                                 >
+                                <div id="husband_mother_residence_locality" class="residence-locality" style="display: <?php echo $hmr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
+                                    Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
+                                    <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
+                                    Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -668,18 +779,51 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                             </div>
                         </div>
 
+                        <?php
+                        $wr_val     = $edit_mode ? ($record['wife_residence'] ?? '') : '';
+                        $wr_outside = $wr_val !== '' && !in_array($wr_val, $baggao_barangays, true);
+                        ?>
                         <div class="form-group">
                             <label for="wife_residence">
                                 Residence <span class="required">*</span>
                             </label>
+                            <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; color:#495057; margin-bottom:6px; font-weight:normal; cursor:pointer;">
+                                <input
+                                    type="checkbox"
+                                    id="wife_residence_outside"
+                                    class="residence-outside-toggle"
+                                    style="width:1rem; height:1rem; cursor:pointer; margin:0;"
+                                    <?php echo $wr_outside ? 'checked' : ''; ?>
+                                >
+                                Outside Baggao
+                            </label>
+                            <select
+                                id="wife_residence"
+                                name="<?php echo $wr_outside ? '' : 'wife_residence'; ?>"
+                                <?php echo !$wr_outside ? 'required' : ''; ?>
+                                style="display: <?php echo $wr_outside ? 'none' : 'block'; ?>;"
+                            >
+                                <option value="">-- Select Barangay --</option>
+                                <?php foreach ($baggao_barangays as $b):
+                                    $sel = (!$wr_outside && $wr_val === $b) ? 'selected' : '';
+                                ?>
+                                <option value="<?php echo htmlspecialchars($b); ?>" <?php echo $sel; ?>><?php echo htmlspecialchars($b); ?></option>
+                                <?php endforeach; ?>
+                            </select>
                             <input
                                 type="text"
-                                id="wife_residence"
-                                name="wife_residence"
-                                required
+                                id="wife_residence_other"
+                                name="<?php echo $wr_outside ? 'wife_residence' : ''; ?>"
                                 placeholder="Enter complete address"
-                                value="<?php echo $edit_mode ? htmlspecialchars($record['wife_residence']) : ''; ?>"
+                                value="<?php echo $wr_outside ? htmlspecialchars($wr_val) : ''; ?>"
+                                <?php echo $wr_outside ? 'required' : ''; ?>
+                                style="display: <?php echo $wr_outside ? 'block' : 'none'; ?>;"
                             >
+                            <div id="wife_residence_locality" class="residence-locality" style="display: <?php echo $wr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
+                                Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
+                                <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
+                                Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
+                            </div>
                         </div>
 
                         <div class="form-group">
@@ -723,17 +867,49 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 >
                             </div>
 
+                            <?php
+                            $wfr_val     = $edit_mode ? ($record['wife_father_residence'] ?? '') : '';
+                            $wfr_outside = $wfr_val !== '' && !in_array($wfr_val, $baggao_barangays, true);
+                            ?>
                             <div class="form-group">
                                 <label for="wife_father_residence">
                                     Father's Residence
                                 </label>
+                                <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; color:#495057; margin-bottom:6px; font-weight:normal; cursor:pointer;">
+                                    <input
+                                        type="checkbox"
+                                        id="wife_father_residence_outside"
+                                        class="residence-outside-toggle"
+                                        style="width:1rem; height:1rem; cursor:pointer; margin:0;"
+                                        <?php echo $wfr_outside ? 'checked' : ''; ?>
+                                    >
+                                    Outside Baggao
+                                </label>
+                                <select
+                                    id="wife_father_residence"
+                                    name="<?php echo $wfr_outside ? '' : 'wife_father_residence'; ?>"
+                                    style="display: <?php echo $wfr_outside ? 'none' : 'block'; ?>;"
+                                >
+                                    <option value="">-- Select Barangay --</option>
+                                    <?php foreach ($baggao_barangays as $b):
+                                        $sel = (!$wfr_outside && $wfr_val === $b) ? 'selected' : '';
+                                    ?>
+                                    <option value="<?php echo htmlspecialchars($b); ?>" <?php echo $sel; ?>><?php echo htmlspecialchars($b); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                                 <input
                                     type="text"
-                                    id="wife_father_residence"
-                                    name="wife_father_residence"
+                                    id="wife_father_residence_other"
+                                    name="<?php echo $wfr_outside ? 'wife_father_residence' : ''; ?>"
                                     placeholder="Enter father's address"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['wife_father_residence'] ?? '') : ''; ?>"
+                                    value="<?php echo $wfr_outside ? htmlspecialchars($wfr_val) : ''; ?>"
+                                    style="display: <?php echo $wfr_outside ? 'block' : 'none'; ?>;"
                                 >
+                                <div id="wife_father_residence_locality" class="residence-locality" style="display: <?php echo $wfr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
+                                    Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
+                                    <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
+                                    Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
+                                </div>
                             </div>
                         </div>
 
@@ -751,17 +927,49 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 >
                             </div>
 
+                            <?php
+                            $wmr_val     = $edit_mode ? ($record['wife_mother_residence'] ?? '') : '';
+                            $wmr_outside = $wmr_val !== '' && !in_array($wmr_val, $baggao_barangays, true);
+                            ?>
                             <div class="form-group">
                                 <label for="wife_mother_residence">
                                     Mother's Residence
                                 </label>
+                                <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; color:#495057; margin-bottom:6px; font-weight:normal; cursor:pointer;">
+                                    <input
+                                        type="checkbox"
+                                        id="wife_mother_residence_outside"
+                                        class="residence-outside-toggle"
+                                        style="width:1rem; height:1rem; cursor:pointer; margin:0;"
+                                        <?php echo $wmr_outside ? 'checked' : ''; ?>
+                                    >
+                                    Outside Baggao
+                                </label>
+                                <select
+                                    id="wife_mother_residence"
+                                    name="<?php echo $wmr_outside ? '' : 'wife_mother_residence'; ?>"
+                                    style="display: <?php echo $wmr_outside ? 'none' : 'block'; ?>;"
+                                >
+                                    <option value="">-- Select Barangay --</option>
+                                    <?php foreach ($baggao_barangays as $b):
+                                        $sel = (!$wmr_outside && $wmr_val === $b) ? 'selected' : '';
+                                    ?>
+                                    <option value="<?php echo htmlspecialchars($b); ?>" <?php echo $sel; ?>><?php echo htmlspecialchars($b); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                                 <input
                                     type="text"
-                                    id="wife_mother_residence"
-                                    name="wife_mother_residence"
+                                    id="wife_mother_residence_other"
+                                    name="<?php echo $wmr_outside ? 'wife_mother_residence' : ''; ?>"
                                     placeholder="Enter mother's address"
-                                    value="<?php echo $edit_mode ? htmlspecialchars($record['wife_mother_residence'] ?? '') : ''; ?>"
+                                    value="<?php echo $wmr_outside ? htmlspecialchars($wmr_val) : ''; ?>"
+                                    style="display: <?php echo $wmr_outside ? 'block' : 'none'; ?>;"
                                 >
+                                <div id="wife_mother_residence_locality" class="residence-locality" style="display: <?php echo $wmr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
+                                    Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
+                                    <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
+                                    Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -947,6 +1155,42 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                 otherInput.value = '';
             }
         });
+
+        // "Outside Baggao" residence toggle handlers
+        (function() {
+            const residenceFields = [
+                'husband_residence',
+                'husband_father_residence',
+                'husband_mother_residence',
+                'wife_residence',
+                'wife_father_residence',
+                'wife_mother_residence',
+            ];
+            residenceFields.forEach(function(fieldId) {
+                const toggle = document.getElementById(fieldId + '_outside');
+                const select = document.getElementById(fieldId);
+                const other  = document.getElementById(fieldId + '_other');
+                if (!toggle || !select || !other) return;
+
+                const locality = document.getElementById(fieldId + '_locality');
+
+                toggle.addEventListener('change', function() {
+                    const outside = toggle.checked;
+                    select.style.display = outside ? 'none'  : 'block';
+                    other.style.display  = outside ? 'block' : 'none';
+                    if (locality) locality.style.display = outside ? 'none' : 'block';
+                    select.name = outside ? '' : fieldId;
+                    other.name  = outside ? fieldId : '';
+                    const wasRequired = select.hasAttribute('required') || other.hasAttribute('required');
+                    if (wasRequired) {
+                        if (outside) { other.setAttribute('required',''); select.removeAttribute('required'); }
+                        else         { select.setAttribute('required',''); other.removeAttribute('required'); }
+                    }
+                    if (outside) select.value = '';
+                    else         other.value  = '';
+                });
+            });
+        })();
     </script>
 
     <?php include '../includes/sidebar_scripts.php'; ?>
