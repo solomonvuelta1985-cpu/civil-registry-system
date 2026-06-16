@@ -541,11 +541,13 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                     value="<?php echo $edit_mode ? htmlspecialchars($record['husband_father_name'] ?? '') : ''; ?>"
                                 >
                             </div>
+                        </div>
 
-                            <?php
-                            $hfr_val     = $edit_mode ? ($record['husband_father_residence'] ?? '') : '';
-                            $hfr_outside = $hfr_val !== '' && !in_array($hfr_val, $baggao_barangays, true);
-                            ?>
+                        <?php
+                        $hfr_val     = $edit_mode ? ($record['husband_father_residence'] ?? '') : '';
+                        $hfr_outside = $hfr_val !== '' && !in_array($hfr_val, $baggao_barangays, true);
+                        ?>
+                        <div class="form-row">
                             <div class="form-group">
                                 <label for="husband_father_residence">
                                     Father's Residence
@@ -601,11 +603,13 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                     value="<?php echo $edit_mode ? htmlspecialchars($record['husband_mother_name'] ?? '') : ''; ?>"
                                 >
                             </div>
+                        </div>
 
-                            <?php
-                            $hmr_val     = $edit_mode ? ($record['husband_mother_residence'] ?? '') : '';
-                            $hmr_outside = $hmr_val !== '' && !in_array($hmr_val, $baggao_barangays, true);
-                            ?>
+                        <?php
+                        $hmr_val     = $edit_mode ? ($record['husband_mother_residence'] ?? '') : '';
+                        $hmr_outside = $hmr_val !== '' && !in_array($hmr_val, $baggao_barangays, true);
+                        ?>
+                        <div class="form-row">
                             <div class="form-group">
                                 <label for="husband_mother_residence">
                                     Mother's Residence
@@ -866,11 +870,13 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                     value="<?php echo $edit_mode ? htmlspecialchars($record['wife_father_name'] ?? '') : ''; ?>"
                                 >
                             </div>
+                        </div>
 
-                            <?php
-                            $wfr_val     = $edit_mode ? ($record['wife_father_residence'] ?? '') : '';
-                            $wfr_outside = $wfr_val !== '' && !in_array($wfr_val, $baggao_barangays, true);
-                            ?>
+                        <?php
+                        $wfr_val     = $edit_mode ? ($record['wife_father_residence'] ?? '') : '';
+                        $wfr_outside = $wfr_val !== '' && !in_array($wfr_val, $baggao_barangays, true);
+                        ?>
+                        <div class="form-row">
                             <div class="form-group">
                                 <label for="wife_father_residence">
                                     Father's Residence
@@ -926,11 +932,13 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                     value="<?php echo $edit_mode ? htmlspecialchars($record['wife_mother_name'] ?? '') : ''; ?>"
                                 >
                             </div>
+                        </div>
 
-                            <?php
-                            $wmr_val     = $edit_mode ? ($record['wife_mother_residence'] ?? '') : '';
-                            $wmr_outside = $wmr_val !== '' && !in_array($wmr_val, $baggao_barangays, true);
-                            ?>
+                        <?php
+                        $wmr_val     = $edit_mode ? ($record['wife_mother_residence'] ?? '') : '';
+                        $wmr_outside = $wmr_val !== '' && !in_array($wmr_val, $baggao_barangays, true);
+                        ?>
+                        <div class="form-row">
                             <div class="form-group">
                                 <label for="wife_mother_residence">
                                     Mother's Residence
