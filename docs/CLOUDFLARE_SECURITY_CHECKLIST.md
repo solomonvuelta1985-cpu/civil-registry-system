@@ -6,7 +6,20 @@ must be changed in the Cloudflare dashboard — they cannot be fixed in the iSca
 
 > The one in-repo finding (**security.txt**) is already fixed — see [Section D](#d-securitytxt-done).
 
-**Priority order:** do **A** first (affects every visitor), then **C** (account security),
+## Status (updated 2026-06-22)
+
+| Finding | Status |
+|---|---|
+| Users without MFA (account 2FA) | ✅ Done — TOTP enabled |
+| Domains without Always Use HTTPS | ✅ Done — toggle on |
+| Domains without HSTS | ✅ Done — 6mo, includeSubDomains, preload off |
+| SPF Record Errors | ✅ Done — `v=spf1 +mx ~all` published |
+| DMARC Record Error | ✅ Done — `p=quarantine` + reporting published |
+| Security.txt not configured | ✅ Done in repo — deploy to live origin pending |
+| TLS encryption mode | ⚪ Left on **Full** (works; optional bump to Full strict) |
+| Bot Fight Mode / AI Labyrinth / Turnstile | ⚪ Optional, not yet enabled |
+
+**Priority order (original):** do **A** first (affects every visitor), then **C** (account security),
 then **B** (email), then optional toggles.
 
 ---
@@ -49,28 +62,31 @@ Findings: *"SPF Record Errors"* (Moderate), *"DMARC Record Error detected"* (Low
 You have an MX record but no matching SPF/DMARC TXT records, so attackers could spoof
 mail from `cdrms.online`.
 
-**In Cloudflare dashboard → `cdrms.online` zone → DNS → Records → Add record (TXT):**
+**Mail provider (confirmed 2026-06-22):** Jellyfish Hosting / cPanel
+(MX = `mx1/mx2/mx3-hosting.jellyfish.systems`). Only cPanel/webmail sends mail for
+this domain — no external sender (iScan does not send email).
 
-> ⚠️ **Confirm your real mail provider first.** Check the MX record under DNS. The
-> `include:` value below depends on who sends your mail (cPanel/own server, Google
-> Workspace, Microsoft 365, etc.). Publishing the wrong SPF will break legitimate mail.
+**DONE — records published in Cloudflare DNS (verified live 2026-06-22):**
 
-1. **SPF** — one TXT record on the root (`@` / `cdrms.online`):
+1. **SPF** — TXT on root (`@`):
    ```
-   Type: TXT   Name: @   Content: v=spf1 mx include:_spf.<your-mail-provider> ~all
+   v=spf1 +mx ~all
    ```
-   - If cPanel sends your mail, `mx` alone (or `+a +mx`) may suffice: `v=spf1 +mx ~all`.
-   - Use `~all` (softfail) initially; tighten to `-all` once verified.
+   `+mx` authorizes the three Jellyfish MX servers; `~all` softfails everything else.
+   (Tighten to `-all` later once you're confident no other source sends mail.)
 
-2. **DMARC** — one TXT record at `_dmarc`:
+2. **DMARC** — TXT at `_dmarc` (replaced the previous bare `v=DMARC1; p=none;`):
    ```
-   Type: TXT   Name: _dmarc   Content: v=DMARC1; p=quarantine; rua=mailto:olmas.verona@outlook.fr; fo=1
+   v=DMARC1; p=quarantine; rua=mailto:mcronasbaggao@gmail.com; fo=1
    ```
-   - Start with `p=none` to monitor (collect reports) if you want zero risk, then move
-     to `p=quarantine` and eventually `p=reject`.
-   - `rua=` is where aggregate reports are sent — change to whichever inbox you monitor.
+   Suspicious mail → quarantine; daily aggregate reports go to the Gmail inbox.
+   Can escalate to `p=reject` later after reviewing reports.
 
-Changes propagate within the DNS TTL (Cloudflare default ~5 min).
+Verify any time with:
+```
+nslookup -type=txt cdrms.online
+nslookup -type=txt _dmarc.cdrms.online
+```
 
 ---
 
