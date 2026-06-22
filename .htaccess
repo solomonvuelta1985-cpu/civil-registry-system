@@ -44,6 +44,12 @@ RewriteRule ^$ public/login.php [L,R=302]
 # Set default character set
 AddDefaultCharset UTF-8
 
+# Serve RFC 9116 security.txt as plain text (well-known disclosure endpoint)
+<Files "security.txt">
+    Require all granted
+    ForceType text/plain
+</Files>
+
 # ================================================================
 # SHARED HOSTING OPTIMIZATIONS
 # ================================================================
@@ -137,6 +143,11 @@ AddDefaultCharset UTF-8
 
     # Referrer Policy
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # HSTS — 1 year, include subdomains. Safe to always-set: browsers only honor
+    # it over HTTPS, and Cloudflare terminates TLS at the edge. Guarantees the
+    # header is present site-wide (not just on pages that call setSecurityHeaders()).
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
 
     # Remove X-Powered-By header (security through obscurity)
     Header unset X-Powered-By
