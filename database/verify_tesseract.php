@@ -1,4 +1,8 @@
 <?php
+if (php_sapi_name() !== 'cli') {
+    http_response_code(404);
+    exit('Diagnostics are CLI-only.');
+}
 /**
  * Tesseract Installation Verification Script
  * Checks if Tesseract is accessible from PHP

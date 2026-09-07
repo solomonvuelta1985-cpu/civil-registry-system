@@ -93,7 +93,11 @@ loadEnv($env_file);
 // forwarded protocol so session.cookie_secure and isHTTPS() stay consistent
 // across every request — otherwise a single request missing this header can
 // reissue the session cookie without the Secure flag and lose the session.
-if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strcasecmp($_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') === 0) {
+// Only a configured reverse proxy may assert the external scheme. Never trust
+// a client-supplied forwarding header directly.
+$trustedProxyIps = array_filter(array_map('trim', explode(',', (string)env('TRUSTED_PROXY_IPS', '127.0.0.1,::1'))));
+if (in_array($_SERVER['REMOTE_ADDR'] ?? '', $trustedProxyIps, true)
+    && !empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strcasecmp($_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') === 0) {
     $_SERVER['HTTPS'] = 'on';
     $_SERVER['SERVER_PORT'] = 443;
 }

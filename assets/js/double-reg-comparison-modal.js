@@ -328,7 +328,7 @@ class DoubleRegComparisonModal {
             document.getElementById('drLoading').innerHTML = `
                 <div style="color:#DC2626; text-align:center;">
                     <p style="font-weight:600;">Failed to load records</p>
-                    <p style="font-size:12px;">${err.message || 'Unknown error'}</p>
+                    <p style="font-size:12px;">${this.escapeHtml(err && err.message ? err.message : 'Unknown error')}</p>
                 </div>
             `;
         }
@@ -400,8 +400,8 @@ class DoubleRegComparisonModal {
         // Update comparison table headers
         const ths = this.modal.querySelectorAll('.double-reg-comparison-table th');
         if (ths.length >= 3) {
-            ths[1].innerHTML = `<span class="dr-badge ${isPrimaryA ? 'dr-badge-green' : 'dr-badge-blue'}">${isPrimaryA ? '1st' : '2nd'}</span> Reg# ${regA}`;
-            ths[2].innerHTML = `<span class="dr-badge ${isPrimaryA ? 'dr-badge-blue' : 'dr-badge-green'}">${isPrimaryA ? '2nd' : '1st'}</span> Reg# ${regB}`;
+            ths[1].innerHTML = `<span class="dr-badge ${isPrimaryA ? 'dr-badge-green' : 'dr-badge-blue'}">${isPrimaryA ? '1st' : '2nd'}</span> Reg# ${this.escapeHtml(regA)}`;
+            ths[2].innerHTML = `<span class="dr-badge ${isPrimaryA ? 'dr-badge-blue' : 'dr-badge-green'}">${isPrimaryA ? '2nd' : '1st'}</span> Reg# ${this.escapeHtml(regB)}`;
         }
     }
 
@@ -690,7 +690,7 @@ class DoubleRegComparisonModal {
                 throw new Error('PDF.js not loaded');
             }
 
-            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer, isEvalSupported: false, enableScripting: false });
             const pdfDoc = await loadingTask.promise;
 
             const pdfState = this['pdf' + pane];

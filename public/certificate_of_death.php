@@ -108,6 +108,7 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <?= csrfTokenMeta() ?>
+    <meta name="iscan-user-id" content="<?= (int)($_SESSION['user_id'] ?? 0) ?>">
     <title>Death Certificate - Civil Registry System</title>
 
     <!-- Google Fonts (online only; system fonts used when OFFLINE_MODE=true) -->

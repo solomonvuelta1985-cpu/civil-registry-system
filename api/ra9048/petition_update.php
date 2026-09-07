@@ -13,6 +13,7 @@ require_once __DIR__ . '/_petition_helpers.php';
 header('Content-Type: application/json');
 
 requireAuth();
+ra9048_require_permission('ra9048_edit', true);
 requireCSRFToken();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

@@ -347,6 +347,23 @@ $csrfMeta = csrfTokenMeta();
 const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.content || '';
 const BASE_API = '../api/folder_browse.php';
 
+function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value === null || value === undefined ? '' : String(value);
+    return div.innerHTML;
+}
+function jsArg(value) {
+    if (value === null || value === undefined) return 'null';
+    const encoded = JSON.stringify(String(value)).replace(/[<>&]/g, ch =>
+        ({ '<': '\\u003c', '>': '\\u003e', '&': '\\u0026' })[ch]
+    );
+    return escapeHtml(encoded);
+}
+function safeFolderType(type) {
+    const allowed = new Set(['birth', 'death', 'marriage', 'marriage_license']);
+    return allowed.has(String(type)) ? String(type) : '';
+}
+
 let currentState = { type: null, year: null, lastName: null, page: 1, search: '' };
 let treeData = [];
 
@@ -375,33 +392,35 @@ function renderTree(tree) {
     const container = document.getElementById('folderTree');
     let html = '';
     for (const typeNode of tree) {
-        const typeIcon = getTypeIcon(typeNode.type);
+        const safeType = safeFolderType(typeNode.type);
+        const typeIcon = getTypeIcon(safeType);
         html += `<div class="tree-node tree-level-0">
-            <div class="tree-node-row" data-type="${typeNode.type}" onclick="toggleTreeNode(this); selectFolder('${typeNode.type}', null, null)">
+            <div class="tree-node-row" data-type="${escapeHtml(safeType)}" onclick="toggleTreeNode(this); selectFolder(${jsArg(safeType)}, null, null)">
                 <i data-lucide="chevron-right" class="chevron"></i>
                 <i data-lucide="${typeIcon}" class="type-icon"></i>
-                <span>${typeNode.label}</span>
-                <span class="tree-count">${typeNode.count}</span>
+                <span>${escapeHtml(typeNode.label)}</span>
+                <span class="tree-count">${Number(typeNode.count) || 0}</span>
             </div>
             <div class="tree-children">`;
 
         for (const yearNode of typeNode.children) {
-            const yearVal = yearNode.year || '__no_year__';
+            const rawYear = String(yearNode.year || '');
+            const yearVal = /^\d{4}$/.test(rawYear) ? rawYear : '__no_year__';
             html += `<div class="tree-node tree-level-1">
-                <div class="tree-node-row" data-type="${typeNode.type}" data-year="${yearVal}" onclick="toggleTreeNode(this); selectFolder('${typeNode.type}', '${yearVal}', null)">
+                <div class="tree-node-row" data-type="${escapeHtml(safeType)}" data-year="${escapeHtml(yearVal)}" onclick="toggleTreeNode(this); selectFolder(${jsArg(safeType)}, ${jsArg(yearVal)}, null)">
                     <i data-lucide="chevron-right" class="chevron"></i>
                     <i data-lucide="folder" class="folder-icon"></i>
-                    <span>${yearNode.label}</span>
-                    <span class="tree-count">${yearNode.count}</span>
+                    <span>${escapeHtml(yearNode.label)}</span>
+                    <span class="tree-count">${Number(yearNode.count) || 0}</span>
                 </div>
                 <div class="tree-children">`;
 
             for (const nameNode of yearNode.children) {
                 html += `<div class="tree-node tree-level-2">
-                    <div class="tree-node-row" data-type="${typeNode.type}" data-year="${yearVal}" data-lastname="${nameNode.name}" onclick="selectFolder('${typeNode.type}', '${yearVal}', '${nameNode.name}')">
+                    <div class="tree-node-row" data-type="${escapeHtml(safeType)}" data-year="${escapeHtml(yearVal)}" data-lastname="${escapeHtml(nameNode.name)}" onclick="selectFolder(${jsArg(safeType)}, ${jsArg(yearVal)}, ${jsArg(nameNode.name)})">
                         <i data-lucide="folder" class="folder-icon"></i>
-                        <span>${nameNode.name}</span>
-                        <span class="tree-count">${nameNode.count}</span>
+                        <span>${escapeHtml(nameNode.name)}</span>
+                        <span class="tree-count">${Number(nameNode.count) || 0}</span>
                     </div>
                 </div>`;
             }
@@ -440,7 +459,7 @@ function selectFolder(type, year, lastName) {
     // Highlight in tree
     document.querySelectorAll('.tree-node-row.selected').forEach(el => el.classList.remove('selected'));
     let selector = `.tree-node-row[data-type="${type}"]`;
-    if (lastName) selector += `[data-lastname="${lastName}"]`;
+    if (lastName) selector += `[data-lastname="${CSS.escape(String(lastName))}"]`;
     else if (year) selector += `[data-year="${year}"]:not([data-lastname])`;
     else selector += ':not([data-year])';
     const row = document.querySelector(selector);
@@ -458,16 +477,16 @@ function updateBreadcrumb() {
     if (currentState.type) {
         html += `<span class="breadcrumb-sep"><i data-lucide="chevron-right" style="width:12px;height:12px;"></i></span>`;
         const isLast = !currentState.year && !currentState.lastName;
-        html += `<span class="breadcrumb-item ${isLast ? 'active' : ''}" onclick="selectFolder('${currentState.type}', null, null)">${getTypeLabel(currentState.type)}</span>`;
+        html += `<span class="breadcrumb-item ${isLast ? 'active' : ''}" onclick="selectFolder(${jsArg(safeFolderType(currentState.type))}, null, null)">${escapeHtml(getTypeLabel(safeFolderType(currentState.type)))}</span>`;
     }
     if (currentState.year) {
         html += `<span class="breadcrumb-sep"><i data-lucide="chevron-right" style="width:12px;height:12px;"></i></span>`;
         const isLast = !currentState.lastName;
-        html += `<span class="breadcrumb-item ${isLast ? 'active' : ''}" onclick="selectFolder('${currentState.type}', '${currentState.year}', null)">${currentState.year}</span>`;
+        html += `<span class="breadcrumb-item ${isLast ? 'active' : ''}" onclick="selectFolder(${jsArg(safeFolderType(currentState.type))}, ${jsArg(currentState.year)}, null)">${escapeHtml(currentState.year)}</span>`;
     }
     if (currentState.lastName) {
         html += `<span class="breadcrumb-sep"><i data-lucide="chevron-right" style="width:12px;height:12px;"></i></span>`;
-        html += `<span class="breadcrumb-item active">${currentState.lastName}</span>`;
+        html += `<span class="breadcrumb-item active">${escapeHtml(currentState.lastName)}</span>`;
     }
 
     bar.innerHTML = html;
@@ -513,7 +532,7 @@ async function loadRecords() {
         const resp = await fetch(`${BASE_API}?${params}`);
         const data = await resp.json();
         if (!data.success) {
-            container.innerHTML = `<div class="empty-state"><p>${data.message || 'Error loading records.'}</p></div>`;
+            container.textContent = data.message || 'Error loading records.';
             return;
         }
         renderRecords(data);
@@ -566,7 +585,7 @@ function renderRecords(data) {
                     <i data-lucide="more-vertical" style="width:14px;height:14px;"></i>
                 </button>
                 <div class="action-dropdown-menu">
-                    <button class="action-dropdown-item view-action" onclick="openPreview(${rec.id}, '${type}'); closeAllDropdowns();">
+                    <button class="action-dropdown-item view-action" onclick="openPreview(${Number(rec.id) || 0}, ${jsArg(safeFolderType(type))}); closeAllDropdowns();">
                         <i data-lucide="file-text"></i><span>View</span>
                     </button>
                 </div>
@@ -583,14 +602,14 @@ function renderRecords(data) {
 }
 
 function getColumnsForType(type) {
-    const esc = v => v ? String(v).replace(/</g, '&lt;') : '';
+    const esc = v => v ? escapeHtml(v) : '';
     const name = (rec, f, m, l) => {
         const full = [rec[f], rec[m], rec[l]].filter(Boolean).join(' ');
         return full || 'N/A';
     };
     const nameLink = (rec, id, type, f, m, l) => {
         const n = name(rec, f, m, l);
-        return `<a href="javascript:void(0)" class="record-name-link" onclick="openPreview(${id}, '${type}')">${esc(n)}</a>`;
+        return `<a href="javascript:void(0)" class="record-name-link" onclick="openPreview(${Number(id) || 0}, ${jsArg(safeFolderType(type))})">${esc(n)}</a>`;
     };
     const fmtDate = v => {
         if (!v) return '';

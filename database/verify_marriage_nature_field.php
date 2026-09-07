@@ -1,4 +1,5 @@
 <?php
+if (php_sapi_name() !== 'cli') { http_response_code(404); exit('Verification scripts are CLI-only.'); }
 /**
  * Verification Script for Marriage Certificate Nature of Solemnization Field
  * Checks if all components are properly configured

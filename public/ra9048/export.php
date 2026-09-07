@@ -15,6 +15,7 @@ require_once '../../includes/functions.php';
 require_once '../../includes/auth.php';
 
 requireAuth();
+ra9048_require_permission('ra9048_export');
 
 $type      = sanitize_input($_GET['type'] ?? 'petition');
 $format    = sanitize_input($_GET['format'] ?? 'xls');

@@ -45,8 +45,13 @@ try {
         exit;
     }
 
-    $backup_abs  = UPLOAD_DIR . $backup['backup_path'];
-    $current_abs = UPLOAD_DIR . $backup['original_path'];
+$backup_abs  = resolve_upload_path($backup['backup_path']);
+$current_abs = resolve_upload_path($backup['original_path'], false);
+    if ($backup_abs === false || $current_abs === false) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Invalid backup path']);
+        exit;
+    }
 
     // Verify backup file exists
     if (!file_exists($backup_abs)) {
@@ -82,7 +87,7 @@ try {
                 ':rid'  => $backup['record_id'],
                 ':orig' => $backup['original_path'],
                 ':bkp'  => $chain_backup,
-                ':hash' => compute_file_hash(UPLOAD_DIR . $chain_backup),
+                ':hash' => compute_file_hash(resolve_upload_path($chain_backup)),
                 ':uid'  => $_SESSION['user_id'] ?? null,
             ]);
         }
@@ -115,8 +120,9 @@ try {
     $pdo->commit();
 
     if (function_exists('logSecurityEvent')) {
-        logSecurityEvent('PDF_RESTORED', 'MEDIUM', $_SESSION['user_id'] ?? null,
-            json_encode(['backup_id' => $backup_id, 'cert_type' => $backup['cert_type'], 'record_id' => $backup['record_id']]));
+        logSecurityEvent('PDF_RESTORED', 'MEDIUM',
+            json_encode(['backup_id' => $backup_id, 'cert_type' => $backup['cert_type'], 'record_id' => $backup['record_id']]),
+            $_SESSION['user_id'] ?? null);
     }
     log_activity($pdo, 'PDF_RESTORE',
         'Restored PDF backup ID ' . $backup_id . ' for ' . $backup['cert_type'] . ' record ' . $backup['record_id'],

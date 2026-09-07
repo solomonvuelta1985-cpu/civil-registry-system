@@ -8,6 +8,7 @@ require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 // Check authentication and permission
 requireAuth();
@@ -26,6 +27,24 @@ $can_delete = hasPermission('users_delete');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?= csrfTokenMeta() ?>
+    <script>
+    (function () {
+        const originalFetch = window.fetch.bind(window);
+        window.fetch = function (input, init) {
+            init = init || {};
+            const method = String(init.method || 'GET').toUpperCase();
+            const url = typeof input === 'string' ? input : input.url;
+            if (['POST','PUT','PATCH','DELETE'].includes(method) && /^\.\.?\/api\//.test(url)) {
+                const token = document.querySelector('meta[name="csrf-token"]')?.content;
+                const headers = new Headers(init.headers || {});
+                if (token) headers.set('X-CSRF-Token', token);
+                init.headers = headers;
+            }
+            return originalFetch(input, init);
+        };
+    }());
+    </script>
     <title>User Management - Civil Registry</title>
 
     <!-- Google Fonts (online only; system fonts used when OFFLINE_MODE=true) -->
@@ -804,7 +823,7 @@ $can_delete = hasPermission('users_delete');
                         </div>
                     </div>
                     <div class="form-group">
-                        <label for="password">Password <span id="passwordHint">(min 6 characters)</span></label>
+                        <label for="password">Password <span id="passwordHint">(min <?= (int)MIN_PASSWORD_LENGTH ?> characters)</span></label>
                         <input type="password" id="password" name="password" placeholder="Enter password">
                     </div>
                 </form>
@@ -976,12 +995,18 @@ $can_delete = hasPermission('users_delete');
                 return;
             }
 
-            tbody.innerHTML = users.map(user => `
+            tbody.innerHTML = users.map(user => {
+                const fullName = String(user.full_name || '');
+                const role = String(user.role || '');
+                const status = String(user.status || '');
+                const roleClass = role.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+                const statusClass = status.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+                return `
                 <tr>
                     <td>
                         <div style="display: flex; align-items: center; gap: 12px;">
                             <div class="user-avatar" style="width: 36px; height: 36px; font-size: 12px;">
-                                ${user.full_name.charAt(0).toUpperCase()}
+                                ${escapeHtml(fullName.charAt(0).toUpperCase())}
                             </div>
                             <div>
                                 <div style="font-weight: 600; color: #111827;">${escapeHtml(user.full_name)}</div>
@@ -990,26 +1015,27 @@ $can_delete = hasPermission('users_delete');
                         </div>
                     </td>
                     <td>${escapeHtml(user.email || '-')}</td>
-                    <td><span class="badge badge-${user.role.toLowerCase()}">${user.role}</span></td>
-                    <td><span class="badge badge-${user.status.toLowerCase()}">${user.status}</span></td>
-                    <td>${user.last_login_formatted}</td>
-                    <td>${user.created_at_formatted}</td>
+                    <td><span class="badge badge-${roleClass}">${escapeHtml(role)}</span></td>
+                    <td><span class="badge badge-${statusClass}">${escapeHtml(status)}</span></td>
+                    <td>${escapeHtml(user.last_login_formatted || '-')}</td>
+                    <td>${escapeHtml(user.created_at_formatted || '-')}</td>
                     <td>
                         <div class="action-btns">
                             ${canEdit ? `
-                            <button class="action-btn edit" onclick="editUser(${user.id})" title="Edit">
+                            <button class="action-btn edit" onclick="editUser(${Number(user.id) || 0})" title="Edit">
                                 <i data-lucide="pencil"></i>
                             </button>
                             ` : ''}
                             ${canDelete ? `
-                            <button class="action-btn delete" onclick="deleteUser(${user.id}, '${escapeHtml(user.full_name)}')" title="Delete">
+                            <button class="action-btn delete" onclick="deleteUser(${Number(user.id)})" title="Delete">
                                 <i data-lucide="trash-2"></i>
                             </button>
                             ` : ''}
                         </div>
                     </td>
                 </tr>
-            `).join('');
+            `;
+            }).join('');
 
             lucide.createIcons();
         }
@@ -1066,7 +1092,7 @@ $can_delete = hasPermission('users_delete');
             document.getElementById('userId').value = '';
             document.getElementById('username').disabled = false;
             document.getElementById('password').required = true;
-            document.getElementById('passwordHint').textContent = '(min 6 characters)';
+            document.getElementById('passwordHint').textContent = '(min <?= (int)MIN_PASSWORD_LENGTH ?> characters)';
             document.getElementById('userModal').classList.add('show');
             lucide.createIcons();
         }
@@ -1121,8 +1147,8 @@ $can_delete = hasPermission('users_delete');
                     showToast('Username must be 3-50 alphanumeric characters', 'error');
                     return;
                 }
-                if (!data.password || data.password.length < 6) {
-                    showToast('Password must be at least 6 characters', 'error');
+                if (!data.password || data.password.length < 8) {
+                    showToast('Password must be at least 8 characters', 'error');
                     return;
                 }
             }
@@ -1158,9 +1184,9 @@ $can_delete = hasPermission('users_delete');
             }
         }
 
-        function deleteUser(id, name) {
+        function deleteUser(id) {
             deleteUserId = id;
-            document.getElementById('deleteUserName').textContent = name;
+            document.getElementById('deleteUserName').textContent = 'this user';
             document.getElementById('deleteModal').classList.add('show');
         }
 

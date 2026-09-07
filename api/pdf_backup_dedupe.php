@@ -110,7 +110,7 @@ try {
     // Compute / refresh fingerprints
     $update = $pdo->prepare("UPDATE pdf_backups SET sim_hash = :sh, file_size = :sz WHERE id = :id");
     foreach ($rows as &$r) {
-        $abs = UPLOAD_DIR . $r['backup_path'];
+$abs = resolve_upload_path($r['backup_path']);
         if (!file_exists($abs)) { $r['sim_hash'] = null; $r['_missing'] = true; $missing++; continue; }
         if (!$force && !empty($r['sim_hash'])) { $skipped++; continue; }
         $sh = compute_sim_hash($abs);

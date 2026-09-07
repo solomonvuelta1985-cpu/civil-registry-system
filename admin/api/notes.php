@@ -7,11 +7,13 @@
 require_once '../../includes/session_config.php';
 require_once '../../includes/config.php';
 require_once '../../includes/functions.php';
+require_once '../../includes/auth.php';
+require_once '../../includes/security.php';
 
 header('Content-Type: application/json');
 
 // Check if user is authenticated
-if (!isset($_SESSION['user_id'])) {
+if (!isLoggedIn()) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
@@ -19,12 +21,13 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 $method = $_SERVER['REQUEST_METHOD'];
+if (in_array($method, ['POST', 'PUT', 'DELETE'], true)) requireCSRFToken();
 
 try {
     switch ($method) {
         case 'POST':
             // Create new note
-            $data = json_decode(file_get_contents('php://input'), true);
+            $data = json_decode(requestBody(), true);
 
             // Validate required fields
             if (empty($data['note_title']) || empty($data['note_type']) || empty($data['note_content'])) {
@@ -69,7 +72,7 @@ try {
 
         case 'PUT':
             // Update existing note
-            $data = json_decode(file_get_contents('php://input'), true);
+            $data = json_decode(requestBody(), true);
 
             if (empty($data['note_id'])) {
                 http_response_code(400);
@@ -87,7 +90,7 @@ try {
                     is_pinned = ?,
                     status = ?,
                     updated_at = NOW()
-                WHERE id = ? AND deleted_at IS NULL
+                WHERE id = ? AND deleted_at IS NULL AND (created_by = ? OR ? = 1)
             ");
 
             $result = $stmt->execute([
@@ -96,7 +99,9 @@ try {
                 sanitize_input($data['note_content']),
                 $is_pinned,
                 !empty($data['status']) ? sanitize_input($data['status']) : 'active',
-                $data['note_id']
+                (int)$data['note_id'],
+                $user_id,
+                isAdmin() ? 1 : 0
             ]);
 
             if ($result) {
@@ -116,7 +121,7 @@ try {
 
         case 'DELETE':
             // Soft delete note
-            $data = json_decode(file_get_contents('php://input'), true);
+            $data = json_decode(requestBody(), true);
 
             if (empty($data['note_id'])) {
                 http_response_code(400);
@@ -127,10 +132,10 @@ try {
             $stmt = $pdo->prepare("
                 UPDATE system_notes
                 SET deleted_at = NOW(), status = 'archived'
-                WHERE id = ? AND deleted_at IS NULL
+                WHERE id = ? AND deleted_at IS NULL AND (created_by = ? OR ? = 1)
             ");
 
-            $result = $stmt->execute([$data['note_id']]);
+            $result = $stmt->execute([(int)$data['note_id'], $user_id, isAdmin() ? 1 : 0]);
 
             if ($result) {
                 // Log activity
@@ -220,6 +225,6 @@ try {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Server error: ' . $e->getMessage()
+        'message' => 'Server error. Please try again.'
     ]);
 }

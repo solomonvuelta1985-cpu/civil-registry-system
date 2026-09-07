@@ -15,6 +15,7 @@ require_once '../includes/security.php';
 // Authentication & CSRF
 requireAuth();
 requireCSRFToken();
+if (!hasPermission('marriage_license_edit')) { json_response(false, 'Permission denied.', null, 403); }
 
 // Validate request method
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

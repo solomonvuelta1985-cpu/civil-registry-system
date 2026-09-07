@@ -30,8 +30,13 @@ try {
 
     if (!$backup) { http_response_code(404); exit('Backup record not found'); }
 
-    $abs = UPLOAD_DIR . $backup['backup_path'];
-    if (!file_exists($abs) || !is_readable($abs)) { http_response_code(404); exit('Backup file not found on disk'); }
+    $relative = str_replace('\\', '/', (string)$backup['backup_path']);
+    if ($relative === '' || strpos($relative, '..') !== false || $relative[0] === '/') { http_response_code(403); exit('Invalid backup path'); }
+    $root = realpath(UPLOAD_DIR);
+    $abs = realpath(UPLOAD_DIR . $relative);
+    if ($root === false || $abs === false || strpos($abs, rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR) !== 0 || !is_file($abs) || !is_readable($abs)) {
+        http_response_code(404); exit('Backup file not found on disk');
+    }
 
     $handle = fopen($abs, 'rb');
     $header = fread($handle, 5);

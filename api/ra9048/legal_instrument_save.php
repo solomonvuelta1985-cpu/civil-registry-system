@@ -12,6 +12,7 @@ require_once '../../includes/security.php';
 header('Content-Type: application/json');
 
 requireAuth();
+ra9048_require_permission('ra9048_create', true);
 requireCSRFToken();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

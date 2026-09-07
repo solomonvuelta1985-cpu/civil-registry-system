@@ -1,4 +1,5 @@
 <?php
+if (php_sapi_name() !== 'cli') { http_response_code(404); exit('Migration scripts are CLI-only.'); }
 /**
  * iScan Database Migration Runner (Web-Based)
  * Runs SQL migrations via browser for shared hosting without SSH

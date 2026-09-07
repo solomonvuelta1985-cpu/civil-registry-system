@@ -5,7 +5,7 @@ Options FollowSymLinks
 RewriteEngine On
 
 # Block access to sensitive files (env, logs, sql, shell scripts, markdown)
-<FilesMatch "\.(env|log|sql|sh|bat|md|gitignore|bak|backup)$">
+<FilesMatch "(^\.|\.(env|log|sql|sh|bat|md|gitignore|bak|backup|ini|dist|old|orig|swp|swo|dump|sqlite|db)$)">
     Require all denied
 </FilesMatch>
 
@@ -15,7 +15,11 @@ RewriteEngine On
 </FilesMatch>
 
 # Block direct access to protected directories
-RewriteRule ^(includes|database|logs|scanner_service)(/|$) - [F,L]
+RewriteRule ^(?:\.|includes|database|logs|scanner_service|tmp|backups?|tests?)(/|$) - [F,L,NC]
+
+# Uploaded documents and generated files are always private; applications must
+# stream them through an authorization-checked endpoint.
+RewriteRule ^uploads(/|$) - [F,L,NC]
 
 # PHP runtime settings — increase limits for PDF uploads
 # (These work on both XAMPP and Synology Apache with PHP module)

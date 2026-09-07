@@ -46,6 +46,7 @@ require_once __DIR__ . '/../../includes/DocxTemplateProcessor.php';
 header('Content-Type: application/json');
 
 requireAuth();
+ra9048_require_permission('ra9048_edit', true);
 requireCSRFToken();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -250,7 +251,7 @@ foreach ($toGenerate as $type) {
         error_log("RA9048 generate_document [{$type}] error: " . $e->getMessage());
         $skipped[] = [
             'doc_type' => $type,
-            'reason'   => 'Generation failed: ' . $e->getMessage(),
+            'reason'   => 'Generation failed. Please try again.',
         ];
     }
 }

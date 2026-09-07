@@ -57,6 +57,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <?= csrfTokenMeta() ?>
+    <meta name="iscan-user-id" content="<?= (int)($_SESSION['user_id'] ?? 0) ?>">
     <title>Application for Marriage License - Civil Registry System</title>
 
     <!-- Google Fonts (online only; system fonts used when OFFLINE_MODE=true) -->

@@ -4,11 +4,11 @@ Simple local service to enable document scanning from the browser
 Compatible with Epson DS-530 II scanner
 """
 
-from flask import Flask, request, jsonify, send_file
-from flask_cors import CORS
+from flask import Flask, request, jsonify, send_file, abort
 import io
 import tempfile
 import os
+import threading
 from datetime import datetime
 
 try:
@@ -19,7 +19,32 @@ except ImportError:
     print("WARNING: python-sane not installed. Scanner functionality will be simulated.")
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for browser access
+ALLOWED_ORIGINS = {origin.strip() for origin in os.environ.get(
+    'ISCAN_ALLOWED_ORIGINS', 'http://localhost:80,http://127.0.0.1:80'
+).split(',') if origin.strip()}
+SCANNER_TOKEN = os.environ.get('ISCAN_SCANNER_TOKEN', '')
+SIMULATION_ENABLED = os.environ.get('ISCAN_SCANNER_SIMULATION', 'false').lower() == 'true'
+scan_lock = threading.Lock()
+
+@app.before_request
+def enforce_origin_and_auth():
+    origin = request.headers.get('Origin')
+    if origin and origin not in ALLOWED_ORIGINS:
+        return jsonify({'success': False, 'error': 'Origin not allowed'}), 403
+    if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+        if not SCANNER_TOKEN or request.headers.get('X-Scanner-Token') != SCANNER_TOKEN:
+            return jsonify({'success': False, 'error': 'Scanner pairing token required'}), 401
+
+@app.after_request
+def cors_headers(response):
+    origin = request.headers.get('Origin')
+    if origin in ALLOWED_ORIGINS:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Vary'] = 'Origin'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, X-Scanner-Token'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 # Scanner configuration
 SCANNER_MODEL = "DS-530"
@@ -50,6 +75,8 @@ def scan_to_pdf(scanner_device, quality='high', color_mode='color', resolution=3
     try:
         if not scanner_device and SANE_AVAILABLE:
             raise Exception("Scanner not available")
+        if not scanner_device and not SIMULATION_ENABLED:
+            raise Exception("Scanner hardware is not available")
 
         # Configure scanner settings
         if scanner_device:
@@ -99,7 +126,7 @@ def scanner_status():
     try:
         scanner = get_scanner_device()
 
-        if scanner or not SANE_AVAILABLE:
+        if scanner or (not SANE_AVAILABLE and SIMULATION_ENABLED):
             return jsonify({
                 'available': True,
                 'model': 'Epson DS-530 II',
@@ -111,13 +138,14 @@ def scanner_status():
                 'available': False,
                 'model': None,
                 'status': 'not_found',
-                'message': 'DS-530 II scanner not detected'
+                'message': 'DS-530 II scanner not detected or simulation is disabled'
             }), 404
 
     except Exception as e:
+        app.logger.exception('Scanner status check failed')
         return jsonify({
             'available': False,
-            'error': str(e)
+            'error': 'Scanner status is temporarily unavailable'
         }), 500
 
 @app.route('/scanner/scan', methods=['POST'])
@@ -129,12 +157,22 @@ def scan_document():
         quality = data.get('quality', 'high')
         color_mode = data.get('colorMode', 'color')
         resolution = data.get('resolution', 300)
+        if quality not in ('draft', 'normal', 'high') or color_mode not in ('color', 'Gray', 'Lineart'):
+            return jsonify({'success': False, 'error': 'Invalid scan options'}), 400
+        try: resolution = int(resolution)
+        except (TypeError, ValueError): return jsonify({'success': False, 'error': 'Invalid resolution'}), 400
+        if resolution not in (150, 200, 300, 400, 600):
+            return jsonify({'success': False, 'error': 'Unsupported resolution'}), 400
 
         # Get scanner
         scanner = get_scanner_device()
 
-        # Perform scan
-        pdf_buffer = scan_to_pdf(scanner, quality, color_mode, resolution)
+        if not scan_lock.acquire(blocking=False):
+            return jsonify({'success': False, 'error': 'A scan is already in progress'}), 429
+        try:
+            pdf_buffer = scan_to_pdf(scanner, quality, color_mode, resolution)
+        finally:
+            scan_lock.release()
 
         # Generate filename
         filename = f"scanned_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
@@ -148,9 +186,10 @@ def scan_document():
         )
 
     except Exception as e:
+        app.logger.exception('Scanner request failed')
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Scanning failed. Please try again.'
         }), 500
 
 @app.route('/scanner/test', methods=['GET'])
@@ -176,4 +215,4 @@ if __name__ == '__main__':
     print("=" * 60)
     print("\nPress Ctrl+C to stop the service\n")
 
-    app.run(host='localhost', port=18622, debug=False)
+    app.run(host='127.0.0.1', port=18622, debug=False)

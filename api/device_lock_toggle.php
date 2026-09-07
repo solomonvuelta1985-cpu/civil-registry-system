@@ -86,9 +86,9 @@ $adminId = getUserId();
 log_activity($pdo, 'DEVICE_LOCK_TOGGLED',
     'Device Lock ' . ($enable ? 'ENABLED' : 'DISABLED') . ' via admin UI',
     $adminId);
-logSecurityEvent('DEVICE_LOCK_TOGGLED', 'HIGH', $adminId, [
+logSecurityEvent('DEVICE_LOCK_TOGGLED', 'HIGH', [
     'new_value' => $newValue,
-]);
+], $adminId);
 
 echo json_encode([
     'success' => true,

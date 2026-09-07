@@ -8,6 +8,7 @@ require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 header('Content-Type: application/json');
 
@@ -22,8 +23,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'PUT' && $_SERVER['REQUEST_METHOD'] !== 'POST
     echo json_encode(['success' => false, 'message' => 'Method not allowed']);
     exit;
 }
+requireAdminApi('Only administrators can change link corrections.');
+requireCSRFToken();
 
-$input = json_decode(file_get_contents('php://input'), true);
+$input = json_decode(requestBody(), true);
 if (!$input) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Invalid JSON input']);
@@ -59,9 +62,14 @@ try {
         exit;
     }
 
-    // Check permission based on the primary certificate type
-    $perm = $link['primary_certificate_type'] . '_link';
-    if (!hasPermission($perm)) {
+    // Both sides of a link are sensitive; require link permission for each type.
+    $link_types = ['birth', 'marriage', 'death'];
+    $primary_type = $link['primary_certificate_type'] ?? '';
+    $duplicate_type = $link['duplicate_certificate_type'] ?? '';
+    if (!in_array($primary_type, $link_types, true)
+        || !in_array($duplicate_type, $link_types, true)
+        || !hasPermission($primary_type . '_link')
+        || !hasPermission($duplicate_type . '_link')) {
         http_response_code(403);
         echo json_encode(['success' => false, 'message' => 'Permission denied']);
         exit;

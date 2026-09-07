@@ -862,7 +862,7 @@ function fmt_datetime($val) {
                             <td class="actions-cell">
                                 <div class="action-buttons">
                                     <button type="button" class="action-btn action-btn-unarchive"
-                                            onclick="unarchiveRecord(<?php echo (int)$record['id']; ?>, '<?php echo htmlspecialchars($rtype); ?>', '<?php echo htmlspecialchars(addslashes($record['registry_no'] ?? '')); ?>')">
+                                            onclick="unarchiveRecord(<?php echo (int)$record['id']; ?>, <?= htmlspecialchars(json_encode((string)$rtype, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8') ?>, <?= htmlspecialchars(json_encode((string)($record['registry_no'] ?? ''), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8') ?>)">
                                         <i data-lucide="archive-restore"></i>
                                         Unarchive
                                     </button>

@@ -124,6 +124,22 @@ Line 22: SCANNER_MODE = "Color"   (change to "Gray" or "Lineart")
 To change the service port, edit line 174:
 app.run(host='localhost', port=18622, debug=False)
 
+SECURITY CONFIGURATION (REQUIRED)
+================================================================================
+Before starting the service, set a private pairing token and the exact browser
+origins that may call it. Do not commit or email the token:
+
+  Windows PowerShell:
+    $env:ISCAN_SCANNER_TOKEN = '<long-random-token>'
+    $env:ISCAN_ALLOWED_ORIGINS = 'https://iscan.cdrms.online'
+  Linux:
+    export ISCAN_SCANNER_TOKEN='<long-random-token>'
+    export ISCAN_ALLOWED_ORIGINS='https://iscan.cdrms.online'
+
+The web client must send this value as X-Scanner-Token. The service binds to
+127.0.0.1 and refuses scan requests without the token. Simulation is disabled
+by default; set ISCAN_SCANNER_SIMULATION=true only for local testing.
+
 After changes, restart the scanner service.
 
 ================================================================================

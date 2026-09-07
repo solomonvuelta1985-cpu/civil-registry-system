@@ -67,6 +67,8 @@ function buildContentSecurityPolicy($custom = []) {
         'connect-src' => ["'self'", "https://unpkg.com"],
         'worker-src' => ["'self'", "blob:", "https://cdnjs.cloudflare.com"],
         'frame-ancestors' => ["'self'"],
+        'frame-src' => ["'self'"],
+        'object-src' => ["'none'"],
         'base-uri' => ["'self'"],
         'form-action' => ["'self'"]
     ];
@@ -87,9 +89,12 @@ function buildContentSecurityPolicy($custom = []) {
  * Check if connection is HTTPS
  */
 function isHTTPS() {
-    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-        || $_SERVER['SERVER_PORT'] == 443
-        || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+    if (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off') return true;
+    if ((int)($_SERVER['SERVER_PORT'] ?? 0) === 443) return true;
+    $proxy = $_SERVER['REMOTE_ADDR'] ?? '';
+    $trusted = array_filter(array_map('trim', explode(',', (string)(function_exists('env') ? env('TRUSTED_PROXY_IPS', '127.0.0.1,::1') : '127.0.0.1,::1'))));
+    if (in_array($proxy, $trusted, true) && strcasecmp((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''), 'https') === 0) return true;
+    return false;
 }
 
 /**
@@ -130,31 +135,16 @@ function setSecureCookie($name, $value, $expire = 0, $path = '/', $domain = '', 
  * Get client IP address
  */
 function getClientIP() {
-    $ip_keys = [
-        'HTTP_CLIENT_IP',
-        'HTTP_X_FORWARDED_FOR',
-        'HTTP_X_FORWARDED',
-        'HTTP_X_CLUSTER_CLIENT_IP',
-        'HTTP_FORWARDED_FOR',
-        'HTTP_FORWARDED',
-        'REMOTE_ADDR'
-    ];
-
-    foreach ($ip_keys as $key) {
-        if (array_key_exists($key, $_SERVER)) {
-            foreach (explode(',', $_SERVER[$key]) as $ip) {
-                $ip = trim($ip);
-
-                // Validate IP
-                if (filter_var($ip, FILTER_VALIDATE_IP,
-                    FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false) {
-                    return $ip;
-                }
-            }
+    $remote = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $trusted = array_filter(array_map('trim', explode(',', (string)(function_exists('env') ? env('TRUSTED_PROXY_IPS', '127.0.0.1,::1') : '127.0.0.1,::1'))));
+    if (in_array($remote, $trusted, true)) {
+        $forwarded = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
+        foreach (explode(',', $forwarded) as $ip) {
+            $ip = trim($ip);
+            if (filter_var($ip, FILTER_VALIDATE_IP) !== false) return $ip;
         }
     }
-
-    return $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    return filter_var($remote, FILTER_VALIDATE_IP) !== false ? $remote : 'unknown';
 }
 
 /**

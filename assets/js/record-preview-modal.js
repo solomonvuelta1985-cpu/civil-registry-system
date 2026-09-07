@@ -271,9 +271,9 @@ class RecordPreviewModal {
         document.getElementById('modalRecordTitle').textContent = titleMap[this.currentRecordType] || 'Record Preview';
 
         document.getElementById('modalRecordSubtitle').innerHTML = `
-            Registry No. ${record.registry_no || 'N/A'}
+            Registry No. ${this.escapeHtml(record.registry_no || 'N/A')}
             <span class="header-status-badge ${badge.cls}"${badge.tooltip ? ` title="${this.escapeHtml(badge.tooltip)}"` : ''}>
-                <i data-lucide="${badge.icon}"></i> ${badge.label}
+                <i data-lucide="${badge.icon}"></i> ${this.escapeHtml(badge.label)}
             </span>
         `;
 
@@ -394,7 +394,7 @@ class RecordPreviewModal {
                 </div>
                 <div class="record-detail-row">
                     <span class="record-detail-label">Date of Birth</span>
-                    <span class="record-detail-value">${this.formatDate(record.child_date_of_birth)}${record.time_of_birth ? ' at ' + record.time_of_birth : ''}</span>
+                    <span class="record-detail-value">${this.formatDate(record.child_date_of_birth)}${record.time_of_birth ? ' at ' + this.escapeHtml(record.time_of_birth) : ''}</span>
                 </div>
                 <div class="record-detail-row">
                     <span class="record-detail-label">Place of Birth</span>
@@ -755,7 +755,7 @@ class RecordPreviewModal {
                 throw new Error('PDF.js library not loaded');
             }
 
-            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer, isEvalSupported: false, enableScripting: false });
             this.pdfDoc = await loadingTask.promise;
             this.totalPages = this.pdfDoc.numPages;
 
@@ -1091,11 +1091,11 @@ class RecordPreviewModal {
         const filtered = nameParts.filter(n => n && n.trim());
         if (filtered.length === 0) return '';
 
-        return filtered.map(name => {
+        return this.escapeHtml(filtered.map(name => {
             return name.split(' ').map(word => {
                 return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
             }).join(' ');
-        }).join(' ');
+        }).join(' '));
     }
 
     formatDateFull(dateString) {
@@ -1183,7 +1183,7 @@ class RecordPreviewModal {
         let details = '';
 
         if (record.registry_no) {
-            details += `<strong>Registry No:</strong> ${record.registry_no}<br>`;
+            details += `<strong>Registry No:</strong> ${this.escapeHtml(record.registry_no)}<br>`;
         }
 
         switch(this.currentRecordType) {
@@ -1205,7 +1205,7 @@ class RecordPreviewModal {
                 const deceasedName = this.capitalizeNames([record.deceased_first_name, record.deceased_middle_name, record.deceased_last_name]);
                 if (deceasedName) details += `<strong>Deceased:</strong> ${deceasedName}<br>`;
                 if (record.date_of_death) details += `<strong>Date of Death:</strong> ${this.formatDateFull(record.date_of_death)}<br>`;
-                if (record.age) details += `<strong>Age:</strong> ${record.age}`;
+                if (record.age) details += `<strong>Age:</strong> ${this.escapeHtml(record.age)}`;
                 break;
 
             case 'marriage_license':
@@ -1252,7 +1252,7 @@ class RecordPreviewModal {
                         1ST REGISTRATION (For Issuance)
                     </strong>
                     Double of Reg# ${this.escapeHtml(regNo)}
-                    ${link.needs_correction ? `<div style="margin-top:6px;padding:6px 10px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:3px;color:#92400E;font-size:12px;"><strong>Discrepancies found</strong> — RA 9048 correction ${link.correction_status === 'none' ? 'needed' : link.correction_status}</div>` : ''}
+                    ${link.needs_correction ? `<div style="margin-top:6px;padding:6px 10px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:3px;color:#92400E;font-size:12px;"><strong>Discrepancies found</strong> — RA 9048 correction ${link.correction_status === 'none' ? 'needed' : this.escapeHtml(link.correction_status || 'needed')}</div>` : ''}
                 </div>`;
         } else {
             bannerHtml = `

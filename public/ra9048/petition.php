@@ -17,6 +17,7 @@ require_once '../../includes/auth.php';
 require_once '../../includes/security.php';
 
 requireAuth();
+ra9048_require_permission('ra9048_view');
 
 // Edit mode detection
 $edit_mode = false;
@@ -43,6 +44,8 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
         // Record not found or DB error
     }
 }
+
+ra9048_require_permission($edit_mode ? 'ra9048_edit' : 'ra9048_create');
 
 $subtype = $record['petition_subtype'] ?? '';
 ?>

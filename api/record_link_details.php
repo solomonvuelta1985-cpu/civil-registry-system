@@ -8,6 +8,7 @@ require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 header('Content-Type: application/json');
 
@@ -38,6 +39,11 @@ if (!in_array($certificate_type, $valid_types)) {
     echo json_encode(['success' => false, 'message' => 'Invalid certificate type']);
     exit;
 }
+if (!hasPermission($certificate_type . '_view')) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Access denied']);
+    exit;
+}
 
 try {
     $link = get_record_link_status($pdo, $record_id, $certificate_type);
@@ -58,6 +64,11 @@ try {
     } else {
         $paired_id = (int)$link['primary_certificate_id'];
         $paired_type = $link['primary_certificate_type'];
+    }
+    if (!in_array($paired_type, $valid_types, true) || !hasPermission($paired_type . '_view')) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Access denied']);
+        exit;
     }
 
     // Fetch paired record's registry_no

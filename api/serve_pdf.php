@@ -83,7 +83,10 @@ $permission_map = [
     'marriage_license' => 'marriage_license_view'
 ];
 
-if (isset($permission_map[$type]) && !hasPermission($permission_map[$type])) {
+if (!isset($permission_map[$type])) {
+    http_response_code(403); echo 'Forbidden'; exit;
+}
+if (!hasPermission($permission_map[$type])) {
     http_response_code(403);
     echo 'Access denied';
     exit;
@@ -96,7 +99,8 @@ $full_path = UPLOAD_DIR . $file;
 $real_path = realpath($full_path);
 $real_upload_dir = realpath(UPLOAD_DIR);
 
-if ($real_path === false || strpos($real_path, $real_upload_dir) !== 0) {
+if ($real_path === false || $real_upload_dir === false
+    || strpos($real_path, rtrim($real_upload_dir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR) !== 0) {
     http_response_code(404);
     echo 'File not found';
     exit;
@@ -108,7 +112,7 @@ if (!is_file($real_path)) {
     exit;
 }
 
-// PDF integrity check — verify stored hash matches file on disk
+// Database table allowlist used for record binding and hash verification.
 $table_map = [
     'birth'            => 'certificate_of_live_birth',
     'death'            => 'certificate_of_death',
@@ -116,25 +120,49 @@ $table_map = [
     'marriage_license' => 'application_for_marriage_license',
 ];
 
-if (isset($table_map[$type])) {
+// Require a current, active database record for every served file. This binds
+// a path to its certificate and prevents authenticated users from reading an
+// unrelated file placed anywhere under uploads/.
+$base_name = basename($file);
+$recordFound = false;
+$stored_hash = null;
+$recordType = $type;
+foreach ($table_map as $candidateType => $candidateTable) {
     try {
-        $tbl  = $table_map[$type];
-        $stmt = $pdo->prepare(
-            "SELECT pdf_hash FROM {$tbl}
-              WHERE pdf_filename = :fn
-                AND status != 'Deleted'
-              LIMIT 1"
-        );
-        $stmt->execute([':fn' => $file]);
-        $stored_hash = $stmt->fetchColumn();
+        $stmt = $pdo->prepare("SELECT pdf_hash FROM {$candidateTable}
+            WHERE (pdf_filename = :name OR pdf_filename = :path OR pdf_filepath LIKE :suffix)
+              AND status = 'Active' LIMIT 1");
+        $stmt->execute([':name' => $base_name, ':path' => $file, ':suffix' => '%' . $base_name]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            $recordFound = true;
+            $recordType = $candidateType;
+            $stored_hash = $row['pdf_hash'] ?? null;
+            break;
+        }
+    } catch (PDOException $e) {
+        error_log('serve_pdf record lookup error: ' . $e->getMessage());
+        http_response_code(503); exit('File authorization is temporarily unavailable');
+    }
+}
+if (!$recordFound || $recordType !== $type || !hasPermission($permission_map[$recordType])) {
+    http_response_code(403); echo 'Access denied'; exit;
+}
 
-        if ($stored_hash) {
+// PDF integrity check — verify stored hash matches file on disk
+if ($recordFound) {
+    try {
+        if ($stored_hash !== null && $stored_hash !== '') {
+            if (!is_string($stored_hash) || !preg_match('/^[a-f0-9]{64}$/i', $stored_hash)) {
+                http_response_code(409);
+                exit('Invalid stored PDF integrity metadata');
+            }
             $actual_hash = hash_file('sha256', $real_path);
-            if (!hash_equals($stored_hash, $actual_hash)) {
+            if (!is_string($actual_hash) || !hash_equals(strtolower($stored_hash), strtolower($actual_hash))) {
                 error_log("PDF_INTEGRITY_FAILURE: {$real_path} stored={$stored_hash} actual={$actual_hash}");
                 if (function_exists('logSecurityEvent')) {
-                    logSecurityEvent('PDF_INTEGRITY_FAILURE', 'HIGH', $_SESSION['user_id'] ?? null,
-                        json_encode(['file' => basename($real_path), 'type' => $type]));
+                    logSecurityEvent('PDF_INTEGRITY_FAILURE', 'HIGH',
+                        json_encode(['file' => basename($real_path), 'type' => $type]), $_SESSION['user_id'] ?? null);
                 }
                 http_response_code(409);
                 header('Content-Type: application/json');
@@ -148,7 +176,8 @@ if (isset($table_map[$type])) {
         }
     } catch (PDOException $e) {
         error_log('serve_pdf hash check error: ' . $e->getMessage());
-        // Non-fatal: serve the file even if hash check fails due to DB error
+        http_response_code(503);
+        exit('File integrity verification is temporarily unavailable');
     }
 }
 

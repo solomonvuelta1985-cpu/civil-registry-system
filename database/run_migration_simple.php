@@ -1,4 +1,5 @@
 <?php
+if (php_sapi_name() !== 'cli') { http_response_code(404); exit('Migration scripts are CLI-only.'); }
 /**
  * Simple Migration Runner
  * Runs the SQL migration file directly

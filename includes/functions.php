@@ -675,6 +675,19 @@ function log_activity($pdo, $action, $details, $user_id = null) {
     }
 }
 
+/** Resolve a relative upload path inside the private upload root. */
+function resolve_upload_path($relative, $mustExist = true) {
+    if (!is_string($relative) || $relative === '' || strpos($relative, "\0") !== false) return false;
+    $relative = str_replace('\\', '/', $relative);
+    if ($relative[0] === '/' || preg_match('~(^|/)\.\.?(/|$)~', $relative)) return false;
+    $root = realpath(UPLOAD_DIR);
+    if ($root === false) return false;
+    $path = realpath(UPLOAD_DIR . $relative);
+    if ($path === false) return $mustExist ? false : (rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $relative);
+    $prefix = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+    return strpos($path, $prefix) === 0 ? $path : false;
+}
+
 // ============================================================================
 // Double Registration Detection Functions (PSA MC 2019-23)
 // ============================================================================

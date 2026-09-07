@@ -6,15 +6,12 @@
 
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/auth.php';
+requirePermission('reports_view');
 
-// Start session if not already started
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-// Get current user (for testing, defaulting to admin)
-$current_user_id = $_SESSION['user_id'] ?? 1;
-$current_user_name = $_SESSION['full_name'] ?? 'Administrator';
+// Get current user from the validated session.
+$current_user_id = (int)$_SESSION['user_id'];
+$current_user_name = $_SESSION['full_name'] ?? 'User';
 
 // Get filter parameters
 $filter_state = isset($_GET['state']) ? $_GET['state'] : 'all';
@@ -502,18 +499,24 @@ function getWorkflowRecords($pdo, $state, $type) {
                 </thead>
                 <tbody>
                     <?php foreach ($records as $record): ?>
+                    <?php
+                        $workflow_type = in_array($record['certificate_type'] ?? '', ['birth', 'marriage', 'death', 'marriage_license'], true) ? $record['certificate_type'] : '';
+                        $workflow_state = in_array($record['current_state'] ?? '', ['draft', 'pending_review', 'verified', 'approved', 'rejected', 'archived'], true) ? $record['current_state'] : '';
+                        $workflow_score = max(0, min(100, (float)($record['data_quality_score'] ?? 0)));
+                        $workflow_form = ['birth' => 'certificate_of_live_birth.php', 'marriage' => 'certificate_of_marriage.php', 'death' => 'certificate_of_death.php', 'marriage_license' => 'application_for_marriage_license.php'][$workflow_type] ?? '';
+                    ?>
                     <tr>
                         <td><strong><?= htmlspecialchars($record['registry_no'] ?? 'N/A') ?></strong></td>
                         <td><?= htmlspecialchars($record['record_name'] ?? 'Unknown') ?></td>
-                        <td><span class="badge <?= $record['certificate_type'] ?>"><?= ucfirst($record['certificate_type']) ?></span></td>
-                        <td><span class="badge <?= str_replace('_', '-', $record['current_state']) ?>"><?= ucwords(str_replace('_', ' ', $record['current_state'])) ?></span></td>
+                        <td><span class="badge <?= htmlspecialchars($workflow_type, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucfirst($workflow_type), ENT_QUOTES, 'UTF-8') ?></span></td>
+                        <td><span class="badge <?= htmlspecialchars(str_replace('_', '-', $workflow_state), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucwords(str_replace('_', ' ', $workflow_state)), ENT_QUOTES, 'UTF-8') ?></span></td>
                         <td>
-                            <?php if ($record['data_quality_score']): ?>
+                            <?php if ($workflow_score > 0): ?>
                             <div class="quality-score">
                                 <div class="score-bar">
-                                    <div class="score-fill" style="width: <?= $record['data_quality_score'] ?>%"></div>
+                                    <div class="score-fill" style="width: <?= $workflow_score ?>%"></div>
                                 </div>
-                                <span><?= number_format($record['data_quality_score'], 1) ?>%</span>
+                                <span><?= number_format($workflow_score, 1) ?>%</span>
                             </div>
                             <?php else: ?>
                             <span style="color: #6c757d;">N/A</span>
@@ -528,20 +531,20 @@ function getWorkflowRecords($pdo, $state, $type) {
                         )) ?></td>
                         <td>
                             <div class="actions">
-                                <a href="<?= $record['certificate_type'] ?>_certificate.php?id=<?= $record['certificate_id'] ?>" class="btn btn-view" title="View">👁️</a>
+                                <a href="<?= htmlspecialchars($workflow_form, ENT_QUOTES, 'UTF-8') ?>?id=<?= (int)$record['certificate_id'] ?>" class="btn btn-view" title="View">👁️</a>
 
-                                <?php if ($record['current_state'] === 'pending_review'): ?>
-                                    <button class="btn btn-verify" onclick="transition(<?= $record['certificate_id'] ?>, '<?= $record['certificate_type'] ?>', 'verify')" title="Verify">✓</button>
-                                    <button class="btn btn-reject" onclick="rejectRecord(<?= $record['certificate_id'] ?>, '<?= $record['certificate_type'] ?>')" title="Reject">✗</button>
+                                <?php if ($workflow_state === 'pending_review'): ?>
+                                    <button class="btn btn-verify" onclick="transition(<?= (int)$record['certificate_id'] ?>, '<?= htmlspecialchars($workflow_type, ENT_QUOTES, 'UTF-8') ?>', 'verify')" title="Verify">✓</button>
+                                    <button class="btn btn-reject" onclick="rejectRecord(<?= (int)$record['certificate_id'] ?>, '<?= htmlspecialchars($workflow_type, ENT_QUOTES, 'UTF-8') ?>')" title="Reject">✗</button>
                                 <?php endif; ?>
 
-                                <?php if ($record['current_state'] === 'verified'): ?>
-                                    <button class="btn btn-approve" onclick="transition(<?= $record['certificate_id'] ?>, '<?= $record['certificate_type'] ?>', 'approve')" title="Approve">✓✓</button>
-                                    <button class="btn btn-reject" onclick="rejectRecord(<?= $record['certificate_id'] ?>, '<?= $record['certificate_type'] ?>')" title="Reject">✗</button>
+                                <?php if ($workflow_state === 'verified'): ?>
+                                    <button class="btn btn-approve" onclick="transition(<?= (int)$record['certificate_id'] ?>, '<?= htmlspecialchars($workflow_type, ENT_QUOTES, 'UTF-8') ?>', 'approve')" title="Approve">✓✓</button>
+                                    <button class="btn btn-reject" onclick="rejectRecord(<?= (int)$record['certificate_id'] ?>, '<?= htmlspecialchars($workflow_type, ENT_QUOTES, 'UTF-8') ?>')" title="Reject">✗</button>
                                 <?php endif; ?>
 
-                                <?php if ($record['current_state'] === 'rejected'): ?>
-                                    <button class="btn btn-reopen" onclick="transition(<?= $record['certificate_id'] ?>, '<?= $record['certificate_type'] ?>', 'reopen')" title="Reopen">🔄</button>
+                                <?php if ($workflow_state === 'rejected'): ?>
+                                    <button class="btn btn-reopen" onclick="transition(<?= (int)$record['certificate_id'] ?>, '<?= htmlspecialchars($workflow_type, ENT_QUOTES, 'UTF-8') ?>', 'reopen')" title="Reopen">🔄</button>
                                 <?php endif; ?>
                             </div>
                         </td>

@@ -12,6 +12,7 @@ require_once '../../includes/security.php';
 
 // Require authentication
 requireAuth();
+ra9048_require_permission('ra9048_view');
 
 // Fetch record counts from RA 9048 database
 $counts = ['petitions' => 0, 'legal_instruments' => 0, 'court_decrees' => 0];

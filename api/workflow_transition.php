@@ -17,23 +17,23 @@ header('Content-Type: application/json');
 require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 // Enable error reporting for development
 error_reporting(E_ALL);
 ini_set('display_errors', 0); // Don't display in output
 ini_set('log_errors', 1);
 
-if (empty($_SESSION['user_id'])) {
-    http_response_code(401);
-    echo json_encode(['success' => false, 'error' => 'Authentication required.']);
-    exit;
-}
+requireAuth();
 
 try {
     // Verify request method
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+        http_response_code(405);
         throw new Exception('Invalid request method. POST required.');
     }
+    requireCSRFToken();
 
     // Get and validate input
     $certificate_type = isset($_POST['certificate_type']) ? sanitize_input($_POST['certificate_type']) : null;
@@ -57,6 +57,20 @@ try {
     $valid_transitions = ['submit', 'verify', 'approve', 'reject', 'archive', 'reopen'];
     if (!in_array($transition_type, $valid_transitions)) {
         throw new Exception('Invalid transition type');
+    }
+
+    $transition_permissions = [
+        'submit' => $certificate_type . '_edit',
+        'verify' => 'reports_view',
+        'approve' => 'reports_view',
+        'reject' => $certificate_type . '_edit',
+        'reopen' => $certificate_type . '_edit',
+        'archive' => getArchivePermissionName($certificate_type),
+    ];
+    $required = $transition_permissions[$transition_type] ?? null;
+    if (!$required || !hasPermission($required)) {
+        http_response_code(403);
+        throw new Exception('You do not have permission for this workflow action');
     }
 
     // Get current workflow state
@@ -141,7 +155,7 @@ try {
             $details .= " | Notes: $notes";
         }
 
-        log_activity($pdo, $user_id, $action, $details, $certificate_type, $certificate_id);
+        log_activity($pdo, $action, $details, $user_id);
 
         // Commit transaction
         $pdo->commit();
@@ -166,11 +180,16 @@ try {
         throw $e;
     }
 
-} catch (Exception $e) {
-    http_response_code(400);
+    } catch (Exception $e) {
+        if (http_response_code() < 400) {
+            http_response_code(400);
+        }
+    error_log('workflow_transition error: ' . $e->getMessage());
     echo json_encode([
         'success' => false,
-        'error' => $e->getMessage()
+        'error' => ($e instanceof PDOException)
+            ? 'Request could not be completed. Please try again.'
+            : $e->getMessage()
     ]);
 }
 
@@ -250,30 +269,4 @@ function getWorkflowColumnName($transition_type, $suffix = '') {
     }
 
     return $columns[$transition_type] ?? null;
-}
-
-// Enhanced log_activity function that accepts certificate info
-function log_activity($pdo, $user_id, $action, $details, $certificate_type = null, $certificate_id = null) {
-    try {
-        $stmt = $pdo->prepare("
-            INSERT INTO activity_logs
-            (user_id, action, details, certificate_type, certificate_id, ip_address, user_agent)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ");
-
-        $ip_address = $_SERVER['REMOTE_ADDR'] ?? null;
-        $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? null;
-
-        $stmt->execute([
-            $user_id,
-            $action,
-            $details,
-            $certificate_type,
-            $certificate_id,
-            $ip_address,
-            $user_agent
-        ]);
-    } catch (PDOException $e) {
-        error_log("Failed to log activity: " . $e->getMessage());
-    }
 }

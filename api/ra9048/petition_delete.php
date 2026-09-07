@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 requireAdminApi('Only administrators can delete petition records.');
+ra9048_require_permission('ra9048_delete', true);
 requireCSRFToken();
 
 try {

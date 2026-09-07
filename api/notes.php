@@ -5,22 +5,17 @@
  */
 
 require_once '../includes/config.php';
+require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 // Start session if not already started
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
 header('Content-Type: application/json');
 
-if (empty($_SESSION['user_id'])) {
-    http_response_code(401);
-    echo json_encode(['success' => false, 'error' => 'Authentication required.']);
-    exit;
-}
+requireAuth();
 
 $method = $_SERVER['REQUEST_METHOD'];
 $user_id = (int)$_SESSION['user_id'];
+if (in_array($method, ['POST', 'PUT', 'DELETE'], true)) requireCSRFToken();
 
 try {
     switch ($method) {
@@ -41,8 +36,9 @@ try {
             echo json_encode(['success' => false, 'message' => 'Method not allowed']);
     }
 } catch (Exception $e) {
+    error_log('Notes API error: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Server error. Please try again.']);
 }
 
 function handleGet($pdo) {
@@ -83,7 +79,7 @@ function handleGet($pdo) {
 }
 
 function handlePost($pdo, $user_id) {
-    $data = json_decode(file_get_contents('php://input'), true);
+    $data = json_decode(requestBody(), true);
 
     if (empty($data['note_title']) || empty($data['note_type']) || empty($data['note_content'])) {
         http_response_code(400);
@@ -111,7 +107,7 @@ function handlePost($pdo, $user_id) {
 }
 
 function handlePut($pdo, $user_id) {
-    $data = json_decode(file_get_contents('php://input'), true);
+    $data = json_decode(requestBody(), true);
 
     // Toggle pin action
     if (isset($_GET['action']) && $_GET['action'] === 'toggle_pin') {
@@ -124,9 +120,9 @@ function handlePut($pdo, $user_id) {
         $stmt = $pdo->prepare("
             UPDATE system_notes
             SET is_pinned = NOT is_pinned, updated_by = ?, updated_at = NOW()
-            WHERE id = ? AND deleted_at IS NULL
+            WHERE id = ? AND deleted_at IS NULL AND (created_by = ? OR ? = 1)
         ");
-        $stmt->execute([$user_id, (int)$data['note_id']]);
+        $stmt->execute([$user_id, (int)$data['note_id'], $user_id, isAdmin() ? 1 : 0]);
 
         echo json_encode(['success' => true, 'message' => 'Pin status toggled']);
         return;
@@ -143,7 +139,7 @@ function handlePut($pdo, $user_id) {
         UPDATE system_notes
         SET title = ?, note_type = ?, content = ?, is_pinned = ?,
             updated_by = ?, updated_at = NOW()
-        WHERE id = ? AND deleted_at IS NULL
+        WHERE id = ? AND deleted_at IS NULL AND (created_by = ? OR ? = 1)
     ");
     $stmt->execute([
         $data['note_title'],
@@ -151,14 +147,14 @@ function handlePut($pdo, $user_id) {
         $data['note_content'],
         !empty($data['is_pinned']) ? 1 : 0,
         $user_id,
-        (int)$data['note_id']
+        (int)$data['note_id'], $user_id, isAdmin() ? 1 : 0
     ]);
 
     echo json_encode(['success' => true, 'message' => 'Note updated successfully']);
 }
 
 function handleDelete($pdo) {
-    $data = json_decode(file_get_contents('php://input'), true);
+    $data = json_decode(requestBody(), true);
 
     if (empty($data['note_id'])) {
         http_response_code(400);
@@ -167,10 +163,10 @@ function handleDelete($pdo) {
     }
 
     // Soft delete
-    $stmt = $pdo->prepare("
-        UPDATE system_notes SET deleted_at = NOW() WHERE id = ?
-    ");
-    $stmt->execute([(int)$data['note_id']]);
+    global $user_id;
+    $stmt = $pdo->prepare("UPDATE system_notes SET deleted_at = NOW()
+        WHERE id = ? AND (created_by = ? OR ? = 1) AND deleted_at IS NULL");
+    $stmt->execute([(int)$data['note_id'], $user_id, isAdmin() ? 1 : 0]);
 
     echo json_encode(['success' => true, 'message' => 'Note deleted successfully']);
 }

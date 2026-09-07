@@ -8,6 +8,7 @@ require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 // Require authentication
 requireAuth();
@@ -317,6 +318,24 @@ $user_first_name = explode(' ', $user_name)[0];
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?= csrfTokenMeta() ?>
+    <script>
+    (function () {
+        const originalFetch = window.fetch.bind(window);
+        window.fetch = function (input, init) {
+            init = init || {};
+            const method = String(init.method || 'GET').toUpperCase();
+            const url = typeof input === 'string' ? input : input.url;
+            if (['POST','PUT','PATCH','DELETE'].includes(method) && /^\.\.?\/api\//.test(url)) {
+                const token = document.querySelector('meta[name="csrf-token"]')?.content;
+                const headers = new Headers(init.headers || {});
+                if (token) headers.set('X-CSRF-Token', token);
+                init.headers = headers;
+            }
+            return originalFetch(input, init);
+        };
+    }());
+    </script>
     <title>Dashboard - Civil Registry System</title>
     <?= google_fonts_tag('Inter:wght@400;500;600;700;800') ?>
     <link rel="stylesheet" href="<?= asset_url('fontawesome_css') ?>">
@@ -3126,8 +3145,8 @@ $user_first_name = explode(' ', $user_name)[0];
                                     break;
                             }
                         ?>
-                        <li class="activity-item" onclick="window.location.href='<?php echo $view_url; ?>'" role="listitem" tabindex="0" aria-label="View <?php echo $activity['type']; ?> record for <?php echo htmlspecialchars($activity['name']); ?>">
-                            <div class="activity-icon <?php echo $activity['type']; ?>" aria-hidden="true">
+                        <li class="activity-item" onclick="window.location.href=<?= htmlspecialchars(json_encode($view_url, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8') ?>" role="listitem" tabindex="0" aria-label="View <?php echo htmlspecialchars((string)$activity['type'], ENT_QUOTES, 'UTF-8'); ?> record for <?php echo htmlspecialchars($activity['name'], ENT_QUOTES, 'UTF-8'); ?>">
+                            <div class="activity-icon <?php echo htmlspecialchars((string)$activity['type'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true">
                                 <i class="fas fa-<?php
                                     echo $activity['type'] === 'birth' ? 'file-lines' :
                                         ($activity['type'] === 'marriage' ? 'file-signature' :
@@ -3138,13 +3157,13 @@ $user_first_name = explode(' ', $user_name)[0];
                                 <div class="activity-name"><?php echo htmlspecialchars($activity['name']); ?></div>
                                 <div class="activity-meta">
                                     <?php
-                                        echo ucfirst($activity['type']);
+                                        echo htmlspecialchars(ucfirst((string)$activity['type']), ENT_QUOTES, 'UTF-8');
                                         echo $activity['type'] === 'license' ? ' Application' : ' Certificate';
                                     ?> &bull; Registry #<?php echo htmlspecialchars($activity['registry_no']); ?>
                                 </div>
                                 <div class="activity-user-info">
                                     <span class="activity-action-badge">
-                                        <i class="fas fa-plus-circle"></i> <?php echo $activity['action_type']; ?>
+                                        <i class="fas fa-plus-circle"></i> <?php echo htmlspecialchars((string)$activity['action_type'], ENT_QUOTES, 'UTF-8'); ?>
                                     </span>
                                     <span>&bull;</span>
                                     <span>By: <strong><?php echo htmlspecialchars($activity['created_by_name'] ?? 'System'); ?></strong></span>
@@ -3617,17 +3636,17 @@ $user_first_name = explode(' ', $user_name)[0];
                             <div class="event-list-item-header">
                                 <div class="event-list-item-title">${escapeHtml(event.title)}</div>
                                 <div class="event-list-item-actions">
-                                    <button class="event-action-btn edit" onclick="editEvent(${event.id})">
+                                    <button class="event-action-btn edit" onclick="editEvent(${Number(event.id) || 0})">
                                         <i class="fas fa-edit"></i> Edit
                                     </button>
-                                    <button class="event-action-btn delete" onclick="confirmDeleteEvent(${event.id}, '${escapeHtml(event.title)}')">
+                                    <button class="event-action-btn delete" onclick="confirmDeleteEvent(${Number(event.id)})">
                                         <i class="fas fa-trash"></i> Delete
                                     </button>
                                 </div>
                             </div>
                             <div class="event-list-item-meta">
-                                <span class="event-type-badge">${event.event_type}</span>
-                                <span class="event-priority-badge ${event.priority}">${event.priority}</span>
+                                <span class="event-type-badge">${escapeHtml(String(event.event_type || ''))}</span>
+                                <span class="event-priority-badge ${escapeHtml(String(event.priority || 'medium').replace(/[^a-z-]/gi, ''))}">${escapeHtml(String(event.priority || ''))}</span>
                                 ${event.event_time ? `<span><i class="fas fa-clock"></i> ${formatTime(event.event_time)}</span>` : ''}
                             </div>
                             ${event.description ? `<div class="event-list-item-description">${escapeHtml(event.description)}</div>` : ''}
@@ -3708,7 +3727,7 @@ $user_first_name = explode(' ', $user_name)[0];
         }
 
         // Delete Event Function
-        async function confirmDeleteEvent(eventId, eventTitle) {
+        async function confirmDeleteEvent(eventId, eventTitle = '') {
             if (confirm(`Are you sure you want to delete the event "${eventTitle}"?`)) {
                 try {
                     const response = await fetch('../api/calendar_events.php', {
@@ -3768,7 +3787,7 @@ $user_first_name = explode(' ', $user_name)[0];
                     messageDiv.style.display = 'block';
                     messageDiv.style.background = '#dcfce7';
                     messageDiv.style.color = '#166534';
-                    messageDiv.innerHTML = '<i class="fas fa-check-circle"></i> ' + data.message;
+                    messageDiv.innerHTML = '<i class="fas fa-check-circle"></i> ' + escapeHtml(data.message || 'Saved successfully');
 
                     setTimeout(() => {
                         const eventForm = document.getElementById('eventForm');
@@ -3784,7 +3803,7 @@ $user_first_name = explode(' ', $user_name)[0];
                 messageDiv.style.display = 'block';
                 messageDiv.style.background = '#fee2e2';
                 messageDiv.style.color = '#991b1b';
-                messageDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + error.message;
+                messageDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + escapeHtml(error.message || 'Request failed');
 
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalBtnText;
@@ -3841,7 +3860,7 @@ $user_first_name = explode(' ', $user_name)[0];
                     messageDiv.style.display = 'block';
                     messageDiv.style.background = '#dcfce7';
                     messageDiv.style.color = '#166534';
-                    messageDiv.innerHTML = '<i class="fas fa-check-circle"></i> ' + data.message;
+                    messageDiv.innerHTML = '<i class="fas fa-check-circle"></i> ' + escapeHtml(data.message || 'Saved successfully');
 
                     // Close modal after 1.5 seconds and reload page
                     setTimeout(() => {
@@ -3856,7 +3875,7 @@ $user_first_name = explode(' ', $user_name)[0];
                 messageDiv.style.display = 'block';
                 messageDiv.style.background = '#fee2e2';
                 messageDiv.style.color = '#991b1b';
-                messageDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + error.message;
+                messageDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + escapeHtml(error.message || 'Request failed');
 
                 // Re-enable button
                 submitBtn.disabled = false;
@@ -3907,7 +3926,7 @@ $user_first_name = explode(' ', $user_name)[0];
                     messageDiv.style.display = 'block';
                     messageDiv.style.background = '#dcfce7';
                     messageDiv.style.color = '#166534';
-                    messageDiv.innerHTML = '<i class="fas fa-check-circle"></i> ' + data.message;
+                    messageDiv.innerHTML = '<i class="fas fa-check-circle"></i> ' + escapeHtml(data.message || 'Saved successfully');
 
                     // Close modal after 1.5 seconds and reload page
                     setTimeout(() => {
@@ -3922,7 +3941,7 @@ $user_first_name = explode(' ', $user_name)[0];
                 messageDiv.style.display = 'block';
                 messageDiv.style.background = '#fee2e2';
                 messageDiv.style.color = '#991b1b';
-                messageDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + error.message;
+                messageDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + escapeHtml(error.message || 'Request failed');
 
                 // Re-enable button
                 submitBtn.disabled = false;
@@ -4345,17 +4364,17 @@ $user_first_name = explode(' ', $user_name)[0];
                         <div class="all-item-header">
                             <div class="all-item-title">${escapeHtml(event.title)}</div>
                             <div class="all-item-actions">
-                                <button class="all-item-action-btn" onclick="closeAllEventsModal(); editEvent(${event.id});">
+                                <button class="all-item-action-btn" onclick="closeAllEventsModal(); editEvent(${Number(event.id) || 0});">
                                     <i class="fas fa-edit"></i> Edit
                                 </button>
-                                <button class="all-item-action-btn delete" onclick="confirmDeleteEvent(${event.id}, '${escapeHtml(event.title)}')">
+                                <button class="all-item-action-btn delete" onclick="confirmDeleteEvent(${Number(event.id)})">
                                     <i class="fas fa-trash"></i> Delete
                                 </button>
                             </div>
                         </div>
                         <div class="all-item-meta">
-                            <span class="event-type-badge">${event.event_type}</span>
-                            <span class="event-priority-badge ${event.priority}">${event.priority}</span>
+                            <span class="event-type-badge">${escapeHtml(String(event.event_type || ''))}</span>
+                            <span class="event-priority-badge ${escapeHtml(String(event.priority || 'medium').replace(/[^a-z-]/gi, ''))}">${escapeHtml(String(event.priority || ''))}</span>
                             <span><i class="fas fa-calendar"></i> ${dateStr}</span>
                             ${timeStr ? `<span><i class="fas fa-clock"></i> ${timeStr}</span>` : ''}
                             ${event.created_by_name ? `<span><i class="fas fa-user"></i> ${escapeHtml(event.created_by_name)}</span>` : ''}
@@ -4452,20 +4471,20 @@ $user_first_name = explode(' ', $user_name)[0];
                                 ${escapeHtml(note.title)}
                             </div>
                             <div class="all-item-actions">
-                                <button class="all-item-action-btn pin" onclick="togglePinNote(${note.id})" title="${isPinned ? 'Unpin' : 'Pin to dashboard'}">
+                                <button class="all-item-action-btn pin" onclick="togglePinNote(${Number(note.id) || 0})" title="${isPinned ? 'Unpin' : 'Pin to dashboard'}">
                                     <i class="fas fa-thumbtack"></i> ${isPinned ? 'Unpin' : 'Pin'}
                                 </button>
-                                <button class="all-item-action-btn" onclick="closeAllNotesModal(); editNote(${note.id});">
+                                <button class="all-item-action-btn" onclick="closeAllNotesModal(); editNote(${Number(note.id) || 0});">
                                     <i class="fas fa-edit"></i> Edit
                                 </button>
-                                <button class="all-item-action-btn delete" onclick="confirmDeleteNote(${note.id}, '${escapeHtml(note.title)}')">
+                                <button class="all-item-action-btn delete" onclick="confirmDeleteNote(${Number(note.id)})">
                                     <i class="fas fa-trash"></i> Delete
                                 </button>
                             </div>
                         </div>
                         <div class="all-note-content-preview">${escapeHtml(contentPreview)}</div>
                         <div class="all-item-meta">
-                            <span class="note-type-badge">${note.note_type.replace('_', ' ')}</span>
+                            <span class="note-type-badge">${escapeHtml(String(note.note_type || '').replace('_', ' '))}</span>
                             ${note.created_by_name ? `<span><i class="fas fa-user"></i> ${escapeHtml(note.created_by_name)}</span>` : ''}
                             <span><i class="fas fa-clock"></i> ${dateStr}</span>
                         </div>
@@ -4518,7 +4537,7 @@ $user_first_name = explode(' ', $user_name)[0];
         }
 
         // Delete Note Function
-        async function confirmDeleteNote(noteId, noteTitle) {
+        async function confirmDeleteNote(noteId) {
             if (confirm(`Are you sure you want to delete the note "${noteTitle}"?`)) {
                 try {
                     const response = await fetch('../api/notes.php', {

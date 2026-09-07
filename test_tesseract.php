@@ -4,6 +4,10 @@
  * Run this to see if Tesseract is working
  */
 
+if (php_sapi_name() !== 'cli') {
+    http_response_code(404);
+    exit('Diagnostics are CLI-only.');
+}
 echo "<h1>Tesseract OCR Diagnostic</h1>";
 echo "<style>body{font-family:Arial;padding:20px;} .success{color:green;} .error{color:red;} .info{color:blue;} pre{background:#f5f5f5;padding:10px;border-radius:5px;}</style>";
 

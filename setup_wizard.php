@@ -7,8 +7,26 @@
  * If setup fails, delete this file manually after configuration.
  */
 
+// The browser wizard is an installation-time tool. Keep it disabled unless an
+// operator explicitly enables it in the environment; otherwise an exposed
+// setup page could execute arbitrary SQL with the database account.
+require_once __DIR__ . '/includes/env_loader.php';
+if (php_sapi_name() !== 'cli') {
+    if (env('SETUP_WIZARD_ENABLED', false) !== true) {
+        http_response_code(404);
+        exit('Setup wizard is disabled. Use the documented CLI installer.');
+    }
+    // Even when explicitly enabled for a maintenance window, the browser
+    // wizard is restricted to an authenticated administrator. Its per-session
+    // wizard token below remains required on every POST step.
+    require_once __DIR__ . '/includes/session_config.php';
+    require_once __DIR__ . '/includes/functions.php';
+    require_once __DIR__ . '/includes/auth.php';
+    requireAdmin();
+}
+
 // Start session for wizard state
-session_start();
+if (session_status() === PHP_SESSION_NONE) session_start();
 
 // Initialize wizard state
 if (!isset($_SESSION['wizard_step'])) {
@@ -497,7 +515,7 @@ $step = $_SESSION['wizard_step'];
                                 <div class="check-icon <?= $check['status'] ?>">
                                     <?php if ($check['status'] === 'success'): ?>✓<?php endif; ?>
                                     <?php if ($check['status'] === 'error'): ?>✗<?php endif; ?>
-                                    <?php if ($check['status'] === 'warning'): ?>!</php endif; ?>
+                                    <?php if ($check['status'] === 'warning'): ?>!<?php endif; ?>
                                 </div>
                                 <div>
                                     <strong><?= htmlspecialchars($check['name']) ?></strong><br>

@@ -6,13 +6,15 @@
 
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
-
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+require_once '../includes/auth.php';
+require_once '../includes/security.php';
+requireAuth();
+if (!hasAnyPermission(['birth_create', 'marriage_create', 'death_create'])) {
+    http_response_code(403); exit('Access denied.');
 }
 
-$current_user_id = $_SESSION['user_id'] ?? 1;
-$current_user_name = $_SESSION['full_name'] ?? 'Administrator';
+$current_user_id = (int)$_SESSION['user_id'];
+$current_user_name = $_SESSION['full_name'] ?? 'User';
 
 // Get active batches
 $active_batches = getActiveBatches($pdo, $current_user_id);
@@ -24,11 +26,11 @@ function getActiveBatches($pdo, $user_id) {
             u.full_name as created_by_name
         FROM batch_uploads b
         LEFT JOIN users u ON b.created_by = u.id
-        WHERE b.status != 'completed'
+        WHERE b.status != 'completed' AND (b.created_by = :user_id OR :is_admin = 1)
         ORDER BY b.created_at DESC
         LIMIT 20
     ");
-    $stmt->execute();
+    $stmt->execute([':user_id' => (int)$user_id, ':is_admin' => isAdmin() ? 1 : 0]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
@@ -38,6 +40,24 @@ function getActiveBatches($pdo, $user_id) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?= csrfTokenMeta() ?>
+    <script>
+    (function () {
+        const originalFetch = window.fetch.bind(window);
+        window.fetch = function (input, init) {
+            init = init || {};
+            const method = String(init.method || 'GET').toUpperCase();
+            const url = typeof input === 'string' ? input : input.url;
+            if (['POST','PUT','PATCH','DELETE'].includes(method) && /^\.\.?\/api\//.test(url)) {
+                const token = document.querySelector('meta[name="csrf-token"]')?.content;
+                const headers = new Headers(init.headers || {});
+                if (token) headers.set('X-CSRF-Token', token);
+                init.headers = headers;
+            }
+            return originalFetch(input, init);
+        };
+    }());
+    </script>
     <title>Batch Upload - iScan</title>
     <style>
         * {

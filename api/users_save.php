@@ -10,6 +10,7 @@ require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 // Check authentication and permission
 if (!isLoggedIn() || !hasPermission('users_create')) {
@@ -17,6 +18,7 @@ if (!isLoggedIn() || !hasPermission('users_create')) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
 }
+requireCSRFToken();
 
 // Only accept POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -26,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // Get input
-$input = json_decode(file_get_contents('php://input'), true);
+$input = json_decode(requestBody(), true);
 
 // Validate required fields
 $required = ['username', 'password', 'full_name', 'role'];
@@ -46,9 +48,9 @@ if (!preg_match('/^[a-zA-Z0-9_]{3,50}$/', $input['username'])) {
 }
 
 // Validate password (min 6 chars)
-if (strlen($input['password']) < 6) {
+if (strlen($input['password']) < MIN_PASSWORD_LENGTH || (REQUIRE_PASSWORD_COMPLEXITY && checkPasswordStrength($input['password'])['score'] < 5)) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Password must be at least 6 characters']);
+        echo json_encode(['success' => false, 'message' => 'Password does not meet the configured security policy']);
     exit;
 }
 
@@ -57,6 +59,12 @@ $allowed_roles = ['Admin', 'Encoder', 'Viewer'];
 if (!in_array($input['role'], $allowed_roles)) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Invalid role']);
+    exit;
+}
+$allowed_statuses = ['Active', 'Inactive'];
+if (isset($input['status']) && !in_array($input['status'], $allowed_statuses, true)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid status']);
     exit;
 }
 
@@ -119,6 +127,7 @@ try {
     ]);
 
 } catch (PDOException $e) {
+    error_log('users_save database error: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Database error. Please try again.']);
 }

@@ -21,6 +21,7 @@ require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 header('Content-Type: application/json');
 
@@ -33,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(false, 'Invalid request method.', null, 405);
     exit;
 }
+requireCSRFToken();
 
 $type_map = [
     'birth' => [

@@ -9,6 +9,7 @@ require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 // Require admin access
 requireAdmin();
@@ -43,6 +44,7 @@ if (file_exists($log_file)) {
 
 // Handle actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireCSRFToken();
     if (isset($_POST['action'])) {
         switch ($_POST['action']) {
             case 'clear':
@@ -372,11 +374,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <div class="button-group" style="margin-top: 15px;">
                 <form method="POST" style="display: inline;">
+                    <?= csrfTokenField() ?>
                     <input type="hidden" name="action" value="download">
                     <button type="submit" class="btn btn-success">📥 Download</button>
                 </form>
 
                 <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to clear the log file? This cannot be undone.')">
+                    <?= csrfTokenField() ?>
                     <input type="hidden" name="action" value="clear">
                     <button type="submit" class="btn btn-danger">🗑️ Clear Log</button>
                 </form>

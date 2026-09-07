@@ -6,9 +6,10 @@
 
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
-
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+require_once '../includes/auth.php';
+requireAuth();
+if (!hasAnyPermission(['birth_view', 'marriage_view', 'death_view'])) {
+    http_response_code(403); exit('Access denied.');
 }
 
 $search_results = [];
@@ -26,111 +27,107 @@ function performSearch($pdo, $params) {
     $date_to = $params['date_to'] ?? '';
     $municipality = $params['municipality'] ?? '';
     $workflow_state = $params['workflow_state'] ?? 'all';
+    $query = mb_substr(trim((string)$query), 0, 100);
+    $date_from = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$date_from) ? $date_from : '';
+    $date_to = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$date_to) ? $date_to : '';
+    $municipality = mb_substr(trim((string)$municipality), 0, 100);
+    $type = in_array($type, ['all', 'birth', 'marriage', 'death'], true) ? $type : 'all';
+    $workflow_state = in_array($workflow_state, ['all', 'draft', 'pending_review', 'verified', 'approved', 'rejected', 'archived'], true) ? $workflow_state : 'all';
 
-    $sql = "
-        SELECT
-            'birth' as cert_type,
-            id,
-            registry_no,
-            CONCAT(child_first_name, ' ', child_middle_name, ' ', child_last_name) as name,
-            date_of_registration,
-            date_of_registration_format,
-            date_of_registration_partial_month,
-            date_of_registration_partial_year,
-            date_of_registration_partial_day,
-            child_place_of_birth as location,
-            created_at
-        FROM certificate_of_live_birth
-        WHERE 1=1
-    ";
-
-    if ($query) {
-        $sql .= " AND (
-            MATCH(child_first_name, child_middle_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name) AGAINST (? IN NATURAL LANGUAGE MODE)
-            OR registry_no LIKE ?
-        )";
-    }
-
-    if ($date_from) {
-        $sql .= " AND date_of_registration >= ?";
-    }
-
-    if ($date_to) {
-        $sql .= " AND date_of_registration <= ?";
-    }
-
-    if ($municipality) {
-        $sql .= " AND (child_place_of_birth LIKE ? OR place_of_marriage LIKE ?)";
-    }
-
-    $sql .= " UNION ALL ";
-
-    $sql .= "
-        SELECT
-            'marriage' as cert_type,
-            id,
-            registry_no,
-            CONCAT(husband_first_name, ' ', husband_last_name, ' & ', wife_first_name, ' ', wife_last_name) as name,
-            date_of_registration,
-            date_of_registration_format,
-            date_of_registration_partial_month,
-            date_of_registration_partial_year,
-            date_of_registration_partial_day,
-            place_of_marriage as location,
-            created_at
-        FROM certificate_of_marriage
-        WHERE 1=1
-    ";
-
-    if ($query) {
-        $sql .= " AND (
-            husband_first_name LIKE ? OR husband_last_name LIKE ?
-            OR wife_first_name LIKE ? OR wife_last_name LIKE ?
-            OR registry_no LIKE ?
-        )";
-    }
-
-    if ($date_from) {
-        $sql .= " AND date_of_registration >= ?";
-    }
-
-    if ($date_to) {
-        $sql .= " AND date_of_registration <= ?";
-    }
-
-    if ($municipality) {
-        $sql .= " AND place_of_marriage LIKE ?";
-    }
-
-    $sql .= " ORDER BY date_of_registration DESC LIMIT 100";
-
-    $stmt = $pdo->prepare($sql);
-
-    // Bind parameters
+    $queries = [];
     $bind_params = [];
 
-    if ($query) {
-        $bind_params[] = $query;
-        $bind_params[] = "%$query%";
-    }
-    if ($date_from) $bind_params[] = $date_from;
-    if ($date_to) $bind_params[] = $date_to;
-    if ($municipality) {
-        $bind_params[] = "%$municipality%";
-        $bind_params[] = "%$municipality%";
-    }
-
-    if ($query) {
-        for ($i = 0; $i < 5; $i++) {
-            $bind_params[] = "%$query%";
+    $queries[] = [
+        "SELECT 'birth' AS cert_type, id, registry_no,
+                CONCAT(child_first_name, ' ', child_middle_name, ' ', child_last_name) AS name,
+                date_of_registration, date_of_registration_format,
+                date_of_registration_partial_month, date_of_registration_partial_year,
+                date_of_registration_partial_day, child_place_of_birth AS location,
+                (SELECT current_state FROM workflow_states WHERE certificate_type = 'birth'
+                    AND certificate_id = certificate_of_live_birth.id LIMIT 1) AS workflow_state,
+                created_at
+         FROM certificate_of_live_birth
+         WHERE status = 'Active'",
+        function () use (&$bind_params, $query, $date_from, $date_to, $municipality) {
+            $where = '';
+            if ($query) {
+                $where .= " AND (MATCH(child_first_name, child_middle_name, child_last_name,
+                    mother_first_name, mother_last_name, father_first_name, father_last_name)
+                    AGAINST (? IN NATURAL LANGUAGE MODE) OR registry_no LIKE ?)";
+                $bind_params[] = $query;
+                $bind_params[] = "%$query%";
+            }
+            if ($date_from) { $where .= ' AND date_of_registration >= ?'; $bind_params[] = $date_from; }
+            if ($date_to) { $where .= ' AND date_of_registration <= ?'; $bind_params[] = $date_to; }
+            if ($municipality) { $where .= ' AND child_place_of_birth LIKE ?'; $bind_params[] = "%$municipality%"; }
+            return $where;
         }
+    ];
+    $queries[] = [
+        "SELECT 'marriage' AS cert_type, id, registry_no,
+                CONCAT(husband_first_name, ' ', husband_last_name, ' & ', wife_first_name, ' ', wife_last_name) AS name,
+                date_of_registration, date_of_registration_format,
+                date_of_registration_partial_month, date_of_registration_partial_year,
+                date_of_registration_partial_day, place_of_marriage AS location,
+                (SELECT current_state FROM workflow_states WHERE certificate_type = 'marriage'
+                    AND certificate_id = certificate_of_marriage.id LIMIT 1) AS workflow_state,
+                created_at
+         FROM certificate_of_marriage
+         WHERE status = 'Active'",
+        function () use (&$bind_params, $query, $date_from, $date_to, $municipality) {
+            $where = '';
+            if ($query) {
+                $where .= ' AND (husband_first_name LIKE ? OR husband_last_name LIKE ? OR wife_first_name LIKE ? OR wife_last_name LIKE ? OR registry_no LIKE ?)';
+                for ($i = 0; $i < 5; $i++) $bind_params[] = "%$query%";
+            }
+            if ($date_from) { $where .= ' AND date_of_registration >= ?'; $bind_params[] = $date_from; }
+            if ($date_to) { $where .= ' AND date_of_registration <= ?'; $bind_params[] = $date_to; }
+            if ($municipality) { $where .= ' AND place_of_marriage LIKE ?'; $bind_params[] = "%$municipality%"; }
+            return $where;
+        }
+    ];
+    $queries[] = [
+        "SELECT 'death' AS cert_type, id, registry_no,
+                CONCAT(deceased_first_name, ' ', deceased_middle_name, ' ', deceased_last_name) AS name,
+                date_of_registration, date_of_registration_format,
+                date_of_registration_partial_month, date_of_registration_partial_year,
+                date_of_registration_partial_day, place_of_death AS location,
+                (SELECT current_state FROM workflow_states WHERE certificate_type = 'death'
+                    AND certificate_id = certificate_of_death.id LIMIT 1) AS workflow_state,
+                created_at
+         FROM certificate_of_death
+         WHERE status = 'Active'",
+        function () use (&$bind_params, $query, $date_from, $date_to, $municipality) {
+            $where = '';
+            if ($query) {
+                $where .= ' AND (deceased_first_name LIKE ? OR deceased_middle_name LIKE ? OR deceased_last_name LIKE ? OR registry_no LIKE ?)';
+                for ($i = 0; $i < 4; $i++) $bind_params[] = "%$query%";
+            }
+            if ($date_from) { $where .= ' AND date_of_registration >= ?'; $bind_params[] = $date_from; }
+            if ($date_to) { $where .= ' AND date_of_registration <= ?'; $bind_params[] = $date_to; }
+            if ($municipality) { $where .= ' AND place_of_death LIKE ?'; $bind_params[] = "%$municipality%"; }
+            return $where;
+        }
+    ];
+    $sql_parts = [];
+    foreach ($queries as [$base, $where_builder]) {
+        if ($type !== 'all' && !str_contains($base, "'$type' AS cert_type")) continue;
+        $sql_parts[] = $base . $where_builder();
     }
-    if ($date_from) $bind_params[] = $date_from;
-    if ($date_to) $bind_params[] = $date_to;
-    if ($municipality) $bind_params[] = "%$municipality%";
-
+    if (!$sql_parts) return [];
+    $sql = implode(' UNION ALL ', $sql_parts) . ' ORDER BY date_of_registration DESC LIMIT 100';
+    $stmt = $pdo->prepare($sql);
     $stmt->execute($bind_params);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $allowed = [];
+    if (hasPermission('birth_view')) $allowed[] = 'birth';
+    if (hasPermission('marriage_view')) $allowed[] = 'marriage';
+    if (hasPermission('death_view')) $allowed[] = 'death';
+    if ($type !== 'all') $allowed = array_values(array_intersect($allowed, [$type]));
+    return array_values(array_filter($rows, static function ($row) use ($allowed, $workflow_state) {
+        return in_array($row['cert_type'] ?? '', $allowed, true)
+            && ($workflow_state === 'all' || ($row['workflow_state'] ?? 'draft') === $workflow_state);
+    }));
 }
 
 ?>
@@ -387,10 +384,11 @@ function performSearch($pdo, $params) {
 
             <?php if ($search_performed && count($search_results) > 0): ?>
                 <?php foreach ($search_results as $result): ?>
-                <div class="result-item" onclick="viewCertificate('<?= $result['cert_type'] ?>', <?= $result['id'] ?>)">
+                <?php $result_type = in_array($result['cert_type'] ?? '', ['birth', 'marriage', 'death', 'license'], true) ? $result['cert_type'] : ''; ?>
+                <div class="result-item" onclick="viewCertificate('<?= htmlspecialchars($result_type, ENT_QUOTES, 'UTF-8') ?>', <?= (int)$result['id'] ?>)">
                     <div class="result-header">
                         <div class="result-title"><?= htmlspecialchars($result['name']) ?></div>
-                        <span class="result-badge <?= $result['cert_type'] ?>"><?= ucfirst($result['cert_type']) ?></span>
+                        <span class="result-badge <?= htmlspecialchars($result_type, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucfirst($result_type), ENT_QUOTES, 'UTF-8') ?></span>
                     </div>
                     <div class="result-details">
                         <div class="result-detail">

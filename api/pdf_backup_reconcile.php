@@ -81,13 +81,13 @@ try {
     if (function_exists('logSecurityEvent')) {
         logSecurityEvent('PDF_BACKUP_RECONCILE',
             (count($missing) || count($orphans)) ? 'MEDIUM' : 'LOW',
-            $_SESSION['user_id'] ?? null,
             json_encode([
                 'missing_count' => count($missing),
                 'orphan_count'  => count($orphans),
                 'db_total'      => count($db_paths),
                 'disk_total'    => count($disk_paths),
-            ]));
+            ]),
+            $_SESSION['user_id'] ?? null);
     }
     log_activity($pdo, 'PDF_BACKUP_RECONCILE',
         sprintf('Reconcile: %d missing files, %d orphan files (%d DB / %d disk)',
@@ -104,5 +104,5 @@ try {
 
 } catch (Exception $e) {
     error_log('pdf_backup_reconcile error: ' . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'Reconcile failed: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Reconcile failed.']);
 }

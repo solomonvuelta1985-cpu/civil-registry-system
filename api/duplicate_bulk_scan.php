@@ -9,6 +9,7 @@ require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 header('Content-Type: application/json');
 
@@ -30,8 +31,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'message' => 'Method not allowed']);
     exit;
 }
+requireCSRFToken();
 
-$input = json_decode(file_get_contents('php://input'), true);
+$input = json_decode(requestBody(), true);
 $certificate_type = sanitize_input($input['type'] ?? 'birth');
 $batch_offset = max(0, (int)($input['offset'] ?? 0));
 $batch_size = min(50, max(1, (int)($input['batch_size'] ?? 20)));

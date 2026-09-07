@@ -63,10 +63,10 @@ $success = registerDevice($fingerprint, $deviceName, $userId, $notes);
 
 if ($success) {
     log_activity($pdo, 'DEVICE_REGISTERED', 'Device "' . $deviceName . '" registered (fp: ' . substr($fingerprint, 0, 16) . '...)', $userId);
-    logSecurityEvent('DEVICE_REGISTERED', 'LOW', $userId, [
+    logSecurityEvent('DEVICE_REGISTERED', 'LOW', [
         'device_name'    => $deviceName,
         'fp_prefix'      => substr($fingerprint, 0, 16),
-    ]);
+    ], $userId);
     echo json_encode(['success' => true, 'message' => 'Device "' . htmlspecialchars($deviceName) . '" registered successfully']);
 } else {
     echo json_encode(['success' => false, 'message' => 'Failed to register device. It may already exist.']);

@@ -31,10 +31,17 @@ require_once '../../includes/security.php';
 header('Content-Type: application/json');
 
 requireAuth();
+ra9048_require_permission('ra9048_view', true);
 
 $petition_id = (int) ($_GET['petition_id'] ?? $_POST['petition_id'] ?? 0);
 if ($petition_id <= 0) {
     json_response(false, 'petition_id is required.', null, 400);
+}
+
+$access_stmt = $pdo_ra->prepare("SELECT id FROM petitions WHERE id = :id AND status = 'Active' LIMIT 1");
+$access_stmt->execute([':id' => $petition_id]);
+if (!$access_stmt->fetch()) {
+    json_response(false, 'Petition not found.', null, 404);
 }
 
 $dir = RA9048_UPLOAD_PATH . 'generated/petition_' . $petition_id . '/';

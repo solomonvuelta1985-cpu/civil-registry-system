@@ -69,8 +69,8 @@ try {
     $added = 0;
     $missing = 0;
     foreach ($rows as $r) {
-        $abs = UPLOAD_DIR . $r['backup_path'];
-        if (!file_exists($abs)) { $missing++; continue; }
+$abs = resolve_upload_path($r['backup_path']);
+        if ($abs === false || !file_exists($abs)) { $missing++; continue; }
         $entry = sprintf('%s/record_%d/%d_%s',
                          $r['cert_type'],
                          (int)$r['record_id'],

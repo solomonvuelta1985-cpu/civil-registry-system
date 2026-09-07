@@ -5,22 +5,17 @@
  */
 
 require_once '../includes/config.php';
+require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 // Start session if not already started
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
 header('Content-Type: application/json');
 
-if (empty($_SESSION['user_id'])) {
-    http_response_code(401);
-    echo json_encode(['success' => false, 'error' => 'Authentication required.']);
-    exit;
-}
+requireAuth();
 
 $method = $_SERVER['REQUEST_METHOD'];
 $user_id = (int)$_SESSION['user_id'];
+if (in_array($method, ['POST', 'PUT', 'DELETE'], true)) requireCSRFToken();
 
 try {
     switch ($method) {
@@ -41,8 +36,9 @@ try {
             echo json_encode(['success' => false, 'message' => 'Method not allowed']);
     }
 } catch (Exception $e) {
+    error_log('Calendar events API error: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Server error. Please try again.']);
 }
 
 function handleGet($pdo) {
@@ -98,7 +94,7 @@ function handleGet($pdo) {
 }
 
 function handlePost($pdo, $user_id) {
-    $data = json_decode(file_get_contents('php://input'), true);
+    $data = json_decode(requestBody(), true);
 
     if (empty($data['event_title']) || empty($data['event_type']) || empty($data['event_date'])) {
         http_response_code(400);
@@ -128,7 +124,7 @@ function handlePost($pdo, $user_id) {
 }
 
 function handlePut($pdo, $user_id) {
-    $data = json_decode(file_get_contents('php://input'), true);
+    $data = json_decode(requestBody(), true);
 
     if (empty($data['event_id'])) {
         http_response_code(400);
@@ -140,7 +136,7 @@ function handlePut($pdo, $user_id) {
         UPDATE calendar_events
         SET title = ?, event_type = ?, event_date = ?, event_time = ?,
             priority = ?, description = ?, updated_by = ?, updated_at = NOW()
-        WHERE id = ? AND deleted_at IS NULL
+        WHERE id = ? AND deleted_at IS NULL AND (created_by = ? OR ? = 1)
     ");
     $stmt->execute([
         $data['event_title'],
@@ -150,14 +146,14 @@ function handlePut($pdo, $user_id) {
         $data['event_priority'] ?? 'medium',
         $data['event_description'] ?? null,
         $user_id,
-        (int)$data['event_id']
+        (int)$data['event_id'], $user_id, isAdmin() ? 1 : 0
     ]);
 
     echo json_encode(['success' => true, 'message' => 'Event updated successfully']);
 }
 
 function handleDelete($pdo) {
-    $data = json_decode(file_get_contents('php://input'), true);
+    $data = json_decode(requestBody(), true);
 
     if (empty($data['event_id'])) {
         http_response_code(400);
@@ -166,10 +162,10 @@ function handleDelete($pdo) {
     }
 
     // Soft delete
-    $stmt = $pdo->prepare("
-        UPDATE calendar_events SET deleted_at = NOW() WHERE id = ?
-    ");
-    $stmt->execute([(int)$data['event_id']]);
+    global $user_id;
+    $stmt = $pdo->prepare("UPDATE calendar_events SET deleted_at = NOW()
+        WHERE id = ? AND (created_by = ? OR ? = 1) AND deleted_at IS NULL");
+    $stmt->execute([(int)$data['event_id'], $user_id, isAdmin() ? 1 : 0]);
 
     echo json_encode(['success' => true, 'message' => 'Event deleted successfully']);
 }

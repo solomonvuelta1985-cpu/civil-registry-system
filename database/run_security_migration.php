@@ -1,4 +1,5 @@
 <?php
+if (php_sapi_name() !== 'cli') { http_response_code(404); exit('Migration scripts are CLI-only.'); }
 /**
  * Security Tables Migration Runner
  * Run this file once to create security tables

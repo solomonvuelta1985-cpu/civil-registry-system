@@ -365,13 +365,15 @@ class OCRFormIntegration {
             if (value && value !== null && field !== 'confidence_scores') {
                 const confidence = result.structuredData?.confidence_scores?.[field] || 75;
                 const confidenceClass = confidence > 90 ? 'high' : confidence > 70 ? 'medium' : 'low';
+                const encodedField = encodeURIComponent(String(field)).replace(/'/g, '%27');
+                const encodedValue = encodeURIComponent(String(value)).replace(/'/g, '%27');
 
                 html += `
                     <div class="ocr-data-row">
-                        <div class="data-field-name">${this.formatFieldName(field)}</div>
-                        <div class="data-field-value">${value}</div>
+                        <div class="data-field-name">${this.escapeHtml(this.formatFieldName(field))}</div>
+                        <div class="data-field-value">${this.escapeHtml(value)}</div>
                         <div class="data-confidence ${confidenceClass}">${Math.round(confidence)}%</div>
-                        <button class="btn-use-compact" onclick="ocrForm.useSuggestion('${field}', '${this.escapeHtml(value)}')">
+                        <button class="btn-use-compact" onclick="ocrForm.useSuggestion(decodeURIComponent('${encodedField}'), decodeURIComponent('${encodedValue}'))">
                             Use
                         </button>
                     </div>

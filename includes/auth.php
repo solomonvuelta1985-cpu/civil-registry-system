@@ -11,7 +11,53 @@ require_once __DIR__ . '/config.php';
  * Check if user is logged in
  */
 function isLoggedIn() {
-    return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
+    static $checked = false;
+    static $valid = false;
+    if ($checked) return $valid;
+    $checked = true;
+    if (!isset($_SESSION['user_id']) || !filter_var($_SESSION['user_id'], FILTER_VALIDATE_INT) || (int)$_SESSION['user_id'] <= 0) {
+        return false;
+    }
+    global $pdo;
+    try {
+        $stmt = $pdo->prepare('SELECT id, username, full_name, email, role, status, password FROM users WHERE id = :id LIMIT 1');
+        $stmt->execute([':id' => (int)$_SESSION['user_id']]);
+        $user = $stmt->fetch();
+        if (!$user || $user['status'] !== 'Active' || !in_array($user['role'], ['Admin', 'Encoder', 'Viewer'], true)) {
+            logoutUser();
+            return false;
+        }
+        // Bind the session to the password version and current role. Password or
+        // role changes immediately invalidate previously issued sessions.
+        $fingerprint = hash('sha256', (string)$user['password']);
+        if (empty($_SESSION['password_fingerprint']) || !hash_equals($_SESSION['password_fingerprint'], $fingerprint)
+            || ($_SESSION['user_role'] ?? '') !== $user['role']) {
+            logoutUser();
+            return false;
+        }
+        if (defined('ENABLE_DEVICE_LOCK') && ENABLE_DEVICE_LOCK) {
+            $deviceFingerprint = (string)($_SESSION['device_fingerprint'] ?? '');
+            if (!preg_match('/^[a-f0-9]{64}$/i', $deviceFingerprint)) {
+                logoutUser();
+                return false;
+            }
+            $deviceStmt = $pdo->prepare("SELECT id FROM registered_devices WHERE fingerprint_hash = :fingerprint AND status = 'Active' LIMIT 1");
+            $deviceStmt->execute([':fingerprint' => $deviceFingerprint]);
+            if (!$deviceStmt->fetch()) {
+                logoutUser();
+                return false;
+            }
+        }
+        $_SESSION['username'] = $user['username'];
+        $_SESSION['full_name'] = $user['full_name'];
+        $_SESSION['email'] = $user['email'] ?? '';
+        $valid = true;
+        return true;
+    } catch (Throwable $e) {
+        error_log('Session validation failed: ' . $e->getMessage());
+        logoutUser();
+        return false;
+    }
 }
 
 /**
@@ -55,10 +101,10 @@ function hasPermission($permission_name) {
         return true;
     }
 
-    // Check cached permissions in session (loaded at login).
-    // Once per request, compare the cached count against the DB count so that
-    // permissions granted/revoked after login are picked up without requiring
-    // a logout/login cycle.
+    // Check cached permissions in session (loaded at login).  Re-read the
+    // role's permission names once per request and compare a content
+    // fingerprint.  A count-only check misses a revocation followed by a
+    // replacement permission, which can leave stale access in a live session.
     $permissions = $_SESSION['permissions'] ?? null;
     if ($permissions !== null) {
         static $permissions_verified = false;
@@ -66,18 +112,20 @@ function hasPermission($permission_name) {
             $permissions_verified = true;
             global $pdo;
             try {
-                $stmt = $pdo->prepare("SELECT COUNT(*) as cnt FROM role_permissions rp JOIN permissions p ON rp.permission_id = p.id WHERE rp.role = :role");
+                $stmt = $pdo->prepare("SELECT p.name FROM role_permissions rp JOIN permissions p ON rp.permission_id = p.id WHERE rp.role = :role ORDER BY p.name");
                 $stmt->execute([':role' => getUserRole()]);
-                $db_count = (int)($stmt->fetch()['cnt'] ?? 0);
-                if ($db_count !== (int)($_SESSION['permissions_count'] ?? -1)) {
-                    // Permission set changed since login — refresh the session cache
-                    $perms = getRolePermissions(getUserRole());
-                    $_SESSION['permissions'] = array_column($perms, 'name');
-                    $_SESSION['permissions_count'] = $db_count;
+                $db_permissions = array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'name');
+                $db_fingerprint = hash('sha256', json_encode($db_permissions));
+                if (!hash_equals((string)($_SESSION['permissions_fingerprint'] ?? ''), $db_fingerprint)) {
+                    // Permission set changed since login — refresh the session cache.
+                    $_SESSION['permissions'] = $db_permissions;
+                    $_SESSION['permissions_count'] = count($db_permissions);
+                    $_SESSION['permissions_fingerprint'] = $db_fingerprint;
                     $permissions = $_SESSION['permissions'];
                 }
             } catch (PDOException $e) {
-                // Keep using cached permissions if DB check fails
+                // Fail closed if the current permission set cannot be checked.
+                return false;
             }
         }
         return in_array($permission_name, $permissions, true);
@@ -186,6 +234,14 @@ function isViewer() {
  */
 function requireAuth() {
     if (!isLoggedIn()) {
+        if (strpos($_SERVER['SCRIPT_NAME'] ?? '', '/api/') !== false) {
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(401);
+            }
+            echo json_encode(['success' => false, 'message' => 'Authentication required.']);
+            exit;
+        }
         header('Location: ' . BASE_URL . 'public/login.php');
         exit;
     }
@@ -362,23 +418,40 @@ function authenticateUser($username, $password) {
  * Set user session after successful login
  */
 function setUserSession($user) {
+    // Rotate the identifier after credential verification to prevent fixation.
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_regenerate_id(true);
+    }
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['username'] = $user['username'];
     $_SESSION['user_role'] = $user['role'];
     $_SESSION['full_name'] = $user['full_name'];
     $_SESSION['email'] = $user['email'] ?? '';
+    $_SESSION['password_fingerprint'] = hash('sha256', (string)$user['password']);
+    $_SESSION['CREATED'] = time();
+    $_SESSION['LAST_ACTIVITY'] = time();
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 
     // Cache permissions in session to avoid DB queries on every page load
     $perms = getRolePermissions($user['role']);
-    $_SESSION['permissions'] = array_column($perms, 'name');
+    $permission_names = array_column($perms, 'name');
+    sort($permission_names, SORT_STRING);
+    $_SESSION['permissions'] = $permission_names;
     $_SESSION['permissions_count'] = count($_SESSION['permissions']);
+    $_SESSION['permissions_fingerprint'] = hash('sha256', json_encode($permission_names));
 }
 
 /**
  * Logout user
  */
 function logoutUser() {
-    session_unset();
+    if (session_status() !== PHP_SESSION_ACTIVE) return;
+    $_SESSION = [];
+    if (ini_get('session.use_cookies')) {
+        $params = session_get_cookie_params();
+        setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'],
+            (bool)$params['secure'], (bool)$params['httponly']);
+    }
     session_destroy();
 }
 

@@ -12,6 +12,7 @@ require_once '../../includes/auth.php';
 require_once '../../includes/security.php';
 
 requireAuth();
+ra9048_require_permission('ra9048_view');
 
 $active_tab = sanitize_input($_GET['type'] ?? 'petition');
 if (!in_array($active_tab, ['petition', 'legal_instrument', 'court_decree'])) {
@@ -430,6 +431,16 @@ $can_delete = isAdmin();
             return div.innerHTML;
         }
 
+        function safeDocHref(value) {
+            try {
+                const url = new URL(String(value || ''), window.location.href);
+                if (url.origin !== window.location.origin || !/^https?:$/.test(url.protocol)) return '#';
+                return escapeHtml(url.pathname + url.search + url.hash);
+            } catch (e) {
+                return '#';
+            }
+        }
+
         // --- Event Listeners ---
 
         // Tabs
@@ -555,9 +566,11 @@ $can_delete = isAdmin();
                               + escapeHtml(d.label) + '</span>';
                         html += '<span class="ra9048-docs-popover-formats">';
                         if (d.pdf_url) {
-                            html += '<a href="' + d.pdf_url + '" target="_blank" rel="noopener" title="Download PDF" class="ra9048-docs-format-btn">PDF</a>';
+                            const pdfHref = safeDocHref(d.pdf_url);
+                            if (pdfHref !== '#') html += '<a href="' + pdfHref + '" target="_blank" rel="noopener" title="Download PDF" class="ra9048-docs-format-btn">PDF</a>';
                         }
-                        html += '<a href="' + d.url + '" target="_blank" rel="noopener" title="Download DOCX" class="ra9048-docs-format-btn">DOCX</a>';
+                        const docHref = safeDocHref(d.url);
+                        if (docHref !== '#') html += '<a href="' + docHref + '" target="_blank" rel="noopener" title="Download DOCX" class="ra9048-docs-format-btn">DOCX</a>';
                         html += '</span></div>';
                     });
                     popover.innerHTML = html;
@@ -622,14 +635,17 @@ $can_delete = isAdmin();
                         return;
                     }
                     let html = '<div class="ra9048-docs-popover-header">Download Petition</div>';
-                    if (petitionDoc.pdf_url) {
-                        html += '<a class="ra9048-docs-popover-item" href="' + petitionDoc.pdf_url + '" target="_blank" rel="noopener">'
+                    if (petitionDoc.pdf_url && safeDocHref(petitionDoc.pdf_url) !== '#') {
+                        html += '<a class="ra9048-docs-popover-item" href="' + safeDocHref(petitionDoc.pdf_url) + '" target="_blank" rel="noopener">'
                               + '<i data-lucide="file-text" style="width:14px;height:14px;"></i> '
                               + '<span>PDF (print-ready)</span></a>';
                     }
-                    html += '<a class="ra9048-docs-popover-item" href="' + petitionDoc.url + '" target="_blank" rel="noopener">'
-                          + '<i data-lucide="file-text" style="width:14px;height:14px;"></i> '
-                          + '<span>DOCX (editable)</span></a>';
+                    const petitionDocHref = safeDocHref(petitionDoc.url);
+                    if (petitionDocHref !== '#') {
+                        html += '<a class="ra9048-docs-popover-item" href="' + petitionDocHref + '" target="_blank" rel="noopener">'
+                              + '<i data-lucide="file-text" style="width:14px;height:14px;"></i> '
+                              + '<span>DOCX (editable)</span></a>';
+                    }
                     popover.innerHTML = html;
                     if (window.lucide) lucide.createIcons();
                 })

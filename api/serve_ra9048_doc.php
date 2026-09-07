@@ -11,7 +11,7 @@
  */
 
 require_once '../includes/session_config.php';
-require_once '../includes/config.php';
+require_once '../includes/config_ra9048.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
@@ -28,6 +28,7 @@ if (!isLoggedIn()) {
     echo 'Unauthorized';
     exit;
 }
+ra9048_require_permission('ra9048_view', true);
 
 $file = isset($_GET['file']) ? $_GET['file'] : '';
 if ($file === '') {
@@ -60,6 +61,19 @@ if (strpos($file, 'ra9048/generated/') !== 0) {
     exit;
 }
 
+if (!preg_match('~^ra9048/generated/petition_([1-9][0-9]*)/~', $file, $petitionMatch)) {
+    http_response_code(403);
+    echo 'Forbidden';
+    exit;
+}
+$petitionStmt = $pdo->prepare("SELECT id FROM petitions WHERE id = :id AND status = 'Active' LIMIT 1");
+$petitionStmt->execute([':id' => (int)$petitionMatch[1]]);
+if (!$petitionStmt->fetch()) {
+    http_response_code(404);
+    echo 'Document not found';
+    exit;
+}
+
 // Allowed extensions
 $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
 if (!in_array($ext, ['docx', 'pdf'], true)) {
@@ -71,7 +85,9 @@ if (!in_array($ext, ['docx', 'pdf'], true)) {
 $absPath = realpath(UPLOAD_PATH . $file);
 $baseAbs = realpath(UPLOAD_PATH);
 
-if ($absPath === false || $baseAbs === false || strpos($absPath, $baseAbs) !== 0 || !is_file($absPath)) {
+if ($absPath === false || $baseAbs === false
+    || strpos($absPath, rtrim($baseAbs, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR) !== 0
+    || !is_file($absPath)) {
     http_response_code(404);
     echo 'File not found';
     exit;

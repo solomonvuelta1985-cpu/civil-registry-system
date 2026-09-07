@@ -38,7 +38,7 @@ try {
         exit;
     }
 
-    $backup_path = UPLOAD_DIR . $backup['backup_path'];
+$backup_path = resolve_upload_path($backup['backup_path']);
 
     if (!file_exists($backup_path)) {
         echo json_encode(['success' => true, 'valid' => false, 'reason' => 'Backup file not found on disk']);

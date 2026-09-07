@@ -16,6 +16,7 @@ header('Content-Type: application/json');
 // Authentication & CSRF
 requireAuth();
 requireCSRFToken();
+if (!hasPermission('birth_edit')) { json_response(false, 'Permission denied.', null, 403); }
 
 // Only allow POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

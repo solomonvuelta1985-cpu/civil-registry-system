@@ -43,8 +43,8 @@ function deviceLockGate(array $user): bool {
     $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
 
     // Reject obviously bad / missing fingerprints — don't auto-enroll garbage.
-    if (empty($fp) || strlen($fp) < 32) {
-        logSecurityEvent('DEVICE_BLOCKED', 'HIGH', null, json_encode([
+    if (!preg_match('/^[a-f0-9]{64}$/i', $fp)) {
+        logSecurityEvent('DEVICE_BLOCKED', 'HIGH', json_encode([
             'reason'         => 'missing_or_invalid_fingerprint',
             'attempted_user' => $user['username'] ?? '',
             'ip'             => $ip,
@@ -57,14 +57,15 @@ function deviceLockGate(array $user): bool {
 
     if ($device && $device['status'] === 'Active') {
         updateDeviceLastSeen($fp, $ip);
+        $_SESSION['device_fingerprint'] = strtolower($fp);
         return true;
     }
 
     if ($device && $device['status'] === 'Pending') {
-        logSecurityEvent('DEVICE_PENDING_RETRY', 'LOW', $user['id'] ?? null, json_encode([
+        logSecurityEvent('DEVICE_PENDING_RETRY', 'LOW', json_encode([
             'fp_prefix' => substr($fp, 0, 16),
             'device_id' => $device['id'],
-        ]));
+        ]), $user['id'] ?? null);
         $_SESSION['pending_device_id'] = (int) $device['id'];
         $_SESSION['pending_device_fp'] = $fp;
         header('Location: device_pending.php');
@@ -72,11 +73,11 @@ function deviceLockGate(array $user): bool {
     }
 
     if ($device && $device['status'] === 'Revoked') {
-        logSecurityEvent('DEVICE_BLOCKED', 'HIGH', $user['id'] ?? null, json_encode([
+        logSecurityEvent('DEVICE_BLOCKED', 'HIGH', json_encode([
             'reason'    => 'revoked_device',
             'fp_prefix' => substr($fp, 0, 16),
             'device_id' => $device['id'],
-        ]));
+        ]), $user['id'] ?? null);
         header('Location: device_blocked.php');
         exit;
     }
@@ -88,11 +89,11 @@ function deviceLockGate(array $user): bool {
         $device = getDeviceByFingerprint($fp);
         $newId = $device ? (int) $device['id'] : 0;
     }
-    logSecurityEvent('DEVICE_APPROVAL_REQUESTED', 'MEDIUM', (int) $user['id'], json_encode([
+    logSecurityEvent('DEVICE_APPROVAL_REQUESTED', 'MEDIUM', json_encode([
         'fp_prefix' => substr($fp, 0, 16),
         'device_id' => $newId,
         'ip'        => $ip,
-    ]));
+    ]), (int) $user['id']);
     $_SESSION['pending_device_id'] = $newId;
     $_SESSION['pending_device_fp'] = $fp;
     header('Location: device_pending.php');
@@ -112,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($error)) {
-        $username = sanitize_input($_POST['username'] ?? '');
+        $username = strtolower(trim((string)($_POST['username'] ?? '')));
         $password = $_POST['password'] ?? '';
 
         if (empty($username) || empty($password)) {
@@ -120,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // Rate Limiting
             if (ENABLE_RATE_LIMITING) {
-                $rate_limit_identifier = 'login_' . $username . '_' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+                $rate_limit_identifier = 'login_' . $username . '_' . (function_exists('getClientIP') ? getClientIP() : ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
                 $rate_limit_check = checkRateLimit($rate_limit_identifier, MAX_LOGIN_ATTEMPTS, RATE_LIMIT_WINDOW);
 
                 if (!$rate_limit_check['allowed']) {

@@ -514,10 +514,12 @@ class CertificateFormHandler {
             info: 'info'
         };
 
-        alert.innerHTML = `
-            <i data-lucide="${iconMap[type] || 'info'}" aria-hidden="true"></i>
-            <span>${message}</span>
-        `;
+        const icon = document.createElement('i');
+        icon.setAttribute('data-lucide', iconMap[type] || 'info');
+        icon.setAttribute('aria-hidden', 'true');
+        const messageNode = document.createElement('span');
+        messageNode.textContent = String(message ?? '');
+        alert.append(icon, messageNode);
 
         this.alertContainer.appendChild(alert);
 
@@ -960,7 +962,10 @@ class CertificateFormHandler {
      * Setup auto-save functionality
      */
     setupAutoSave() {
-        const autoSaveKey = `cert_form_autosave_${this.formType}`;
+        const userScope = document.querySelector('meta[name="iscan-user-id"]')?.content || 'anonymous';
+        const autoSaveKey = `crdms_draft_${userScope}_${this.formType}`;
+        const legacyKey = `cert_form_autosave_${this.formType}`;
+        localStorage.removeItem(legacyKey);
         let autoSaveTimeout;
 
         // Check if we're in edit mode
@@ -970,7 +975,12 @@ class CertificateFormHandler {
         const savedData = localStorage.getItem(autoSaveKey);
         if (savedData && !isEditMode) {
             try {
-                const data = JSON.parse(savedData);
+                const parsed = JSON.parse(savedData);
+                if (!parsed || typeof parsed !== 'object' || !parsed.savedAt || Date.now() - parsed.savedAt > 12 * 60 * 60 * 1000) {
+                    localStorage.removeItem(autoSaveKey);
+                    throw new Error('expired autosave');
+                }
+                const data = parsed.fields || {};
 
                 if (typeof Notiflix !== 'undefined' && Notiflix.Confirm) {
                     Notiflix.Confirm.show(
@@ -1045,7 +1055,8 @@ class CertificateFormHandler {
             }
         }
 
-        localStorage.setItem(key, JSON.stringify(data));
+        delete data.csrf_token;
+        localStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), fields: data }));
     }
 
     /**
@@ -1077,8 +1088,10 @@ class CertificateFormHandler {
      * Clear autosaved data
      */
     clearAutoSave() {
-        const autoSaveKey = `cert_form_autosave_${this.formType}`;
+        const userScope = document.querySelector('meta[name="iscan-user-id"]')?.content || 'anonymous';
+        const autoSaveKey = `crdms_draft_${userScope}_${this.formType}`;
         localStorage.removeItem(autoSaveKey);
+        localStorage.removeItem(`cert_form_autosave_${this.formType}`);
     }
 
     /**

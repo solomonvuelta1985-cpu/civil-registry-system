@@ -694,6 +694,15 @@ $qs_base = http_build_query(array_filter([
 <script>
 lucide.createIcons();
 const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
+function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value === null || value === undefined ? '' : String(value);
+    return div.innerHTML;
+}
+function backupTypeClass(value) {
+    const type = String(value || '');
+    return ({ birth: 'birth', death: 'death', marriage: 'marriage', marriage_license: 'ml' })[type] || 'unknown';
+}
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab').forEach(t => {
@@ -763,13 +772,13 @@ async function showDetails(id) {
         const html = `
             <dl class="detail-grid" style="text-align:left;">
                 <dt>Backup ID</dt><dd>#${id}</dd>
-                <dt>Original path</dt><dd style="font-family:monospace;font-size:12px;">${filename}</dd>
-                <dt>Backed up</dt><dd>${backedUp}</dd>
-                <dt>By</dt><dd>${by}</dd>
-                <dt>File size</dt><dd>${size}</dd>
+                <dt>Original path</dt><dd style="font-family:monospace;font-size:12px;">${escapeHtml(filename)}</dd>
+                <dt>Backed up</dt><dd>${escapeHtml(backedUp)}</dd>
+                <dt>By</dt><dd>${escapeHtml(by)}</dd>
+                <dt>File size</dt><dd>${escapeHtml(size)}</dd>
                 <dt>Integrity</dt><dd>${valid
                     ? '<span class="badge badge-ok">✓ Valid</span>'
-                    : '<span class="badge badge-corrupt">✗ ' + reason + '</span>'}</dd>
+                    : '<span class="badge badge-corrupt">✗ ' + escapeHtml(reason) + '</span>'}</dd>
             </dl>`;
         Notiflix.Loading.remove();
         Notiflix.Report.info('Backup #' + id, html, 'Close', { plainText: false, messageMaxLength: 9999 });
@@ -863,7 +872,7 @@ async function bulkVerify() {
                         status.insertAdjacentHTML('beforeend', ' <span class="badge badge-verified" title="Just verified"><i data-lucide="shield-check" style="width:10px;height:10px;"></i></span>');
                     }
                 } else {
-                    status.insertAdjacentHTML('beforeend', ` <span class="badge badge-corrupt" title="${(data.reason||'')}">✗</span>`);
+                    status.insertAdjacentHTML('beforeend', ` <span class="badge badge-corrupt" title="${escapeHtml(data.reason || '')}">✗</span>`);
                 }
             }
         } catch (e) { bad++; }
@@ -887,14 +896,14 @@ async function runReconcile() {
         const data = await res.json();
         if (!data.success) { status.textContent = 'Failed: ' + (data.message || 'Unknown'); return; }
 
-        status.innerHTML = `<strong>${data.db_total}</strong> DB rows • <strong>${data.disk_total}</strong> files on disk • <strong style="color:#ef4444;">${data.missing.length}</strong> missing • <strong style="color:#f59e0b;">${data.orphans.length}</strong> orphan(s)`;
+        status.innerHTML = `<strong>${Number(data.db_total) || 0}</strong> DB rows • <strong>${Number(data.disk_total) || 0}</strong> files on disk • <strong style="color:#ef4444;">${data.missing.length}</strong> missing • <strong style="color:#f59e0b;">${data.orphans.length}</strong> orphan(s)`;
 
         let html = '';
         if (data.missing.length) {
             html += `<div class="result-block"><h5><i data-lucide="file-x" style="width:14px;height:14px;color:#ef4444;"></i> Missing files (DB row, no file on disk)</h5>`;
             html += `<table><thead><tr><th>ID</th><th>Type</th><th>Record</th><th>Backup Path</th><th>Backed Up</th><th>Status</th></tr></thead><tbody>`;
             data.missing.forEach(m => {
-                html += `<tr><td>#${m.id}</td><td><span class="badge badge-${m.cert_type === 'marriage_license' ? 'ml' : m.cert_type}">${m.cert_type}</span></td><td>#${m.record_id}</td><td><span class="mono">${m.backup_path}</span></td><td style="font-size:12px;color:#64748b;">${m.backed_up_at}</td><td>${m.restored_at ? '<span class="badge badge-restored">Restored</span>' : '<span class="badge badge-pending">Pending</span>'}</td></tr>`;
+                html += `<tr><td>#${Number(m.id) || 0}</td><td><span class="badge badge-${backupTypeClass(m.cert_type)}">${escapeHtml(m.cert_type)}</span></td><td>#${Number(m.record_id) || 0}</td><td><span class="mono">${escapeHtml(m.backup_path)}</span></td><td style="font-size:12px;color:#64748b;">${escapeHtml(m.backed_up_at)}</td><td>${m.restored_at ? '<span class="badge badge-restored">Restored</span>' : '<span class="badge badge-pending">Pending</span>'}</td></tr>`;
             });
             html += `</tbody></table></div>`;
         }
@@ -902,7 +911,7 @@ async function runReconcile() {
             html += `<div class="result-block"><h5><i data-lucide="file-question" style="width:14px;height:14px;color:#f59e0b;"></i> Orphan files (file on disk, no DB row)</h5>`;
             html += `<table><thead><tr><th>Path</th><th>Size</th><th>Modified</th></tr></thead><tbody>`;
             data.orphans.forEach(o => {
-                html += `<tr><td><span class="mono">${o.backup_path}</span></td><td style="font-size:12px;color:#64748b;">${(o.size/1024).toFixed(1)} KB</td><td style="font-size:12px;color:#64748b;">${o.mtime}</td></tr>`;
+                html += `<tr><td><span class="mono">${escapeHtml(o.backup_path)}</span></td><td style="font-size:12px;color:#64748b;">${(Number(o.size)/1024).toFixed(1)} KB</td><td style="font-size:12px;color:#64748b;">${escapeHtml(o.mtime)}</td></tr>`;
             });
             html += `</tbody></table></div>`;
         }
@@ -936,7 +945,7 @@ async function runDedupe() {
         status.innerHTML = `<strong>${data.groups.length}</strong> duplicate group(s) • <strong>${data.computed}</strong> fingerprints computed (<strong>${data.cached}</strong> cached, <strong>${data.missing}</strong> missing) • Reclaimable: <strong style="color:var(--color-success);">${(totalReclaim/1024/1024).toFixed(2)} MB</strong>`;
 
         if (!data.groups.length) {
-            out.innerHTML = `<div class="empty-state"><i data-lucide="check-circle" style="width:40px;height:40px;color:#22c55e;"></i><p style="margin-top:8px;color:#166534;font-weight:600;">No near-duplicate backups found at threshold ${data.threshold}.</p></div>`;
+            out.innerHTML = `<div class="empty-state"><i data-lucide="check-circle" style="width:40px;height:40px;color:#22c55e;"></i><p style="margin-top:8px;color:#166534;font-weight:600;">No near-duplicate backups found at threshold ${Number(data.threshold) || 0}.</p></div>`;
             lucide.createIcons();
             return;
         }
@@ -948,21 +957,21 @@ async function runDedupe() {
 
         data.groups.forEach((g, gi) => {
             html += `<div class="dedupe-group"><div class="dedupe-group-header">
-                <span class="badge badge-${g.cert_type === 'marriage_license' ? 'ml' : g.cert_type}">${g.cert_type}</span>
-                <strong>Record #${g.record_id}</strong>
-                <span style="color:#64748b;">${g.count} files, ${(g.total_size/1024/1024).toFixed(2)} MB total</span>
-                <span class="save-hint">↓ Reclaim ${((g.total_size - (g.members[0]?.file_size || 0))/1024/1024).toFixed(2)} MB</span>
+                <span class="badge badge-${backupTypeClass(g.cert_type)}">${escapeHtml(g.cert_type)}</span>
+                <strong>Record #${Number(g.record_id) || 0}</strong>
+                <span style="color:#64748b;">${Number(g.count) || 0} files, ${(Number(g.total_size)/1024/1024).toFixed(2)} MB total</span>
+                <span class="save-hint">↓ Reclaim ${((Number(g.total_size) - (Number(g.members[0]?.file_size) || 0))/1024/1024).toFixed(2)} MB</span>
             </div>`;
             g.members.forEach((m, mi) => {
                 const isKeep = mi === 0;
                 html += `<div class="dedupe-member ${isKeep ? 'keep' : ''}">
                     <input type="checkbox" class="dedupe-check" data-id="${m.id}" ${isKeep ? '' : 'checked'}>
                     ${isKeep ? '<span class="badge badge-restored">Keep (newest)</span>' : '<span class="badge badge-pending">Delete</span>'}
-                    <span class="mono">${m.original}</span>
-                    <span style="color:#64748b;">${(m.file_size/1024).toFixed(1)} KB</span>
-                    <span style="color:#64748b;font-size:11px;">${m.backed_up_at}</span>
-                    <span style="color:#94a3b8;font-size:11px;font-family:monospace;">fp:${m.sim_hash}</span>
-                    <button class="btn btn-outline btn-sm" onclick="previewBackup(${m.id})" style="margin-left:auto;"><i data-lucide="eye" style="width:11px;height:11px;"></i></button>
+                    <span class="mono">${escapeHtml(m.original)}</span>
+                    <span style="color:#64748b;">${(Number(m.file_size)/1024).toFixed(1)} KB</span>
+                    <span style="color:#64748b;font-size:11px;">${escapeHtml(m.backed_up_at)}</span>
+                    <span style="color:#94a3b8;font-size:11px;font-family:monospace;">fp:${escapeHtml(m.sim_hash)}</span>
+                    <button class="btn btn-outline btn-sm" onclick="previewBackup(${Number(m.id) || 0})" style="margin-left:auto;"><i data-lucide="eye" style="width:11px;height:11px;"></i></button>
                 </div>`;
             });
             html += `</div>`;

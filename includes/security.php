@@ -18,10 +18,10 @@ function generateCSRFToken() {
  * Verify CSRF Token
  */
 function verifyCSRFToken($token) {
-    if (!isset($_SESSION['csrf_token']) || !isset($token)) {
+    if (!isset($_SESSION['csrf_token']) || !is_string($token) || $token === '') {
         return false;
     }
-    return hash_equals($_SESSION['csrf_token'], $token);
+    return is_string($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
 }
 
 /**
@@ -41,20 +41,37 @@ function csrfTokenMeta() {
 }
 
 /**
+ * Read a request body once and make it available to CSRF validation and the
+ * endpoint parser. This preserves JSON bodies when the token is included in
+ * the JSON payload instead of the header.
+ */
+function requestBody() {
+    if (!array_key_exists('_iscan_raw_request_body', $GLOBALS)) {
+        $GLOBALS['_iscan_raw_request_body'] = file_get_contents('php://input');
+    }
+    return $GLOBALS['_iscan_raw_request_body'];
+}
+
+/**
  * Require CSRF Token (call at the start of POST handlers)
  */
 function requireCSRFToken() {
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $token = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? null;
+    $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+    if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+        $token = $_POST['csrf_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? null);
+        if ($token === null && in_array($method, ['PUT', 'PATCH', 'DELETE'], true)) {
+            $raw = requestBody();
+            $contentType = strtolower($_SERVER['CONTENT_TYPE'] ?? '');
+            if (strpos($contentType, 'application/json') !== false && is_string($raw) && $raw !== '') {
+                $json = json_decode($raw, true);
+                $token = is_array($json) ? ($json['csrf_token'] ?? null) : null;
+            }
+        }
 
         if (!verifyCSRFToken($token)) {
             http_response_code(403);
-            if (isAjaxRequest()) {
-                header('Content-Type: application/json');
-                echo json_encode(['success' => false, 'message' => 'CSRF token validation failed']);
-            } else {
-                die('CSRF token validation failed. Please refresh the page and try again.');
-            }
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['success' => false, 'message' => 'CSRF token validation failed'], JSON_UNESCAPED_SLASHES);
             exit;
         }
     }
@@ -76,20 +93,20 @@ function checkRateLimit($identifier, $max_attempts = 5, $time_window = 300) {
     global $pdo;
 
     try {
+        $identifier = substr(hash('sha256', (string)$identifier), 0, 64);
+        $max_attempts = max(1, min((int)$max_attempts, 100));
+        $time_window = max(1, min((int)$time_window, 86400));
         // Clean old entries (older than time window)
-        $cleanup_sql = "DELETE FROM rate_limits WHERE created_at < DATE_SUB(NOW(), INTERVAL :time_window SECOND)";
+        $cleanup_sql = "DELETE FROM rate_limits WHERE created_at < DATE_SUB(NOW(), INTERVAL {$time_window} SECOND)";
         $cleanup_stmt = $pdo->prepare($cleanup_sql);
-        $cleanup_stmt->execute([':time_window' => $time_window]);
+        $cleanup_stmt->execute();
 
         // Count attempts in time window
         $count_sql = "SELECT COUNT(*) as attempts FROM rate_limits
                       WHERE identifier = :identifier
-                      AND created_at >= DATE_SUB(NOW(), INTERVAL :time_window SECOND)";
+                      AND created_at >= DATE_SUB(NOW(), INTERVAL {$time_window} SECOND)";
         $count_stmt = $pdo->prepare($count_sql);
-        $count_stmt->execute([
-            ':identifier' => $identifier,
-            ':time_window' => $time_window
-        ]);
+        $count_stmt->execute([':identifier' => $identifier]);
         $result = $count_stmt->fetch();
 
         if ($result['attempts'] >= $max_attempts) {
@@ -125,9 +142,10 @@ function checkRateLimit($identifier, $max_attempts = 5, $time_window = 300) {
         return ['allowed' => true];
 
     } catch (PDOException $e) {
-        // If rate limiting fails, allow the request (fail open)
+        // A database failure must not disable brute-force protection.
         error_log("Rate Limiting Error: " . $e->getMessage());
-        return ['allowed' => true];
+        return ['allowed' => false, 'remaining_time' => 1,
+            'message' => 'Login protection is temporarily unavailable. Please try again shortly.'];
     }
 }
 
@@ -138,6 +156,7 @@ function clearRateLimit($identifier) {
     global $pdo;
 
     try {
+        $identifier = substr(hash('sha256', (string)$identifier), 0, 64);
         $sql = "DELETE FROM rate_limits WHERE identifier = :identifier";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([':identifier' => $identifier]);
@@ -153,6 +172,22 @@ function clearRateLimit($identifier) {
 function logSecurityEvent($event_type, $severity, $details, $user_id = null) {
     global $pdo;
 
+    // Older callers in this codebase passed (event, severity, user_id, details).
+    // Normalize that legacy order while keeping the public signature safe.
+    if ((is_int($details) || (is_string($details) && ctype_digit($details))) && (is_array($user_id) || is_object($user_id))) {
+        $legacyUser = (int)$details;
+        $details = $user_id;
+        $user_id = $legacyUser;
+    }
+    if ((is_int($details) || (is_string($details) && ctype_digit($details))) && is_string($user_id) && !ctype_digit($user_id)) {
+        $legacyUser = (int)$details;
+        $details = $user_id;
+        $user_id = $legacyUser;
+    }
+    if ($details === null && is_string($user_id) && !ctype_digit($user_id)) {
+        $details = $user_id;
+        $user_id = null;
+    }
     try {
         $sql = "INSERT INTO security_logs (event_type, severity, user_id, ip_address, user_agent, details, created_at)
                 VALUES (:event_type, :severity, :user_id, :ip_address, :user_agent, :details, NOW())";

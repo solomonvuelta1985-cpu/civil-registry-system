@@ -73,15 +73,19 @@ try {
     $deleted_files = 0;
     $freed_bytes   = 0;
     $deleted_ids   = [];
+    $failed_ids    = [];
 
     foreach ($to_delete as $row) {
-        $abs_path = UPLOAD_DIR . $row['backup_path'];
+$abs_path = resolve_upload_path($row['backup_path']);
+        if ($abs_path === false) { $failed_ids[] = (int)$row['id']; continue; }
         if (file_exists($abs_path)) {
             $size = @filesize($abs_path) ?: 0;
             if (@unlink($abs_path)) {
                 $freed_bytes += $size;
                 $deleted_files++;
-            }
+            } else { $failed_ids[] = (int)$row['id']; continue; }
+        } else {
+            $failed_ids[] = (int)$row['id']; continue;
         }
         $deleted_ids[] = (int)$row['id'];
     }
@@ -103,6 +107,7 @@ try {
         'deleted_files' => $deleted_files,
         'freed_bytes'   => $freed_bytes,
         'freed_mb'      => round($freed_bytes / 1024 / 1024, 2),
+        'failed'        => $failed_ids,
         'message'       => sprintf('Deleted %d backup(s), freed %.2f MB (%s).',
                                    $deleted_files, $freed_bytes / 1024 / 1024, $mode_desc),
     ]);

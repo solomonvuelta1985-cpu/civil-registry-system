@@ -675,6 +675,17 @@ function renderTable(rows) {
     lucide.createIcons();
 }
 
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+    }[ch]));
+}
+
+function safeCertType(value) {
+    const type = String(value ?? '');
+    return ['birth', 'death', 'marriage', 'marriage_license'].includes(type) ? type : '';
+}
+
 function badgeHtml(status) {
     const map = {
         ok:      ['badge-ok',      'check-circle', 'OK'],
@@ -682,42 +693,46 @@ function badgeHtml(status) {
         missing: ['badge-missing', 'file-x',       'Missing'],
         no_hash: ['badge-no-hash', 'hash',          'No Hash'],
     };
-    const [cls, icon, label] = map[status] || ['', 'help-circle', status];
+    const [cls, icon, label] = map[status] || ['', 'help-circle', 'Unknown'];
     return `<span class="badge ${cls}"><i data-lucide="${icon}" style="width:12px;height:12px;"></i>${label}</span>`;
 }
 
 function typeLabel(type) {
     const map = { birth: 'Birth', death: 'Death', marriage: 'Marriage', marriage_license: 'M. License' };
-    return `<span class="cert-type-badge">${map[type] || type}</span>`;
+    return `<span class="cert-type-badge">${map[type] || 'Unknown'}</span>`;
 }
 
 function buildRow(r) {
-    const hashDisplay = r.stored_hash
-        ? `<span class="hash-mono" title="${r.stored_hash}">${r.stored_hash.substring(0,16)}…</span>`
-        : '<span style="color:#94a3b8;font-style:italic;">—</span>';
+    const certType = safeCertType(r.cert_type);
+    const recordId = Number(r.record_id) || 0;
+    const status = String(r.status || '');
+    const storedHash = escapeHtml(r.stored_hash || '');
+    const hashDisplay = storedHash
+        ? `<span class="hash-mono" title="${storedHash}">${storedHash.substring(0,16)}...</span>`
+        : '<span style="color:#94a3b8;font-style:italic;">-</span>';
 
     let actions = '';
-    if (r.status === 'no_hash') {
-        actions = `<button class="action-btn btn-backfill" onclick="backfillHash('${r.cert_type}', ${r.record_id}, this)">
+    if (status === 'no_hash') {
+        actions = `<button class="action-btn btn-backfill" onclick="backfillHash(${JSON.stringify(certType)}, ${recordId}, this)">
                     <i data-lucide="hash" style="width:13px;height:13px;"></i> Backfill Hash
                    </button>`;
-    } else if (r.status === 'corrupt' || r.status === 'missing') {
+    } else if (status === 'corrupt' || status === 'missing') {
         if (r.backup_id) {
-            actions = `<button class="action-btn btn-restore" onclick="restoreBackup(${r.backup_id}, ${r.record_id}, this)">
+            actions = `<button class="action-btn btn-restore" onclick="restoreBackup(${Number(r.backup_id) || 0}, ${recordId}, this)">
                         <i data-lucide="archive-restore" style="width:13px;height:13px;"></i> Restore Backup
                        </button>`;
         } else {
             actions = `<span class="action-btn btn-disabled"><i data-lucide="x" style="width:13px;height:13px;"></i> No Backup</span>`;
         }
     } else {
-        actions = '<span style="color:#94a3b8;font-size:.8rem;">—</span>';
+        actions = '<span style="color:#94a3b8;font-size:.8rem;">-</span>';
     }
 
-    return `<tr data-status="${r.status}" data-type="${r.cert_type}">
-        <td>${badgeHtml(r.status)}</td>
-        <td>${typeLabel(r.cert_type)}</td>
-        <td>#${r.record_id}</td>
-        <td style="font-size:.82rem;color:#374151;">${r.pdf_filename || '<em>—</em>'}</td>
+    return `<tr data-status="${escapeHtml(status)}" data-type="${escapeHtml(certType)}">
+        <td>${badgeHtml(status)}</td>
+        <td>${typeLabel(certType)}</td>
+        <td>#${recordId}</td>
+        <td style="font-size:.82rem;color:#374151;">${r.pdf_filename ? escapeHtml(r.pdf_filename) : '<em>-</em>'}</td>
         <td>${hashDisplay}</td>
         <td>${actions}</td>
     </tr>`;
@@ -746,7 +761,7 @@ async function backfillHash(certType, recordId, btn) {
             btn.closest('tr').querySelector('.badge').outerHTML =
                 '<span class="badge badge-ok"><i data-lucide="check-circle" style="width:12px;height:12px;"></i>OK</span>';
             btn.closest('tr').querySelector('.hash-mono, [style*="font-style:italic"]').outerHTML =
-                `<span class="hash-mono" title="${data.hash}">${(data.hash||'').substring(0,16)}…</span>`;
+                `<span class="hash-mono" title="${escapeHtml(data.hash || '')}">${escapeHtml((data.hash||'').substring(0,16))}...</span>`;
             btn.closest('td').innerHTML = '<span style="color:#22c55e;font-size:.8rem;">Hash saved</span>';
             // Update allResults
             const rec = allResults.find(r => r.cert_type === certType && r.record_id == recordId);

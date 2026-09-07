@@ -14,6 +14,8 @@ require_once __DIR__ . '/security_headers.php';
 
 // Configure session settings before starting the session
 ini_set('session.use_only_cookies', 1);
+ini_set('session.use_strict_mode', 1);
+ini_set('session.use_trans_sid', 0);
 ini_set('session.gc_maxlifetime', SESSION_TIMEOUT);
 ini_set('session.gc_probability', 1);
 ini_set('session.gc_divisor', 100);
@@ -49,6 +51,14 @@ if (isset($_SESSION['LAST_ACTIVITY']) && (time() - $_SESSION['LAST_ACTIVITY'] > 
     ]);
     session_start();
 
+    // APIs receive a machine-readable timeout instead of an HTML redirect.
+    $isApi = strpos($_SERVER['SCRIPT_NAME'] ?? '', '/api/') !== false;
+    if ($isApi) {
+        http_response_code(401);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['success' => false, 'message' => 'Session expired. Please sign in again.']);
+        exit;
+    }
     // Redirect to login if not already there
     if (!isset($_GET['timeout']) && basename($_SERVER['PHP_SELF']) !== 'login.php') {
         header('Location: ' . BASE_URL . 'public/login.php?timeout=1');
@@ -65,4 +75,10 @@ $_SESSION['LAST_ACTIVITY'] = time();
 // causing silent session loss on the next navigation.
 if (!isset($_SESSION['CREATED'])) {
     $_SESSION['CREATED'] = time();
+}
+
+// Apply baseline headers to every request that uses the shared bootstrap,
+// including APIs and pages that do not call setSecurityHeaders() themselves.
+if (php_sapi_name() !== 'cli' && function_exists('setSecurityHeaders')) {
+    setSecurityHeaders();
 }

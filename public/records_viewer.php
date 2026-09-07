@@ -3324,11 +3324,12 @@ function detect_late_registration($record, $record_type) {
             const isLinked = linkMap && linkMap[record.id] ? true : false;
             const linkInfo = linkMap && linkMap[record.id] || null;
             const rowClass = isArchived ? 'row-archived' : '';
-            let html = `<tr class="${rowClass}" data-record-id="${record.id}" data-record-status="${escapeHtml(record.status || 'Active')}">`;
+            const recordId = Number(record.id) || 0;
+            let html = `<tr class="${rowClass}" data-record-id="${recordId}" data-record-status="${escapeHtml(record.status || 'Active')}">`;
 
             // Checkbox column (only if archiving is enabled for this type)
             if (canArchive) {
-                html += `<td class="select-cell"><input type="checkbox" class="row-checkbox" value="${record.id}" data-status="${escapeHtml(record.status || 'Active')}" onclick="updateBulkSelection()"></td>`;
+                html += `<td class="select-cell"><input type="checkbox" class="row-checkbox" value="${recordId}" data-status="${escapeHtml(record.status || 'Active')}" onclick="updateBulkSelection()"></td>`;
             }
 
             // Add row number cell
@@ -3348,27 +3349,29 @@ function detect_late_registration($record, $record_type) {
                     : '';
                 if (isNameField) {
                     firstNameShown = true;
-                    html += `<td><a href="javascript:void(0)" class="record-name-link" onclick="recordPreviewModal.open(${record.id}, '${recordType}')">${value}</a>${badge}</td>`;
+                    html += `<td><a href="javascript:void(0)" class="record-name-link" onclick="recordPreviewModal.open(${recordId}, '${recordType}')">${value}</a>${badge}</td>`;
                 } else {
                     html += `<td>${value}${regBadge}</td>`;
                 }
             });
 
             // Actions column with dropdown
-            const recordDataJson = JSON.stringify(record).replace(/"/g, '&quot;');
+            // Encode API data before placing it in an inline handler. Percent-encoding
+            // keeps quotes, apostrophes, angle brackets, and newlines out of HTML/JS.
+            const recordDataEncoded = encodeURIComponent(JSON.stringify(record)).replace(/'/g, '%27');
             html += `<td>
                 <div class="action-dropdown">
                     <button class="action-dropdown-btn" onclick="toggleActionDropdown(event, this)">
                         <i data-lucide="more-vertical" style="width: 16px; height: 16px;"></i>
                     </button>
                     <div class="action-dropdown-menu">
-                        <button class="action-dropdown-item view-action" onclick="recordPreviewModal.open(${record.id}, '${recordType}'); closeAllDropdowns();">
+                        <button class="action-dropdown-item view-action" onclick="recordPreviewModal.open(${recordId}, '${recordType}'); closeAllDropdowns();">
                             <i data-lucide="file-text"></i>
                             <span>View</span>
                         </button>`;
 
             <?php if (hasPermission($edit_permission)): ?>
-            html += `<button class="action-dropdown-item edit-action" onclick='editRecord(${record.id}, "<?php echo $config['entry_form']; ?>", JSON.parse("${recordDataJson}")); closeAllDropdowns();'>
+            html += `<button class="action-dropdown-item edit-action" onclick='editRecord(${recordId}, "<?php echo $config['entry_form']; ?>", JSON.parse(decodeURIComponent("${recordDataEncoded}"))); closeAllDropdowns();'>
                             <i data-lucide="pen-line"></i>
                             <span>Edit</span>
                         </button>`;
@@ -3376,12 +3379,12 @@ function detect_late_registration($record, $record_type) {
 
             if (canArchive) {
                 if (isArchived) {
-                    html += `<button class="action-dropdown-item unarchive-action" onclick='toggleArchive(${record.id}, "unarchive", JSON.parse("${recordDataJson}")); closeAllDropdowns();'>
+                    html += `<button class="action-dropdown-item unarchive-action" onclick='toggleArchive(${recordId}, "unarchive", JSON.parse(decodeURIComponent("${recordDataEncoded}"))); closeAllDropdowns();'>
                                 <i data-lucide="archive-restore"></i>
                                 <span>Unarchive</span>
                             </button>`;
                 } else {
-                    html += `<button class="action-dropdown-item archive-action" onclick='toggleArchive(${record.id}, "archive", JSON.parse("${recordDataJson}")); closeAllDropdowns();'>
+                    html += `<button class="action-dropdown-item archive-action" onclick='toggleArchive(${recordId}, "archive", JSON.parse(decodeURIComponent("${recordDataEncoded}"))); closeAllDropdowns();'>
                                 <i data-lucide="archive"></i>
                                 <span>Archive</span>
                             </button>`;
@@ -3391,12 +3394,13 @@ function detect_late_registration($record, $record_type) {
             if (canLink) {
                 if (isLinked) {
                     const li = linkInfo;
-                    html += `<button class="action-dropdown-item" onclick="recordPreviewModal.open(${li.paired_id}, '${escapeHtml(li.paired_type || recordType)}'); closeAllDropdowns();">
+                    const pairedType = ['birth', 'death', 'marriage', 'marriage_license'].includes(String(li.paired_type)) ? String(li.paired_type) : recordType;
+                    html += `<button class="action-dropdown-item" onclick="recordPreviewModal.open(${Number(li.paired_id) || 0}, '${pairedType}'); closeAllDropdowns();">
                                 <i data-lucide="link-2"></i>
                                 <span>View Linked Record</span>
                             </button>`;
                 } else {
-                    html += `<button class="action-dropdown-item" onclick="findDuplicates(${record.id}, '${recordType}'); closeAllDropdowns();">
+                    html += `<button class="action-dropdown-item" onclick="findDuplicates(${recordId}, '${recordType}'); closeAllDropdowns();">
                                 <i data-lucide="search"></i>
                                 <span>Find Duplicates</span>
                             </button>`;
@@ -3410,7 +3414,7 @@ function detect_late_registration($record, $record_type) {
             }
 
             <?php if ($can_delete): ?>
-            html += `<button class="action-dropdown-item delete-action" onclick='deleteRecord(${record.id}, JSON.parse("${recordDataJson}")); closeAllDropdowns();'>
+                html += `<button class="action-dropdown-item delete-action" onclick='deleteRecord(${recordId}, JSON.parse(decodeURIComponent("${recordDataEncoded}"))); closeAllDropdowns();'>
                             <i data-lucide="x-circle"></i>
                             <span>Delete</span>
                         </button>`;

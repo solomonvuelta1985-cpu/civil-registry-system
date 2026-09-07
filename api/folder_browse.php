@@ -39,7 +39,7 @@ try {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Server error: ' . $e->getMessage(),
+        'message' => 'Server error. Please try again.',
     ]);
 }
 
@@ -172,8 +172,8 @@ function handle_tree(PDO $pdo) {
 function handle_list(PDO $pdo) {
     $type = $_GET['type'] ?? '';
     $year = $_GET['year'] ?? null;
-    $lastName = $_GET['last_name'] ?? null;
-    $search = trim($_GET['search'] ?? '');
+    $lastName = isset($_GET['last_name']) ? mb_substr(trim((string)$_GET['last_name']), 0, 80) : null;
+    $search = mb_substr(trim((string)($_GET['search'] ?? '')), 0, 100);
     $page = max(1, (int)($_GET['page'] ?? 1));
     $perPage = min(100, max(1, (int)($_GET['per_page'] ?? 25)));
 

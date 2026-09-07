@@ -79,12 +79,12 @@ if ($action === 'reactivate') {
             'Permanently deleted device "' . $row['device_name'] . '" (fp: '
                 . substr($row['fingerprint_hash'], 0, 16) . '..., was: ' . $row['status'] . ')',
             $userId);
-        logSecurityEvent('DEVICE_DELETED', 'HIGH', $userId, [
+        logSecurityEvent('DEVICE_DELETED', 'HIGH', [
             'device_id'    => $deviceId,
             'device_name'  => $row['device_name'],
             'previous_status' => $row['status'],
             'fp_prefix'    => substr($row['fingerprint_hash'], 0, 16),
-        ]);
+        ], $userId);
         echo json_encode(['success' => true, 'message' => 'Device permanently deleted']);
     } else {
         echo json_encode(['success' => false, 'message' => 'Failed to delete device']);
@@ -98,7 +98,7 @@ if ($action === 'reactivate') {
 
 if ($success) {
     log_activity($pdo, $eventMsg, 'Device ID ' . $deviceId . ' ' . $label, $userId);
-    logSecurityEvent($eventMsg, 'MEDIUM', $userId, ['device_id' => $deviceId]);
+    logSecurityEvent($eventMsg, 'MEDIUM', ['device_id' => $deviceId], $userId);
     echo json_encode(['success' => true, 'message' => 'Device ' . $label . ' successfully']);
 } else {
     echo json_encode(['success' => false, 'message' => 'Failed to update device. Device may not exist.']);

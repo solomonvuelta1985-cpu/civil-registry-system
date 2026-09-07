@@ -93,11 +93,11 @@ if ($action === 'approve') {
         log_activity($pdo, 'DEVICE_APPROVED',
             'Approved device #' . $deviceId . ' (' . substr($device['fingerprint_hash'], 0, 16) . '...)',
             $adminId);
-        logSecurityEvent('DEVICE_APPROVED', 'LOW', $adminId, [
+        logSecurityEvent('DEVICE_APPROVED', 'LOW', [
             'device_id'    => $deviceId,
             'requested_by' => $device['requested_by'],
             'fp_prefix'    => substr($device['fingerprint_hash'], 0, 16),
-        ]);
+        ], $adminId);
         echo json_encode([
             'success' => true,
             'message' => 'Device approved. The user can now log in.',
@@ -113,11 +113,11 @@ if (rejectDevice($deviceId, $adminId)) {
     log_activity($pdo, 'DEVICE_REJECTED',
         'Rejected device #' . $deviceId . ' (' . substr($device['fingerprint_hash'], 0, 16) . '...)',
         $adminId);
-    logSecurityEvent('DEVICE_REJECTED', 'MEDIUM', $adminId, [
+    logSecurityEvent('DEVICE_REJECTED', 'MEDIUM', [
         'device_id'    => $deviceId,
         'requested_by' => $device['requested_by'],
         'fp_prefix'    => substr($device['fingerprint_hash'], 0, 16),
-    ]);
+    ], $adminId);
     echo json_encode([
         'success' => true,
         'message' => 'Device rejected. The user has been notified.',

@@ -5,6 +5,10 @@
  * Access: http://localhost/iscan/setup_death_table.php
  */
 
+if (php_sapi_name() !== 'cli') {
+    http_response_code(404);
+    exit('This installer is CLI-only.');
+}
 require_once 'includes/config.php';
 
 echo "<!DOCTYPE html><html><head><title>Create Death Table</title></head><body>";

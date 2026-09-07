@@ -94,7 +94,7 @@ class OCRPageSelector {
 
         try {
             const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer, isEvalSupported: false, enableScripting: false }).promise;
             this.totalPages = pdf.numPages;
 
             console.log(`📄 PDF loaded: ${this.totalPages} pages`);

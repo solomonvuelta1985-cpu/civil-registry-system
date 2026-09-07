@@ -9,6 +9,11 @@
  * SECURITY: Delete this file after downloading assets
  */
 
+if (php_sapi_name() !== 'cli') {
+    http_response_code(404);
+    exit('Asset downloads are CLI-only.');
+}
+
 // Increase execution time for downloads
 set_time_limit(600); // 10 minutes
 ini_set('memory_limit', '512M');

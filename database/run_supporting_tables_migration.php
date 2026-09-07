@@ -1,3 +1,9 @@
+<?php
+if (php_sapi_name() !== 'cli') {
+    http_response_code(404);
+    exit('Migration scripts are CLI-only.');
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -121,7 +127,7 @@
             <button type="button" onclick="window.location.href='../admin/dashboard.php'">⬅️ Back to Dashboard</button>
         </form>
 
-        <?php
+<?php
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             require_once '../includes/config.php';
 

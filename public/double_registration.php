@@ -318,13 +318,13 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
                     <?php foreach ($links as $lnk): ?>
                     <tr>
                         <td>
-                            <a href="javascript:void(0)" class="action-link" onclick="recordPreviewModal.open(<?= (int)$lnk['primary_certificate_id'] ?>, '<?= htmlspecialchars($lnk['primary_certificate_type']) ?>')">
+                            <a href="javascript:void(0)" class="action-link" onclick="recordPreviewModal.open(<?= (int)$lnk['primary_certificate_id'] ?>, <?= htmlspecialchars(json_encode((string)$lnk['primary_certificate_type'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8') ?>)">
                                 <?= htmlspecialchars($lnk['primary_registry_no'] ?: 'N/A') ?>
                             </a>
                             <br><span style="font-size:11px;color:#64748B;"><?= htmlspecialchars($lnk['primary_child_name']) ?></span>
                         </td>
                         <td>
-                            <a href="javascript:void(0)" class="action-link" onclick="recordPreviewModal.open(<?= (int)$lnk['duplicate_certificate_id'] ?>, '<?= htmlspecialchars($lnk['duplicate_certificate_type']) ?>')">
+                            <a href="javascript:void(0)" class="action-link" onclick="recordPreviewModal.open(<?= (int)$lnk['duplicate_certificate_id'] ?>, <?= htmlspecialchars(json_encode((string)$lnk['duplicate_certificate_type'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8') ?>)">
                                 <?= htmlspecialchars($lnk['duplicate_registry_no'] ?: 'N/A') ?>
                             </a>
                             <br><span style="font-size:11px;color:#64748B;"><?= htmlspecialchars($lnk['duplicate_child_name']) ?></span>
@@ -365,7 +365,7 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
                             <?php endif; ?>
                         </td>
                         <td>
-                            <a href="javascript:void(0)" class="action-link" onclick="openComparison(<?= (int)$lnk['primary_certificate_id'] ?>, <?= (int)$lnk['duplicate_certificate_id'] ?>, '<?= htmlspecialchars($lnk['primary_certificate_type']) ?>', <?= $lnk['match_score'] !== null ? (float)$lnk['match_score'] : 'null' ?>)">Compare</a>
+                            <a href="javascript:void(0)" class="action-link" onclick="openComparison(<?= (int)$lnk['primary_certificate_id'] ?>, <?= (int)$lnk['duplicate_certificate_id'] ?>, <?= htmlspecialchars(json_encode((string)$lnk['primary_certificate_type'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8') ?>, <?= $lnk['match_score'] !== null ? (float)$lnk['match_score'] : 'null' ?>)">Compare</a>
                             <?php if ($is_admin && $lnk['status'] === 'active'): ?>
                                 <a href="javascript:void(0)" class="action-link danger js-unlink-btn"
                                    data-link-id="<?= (int)$lnk['id'] ?>"
@@ -456,7 +456,7 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
 
                     const data = await resp.json();
                     if (!data.success) {
-                        statusEl.innerHTML = `<strong style="color:#DC2626;">Error:</strong> ${data.message || 'Scan failed'}`;
+                        statusEl.innerHTML = `<strong style="color:#DC2626;">Error:</strong> ${escHtml(data.message || 'Scan failed')}`;
                         break;
                     }
 
@@ -495,7 +495,7 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
                                         <br><span style="font-size:11px;color:#64748B;">${escHtml(m.child_name || '')}</span>
                                     </td>
                                     <td><span class="badge ${scoreClass}">${Number(m.match_score).toFixed(1)}%</span></td>
-                                    <td><a href="javascript:void(0)" class="action-link" onclick="openComparison(${r.source_id}, ${m.id}, 'birth', ${Number(m.match_score) || 'null'})">Compare</a></td>
+                                    <td><a href="javascript:void(0)" class="action-link" onclick="openComparison(${Number(r.source_id) || 0}, ${Number(m.id) || 0}, 'birth', ${Number(m.match_score) || 'null'})">Compare</a></td>
                                 `;
                                 tbody.appendChild(row);
                             });
@@ -664,9 +664,17 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
             const toast = document.createElement('div');
             toast.id = 'undoUnlinkToast';
             toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0F172A;color:#FFFFFF;padding:12px 18px;border-radius:8px;display:flex;align-items:center;gap:14px;z-index:9999;box-shadow:0 10px 25px rgba(0,0,0,0.25);font-size:13px;';
-            toast.innerHTML = `<span>Unlinked ${pair}.</span>
-                <button id="undoUnlinkBtn" style="background:#16A34A;color:#FFFFFF;border:none;padding:6px 14px;border-radius:4px;font-weight:600;cursor:pointer;">Undo</button>
-                <span id="undoCountdown" style="color:#94A3B8;font-size:12px;">30s</span>`;
+            const pairLabel = document.createElement('span');
+            pairLabel.textContent = `Unlinked ${pair}.`;
+            const undoButton = document.createElement('button');
+            undoButton.id = 'undoUnlinkBtn';
+            undoButton.style.cssText = 'background:#16A34A;color:#FFFFFF;border:none;padding:6px 14px;border-radius:4px;font-weight:600;cursor:pointer;';
+            undoButton.textContent = 'Undo';
+            const countdown = document.createElement('span');
+            countdown.id = 'undoCountdown';
+            countdown.style.cssText = 'color:#94A3B8;font-size:12px;';
+            countdown.textContent = '30s';
+            toast.append(pairLabel, undoButton, countdown);
             document.body.appendChild(toast);
 
             let remaining = 30;

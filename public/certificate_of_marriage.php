@@ -99,6 +99,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <?= csrfTokenMeta() ?>
+    <meta name="iscan-user-id" content="<?= (int)($_SESSION['user_id'] ?? 0) ?>">
     <title>Marriage Certificate - Civil Registry System</title>
 
     <!-- Google Fonts (online only; system fonts used when OFFLINE_MODE=true) -->

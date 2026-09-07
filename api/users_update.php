@@ -10,6 +10,7 @@ require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 // Check authentication and permission
 if (!isLoggedIn() || !hasPermission('users_edit')) {
@@ -17,6 +18,7 @@ if (!isLoggedIn() || !hasPermission('users_edit')) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
 }
+requireCSRFToken();
 
 // Only accept POST or PUT
 if (!in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT'])) {
@@ -26,7 +28,7 @@ if (!in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT'])) {
 }
 
 // Get input
-$input = json_decode(file_get_contents('php://input'), true);
+$input = json_decode(requestBody(), true);
 
 // Validate user ID
 if (empty($input['id'])) {
@@ -54,6 +56,12 @@ if (!in_array($input['role'], $allowed_roles)) {
     echo json_encode(['success' => false, 'message' => 'Invalid role']);
     exit;
 }
+$allowed_statuses = ['Active', 'Inactive'];
+if (isset($input['status']) && !in_array($input['status'], $allowed_statuses, true)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid status']);
+    exit;
+}
 
 // Validate email if provided
 if (!empty($input['email']) && !filter_var($input['email'], FILTER_VALIDATE_EMAIL)) {
@@ -63,9 +71,9 @@ if (!empty($input['email']) && !filter_var($input['email'], FILTER_VALIDATE_EMAI
 }
 
 // Validate password if provided (min 6 chars)
-if (!empty($input['password']) && strlen($input['password']) < 6) {
+if (!empty($input['password']) && (strlen($input['password']) < MIN_PASSWORD_LENGTH || (REQUIRE_PASSWORD_COMPLEXITY && checkPasswordStrength($input['password'])['score'] < 5))) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Password must be at least 6 characters']);
+    echo json_encode(['success' => false, 'message' => 'Password does not meet the configured security policy']);
     exit;
 }
 

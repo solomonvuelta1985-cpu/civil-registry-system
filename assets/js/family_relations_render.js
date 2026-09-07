@@ -37,7 +37,10 @@
     }
 
     function viewButton(item) {
-        return `<button type="button" class="fr-view-btn" data-id="${item.id}" data-type="${item.type}">View &rarr;</button>`;
+        const allowedTypes = new Set(['birth', 'marriage', 'death', 'license']);
+        const type = allowedTypes.has(String(item.type)) ? String(item.type) : '';
+        const id = Number.isSafeInteger(Number(item.id)) ? Number(item.id) : 0;
+        return `<button type="button" class="fr-view-btn" data-id="${id}" data-type="${escapeHtml(type)}">View &rarr;</button>`;
     }
 
     function recordRow(item) {
@@ -195,7 +198,7 @@
             <div class="fr-header">
                 <div class="fr-header-title">Family of ${name}</div>
                 <div class="fr-header-meta">${meta} &middot;
-                    <button type="button" class="fr-view-btn" data-id="${source.id}" data-type="birth">View birth record &rarr;</button>
+                    <button type="button" class="fr-view-btn" data-id="${Number(source.id) || 0}" data-type="birth">View birth record &rarr;</button>
                 </div>
             </div>
             <div class="fr-disclaimer">

@@ -7,15 +7,17 @@
 
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/auth.php';
+requireAuth();
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-$current_user_id = $_SESSION['user_id'] ?? 1;
+$current_user_id = (int)$_SESSION['user_id'];
 
 // Get parameters
-$certificate_type = isset($_GET['type']) ? $_GET['type'] : 'birth';
+$certificate_type = isset($_GET['type']) ? (string)$_GET['type'] : 'birth';
+$permission_map = ['birth' => 'birth_view', 'marriage' => 'marriage_view', 'death' => 'death_view', 'marriage_license' => 'marriage_license_view'];
+if (!isset($permission_map[$certificate_type]) || !hasPermission($permission_map[$certificate_type])) {
+    http_response_code(403); exit('Access denied.');
+}
 $certificate_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
 if (!$certificate_id) {
@@ -44,9 +46,11 @@ $workflow_state = getWorkflowState($pdo, $certificate_type, $certificate_id);
  * Helper Functions
  */
 function getCertificateData($pdo, $type, $id) {
-    $table = $type === 'birth' ? 'certificate_of_live_birth' : 'certificate_of_marriage';
+    $tables = ['birth' => 'certificate_of_live_birth', 'marriage' => 'certificate_of_marriage', 'death' => 'certificate_of_death', 'marriage_license' => 'application_for_marriage_license'];
+    if (!isset($tables[$type])) return false;
+    $table = $tables[$type];
 
-    $stmt = $pdo->prepare("SELECT * FROM `$table` WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT * FROM `$table` WHERE id = ? AND status = 'Active'");
     $stmt->execute([$id]);
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
@@ -650,7 +654,7 @@ $field_groups = $certificate_type === 'birth' ? $birth_fields : $marriage_fields
         // Load PDF
         const pdfUrl = '../api/serve_pdf.php?file=<?= urlencode($pdf_info['file_name']) ?>';
 
-        pdfjsLib.getDocument(pdfUrl).promise.then(function(pdf) {
+        pdfjsLib.getDocument({ url: pdfUrl, isEvalSupported: false, enableScripting: false }).promise.then(function(pdf) {
             pdfDoc = pdf;
             pageCount = pdf.numPages;
             document.getElementById('page-info').textContent = `Page ${currentPage} of ${pageCount}`;

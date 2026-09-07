@@ -1,4 +1,5 @@
 <?php
+if (php_sapi_name() !== 'cli') { http_response_code(404); exit('Migration scripts are CLI-only.'); }
 /**
  * Run Marriage Table Migration
  * Execute this file once to create the certificate_of_marriage table

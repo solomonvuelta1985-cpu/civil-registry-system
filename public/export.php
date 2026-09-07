@@ -192,7 +192,12 @@ foreach ($config['filters'] as $param_name => $filter_def) {
 $where_sql = ' WHERE ' . implode(' AND ', $where_clauses);
 
 // Sorting
-$sort_by = sanitize_input($_GET['sort_by'] ?? 'created_at');
+$sort_allowlist = array_fill_keys(array_filter(array_keys($config['columns']), function ($column) {
+    return $column !== '' && $column[0] !== '_';
+}), true);
+$sort_allowlist['created_at'] = true;
+$requested_sort = (string)($_GET['sort_by'] ?? 'created_at');
+$sort_by = isset($sort_allowlist[$requested_sort]) ? $requested_sort : 'created_at';
 $sort_order = (isset($_GET['sort_order']) && strtoupper($_GET['sort_order']) === 'ASC') ? 'ASC' : 'DESC';
 
 try {
@@ -261,6 +266,12 @@ function resolve_export_value($col, $row, $type, $user_map) {
     return $row[$col] ?? '';
 }
 
+function spreadsheet_safe_value($value) {
+    if ($value === null) return '';
+    $value = (string)$value;
+    return ($value !== '' && preg_match('/^[\s\x00-\x1F]*[=+\-@]/', $value)) ? "'" . $value : $value;
+}
+
 $timestamp = date('Y-m-d_His');
 $filename = $config['filename'] . '_' . $timestamp;
 $headers = array_values($config['columns']);
@@ -282,7 +293,7 @@ if ($format === 'csv') {
     foreach ($records as $row) {
         $line = [];
         foreach ($col_keys as $col) {
-            $line[] = resolve_export_value($col, $row, $type, $user_map);
+            $line[] = spreadsheet_safe_value(resolve_export_value($col, $row, $type, $user_map));
         }
         fputcsv($output, $line);
     }
@@ -330,7 +341,7 @@ echo "\xEF\xBB\xBF";
             <?php foreach ($records as $row): ?>
                 <tr>
                     <?php foreach ($col_keys as $col): ?>
-                        <td><?= htmlspecialchars(resolve_export_value($col, $row, $type, $user_map)) ?></td>
+                        <td style="mso-number-format:'\\@';"><?= htmlspecialchars(spreadsheet_safe_value(resolve_export_value($col, $row, $type, $user_map)), ENT_QUOTES, 'UTF-8') ?></td>
                     <?php endforeach; ?>
                 </tr>
             <?php endforeach; ?>

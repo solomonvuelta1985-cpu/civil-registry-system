@@ -5,10 +5,8 @@
  */
 
 require_once '../includes/config.php';
-
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once '../includes/auth.php';
+requirePermission('reports_view');
 
 // Fetch statistics
 $stats = [
@@ -23,13 +21,16 @@ $stats = [
 function getTotalCertificates($pdo) {
     $birth = $pdo->query("SELECT COUNT(*) FROM certificate_of_live_birth WHERE status = 'Active'")->fetchColumn();
     $marriage = $pdo->query("SELECT COUNT(*) FROM certificate_of_marriage WHERE status = 'Active'")->fetchColumn();
-    return ['birth' => $birth, 'marriage' => $marriage, 'total' => $birth + $marriage];
+    $death = $pdo->query("SELECT COUNT(*) FROM certificate_of_death WHERE status = 'Active'")->fetchColumn();
+    return ['birth' => (int)$birth, 'marriage' => (int)$marriage, 'death' => (int)$death,
+        'total' => (int)$birth + (int)$marriage + (int)$death];
 }
 
 function getThisMonthCount($pdo) {
     $birth = $pdo->query("SELECT COUNT(*) FROM certificate_of_live_birth WHERE MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())")->fetchColumn();
     $marriage = $pdo->query("SELECT COUNT(*) FROM certificate_of_marriage WHERE MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())")->fetchColumn();
-    return $birth + $marriage;
+    $death = $pdo->query("SELECT COUNT(*) FROM certificate_of_death WHERE MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())")->fetchColumn();
+    return (int)$birth + (int)$marriage + (int)$death;
 }
 
 function getWorkflowStats($pdo) {
@@ -73,6 +74,8 @@ function getMonthlyTrends($pdo) {
             SELECT created_at FROM certificate_of_live_birth
             UNION ALL
             SELECT created_at FROM certificate_of_marriage
+            UNION ALL
+            SELECT created_at FROM certificate_of_death
         ) all_certs
         WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
         GROUP BY month
@@ -250,7 +253,8 @@ function getQualityMetrics($pdo) {
                 <div class="stat-label">Total Records</div>
                 <div class="stat-sublabel">
                     <?= number_format($stats['total_certificates']['birth']) ?> Birth |
-                    <?= number_format($stats['total_certificates']['marriage']) ?> Marriage
+                    <?= number_format($stats['total_certificates']['marriage']) ?> Marriage |
+                    <?= number_format($stats['total_certificates']['death']) ?> Death
                 </div>
             </div>
 

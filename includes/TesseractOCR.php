@@ -8,6 +8,8 @@
 class TesseractOCR {
 
     private $tesseractPath;
+    private $pdftocairoPath;
+    private $imageMagickPath;
     private $pdo;
     private $tempDir;
 
@@ -17,6 +19,16 @@ class TesseractOCR {
 
         // Auto-detect Tesseract installation path
         $this->tesseractPath = $this->detectTesseractPath();
+        $this->pdftocairoPath = $this->detectToolPath('PDFTOCAIRO_PATH', [
+            '/usr/bin/pdftocairo', '/usr/local/bin/pdftocairo',
+            'C:\\Program Files\\poppler\\Library\\bin\\pdftocairo.exe',
+            'C:\\Program Files (x86)\\poppler\\Library\\bin\\pdftocairo.exe',
+        ]);
+        $this->imageMagickPath = $this->detectToolPath('IMAGEMAGICK_PATH', [
+            '/usr/bin/convert', '/usr/local/bin/convert',
+            'C:\\Program Files\\ImageMagick-7.0.0-Q16-HDRI\\magick.exe',
+            'C:\\Program Files\\ImageMagick-7.1.0-Q16-HDRI\\magick.exe',
+        ]);
     }
 
     /**
@@ -24,6 +36,10 @@ class TesseractOCR {
      * Returns null if not found (graceful degradation for shared hosting)
      */
     private function detectTesseractPath() {
+        $configured = getenv('TESSERACT_PATH');
+        if (is_string($configured) && $configured !== '' && file_exists($configured)) {
+            return $configured;
+        }
         $possiblePaths = [
             // Linux / Synology NAS paths (checked first on Linux)
             '/usr/bin/tesseract',
@@ -32,17 +48,27 @@ class TesseractOCR {
             '/opt/entware/bin/tesseract',
             // Windows / XAMPP paths
             'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',
-            'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe',
-            'tesseract' // If in PATH (works on both platforms)
+            'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe'
         ];
 
         foreach ($possiblePaths as $path) {
-            if ($path === 'tesseract' || file_exists($path)) {
+            if (file_exists($path) && is_file($path)) {
                 return $path;
             }
         }
 
         // Return null instead of throwing - allows graceful degradation
+        return null;
+    }
+
+    private function detectToolPath($envName, array $candidates) {
+        $configured = getenv($envName);
+        if (is_string($configured) && $configured !== '' && is_file($configured)) {
+            return $configured;
+        }
+        foreach ($candidates as $path) {
+            if (is_file($path)) return $path;
+        }
         return null;
     }
 
@@ -61,6 +87,22 @@ class TesseractOCR {
      * @return array - OCR results
      */
     public function processPDF($pdfPath, $selectedPages = null) {
+        if (!is_string($pdfPath) || !is_file($pdfPath) || !is_readable($pdfPath)) {
+            throw new InvalidArgumentException('Invalid OCR input file');
+        }
+        if ($selectedPages !== null) {
+            if (!is_array($selectedPages) || count($selectedPages) > 20) {
+                throw new InvalidArgumentException('At most 20 pages may be selected');
+            }
+            $normalized = [];
+            foreach ($selectedPages as $page) {
+                if (filter_var($page, FILTER_VALIDATE_INT) === false || (int)$page < 1 || (int)$page > 500) {
+                    throw new InvalidArgumentException('Invalid page selection');
+                }
+                $normalized[(int)$page] = (int)$page;
+            }
+            $selectedPages = array_values($normalized);
+        }
         // Check if Tesseract is available
         if (!$this->isAvailable()) {
             return [
@@ -121,9 +163,10 @@ class TesseractOCR {
             ];
 
         } catch (Exception $e) {
+            error_log('OCR processing failed: ' . $e->getMessage());
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => 'OCR processing failed. Please try again.'
             ];
         }
     }
@@ -140,19 +183,15 @@ class TesseractOCR {
         }
 
         // Process entire PDF
-        $outputBase = $this->tempDir . '/ocr_' . uniqid();
+        $outputBase = $this->tempDir . DIRECTORY_SEPARATOR . 'crdms_ocr_' . bin2hex(random_bytes(16));
 
         // Build Tesseract command
         // PSM 6 = Assume a single uniform block of text
-        $command = sprintf(
-            '"%s" "%s" "%s" -l eng --psm 6 2>&1',
-            $this->tesseractPath,
-            $pdfPath,
-            $outputBase
-        );
-
-        // Execute Tesseract
-        exec($command, $output, $returnCode);
+        $command = implode(' ', array_map([$this, 'quoteArg'], [
+            $this->tesseractPath, $pdfPath, $outputBase, '-l', 'eng', '--psm', '6'
+        ])) . ' 2>&1';
+        $output = [];
+        $returnCode = $this->runCommand($command, $output);
 
         // Read output file
         $textFile = $outputBase . '.txt';
@@ -180,30 +219,25 @@ class TesseractOCR {
         $combinedText = '';
 
         foreach ($selectedPages as $pageNum) {
-            $imageFile = $this->tempDir . '/page_' . $pageNum . '_' . uniqid() . '.png';
-            $outputBase = $this->tempDir . '/ocr_page_' . $pageNum . '_' . uniqid();
+            $imageFile = $this->tempDir . DIRECTORY_SEPARATOR . 'crdms_page_' . bin2hex(random_bytes(16)) . '.png';
+            $outputBase = $this->tempDir . DIRECTORY_SEPARATOR . 'crdms_ocr_page_' . bin2hex(random_bytes(16));
 
             // Convert PDF page to image using ImageMagick (if available)
             // Or use pdftocairo (comes with poppler-utils)
-            $convertCmd = sprintf(
-                'pdftocairo -png -f %d -l %d -singlefile "%s" "%s" 2>&1',
-                $pageNum,
-                $pageNum,
-                $pdfPath,
-                str_replace('.png', '', $imageFile)
-            );
-
-            exec($convertCmd, $convertOutput, $convertCode);
+            $convertCmd = $this->pdftocairoPath ? implode(' ', array_map([$this, 'quoteArg'], [
+                $this->pdftocairoPath, '-png', '-f', (string)$pageNum, '-l', (string)$pageNum,
+                '-singlefile', $pdfPath, str_replace('.png', '', $imageFile)
+            ])) . ' 2>&1' : '';
+            $convertOutput = [];
+            $convertCode = $convertCmd !== '' ? $this->runCommand($convertCmd, $convertOutput) : 1;
 
             // If pdftocairo not available, try ImageMagick convert
-            if ($convertCode !== 0 || !file_exists($imageFile)) {
-                $convertCmd = sprintf(
-                    'convert -density 300 "%s[%d]" "%s" 2>&1',
-                    $pdfPath,
-                    $pageNum - 1, // ImageMagick uses 0-based indexing
-                    $imageFile
-                );
-                exec($convertCmd, $convertOutput, $convertCode);
+            if (($convertCode !== 0 || !file_exists($imageFile)) && $this->imageMagickPath) {
+                $convertCmd = implode(' ', array_map([$this, 'quoteArg'], [
+                    $this->imageMagickPath, '-density', '300', $pdfPath . '[' . ($pageNum - 1) . ']', $imageFile
+                ])) . ' 2>&1';
+                $convertOutput = [];
+                $convertCode = $this->runCommand($convertCmd, $convertOutput);
             }
 
             if (!file_exists($imageFile)) {
@@ -212,14 +246,11 @@ class TesseractOCR {
             }
 
             // Run Tesseract on the image
-            $command = sprintf(
-                '"%s" "%s" "%s" -l eng --psm 6 2>&1',
-                $this->tesseractPath,
-                $imageFile,
-                $outputBase
-            );
-
-            exec($command, $output, $returnCode);
+            $command = implode(' ', array_map([$this, 'quoteArg'], [
+                $this->tesseractPath, $imageFile, $outputBase, '-l', 'eng', '--psm', '6'
+            ])) . ' 2>&1';
+            $output = [];
+            $returnCode = $this->runCommand($command, $output);
 
             $textFile = $outputBase . '.txt';
 
@@ -345,8 +376,23 @@ class TesseractOCR {
      * Get Tesseract version
      */
     private function getTesseractVersion() {
-        $command = sprintf('"%s" --version 2>&1', $this->tesseractPath);
-        exec($command, $output);
+        $command = $this->quoteArg($this->tesseractPath) . ' --version 2>&1';
+        $output = [];
+        $this->runCommand($command, $output);
         return isset($output[0]) ? $output[0] : 'Unknown';
+    }
+
+    /** Quote every executable argument and run with a bounded output buffer. */
+    private function quoteArg($value) {
+        return escapeshellarg((string)$value);
+    }
+
+    private function runCommand($command, &$output) {
+        $output = [];
+        $returnCode = 1;
+        $lines = [];
+        @exec($command, $lines, $returnCode);
+        $output = array_slice($lines, 0, 200);
+        return $returnCode;
     }
 }

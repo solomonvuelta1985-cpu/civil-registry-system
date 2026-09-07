@@ -304,7 +304,7 @@ $pendingCount   = count($pendingDevices);
                             Approve
                         </button>
                         <button class="btn-action btn-revoke"
-                                onclick="rejectDevice(<?= $d['id'] ?>, '<?= htmlspecialchars(addslashes($requesterName)) ?>')"
+                                onclick="rejectDevice(<?= (int)$d['id'] ?>, <?= htmlspecialchars(json_encode((string)$requesterName, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8') ?>)"
                                 style="margin-left:4px;">
                             <i data-lucide="x" style="width:12px;height:12px;vertical-align:middle;"></i>
                             Reject
@@ -415,17 +415,17 @@ $pendingCount   = count($pendingDevices);
                     <td style="white-space:nowrap;">
                         <?php if ($d['status'] === 'Active'): ?>
                             <button class="btn-action btn-revoke"
-                                    onclick="confirmAction(<?= $d['id'] ?>, 'revoke', '<?= htmlspecialchars(addslashes($d['device_name'])) ?>')">
+                                    onclick="confirmAction(<?= (int)$d['id'] ?>, 'revoke', <?= htmlspecialchars(json_encode((string)$d['device_name'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8') ?>)">
                                 Revoke
                             </button>
                         <?php else: ?>
                             <button class="btn-action btn-reactivate"
-                                    onclick="confirmAction(<?= $d['id'] ?>, 'reactivate', '<?= htmlspecialchars(addslashes($d['device_name'])) ?>')">
+                                    onclick="confirmAction(<?= (int)$d['id'] ?>, 'reactivate', <?= htmlspecialchars(json_encode((string)$d['device_name'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8') ?>)">
                                 Reactivate
                             </button>
                         <?php endif; ?>
                         <button class="btn-action btn-delete"
-                                onclick="deleteDevice(<?= $d['id'] ?>, '<?= htmlspecialchars(addslashes($d['device_name'])) ?>', '<?= htmlspecialchars($d['fingerprint_hash']) ?>')"
+                                onclick="deleteDevice(<?= (int)$d['id'] ?>, <?= htmlspecialchars(json_encode((string)$d['device_name'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8') ?>, <?= htmlspecialchars(json_encode((string)$d['fingerprint_hash'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8') ?>)"
                                 style="margin-left:4px;"
                                 title="Permanently delete this device row">
                             <i data-lucide="trash-2" style="width:12px;height:12px;vertical-align:middle;"></i>

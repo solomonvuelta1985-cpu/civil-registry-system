@@ -21,6 +21,7 @@ require_once '../../includes/security.php';
 header('Content-Type: application/json');
 
 requireAuth();
+ra9048_require_permission('ra9048_view', true);
 
 $number     = sanitize_input($_GET['number'] ?? $_POST['number'] ?? '');
 $excludeId  = (int) ($_GET['exclude_id'] ?? $_POST['exclude_id'] ?? 0);

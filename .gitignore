@@ -47,6 +47,8 @@ desktop.ini
 vendor/
 composer.lock
 .env
+.env.*
+!.env.example
 
 # Session files
 sessions/

@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 requireAuth();
+ra9048_require_permission('ra9048_view', true);
 
 // Parameters
 $record_type = sanitize_input($_GET['type'] ?? 'petition');

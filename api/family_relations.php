@@ -32,7 +32,7 @@ if ($record_id <= 0) {
 }
 
 try {
-    $stmt = $pdo->prepare("SELECT * FROM certificate_of_live_birth WHERE id = ? LIMIT 1");
+    $stmt = $pdo->prepare("SELECT * FROM certificate_of_live_birth WHERE id = ? AND status = 'Active' LIMIT 1");
     $stmt->execute([$record_id]);
     $source = $stmt->fetch(PDO::FETCH_ASSOC);
 

@@ -16,6 +16,7 @@ header('Content-Type: application/json');
 // Authentication & CSRF
 requireAuth();
 requireCSRFToken();
+if (!hasPermission('death_create')) { json_response(false, 'Permission denied.', null, 403); }
 
 // Only allow POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -370,8 +371,7 @@ try {
         if ($e->getCode() == 23000 && strpos($e->getMessage(), 'uniq_registry_no') !== false) {
             json_response(false, 'Registry number already exists. Please use a unique registry number.', null, 409);
         } else {
-            // DEBUG: expose real DB error (remove after debugging on production)
-            json_response(false, 'Database error: ' . $e->getMessage(), null, 500);
+            json_response(false, 'Database error occurred. Please try again.', null, 500);
         }
     }
 
@@ -379,7 +379,6 @@ try {
     // Log unexpected errors
     error_log("Unexpected Error: " . $e->getMessage());
 
-    // DEBUG: expose real error (remove after debugging on production)
-    json_response(false, 'Unexpected error: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine(), null, 500);
+    json_response(false, 'An unexpected error occurred. Please contact the administrator.', null, 500);
 }
 ?>

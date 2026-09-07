@@ -60,9 +60,9 @@ try {
         exit;
     }
 
-    $abs_path = UPLOAD_DIR . $record['pdf_filename'];
+    $abs_path = resolve_upload_path($record['pdf_filename']);
     if (!file_exists($abs_path)) {
-        echo json_encode(['success' => false, 'message' => 'PDF file not found on disk: ' . $record['pdf_filename']]);
+        echo json_encode(['success' => false, 'message' => 'PDF file not found on disk.']);
         exit;
     }
 

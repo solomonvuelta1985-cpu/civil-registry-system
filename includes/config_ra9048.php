@@ -54,6 +54,39 @@ if (!defined('RA9048_FEATURE_ENABLED') || !RA9048_FEATURE_ENABLED) {
 // Backward-compat alias. RA 9048 tables now share iscan_db with the main app.
 $pdo_ra = $pdo;
 
+/**
+ * Enforce a module-specific permission after the shared auth helpers load.
+ * The feature toggle above keeps the module disabled by default; when an
+ * operator enables it, every page/API still has an explicit least-privilege
+ * gate instead of treating any authenticated account as an RA operator.
+ */
+function ra9048_require_permission(string $permission, bool $api = false): void
+{
+    if (!function_exists('isLoggedIn') || !isLoggedIn()) {
+        if ($api) {
+            http_response_code(401);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['success' => false, 'message' => 'Authentication required.']);
+        } else {
+            header('Location: ' . (defined('BASE_URL') ? BASE_URL : '/iscan/') . 'public/login.php');
+        }
+        exit;
+    }
+    if (hasPermission($permission)) return;
+    if ($api) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['success' => false, 'message' => 'RA 9048 permission denied.']);
+    } else {
+        http_response_code(403);
+        if (function_exists('requirePermission')) {
+            requirePermission($permission);
+        }
+        echo 'RA 9048 permission denied.';
+    }
+    exit;
+}
+
 // Upload path for RA 9048 documents
 define('RA9048_UPLOAD_PATH', UPLOAD_PATH . 'ra9048/');
 

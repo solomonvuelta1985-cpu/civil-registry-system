@@ -63,7 +63,7 @@ foreach ($tables as $cert_type => $table) {
 
         foreach ($records as $rec) {
             $counts['total']++;
-            $abs_path   = UPLOAD_DIR . $rec['pdf_filename'];
+$abs_path   = resolve_upload_path($rec['pdf_filename']);
             $backup_key = $cert_type . '_' . $rec['id'];
             $has_backup = isset($backupMap[$backup_key]);
             $backup_id  = $backupMap[$backup_key] ?? null;
@@ -83,8 +83,9 @@ foreach ($tables as $cert_type => $table) {
                 $row['status'] = 'missing';
                 $counts['missing']++;
                 if (function_exists('logSecurityEvent')) {
-                    logSecurityEvent('PDF_INTEGRITY_FAILURE', 'HIGH', $_SESSION['user_id'] ?? null,
-                        json_encode(['status' => 'missing', 'file' => $rec['pdf_filename'], 'type' => $cert_type]));
+                    logSecurityEvent('PDF_INTEGRITY_FAILURE', 'HIGH',
+                        json_encode(['status' => 'missing', 'file' => $rec['pdf_filename'], 'type' => $cert_type]),
+                        $_SESSION['user_id'] ?? null);
                 }
             } elseif (empty($rec['pdf_hash'])) {
                 $row['status'] = 'no_hash';
@@ -96,8 +97,9 @@ foreach ($tables as $cert_type => $table) {
                     $row['status'] = 'corrupt';
                     $counts['corrupt']++;
                     if (function_exists('logSecurityEvent')) {
-                        logSecurityEvent('PDF_INTEGRITY_FAILURE', 'HIGH', $_SESSION['user_id'] ?? null,
-                            json_encode(['status' => 'corrupt', 'file' => $rec['pdf_filename'], 'type' => $cert_type]));
+                        logSecurityEvent('PDF_INTEGRITY_FAILURE', 'HIGH',
+                            json_encode(['status' => 'corrupt', 'file' => $rec['pdf_filename'], 'type' => $cert_type]),
+                            $_SESSION['user_id'] ?? null);
                     }
                 } else {
                     $counts['ok']++;

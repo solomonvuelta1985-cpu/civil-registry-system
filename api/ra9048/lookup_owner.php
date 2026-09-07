@@ -28,6 +28,7 @@ require_once '../../includes/security.php';
 header('Content-Type: application/json');
 
 requireAuth();
+ra9048_require_permission('ra9048_view', true);
 
 // Read-only endpoint — accept GET (and POST as a fallback in case the form sends it that way)
 $q = sanitize_input($_GET['q'] ?? $_POST['q'] ?? '');

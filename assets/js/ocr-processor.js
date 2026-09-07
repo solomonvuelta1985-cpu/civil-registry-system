@@ -158,7 +158,7 @@ class OCRProcessor {
                         throw new Error('PDF.js library not loaded');
                     }
 
-                    const loadingTask = pdfjsLib.getDocument(typedarray);
+                    const loadingTask = pdfjsLib.getDocument({ data: typedarray, isEvalSupported: false, enableScripting: false });
                     const pdf = await loadingTask.promise;
 
                     const images = [];

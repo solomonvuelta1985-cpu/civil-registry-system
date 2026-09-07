@@ -10,6 +10,7 @@ require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 // Check authentication and permission
 if (!isLoggedIn() || !hasPermission('users_delete')) {
@@ -17,6 +18,7 @@ if (!isLoggedIn() || !hasPermission('users_delete')) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
 }
+requireCSRFToken();
 
 // Only accept POST or DELETE
 if (!in_array($_SERVER['REQUEST_METHOD'], ['POST', 'DELETE'])) {
@@ -26,7 +28,7 @@ if (!in_array($_SERVER['REQUEST_METHOD'], ['POST', 'DELETE'])) {
 }
 
 // Get input
-$input = json_decode(file_get_contents('php://input'), true);
+$input = json_decode(requestBody(), true);
 
 // Validate user ID
 if (empty($input['id'])) {

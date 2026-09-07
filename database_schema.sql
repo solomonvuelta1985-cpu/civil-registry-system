@@ -111,12 +111,8 @@ CREATE TABLE IF NOT EXISTS users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
--- Insert Default Admin User
--- Password: admin123 (hashed with password_hash)
--- ============================================
-INSERT INTO users (username, password, full_name, email, role, status)
-VALUES ('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'System Administrator', 'admin@iscan.local', 'Admin', 'Active')
-ON DUPLICATE KEY UPDATE username=username;
+-- No default account is seeded. Create the first administrator through the
+-- protected installation procedure and set a unique password.
 
 -- ============================================
 -- Sample Data (Optional - for testing)

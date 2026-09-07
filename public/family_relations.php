@@ -420,7 +420,11 @@ function fr_full_name($first, $middle, $last) {
                         }
 
                         function setError(panel, msg) {
-                            panel.innerHTML = `<div class="fr-empty">${msg || 'Failed to load family relations.'}</div>`;
+                            panel.innerHTML = '<div class="fr-empty"></div>';
+                            const message = panel.querySelector('.fr-empty');
+                            if (message) {
+                                message.textContent = msg || 'Failed to load family relations.';
+                            }
                         }
 
                         async function loadInto(id, panel) {
@@ -505,7 +509,7 @@ function fr_full_name($first, $middle, $last) {
                         .then(r => r.json())
                         .then(result => {
                             if (!result.success) {
-                                container.innerHTML = `<div class="fr-empty">${result.message || 'Failed to load family relations.'}</div>`;
+                                container.textContent = result.message || 'Failed to load family relations.';
                                 return;
                             }
                             FamilyRelationsRender.render(result.data, container, {

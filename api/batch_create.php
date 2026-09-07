@@ -7,21 +7,16 @@
 header('Content-Type: application/json');
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 try {
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+        http_response_code(405);
         throw new Exception('Invalid request method');
     }
-
-    if (session_status() === PHP_SESSION_NONE) {
-        session_start();
-    }
-
-    if (empty($_SESSION['user_id'])) {
-        http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Authentication required.']);
-        exit;
-    }
+    requireAuth();
+    requireCSRFToken();
 
     $user_id = (int)$_SESSION['user_id'];
 
@@ -41,6 +36,11 @@ try {
     if (!in_array($certificate_type, $valid_types)) {
         throw new Exception('Invalid certificate type');
     }
+    if (!hasPermission($certificate_type . '_create')) {
+        http_response_code(403);
+        throw new Exception('You do not have permission to create this batch');
+    }
+    if ($total_files > 100 || strlen($batch_name) > 200) throw new Exception('Batch limits exceeded');
 
     // Create batch record
     $stmt = $pdo->prepare("
@@ -70,9 +70,14 @@ try {
     ]);
 
 } catch (Exception $e) {
-    http_response_code(400);
+    if (http_response_code() < 400) {
+        http_response_code(400);
+    }
+    error_log('batch_create error: ' . $e->getMessage());
     echo json_encode([
         'success' => false,
-        'error' => $e->getMessage()
+        'error' => ($e instanceof PDOException)
+            ? 'Request could not be completed. Please try again.'
+            : $e->getMessage()
     ]);
 }

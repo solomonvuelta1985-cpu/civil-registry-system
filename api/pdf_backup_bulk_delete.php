@@ -42,19 +42,31 @@ try {
     $deleted_files = 0;
     $freed_bytes   = 0;
     $deleted_ids   = [];
+    $failed_ids    = [];
     $skipped_restored = 0;
 
     foreach ($rows as $row) {
         if (!empty($row['restored_at'])) { $skipped_restored++; continue; }
-        $abs = UPLOAD_DIR . $row['backup_path'];
-        if (file_exists($abs)) {
+        $relative = str_replace('\\', '/', (string)$row['backup_path']);
+        $root = realpath(UPLOAD_DIR);
+        $abs = ($root && $relative !== '' && strpos($relative, '..') === false && $relative[0] !== '/')
+            ? realpath(UPLOAD_DIR . $relative) : false;
+        if ($abs !== false && strpos($abs, rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR) !== 0) $abs = false;
+        if ($abs !== false && file_exists($abs)) {
             $size = @filesize($abs) ?: 0;
             if (@unlink($abs)) {
                 $freed_bytes  += $size;
                 $deleted_files++;
+                $deleted_ids[] = (int)$row['id'];
+            } else {
+                $failed_ids[] = (int)$row['id'];
             }
+        } elseif ($abs === false) {
+            $failed_ids[] = (int)$row['id'];
+        } else {
+            // A missing file is already deleted from disk; remove its stale row.
+            $deleted_ids[] = (int)$row['id'];
         }
-        $deleted_ids[] = (int)$row['id'];
     }
 
     if (!empty($deleted_ids)) {
@@ -73,6 +85,7 @@ try {
         'freed_bytes'      => $freed_bytes,
         'freed_mb'         => round($freed_bytes / 1024 / 1024, 2),
         'skipped_restored' => $skipped_restored,
+        'failed'           => $failed_ids,
         'message'          => sprintf('Deleted %d backup(s), freed %.2f MB%s',
                                       $deleted_files,
                                       $freed_bytes / 1024 / 1024,

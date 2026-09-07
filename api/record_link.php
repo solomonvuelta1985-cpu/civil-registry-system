@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-$input = json_decode(file_get_contents('php://input'), true);
+$input = json_decode(requestBody(), true);
 if (!$input) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Invalid JSON input']);
@@ -65,9 +65,8 @@ if ($primary_type === $dup_type && $primary_id === $dup_id) {
     exit;
 }
 
-// Check permission
-$perm = $primary_type . '_link';
-if (!hasPermission($perm)) {
+// Linking exposes both records; require link permission for both certificate types.
+if (!hasPermission($primary_type . '_link') || !hasPermission($dup_type . '_link')) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'You do not have permission to link records']);
     exit;
