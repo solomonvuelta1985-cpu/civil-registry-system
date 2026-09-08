@@ -92,7 +92,9 @@ $record_configs = [
     'birth' => [
         'table' => 'certificate_of_live_birth',
         'title' => 'Birth Records',
-        'icon' => 'baby',
+        // Use a clear certificate/document glyph; the small Lucide baby face is
+        // visually ambiguous in the records page heading.
+        'icon' => 'file-text',
         'entry_form' => 'certificate_of_live_birth.php',
         'delete_api' => '../api/certificate_of_live_birth_delete.php',
         'search_fields' => [
@@ -714,7 +716,7 @@ function detect_late_registration($record, $record_type) {
     <link rel="stylesheet" href="../assets/css/sidebar.css">
 
     <!-- Record Preview Modal Styles -->
-    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=6">
+    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=9">
 
     <!-- PDF.js Library -->
     <script src="<?= asset_url('pdfjs') ?>"></script>
@@ -3819,7 +3821,7 @@ function detect_late_registration($record, $record_type) {
 
     <!-- Record Preview Modal Script -->
     <script src="../assets/js/family_relations_render.js?v=2"></script>
-    <script src="../assets/js/record-preview-modal.js?v=7"></script>
+    <script src="../assets/js/record-preview-modal.js?v=8"></script>
 
     <!-- Double Registration Comparison Modal -->
     <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=7">

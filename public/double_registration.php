@@ -29,6 +29,18 @@ $is_admin = isAdmin();
 $filter_status = sanitize_input($_GET['status'] ?? 'active');
 $filter_correction = sanitize_input($_GET['correction'] ?? '');
 $filter_search = sanitize_input($_GET['q'] ?? '');
+$allowed_sort_columns = [
+    'primary_registry' => 'COALESCE(pb.registry_no, pm.registry_no, pd.registry_no)',
+    'duplicate_registry' => 'COALESCE(db.registry_no, dm.registry_no, dd.registry_no)',
+    'match_score' => 'rl.match_score',
+    'correction_status' => 'rl.correction_status',
+    'linked_at' => 'rl.linked_at',
+    'status' => 'rl.status'
+];
+$sort_by = isset($_GET['sort_by']) && array_key_exists($_GET['sort_by'], $allowed_sort_columns)
+    ? $_GET['sort_by']
+    : 'linked_at';
+$sort_order = isset($_GET['sort_order']) && strtoupper($_GET['sort_order']) === 'ASC' ? 'ASC' : 'DESC';
 $page = max(1, (int)($_GET['page'] ?? 1));
 $per_page = 25;
 $offset = ($page - 1) * $per_page;
@@ -47,10 +59,60 @@ if (!empty($filter_correction) && in_array($filter_correction, ['none', 'pending
     $params[':corr'] = $filter_correction;
 }
 
+// Search both sides of a link by registry number, person name, link metadata,
+// or the staff member who created the link. Joins keep filtering accurate
+// across pagination instead of filtering only the current page in the browser.
+if ($filter_search !== '') {
+    $search_tokens = array_values(array_filter(preg_split('/\s+/', trim($filter_search))));
+    $search_expressions = [
+        'CAST(rl.id AS CHAR)',
+        'rl.primary_certificate_type',
+        'rl.duplicate_certificate_type',
+        'COALESCE(pb.registry_no, pm.registry_no, pd.registry_no, \'\')',
+        'COALESCE(db.registry_no, dm.registry_no, dd.registry_no, \'\')',
+        "CONCAT_WS(' ', pb.child_first_name, pb.child_middle_name, pb.child_last_name)",
+        "CONCAT_WS(' ', pm.husband_first_name, pm.husband_middle_name, pm.husband_last_name)",
+        "CONCAT_WS(' ', pm.wife_first_name, pm.wife_middle_name, pm.wife_last_name)",
+        "CONCAT_WS(' ', pd.deceased_first_name, pd.deceased_middle_name, pd.deceased_last_name)",
+        "CONCAT_WS(' ', db.child_first_name, db.child_middle_name, db.child_last_name)",
+        "CONCAT_WS(' ', dm.husband_first_name, dm.husband_middle_name, dm.husband_last_name)",
+        "CONCAT_WS(' ', dm.wife_first_name, dm.wife_middle_name, dm.wife_last_name)",
+        "CONCAT_WS(' ', dd.deceased_first_name, dd.deceased_middle_name, dd.deceased_last_name)",
+        'COALESCE(u_linked.full_name, \'\')',
+        'COALESCE(u_unlinked.full_name, \'\')',
+        'COALESCE(rl.link_reason, \'\')',
+        'COALESCE(rl.correction_notes, \'\')',
+        'COALESCE(rl.unlinked_reason, \'\')'
+    ];
+    $token_clauses = [];
+    foreach ($search_tokens as $token_index => $token) {
+        $field_clauses = [];
+        foreach ($search_expressions as $field_index => $expression) {
+            $placeholder = ':search_' . $token_index . '_' . $field_index;
+            $field_clauses[] = $expression . ' LIKE ' . $placeholder;
+            $params[$placeholder] = '%' . $token . '%';
+        }
+        $token_clauses[] = '(' . implode(' OR ', $field_clauses) . ')';
+    }
+    if ($token_clauses) {
+        $where_clauses[] = '(' . implode(' AND ', $token_clauses) . ')';
+    }
+}
+
 $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
 
+$link_joins = "
+        LEFT JOIN users u_linked ON rl.linked_by = u_linked.id
+        LEFT JOIN users u_unlinked ON rl.unlinked_by = u_unlinked.id
+        LEFT JOIN certificate_of_live_birth pb ON rl.primary_certificate_type = 'birth' AND rl.primary_certificate_id = pb.id
+        LEFT JOIN certificate_of_marriage pm ON rl.primary_certificate_type = 'marriage' AND rl.primary_certificate_id = pm.id
+        LEFT JOIN certificate_of_death pd ON rl.primary_certificate_type = 'death' AND rl.primary_certificate_id = pd.id
+        LEFT JOIN certificate_of_live_birth db ON rl.duplicate_certificate_type = 'birth' AND rl.duplicate_certificate_id = db.id
+        LEFT JOIN certificate_of_marriage dm ON rl.duplicate_certificate_type = 'marriage' AND rl.duplicate_certificate_id = dm.id
+        LEFT JOIN certificate_of_death dd ON rl.duplicate_certificate_type = 'death' AND rl.duplicate_certificate_id = dd.id";
+
 // Count total
-$count_sql = "SELECT COUNT(*) FROM record_links rl {$where_sql}";
+$count_sql = "SELECT COUNT(*) FROM record_links rl {$link_joins} {$where_sql}";
 $stmt = $pdo->prepare($count_sql);
 $stmt->execute($params);
 $total = (int)$stmt->fetchColumn();
@@ -61,10 +123,9 @@ $sql = "SELECT rl.*,
             u_linked.full_name AS linked_by_name,
             u_unlinked.full_name AS unlinked_by_name
         FROM record_links rl
-        LEFT JOIN users u_linked ON rl.linked_by = u_linked.id
-        LEFT JOIN users u_unlinked ON rl.unlinked_by = u_unlinked.id
+        {$link_joins}
         {$where_sql}
-        ORDER BY rl.linked_at DESC
+        ORDER BY {$allowed_sort_columns[$sort_by]} {$sort_order}, rl.id DESC
         LIMIT :limit OFFSET :offset";
 
 $stmt = $pdo->prepare($sql);
@@ -118,6 +179,32 @@ $summary_sql = "SELECT
     SUM(CASE WHEN correction_status = 'completed' AND status = 'active' THEN 1 ELSE 0 END) AS correction_completed
 FROM record_links";
 $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
+
+$build_filter_url = static function (array $overrides = []) use ($filter_status, $filter_correction, $filter_search, $sort_by, $sort_order): string {
+    $query = [
+        'status' => $filter_status,
+        'correction' => $filter_correction,
+        'q' => $filter_search,
+        'sort_by' => $sort_by,
+        'sort_order' => $sort_order,
+        'page' => 1
+    ];
+    foreach ($overrides as $key => $value) {
+        $query[$key] = $value;
+    }
+    $query = array_filter($query, static fn($value) => $value !== '' && $value !== null);
+    return '?' . http_build_query($query);
+};
+
+$sort_url = static function (string $column) use ($sort_by, $sort_order, $build_filter_url): string {
+    $next_order = ($sort_by === $column && $sort_order === 'ASC') ? 'DESC' : 'ASC';
+    return $build_filter_url(['sort_by' => $column, 'sort_order' => $next_order, 'page' => 1]);
+};
+
+$sort_icon = static function (string $column) use ($sort_by, $sort_order): string {
+    if ($sort_by !== $column) return 'chevrons-up-down';
+    return $sort_order === 'ASC' ? 'chevron-up' : 'chevron-down';
+};
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -134,7 +221,7 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
     <script src="<?= asset_url('notiflix_js') ?>"></script>
     <script src="../assets/js/notiflix-config.js"></script>
     <link rel="stylesheet" href="../assets/css/sidebar.css">
-    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=6">
+    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=9">
     <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=7">
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>
@@ -165,14 +252,29 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
         .summary-card.amber .summary-card-value { color: #D97706; }
         .summary-card.blue .summary-card-value { color: #2563EB; }
 
-        /* Filters */
+        /* Search and filters */
         .filters-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
-        .filter-select { padding: 7px 12px; border: 1px solid #CBD5E1; border-radius: 4px; font-size: 13px; background: #FFFFFF; color: #1E293B; }
+        .search-form { display: flex; gap: 10px; align-items: center; width: 100%; flex-wrap: wrap; }
+        .search-input-wrapper { position: relative; flex: 1 1 280px; min-width: 220px; }
+        .search-input-wrapper svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #64748B; pointer-events: none; }
+        .search-input { width: 100%; padding: 9px 12px 9px 36px; border: 1px solid #CBD5E1; border-radius: 5px; font: inherit; font-size: 13px; background: #FFFFFF; color: #1E293B; }
+        .search-input:focus, .filter-select:focus { outline: 3px solid rgba(37,99,235,.15); border-color: #2563EB; }
+        .filter-select { padding: 9px 12px; border: 1px solid #CBD5E1; border-radius: 5px; font-size: 13px; background: #FFFFFF; color: #1E293B; }
+        .search-button { padding: 9px 15px; background: #2563EB; color: #FFFFFF; border: 0; border-radius: 5px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+        .search-button:hover { background: #1D4ED8; }
+        .clear-search { color: #64748B; font-size: 12px; text-decoration: none; white-space: nowrap; }
+        .clear-search:hover { color: #2563EB; text-decoration: underline; }
 
         /* Table */
         .table-container { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th { padding: 10px 14px; background: #F8FAFC; border-bottom: 2px solid #E2E8F0; font-weight: 600; color: #475569; text-align: left; white-space: nowrap; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; }
+        th.sortable { padding: 0; }
+        th.sortable > a { display: inline-flex; align-items: center; gap: 6px; width: 100%; padding: 10px 14px; color: inherit; text-decoration: none; }
+        th.sortable > a:hover { color: #2563EB; background: #EFF6FF; }
+        th.sortable.active { color: #2563EB; background: #EFF6FF; }
+        .sort-icon { width: 14px; height: 14px; opacity: .45; }
+        th.sortable.active .sort-icon { opacity: 1; }
         td { padding: 10px 14px; border-bottom: 1px solid #F1F5F9; vertical-align: middle; }
         tr:hover { background: #F8FAFC; }
 
@@ -262,7 +364,11 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
 
         <!-- Filters -->
         <div class="filters-bar">
-            <form method="GET" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <form method="GET" action="" class="search-form">
+                <div class="search-input-wrapper">
+                    <i data-lucide="search" aria-hidden="true"></i>
+                    <input type="search" name="q" class="search-input" value="<?= htmlspecialchars($filter_search, ENT_QUOTES, 'UTF-8') ?>" placeholder="Search registry number, person, or creator..." aria-label="Search double registrations">
+                </div>
                 <select name="status" class="filter-select" onchange="this.form.submit()">
                     <option value="active" <?= $filter_status === 'active' ? 'selected' : '' ?>>Active Links</option>
                     <option value="unlinked" <?= $filter_status === 'unlinked' ? 'selected' : '' ?>>Unlinked (History)</option>
@@ -275,6 +381,10 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
                     <option value="filed" <?= $filter_correction === 'filed' ? 'selected' : '' ?>>Filed</option>
                     <option value="completed" <?= $filter_correction === 'completed' ? 'selected' : '' ?>>Completed</option>
                 </select>
+                <button type="submit" class="search-button"><i data-lucide="search" aria-hidden="true"></i> Search</button>
+                <?php if ($filter_search !== '' || $filter_status !== 'active' || $filter_correction !== ''): ?>
+                    <a class="clear-search" href="<?= htmlspecialchars($build_filter_url(['q' => '', 'status' => 'active', 'correction' => '', 'page' => 1]), ENT_QUOTES, 'UTF-8') ?>">Clear filters</a>
+                <?php endif; ?>
             </form>
         </div>
 
@@ -298,19 +408,22 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
             <?php if (empty($links)): ?>
                 <div class="empty-state">
                     <i data-lucide="link-2-off"></i>
-                    <p>No double registration links found.</p>
+                    <p><?= $filter_search !== '' ? 'No double registration links match your search.' : 'No double registration links found.' ?></p>
+                    <?php if ($filter_search !== '' || $filter_status !== 'active' || $filter_correction !== ''): ?>
+                        <a class="clear-search" href="<?= htmlspecialchars($build_filter_url(['q' => '', 'status' => 'active', 'correction' => '', 'page' => 1]), ENT_QUOTES, 'UTF-8') ?>">Clear filters</a>
+                    <?php endif; ?>
                 </div>
             <?php else: ?>
             <table>
                 <thead>
                     <tr>
-                        <th>1st Registration</th>
-                        <th>2nd Registration</th>
-                        <th>Score</th>
+                        <th class="sortable <?= $sort_by === 'primary_registry' ? 'active' : '' ?>"><a href="<?= htmlspecialchars($sort_url('primary_registry'), ENT_QUOTES, 'UTF-8') ?>">1st Registration <i data-lucide="<?= $sort_icon('primary_registry') ?>" class="sort-icon" aria-hidden="true"></i></a></th>
+                        <th class="sortable <?= $sort_by === 'duplicate_registry' ? 'active' : '' ?>"><a href="<?= htmlspecialchars($sort_url('duplicate_registry'), ENT_QUOTES, 'UTF-8') ?>">2nd Registration <i data-lucide="<?= $sort_icon('duplicate_registry') ?>" class="sort-icon" aria-hidden="true"></i></a></th>
+                        <th class="sortable <?= $sort_by === 'match_score' ? 'active' : '' ?>"><a href="<?= htmlspecialchars($sort_url('match_score'), ENT_QUOTES, 'UTF-8') ?>">Score <i data-lucide="<?= $sort_icon('match_score') ?>" class="sort-icon" aria-hidden="true"></i></a></th>
                         <th>Discrepancies</th>
-                        <th>Correction</th>
-                        <th>Linked</th>
-                        <th>Status</th>
+                        <th class="sortable <?= $sort_by === 'correction_status' ? 'active' : '' ?>"><a href="<?= htmlspecialchars($sort_url('correction_status'), ENT_QUOTES, 'UTF-8') ?>">Correction <i data-lucide="<?= $sort_icon('correction_status') ?>" class="sort-icon" aria-hidden="true"></i></a></th>
+                        <th class="sortable <?= $sort_by === 'linked_at' ? 'active' : '' ?>"><a href="<?= htmlspecialchars($sort_url('linked_at'), ENT_QUOTES, 'UTF-8') ?>">Linked <i data-lucide="<?= $sort_icon('linked_at') ?>" class="sort-icon" aria-hidden="true"></i></a></th>
+                        <th class="sortable <?= $sort_by === 'status' ? 'active' : '' ?>"><a href="<?= htmlspecialchars($sort_url('status'), ENT_QUOTES, 'UTF-8') ?>">Status <i data-lucide="<?= $sort_icon('status') ?>" class="sort-icon" aria-hidden="true"></i></a></th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -391,7 +504,7 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
                 <span>Showing <?= $offset + 1 ?>-<?= min($offset + $per_page, $total) ?> of <?= $total ?></span>
                 <div>
                     <?php for ($i = 1; $i <= $total_pages; $i++): ?>
-                        <a href="?page=<?= $i ?>&status=<?= urlencode($filter_status) ?>&correction=<?= urlencode($filter_correction) ?>" class="<?= $i === $page ? 'active' : '' ?>"><?= $i ?></a>
+                        <a href="<?= htmlspecialchars($build_filter_url(['page' => $i]), ENT_QUOTES, 'UTF-8') ?>" class="<?= $i === $page ? 'active' : '' ?>"><?= $i ?></a>
                     <?php endfor; ?>
                 </div>
             </div>
@@ -405,7 +518,7 @@ $summary = $pdo->query($summary_sql)->fetch(PDO::FETCH_ASSOC);
     </script>
 
     <script src="../assets/js/family_relations_render.js?v=2"></script>
-    <script src="../assets/js/record-preview-modal.js?v=7"></script>
+    <script src="../assets/js/record-preview-modal.js?v=8"></script>
     <script src="../assets/js/double-reg-comparison-modal.js?v=9"></script>
 
     <script>

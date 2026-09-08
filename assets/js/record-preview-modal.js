@@ -35,8 +35,9 @@ class RecordPreviewModal {
         // Create modal
         this.modal = document.createElement('div');
         this.modal.className = 'record-modal';
+        this.modal.setAttribute('aria-hidden', 'true');
         this.modal.innerHTML = `
-            <div class="record-modal-dialog">
+            <div class="record-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modalRecordTitle">
                 <!-- Header -->
                 <div class="record-modal-header">
                     <div>
@@ -188,6 +189,7 @@ class RecordPreviewModal {
         // Show modal
         this.backdrop.classList.add('show');
         this.modal.classList.add('show');
+        this.modal.setAttribute('aria-hidden', 'false');
         document.body.style.overflow = 'hidden';
 
         // Load record data
@@ -197,6 +199,7 @@ class RecordPreviewModal {
     close() {
         this.backdrop.classList.remove('show');
         this.modal.classList.remove('show');
+        this.modal.setAttribute('aria-hidden', 'true');
         document.body.style.overflow = '';
 
         // Reset PDF

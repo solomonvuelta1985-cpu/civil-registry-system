@@ -36,6 +36,14 @@ $stats = [
 $recent_activities = [];
 $monthly_chart_data = [];
 $certificate_distribution = [];
+$security_stats = ['last_login' => null, 'failed_login_count' => 0, 'active_users' => 0];
+$today_events = $upcoming_events = $pinned_notes = $recent_notes = $events_by_date = [];
+$stats['pdf_integrity_issues'] = 0;
+$current_month = isset($_GET['month']) ? (int)$_GET['month'] : (int)date('n');
+$current_year = isset($_GET['year']) ? (int)$_GET['year'] : (int)date('Y');
+$first_day_of_month = mktime(0, 0, 0, $current_month, 1, $current_year);
+$number_of_days = date('t', $first_day_of_month);
+$day_of_week = date('w', $first_day_of_month);
 
 try {
     // PDF integrity issue count (last 30 days)
@@ -345,2319 +353,126 @@ $user_first_name = explode(' ', $user_name)[0];
     <!-- Shared Sidebar Styles -->
     <link rel="stylesheet" href="../assets/css/sidebar.css">
 
-    <style>
-        :root {
-            /* Institutional / Governmental Design System */
-            --gov-primary: #0f2847;          /* Deep institutional navy */
-            --gov-primary-600: #1e3a5f;      /* Navy hover/active */
-            --gov-primary-50: #eef2f8;       /* Navy tint surface */
-            --gov-accent: #c9a961;           /* Muted institutional gold */
-            --gov-accent-600: #b08f48;
-            --gov-accent-50: #faf6ec;
-
-            --gov-blue: #1d4ed8;             /* Action blue */
-            --gov-blue-50: #eff6ff;
-
-            --gov-surface: #ffffff;
-            --gov-surface-alt: #f8fafc;
-            --gov-bg: #f4f6fa;               /* Formal cool page bg */
-            --gov-border: #dde3ed;
-            --gov-border-strong: #c5cfdc;
-
-            --gov-text: #0f172a;
-            --gov-text-muted: #475569;
-            --gov-text-subtle: #64748b;
-
-            --gov-success: #0f766e;
-            --gov-success-50: #ecfdf5;
-            --gov-warning: #b45309;
-            --gov-warning-50: #fffbeb;
-            --gov-danger: #991b1b;
-            --gov-danger-50: #fef2f2;
-
-            /* Stat accent family (muted institutional tones) */
-            --stat-navy: #0f2847;
-            --stat-teal: #0f766e;
-            --stat-slate: #475569;
-            --stat-maroon: #991b1b;
-            --stat-amber: #b45309;
-            --stat-indigo: #3730a3;
-            --stat-gray: #64748b;
-            --stat-gold: #a17d2b;
-
-            /* Subtle shadow tuned to navy */
-            --gov-shadow-sm: 0 1px 2px rgba(15, 40, 71, 0.04);
-            --gov-shadow-md: 0 2px 6px rgba(15, 40, 71, 0.06), 0 1px 2px rgba(15, 40, 71, 0.04);
-            --gov-shadow-lg: 0 8px 24px rgba(15, 40, 71, 0.08);
-
-            /* Formal radii */
-            --radius-xs: 4px;
-            --radius-sm: 6px;
-            --radius-md: 8px;
-            --radius-lg: 10px;
-        }
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        html, body {
-            max-width: 100%;
-            overflow-x: hidden;
-        }
-
-        body {
-            font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: var(--gov-bg);
-            color: var(--gov-text);
-            font-size: 14px;
-            line-height: 1.6;
-            margin: 0;
-            min-height: 100vh;
-            font-feature-settings: "tnum" 1, "ss01" 1;
-        }
-
-        .content {
-            margin-left: 280px;
-            padding: clamp(64px, 6vw + 40px, 96px) clamp(10px, 2.5vw, 28px) clamp(16px, 2vw, 28px);
-            transition: margin-left 0.3s ease;
-            min-height: 100vh;
-        }
-
-        @media (max-width: 1024px) {
-            .content,
-            .sidebar-collapsed .content {
-                margin-left: 0;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .content {
-                padding-left: clamp(8px, 3vw, 16px);
-                padding-right: clamp(8px, 3vw, 16px);
-                padding-top: 72px;
-            }
-        }
-
-        .sidebar-collapsed .content {
-            margin-left: 72px;
-        }
-
-        .dashboard-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            width: 100%;
-            min-width: 0;
-            overflow-x: hidden;
-        }
-
-        /* Header — Official Document Banner */
-        .dashboard-header {
-            background-color: var(--gov-surface);
-            border-radius: var(--radius-md) var(--radius-md) 0 0;
-            border: 1px solid var(--gov-border);
-            border-bottom: 0;
-            border-top: 3px solid var(--gov-accent);
-            padding: clamp(16px, 2vw, 24px) clamp(16px, 2.4vw, 28px);
-            margin-bottom: 0;
-            box-shadow: var(--gov-shadow-sm);
-            position: relative;
-        }
-
-        .header-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: clamp(12px, 2vw, 24px);
-        }
-
-        .header-identity {
-            display: flex;
-            align-items: center;
-            gap: clamp(10px, 1.4vw, 18px);
-        }
-
-        .header-seal {
-            width: clamp(44px, 4.5vw, 56px);
-            height: clamp(44px, 4.5vw, 56px);
-            border-radius: 50%;
-            background: var(--gov-accent-50);
-            border: 2px solid var(--gov-accent);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 4px;
-            flex-shrink: 0;
-            box-shadow: inset 0 0 0 1px rgba(201, 169, 97, 0.3);
-        }
-
-        .header-seal img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-
-        .header-eyebrow {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.14em;
-            text-transform: uppercase;
-            color: var(--gov-accent-600);
-            margin-bottom: 4px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .header-eyebrow::after {
-            content: '';
-            flex: 0 0 28px;
-            height: 1px;
-            background: var(--gov-accent);
-        }
-
-        .header-title h1 {
-            font-size: clamp(1.15rem, 1vw + 0.9rem, 1.625rem);
-            font-weight: 700;
-            color: var(--gov-primary);
-            margin-bottom: 2px;
-            letter-spacing: -0.015em;
-            line-height: 1.2;
-        }
-
-        .header-title p {
-            color: var(--gov-text-muted);
-            font-size: clamp(0.8rem, 0.3vw + 0.75rem, 0.9rem);
-            font-weight: 500;
-        }
-
-        .header-right {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 12px;
-        }
-
-        .header-date {
-            font-size: 0.8125rem;
-            font-weight: 600;
-            color: var(--gov-text-muted);
-            letter-spacing: 0.01em;
-            padding: 6px 12px;
-            background: var(--gov-surface-alt);
-            border: 1px solid var(--gov-border);
-            border-radius: var(--radius-sm);
-            font-variant-numeric: tabular-nums;
-        }
-
-        .header-date i {
-            color: var(--gov-accent-600);
-            margin-right: 6px;
-        }
-
-        /* Statistics Grid — Institutional Style */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
-            gap: clamp(10px, 1.2vw, 16px);
-            margin-bottom: clamp(16px, 2vw, 24px);
-        }
-
-        .stat-card {
-            background-color: var(--gov-surface);
-            border-radius: var(--radius-md);
-            border: 1px solid var(--gov-border);
-            padding: clamp(14px, 1.6vw, 22px);
-            position: relative;
-            transition: all 0.15s ease;
-            box-shadow: var(--gov-shadow-sm);
-            overflow: hidden;
-        }
-
-        .stat-card:hover {
-            border-color: var(--gov-border-strong);
-            box-shadow: var(--gov-shadow-md);
-            transform: translateY(-1px);
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-        }
-
-        .stat-card.blue::before   { background: var(--stat-navy); }
-        .stat-card.green::before  { background: var(--stat-teal); }
-        .stat-card.purple::before { background: var(--stat-gold); }
-        .stat-card.red::before    { background: var(--stat-maroon); }
-        .stat-card.orange::before { background: var(--stat-amber); }
-        .stat-card.indigo::before { background: var(--stat-indigo); }
-        .stat-card.gray::before   { background: var(--stat-slate); }
-        .stat-card.teal::before   { background: var(--stat-teal); }
-
-        .stat-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 12px;
-            gap: 12px;
-        }
-
-        .stat-icon {
-            width: clamp(34px, 3vw, 42px);
-            height: clamp(34px, 3vw, 42px);
-            border-radius: var(--radius-sm);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.125rem;
-            flex-shrink: 0;
-        }
-
-        .stat-card.blue .stat-icon   { background-color: rgba(15, 40, 71, 0.08);  color: var(--stat-navy); }
-        .stat-card.green .stat-icon  { background-color: rgba(15, 118, 110, 0.08); color: var(--stat-teal); }
-        .stat-card.purple .stat-icon { background-color: rgba(161, 125, 43, 0.1);  color: var(--stat-gold); }
-        .stat-card.red .stat-icon    { background-color: rgba(153, 27, 27, 0.08);  color: var(--stat-maroon); }
-        .stat-card.orange .stat-icon { background-color: rgba(180, 83, 9, 0.08);   color: var(--stat-amber); }
-        .stat-card.indigo .stat-icon { background-color: rgba(55, 48, 163, 0.08);  color: var(--stat-indigo); }
-        .stat-card.gray .stat-icon   { background-color: rgba(71, 85, 105, 0.08);  color: var(--stat-slate); }
-        .stat-card.teal .stat-icon   { background-color: rgba(15, 118, 110, 0.08); color: var(--stat-teal); }
-
-        .stat-number {
-            font-size: clamp(1.4rem, 1.2vw + 1rem, 2rem);
-            font-weight: 700;
-            color: var(--gov-primary);
-            margin-bottom: 4px;
-            font-variant-numeric: tabular-nums;
-            line-height: 1;
-            letter-spacing: -0.02em;
-        }
-
-        .stat-label {
-            color: var(--gov-text-muted);
-            font-size: 0.75rem;
-            font-weight: 600;
-            line-height: 1.4;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-        }
-
-        .stat-label-info {
-            width: 14px;
-            height: 14px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background-color: var(--gov-primary-50);
-            color: var(--gov-primary);
-            border-radius: 50%;
-            font-size: 9px;
-            cursor: help;
-            position: relative;
-        }
-
-        .stat-label-info:hover::after {
-            content: attr(data-tooltip);
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%) translateY(-8px);
-            background-color: var(--gov-primary);
-            color: #ffffff;
-            padding: 8px 12px;
-            border-radius: var(--radius-sm);
-            font-size: 12px;
-            white-space: nowrap;
-            z-index: 1000;
-            box-shadow: var(--gov-shadow-lg);
-            text-transform: none;
-            letter-spacing: 0;
-        }
-
-        .stat-label-info:hover::before {
-            content: '';
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            border: 6px solid transparent;
-            border-top-color: var(--gov-primary);
-        }
-
-        .stat-empty-state {
-            font-size: 0.75rem;
-            color: #94a3b8;
-            margin-top: 6px;
-            font-style: italic;
-        }
-
-        .stat-trend {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            margin-top: 10px;
-            padding: 3px 8px;
-            border-radius: var(--radius-xs);
-            background-color: var(--gov-surface-alt);
-            border: 1px solid var(--gov-border);
-            font-variant-numeric: tabular-nums;
-        }
-
-        .stat-trend.up {
-            color: var(--gov-success);
-            background-color: var(--gov-success-50);
-            border-color: rgba(15, 118, 110, 0.2);
-        }
-
-        .stat-trend.down {
-            color: var(--gov-danger);
-            background-color: var(--gov-danger-50);
-            border-color: rgba(153, 27, 27, 0.2);
-        }
-
-        .stat-trend.neutral {
-            color: var(--gov-text-subtle);
-            background-color: var(--gov-surface-alt);
-        }
-
-        /* ============================================================
-           Totals Banner — Records Overview Header
-           ============================================================ */
-        .totals-banner {
-            display: grid;
-            grid-template-columns: minmax(260px, 1fr) auto;
-            gap: clamp(20px, 3vw, 40px);
-            align-items: center;
-            padding: clamp(20px, 2.4vw, 28px) clamp(22px, 2.6vw, 32px);
-            background: linear-gradient(135deg, var(--gov-primary) 0%, #1a3a5c 100%);
-            color: #ffffff;
-            border-radius: 0 0 var(--radius-md) var(--radius-md);
-            box-shadow: var(--gov-shadow-md);
-            margin-bottom: clamp(16px, 2vw, 22px);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .totals-banner::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 220px;
-            height: 100%;
-            background: radial-gradient(circle at top right, rgba(201, 169, 97, 0.18), transparent 70%);
-            pointer-events: none;
-        }
-
-        .totals-banner-main {
-            position: relative;
-            z-index: 1;
-        }
-
-        .totals-banner-eyebrow {
-            font-size: 0.7rem;
-            letter-spacing: 0.14em;
-            text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.7);
-            font-weight: 600;
-            margin-bottom: 8px;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .totals-banner-eyebrow::before {
-            content: '';
-            display: inline-block;
-            width: 24px;
-            height: 2px;
-            background-color: var(--stat-gold, #c9a961);
-        }
-
-        .totals-banner-number {
-            font-size: clamp(2rem, 1.6vw + 1.6rem, 3rem);
-            font-weight: 700;
-            line-height: 1;
-            letter-spacing: -0.02em;
-            font-variant-numeric: tabular-nums;
-            color: #ffffff;
-        }
-
-        .totals-banner-sublabel {
-            font-size: 0.85rem;
-            color: rgba(255, 255, 255, 0.78);
-            margin-top: 8px;
-            font-weight: 500;
-        }
-
-        .totals-breakdown {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0;
-            position: relative;
-            z-index: 1;
-        }
-
-        .totals-breakdown-item {
-            padding: 4px clamp(14px, 1.6vw, 22px);
-            border-left: 1px solid rgba(255, 255, 255, 0.18);
-            min-width: 90px;
-        }
-
-        .totals-breakdown-item:first-child {
-            border-left: 0;
-            padding-left: 0;
-        }
-
-        .totals-breakdown-num {
-            font-size: 1.25rem;
-            font-weight: 600;
-            font-variant-numeric: tabular-nums;
-            color: #ffffff;
-            line-height: 1.1;
-        }
-
-        .totals-breakdown-label {
-            font-size: 0.68rem;
-            letter-spacing: 0.09em;
-            text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.7);
-            margin-top: 4px;
-            font-weight: 600;
-        }
-
-        .totals-banner-meta {
-            grid-column: 1 / -1;
-            font-size: 0.75rem;
-            color: rgba(255, 255, 255, 0.65);
-            padding-top: 14px;
-            margin-top: 4px;
-            border-top: 1px solid rgba(255, 255, 255, 0.14);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 8px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .totals-banner-meta a {
-            color: rgba(255, 255, 255, 0.85);
-            text-decoration: none;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            transition: color 0.15s ease;
-        }
-
-        .totals-banner-meta a:hover {
-            color: var(--stat-gold, #c9a961);
-        }
-
-        @media (max-width: 720px) {
-            .totals-banner {
-                grid-template-columns: 1fr;
-            }
-            .totals-breakdown {
-                width: 100%;
-                justify-content: space-between;
-            }
-            .totals-breakdown-item {
-                min-width: auto;
-                flex: 1 1 45%;
-                padding: 8px 10px;
-                border-left: 0;
-                border-top: 1px solid rgba(255, 255, 255, 0.14);
-            }
-        }
-
-        /* ============================================================
-           Stat Groups — Sectioned KPI Tiers
-           ============================================================ */
-        .stat-group {
-            margin-bottom: clamp(16px, 2vw, 22px);
-        }
-
-        .stat-group-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin: 0 0 12px;
-            font-size: 0.72rem;
-            font-weight: 700;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: var(--gov-text-muted);
-        }
-
-        .stat-group-header .stat-group-title {
-            white-space: nowrap;
-        }
-
-        .stat-group-header::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--gov-border);
-        }
-
-        .stat-group-header .stat-group-count {
-            font-size: 0.7rem;
-            font-weight: 600;
-            letter-spacing: 0.06em;
-            color: var(--gov-text-subtle);
-            background: var(--gov-surface-alt);
-            border: 1px solid var(--gov-border);
-            border-radius: 999px;
-            padding: 2px 10px;
-        }
-
-        .stat-group.alerts .stat-group-header {
-            color: var(--gov-danger);
-        }
-
-        .stat-group.alerts .stat-group-header::after {
-            background: rgba(153, 27, 27, 0.25);
-        }
-
-        /* ============================================================
-           Modern Card Visual Override (Quiet Corporate)
-           ============================================================ */
-        .stat-card::before { display: none; }
-
-        .stat-card {
-            padding: clamp(16px, 1.6vw, 20px) clamp(18px, 1.8vw, 22px);
-            border-radius: 10px;
-        }
-
-        .stat-card::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: var(--gov-border-strong);
-            opacity: 0.55;
-            transition: opacity 0.15s ease;
-        }
-
-        .stat-card.blue::after,
-        .stat-card.green::after,
-        .stat-card.purple::after,
-        .stat-card.red::after,
-        .stat-card.orange::after,
-        .stat-card.indigo::after,
-        .stat-card.gray::after,
-        .stat-card.teal::after {
-            background: var(--gov-primary);
-            opacity: 0.85;
-        }
-
-        .stat-group.alerts .stat-card::after {
-            background: var(--gov-danger);
-            opacity: 0.9;
-        }
-
-        .stat-card:hover::after {
-            opacity: 1;
-        }
-
-        /* Neutralize icon chip background; preserve glyph color */
-        .stats-grid .stat-card .stat-icon {
-            background-color: var(--gov-surface-alt) !important;
-            border: 1px solid var(--gov-border);
-            border-radius: 8px;
-        }
-
-        /* Tighter, pill-shaped trend */
-        .stats-grid .stat-trend {
-            padding: 2px 8px;
-            font-size: 0.7rem;
-            border-radius: 999px;
-        }
-
-        /* Charts Section — Formal Style */
-        .charts-section {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: clamp(12px, 1.2vw, 16px);
-            margin-bottom: clamp(16px, 2vw, 24px);
-        }
-
-        .chart-card {
-            background-color: var(--gov-surface);
-            border-radius: var(--radius-md);
-            border: 1px solid var(--gov-border);
-            padding: clamp(16px, 1.8vw, 24px);
-            box-shadow: var(--gov-shadow-sm);
-            transition: border-color 0.15s ease, box-shadow 0.15s ease;
-            min-width: 0;
-        }
-
-        .chart-card:hover {
-            box-shadow: var(--gov-shadow-md);
-            border-color: var(--gov-border-strong);
-        }
-
-        .chart-header {
-            margin-bottom: 20px;
-            padding-bottom: 14px;
-            border-bottom: 1px solid var(--gov-border);
-            position: relative;
-        }
-
-        .chart-header::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            width: 48px;
-            height: 2px;
-            background: var(--gov-accent);
-        }
-
-        .chart-title {
-            font-size: 1rem;
-            font-weight: 700;
-            color: var(--gov-primary);
-            margin-bottom: 4px;
-            letter-spacing: -0.005em;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        .chart-subtitle {
-            color: var(--gov-text-subtle);
-            font-size: 0.8125rem;
-            font-weight: 500;
-        }
-
-        .chart-container {
-            position: relative;
-            height: clamp(220px, 32vw, 340px);
-            width: 100%;
-        }
-
-        /* Recent Activity — Table-like Formal Rows */
-        .activity-section {
-            background-color: var(--gov-surface);
-            border-radius: var(--radius-md);
-            border: 1px solid var(--gov-border);
-            padding: clamp(16px, 1.8vw, 24px);
-            box-shadow: var(--gov-shadow-sm);
-            transition: border-color 0.15s ease, box-shadow 0.15s ease;
-        }
-
-        .activity-section:hover {
-            box-shadow: var(--gov-shadow-md);
-            border-color: var(--gov-border-strong);
-        }
-
-        .activity-header {
-            margin-bottom: 18px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid var(--gov-border);
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .activity-header::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            width: 48px;
-            height: 2px;
-            background: var(--gov-accent);
-        }
-
-        .activity-title {
-            font-size: 0.9375rem;
-            font-weight: 700;
-            color: var(--gov-primary);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-        }
-
-        .activity-title i {
-            color: var(--gov-accent-600);
-            font-size: 0.9375rem;
-        }
-
-        .activity-filters {
-            display: flex;
-            gap: 4px;
-            flex-wrap: wrap;
-        }
-
-        .activity-tab {
-            padding: 5px 12px;
-            border: 1px solid var(--gov-border);
-            border-radius: var(--radius-sm);
-            background: var(--gov-surface);
-            color: var(--gov-text-muted);
-            font-size: 0.75rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            letter-spacing: 0.02em;
-        }
-
-        .activity-tab:hover {
-            background: var(--gov-primary-50);
-            border-color: var(--gov-primary);
-            color: var(--gov-primary);
-        }
-
-        .activity-tab.active {
-            background: var(--gov-primary);
-            border-color: var(--gov-primary);
-            color: #ffffff;
-        }
-
-        .activity-list {
-            list-style: none;
-        }
-
-        .activity-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 14px;
-            padding: 14px 4px;
-            border-bottom: 1px solid var(--gov-border);
-            transition: background-color 0.15s ease;
-            cursor: pointer;
-        }
-
-        .activity-item:hover {
-            background-color: var(--gov-surface-alt);
-        }
-
-        .activity-item:last-child {
-            border-bottom: none;
-        }
-
-        .activity-user-info {
-            font-size: 0.75rem;
-            color: var(--gov-text-subtle);
-            margin-top: 4px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .activity-action-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 2px 8px;
-            background: var(--gov-success-50);
-            color: var(--gov-success);
-            border-radius: var(--radius-xs);
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            border: 1px solid rgba(15, 118, 110, 0.15);
-        }
-
-        .activity-role-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 2px 8px;
-            background: var(--gov-primary-50);
-            color: var(--gov-primary);
-            border-radius: var(--radius-xs);
-            font-size: 0.7rem;
-            font-weight: 600;
-            border: 1px solid rgba(15, 40, 71, 0.1);
-        }
-
-        .activity-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: var(--radius-sm);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            font-size: 0.9375rem;
-            border: 1px solid var(--gov-border);
-        }
-
-        .activity-icon.birth {
-            background-color: rgba(15, 40, 71, 0.06);
-            color: var(--stat-navy);
-            border-color: rgba(15, 40, 71, 0.15);
-        }
-
-        .activity-icon.marriage {
-            background-color: rgba(161, 125, 43, 0.08);
-            color: var(--stat-gold);
-            border-color: rgba(161, 125, 43, 0.2);
-        }
-
-        .activity-icon.death {
-            background-color: rgba(71, 85, 105, 0.08);
-            color: var(--stat-slate);
-            border-color: rgba(71, 85, 105, 0.2);
-        }
-
-        .activity-icon.license {
-            background-color: rgba(55, 48, 163, 0.06);
-            color: var(--stat-indigo);
-            border-color: rgba(55, 48, 163, 0.15);
-        }
-
-        .activity-content {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .activity-name {
-            font-weight: 600;
-            color: var(--gov-text);
-            margin-bottom: 3px;
-            font-size: 0.9375rem;
-            letter-spacing: -0.005em;
-        }
-
-        .activity-meta {
-            font-size: 0.8125rem;
-            color: var(--gov-text-muted);
-            font-weight: 500;
-        }
-
-        .activity-time {
-            font-size: 0.75rem;
-            color: var(--gov-text-muted);
-            white-space: nowrap;
-            font-weight: 600;
-            padding: 4px 10px;
-            background-color: var(--gov-surface-alt);
-            border-radius: var(--radius-xs);
-            border: 1px solid var(--gov-border);
-            font-variant-numeric: tabular-nums;
-        }
-
-        /* Security Status Card — Institutional */
-        .security-status-card {
-            background: var(--gov-surface);
-            border-radius: var(--radius-md);
-            padding: 20px 22px;
-            border: 1px solid var(--gov-border);
-            box-shadow: var(--gov-shadow-sm);
-            margin-bottom: 24px;
-        }
-
-        .security-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 16px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid var(--gov-border);
-            position: relative;
-        }
-
-        .security-header::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            width: 48px;
-            height: 2px;
-            background: var(--gov-accent);
-        }
-
-        .security-header i {
-            font-size: 0.9375rem;
-            color: var(--gov-accent-600);
-        }
-
-        .security-title {
-            font-size: 0.9375rem;
-            font-weight: 700;
-            color: var(--gov-primary);
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-        }
-
-        .security-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 12px;
-        }
-
-        .security-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 14px;
-            background-color: var(--gov-surface-alt);
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--gov-border);
-            transition: all 0.15s ease;
-        }
-
-        .security-item:hover {
-            border-color: var(--gov-border-strong);
-            background-color: var(--gov-primary-50);
-        }
-
-        .security-item.warning-border {
-            border-color: rgba(180, 83, 9, 0.3);
-            background-color: var(--gov-warning-50);
-        }
-
-        .security-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: var(--radius-sm);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            font-size: 1rem;
-            border: 1px solid var(--gov-border);
-        }
-
-        .security-icon.success {
-            background-color: var(--gov-success-50);
-            color: var(--gov-success);
-            border-color: rgba(15, 118, 110, 0.2);
-        }
-
-        .security-icon.info {
-            background-color: var(--gov-primary-50);
-            color: var(--gov-primary);
-            border-color: rgba(15, 40, 71, 0.15);
-        }
-
-        .security-icon.warning {
-            background-color: var(--gov-warning-50);
-            color: var(--gov-warning);
-            border-color: rgba(180, 83, 9, 0.2);
-        }
-
-        .security-content {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .security-label {
-            font-size: 0.6875rem;
-            color: var(--gov-text-subtle);
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            margin-bottom: 3px;
-        }
-
-        .security-value {
-            font-size: 1.125rem;
-            font-weight: 700;
-            color: var(--gov-primary);
-            line-height: 1.2;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .security-value.text-warning {
-            color: var(--gov-warning);
-        }
-
-        /* Calendar & Notes Section — Institutional */
-        .calendar-notes-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
-            gap: clamp(12px, 1.2vw, 16px);
-            margin-bottom: clamp(16px, 2vw, 24px);
-        }
-
-        .calendar-widget {
-            background: var(--gov-surface);
-            border-radius: var(--radius-md);
-            padding: clamp(10px, 1.4vw, 20px);
-            border: 1px solid var(--gov-border);
-            box-shadow: var(--gov-shadow-sm);
-            min-width: 0;
-            overflow: hidden;
-        }
-
-        .notes-widget {
-            background: var(--gov-surface);
-            border-radius: var(--radius-md);
-            padding: clamp(10px, 1.4vw, 20px);
-            border: 1px solid var(--gov-border);
-            box-shadow: var(--gov-shadow-sm);
-            color: var(--gov-text);
-            min-width: 0;
-            overflow: hidden;
-        }
-
-        .widget-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 16px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid var(--gov-border);
-            position: relative;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-
-        .widget-header::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            width: 48px;
-            height: 2px;
-            background: var(--gov-accent);
-        }
-
-        .widget-title {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.9375rem;
-            font-weight: 700;
-            color: var(--gov-primary);
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-        }
-
-        .widget-title i {
-            color: var(--gov-accent-600);
-            font-size: 0.9375rem;
-        }
-
-        .widget-action-btn {
-            padding: 6px 12px;
-            background: var(--gov-primary);
-            color: #ffffff;
-            border: 1px solid var(--gov-primary);
-            border-radius: var(--radius-sm);
-            font-size: 0.75rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            letter-spacing: 0.02em;
-        }
-
-        .widget-action-btn:hover {
-            background: var(--gov-primary-600);
-            border-color: var(--gov-accent);
-            box-shadow: var(--gov-shadow-md);
-        }
-
-        .widget-action-btn i {
-            font-size: 0.75rem;
-        }
-
-        /* Calendar Events List */
-        .events-list {
-            list-style: none;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .event-item {
-            display: flex;
-            align-items: start;
-            gap: 12px;
-            padding: 12px 14px;
-            margin-bottom: 8px;
-            background: var(--gov-surface-alt);
-            border: 1px solid var(--gov-border);
-            border-left: 3px solid var(--gov-primary);
-            border-radius: var(--radius-sm);
-            transition: all 0.15s ease;
-            cursor: pointer;
-        }
-
-        .event-item:hover {
-            background: var(--gov-primary-50);
-            border-color: var(--gov-border-strong);
-            border-left-color: var(--gov-accent);
-        }
-
-        .event-item.priority-high {
-            border-left-color: var(--gov-danger);
-        }
-
-        .event-item.priority-urgent {
-            border-left-color: var(--gov-danger);
-            background: var(--gov-danger-50);
-        }
-
-        .event-item.priority-medium {
-            border-left-color: var(--gov-warning);
-        }
-
-        .event-item.priority-low {
-            border-left-color: var(--gov-text-subtle);
-        }
-
-        .event-date-badge {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            width: 50px;
-            min-width: 50px;
-            height: 50px;
-            background: var(--gov-surface);
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--gov-border);
-            flex-shrink: 0;
-        }
-
-        .event-month {
-            font-size: 0.625rem;
-            font-weight: 700;
-            color: var(--gov-accent-600);
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-        }
-
-        .event-day {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--gov-primary);
-            line-height: 1;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .event-content {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .event-title {
-            font-weight: 600;
-            color: var(--gov-text);
-            margin-bottom: 4px;
-            font-size: 0.9375rem;
-        }
-
-        .event-meta {
-            font-size: 0.75rem;
-            color: var(--gov-text-subtle);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .event-type-badge {
-            padding: 2px 8px;
-            background: var(--gov-primary-50);
-            color: var(--gov-primary);
-            border-radius: var(--radius-xs);
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            border: 1px solid rgba(15, 40, 71, 0.1);
-        }
-
-        .event-time {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        /* Calendar Month Navigation */
-        .calendar-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 14px;
-            background: var(--gov-surface-alt);
-            border-radius: var(--radius-sm);
-            margin-bottom: 10px;
-            border: 1px solid var(--gov-border);
-        }
-
-        .calendar-month-year {
-            margin: 0;
-            font-size: 0.9375rem;
-            font-weight: 700;
-            color: var(--gov-primary);
-            letter-spacing: 0.02em;
-            text-transform: uppercase;
-        }
-
-        .calendar-nav-btn {
-            background: var(--gov-surface);
-            border: 1px solid var(--gov-border);
-            color: var(--gov-primary);
-            cursor: pointer;
-            padding: 5px 10px;
-            border-radius: var(--radius-xs);
-            transition: all 0.15s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-        }
-
-        .calendar-nav-btn:hover {
-            background: var(--gov-primary);
-            border-color: var(--gov-primary);
-            color: #ffffff;
-        }
-
-        /* Calendar Wrapper */
-        .calendar-wrapper {
-            padding: 0;
-        }
-
-        /* Calendar Day Headers */
-        .calendar-day-headers {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: clamp(2px, 0.8vw, 8px);
-            margin-bottom: 8px;
-            padding: 0 clamp(4px, 1.2vw, 12px);
-        }
-
-        .calendar-day-header {
-            text-align: center;
-            font-size: 0.6875rem;
-            font-weight: 700;
-            color: var(--gov-text-subtle);
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            padding: 4px 0;
-        }
-
-        /* Calendar Grid */
-        .calendar-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: clamp(2px, 0.8vw, 8px);
-            padding: clamp(4px, 1.2vw, 12px);
-            background: transparent;
-            min-width: 0;
-        }
-
-        .calendar-day-cell {
-            aspect-ratio: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-            font-size: clamp(0.72rem, 2vw, 0.875rem);
-            border-radius: var(--radius-xs);
-            cursor: pointer;
-            transition: all 0.15s ease;
-            background: var(--gov-surface);
-            border: 1px solid var(--gov-border);
-            position: relative;
-            font-weight: 600;
-            color: var(--gov-text);
-            min-height: clamp(32px, 9vw, 46px);
-            width: 100%;
-            max-width: 100%;
-            min-width: 0;
-            margin: 0 auto;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .calendar-day-cell:hover:not(.empty):not(.today) {
-            background: var(--gov-primary-50);
-            border-color: var(--gov-primary);
-            color: var(--gov-primary);
-        }
-
-        .calendar-day-cell.empty {
-            background: transparent;
-            border: none;
-            cursor: default;
-        }
-
-        .calendar-day-cell.today {
-            background: var(--gov-surface);
-            color: var(--gov-primary);
-            border: 2px solid var(--gov-accent);
-            font-weight: 800;
-            box-shadow: 0 0 0 2px rgba(201, 169, 97, 0.15);
-        }
-
-        .calendar-day-cell.today:hover {
-            background: var(--gov-accent-50);
-        }
-
-        .calendar-day-cell.has-event {
-            background: var(--gov-primary-50);
-            border-color: var(--gov-primary);
-            color: var(--gov-primary);
-        }
-
-        .calendar-day-cell.has-event:hover {
-            background: var(--gov-primary);
-            color: #ffffff;
-        }
-
-        .calendar-day-cell.today.has-event {
-            background: var(--gov-accent-50);
-            border-color: var(--gov-accent);
-        }
-
-        .calendar-event-count {
-            position: absolute;
-            top: -4px;
-            right: -4px;
-            background: var(--gov-primary);
-            color: #ffffff;
-            font-size: 0.625rem;
-            font-weight: 800;
-            min-width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0 4px;
-            box-shadow: 0 1px 3px rgba(15, 40, 71, 0.3);
-            border: 2px solid var(--gov-surface);
-            font-variant-numeric: tabular-nums;
-        }
-
-        .calendar-day-cell.today .calendar-event-count {
-            background: var(--gov-accent);
-            color: var(--gov-primary);
-            border-color: var(--gov-surface);
-        }
-
-        .day-number {
-            position: relative;
-            z-index: 1;
-        }
-
-        .event-indicator {
-            position: absolute;
-            bottom: 4px;
-            width: 4px;
-            height: 4px;
-            background: var(--gov-accent);
-            border-radius: 50%;
-        }
-
-        /* Notes List */
-        .notes-list {
-            list-style: none;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        /* Notes List */
-        .note-item {
-            padding: 12px 14px;
-            margin-bottom: 8px;
-            background: var(--gov-surface-alt);
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--gov-border);
-            transition: all 0.15s ease;
-            cursor: pointer;
-            position: relative;
-        }
-
-        .note-item:hover {
-            background: var(--gov-primary-50);
-            border-color: var(--gov-border-strong);
-        }
-
-        .note-item.pinned {
-            background: var(--gov-accent-50);
-            border-color: var(--gov-accent);
-            border-left: 3px solid var(--gov-accent);
-        }
-
-        .note-item.pinned:hover {
-            background: #f5ecd3;
-        }
-
-        .note-item.pinned::before {
-            content: '\f08d';
-            font-family: 'Font Awesome 6 Free';
-            font-weight: 900;
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            color: var(--gov-accent-600);
-            font-size: 0.75rem;
-        }
-
-        .note-header {
-            display: flex;
-            align-items: start;
-            justify-content: space-between;
-            margin-bottom: 6px;
-        }
-
-        .note-title {
-            font-weight: 600;
-            color: var(--gov-primary);
-            font-size: 0.875rem;
-            flex: 1;
-            padding-right: 20px;
-        }
-
-        .note-content-preview {
-            font-size: 0.75rem;
-            color: var(--gov-text-muted);
-            line-height: 1.4;
-            margin-bottom: 6px;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-
-        .note-meta {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.6875rem;
-            color: var(--gov-text-subtle);
-            flex-wrap: wrap;
-        }
-
-        .note-type-badge {
-            padding: 2px 8px;
-            background: var(--gov-primary-50);
-            color: var(--gov-primary);
-            border-radius: var(--radius-xs);
-            font-size: 0.625rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            border: 1px solid rgba(15, 40, 71, 0.1);
-        }
-
-        .note-author {
-            display: flex;
-            align-items: center;
-            gap: 3px;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: #94a3b8;
-        }
-
-        .empty-state i {
-            font-size: 3rem;
-            color: #cbd5e1;
-            margin-bottom: 16px;
-        }
-
-        .empty-state p {
-            font-size: 0.9375rem;
-            margin-bottom: 16px;
-        }
-
-        /* Chart Insights — Formal Callout */
-        .chart-insight {
-            background-color: var(--gov-accent-50);
-            border-left: 3px solid var(--gov-accent);
-            padding: 12px 16px;
-            border-radius: var(--radius-xs);
-            margin-bottom: 16px;
-            border-top: 1px solid rgba(201, 169, 97, 0.3);
-            border-right: 1px solid rgba(201, 169, 97, 0.3);
-            border-bottom: 1px solid rgba(201, 169, 97, 0.3);
-        }
-
-        .chart-insight-text {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            font-size: 0.8125rem;
-            color: var(--gov-text);
-            font-weight: 500;
-            line-height: 1.55;
-        }
-
-        .chart-insight-text strong {
-            color: var(--gov-primary);
-            font-weight: 700;
-        }
-
-        .chart-insight-text i {
-            color: var(--gov-accent-600);
-            font-size: 0.9375rem;
-            flex-shrink: 0;
-            margin-top: 2px;
-        }
-
-        /* Modal Styles */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(4px);
-            z-index: 9998;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .modal-overlay.active {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .modal-container {
-            background: var(--gov-surface);
-            border-radius: var(--radius-md);
-            border-top: 3px solid var(--gov-accent);
-            width: 90%;
-            max-width: 600px;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(15, 40, 71, 0.25);
-            animation: slideUp 0.3s ease;
-            position: relative;
-        }
-
-        .modal-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 18px 22px;
-            border-bottom: 1px solid var(--gov-border);
-            background: var(--gov-surface);
-        }
-
-        .modal-title {
-            font-size: 1rem;
-            font-weight: 700;
-            color: var(--gov-primary);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        .modal-title i {
-            color: var(--gov-accent-600);
-            font-size: 1.125rem;
-        }
-
-        .modal-close {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            background: #f8fafc;
-            border: 1.5px solid #e2e8f0;
-            color: #64748b;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            font-size: 1.125rem;
-        }
-
-        .modal-close:hover {
-            background: #fee2e2;
-            border-color: #ef4444;
-            color: #ef4444;
-        }
-
-        .modal-body {
-            padding: 28px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            font-weight: 600;
-            color: #0f172a;
-            margin-bottom: 8px;
-            font-size: 0.9375rem;
-        }
-
-        .form-group label .required {
-            color: #ef4444;
-            margin-left: 4px;
-        }
-
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 0.9375rem;
-            font-family: inherit;
-            background: #ffffff;
-            color: #0f172a;
-            transition: all 0.2s ease;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: #3b82f6;
-            background: #f8fafc;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-
-        .form-group textarea {
-            resize: vertical;
-            min-height: 120px;
-        }
-
-        .modal-footer {
-            padding: 20px 28px;
-            border-top: 2px solid #f1f5f9;
-            background: #f8fafc;
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-            border-radius: 0 0 16px 16px;
-        }
-
-        .modal-btn {
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 0.875rem;
-            font-weight: 600;
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .modal-btn-cancel {
-            background: #f8fafc;
-            color: #64748b;
-            border: 1.5px solid #e2e8f0;
-        }
-
-        .modal-btn-cancel:hover {
-            background: #e2e8f0;
-            border-color: #cbd5e1;
-            color: #475569;
-        }
-
-        .modal-btn-primary {
-            background: var(--gov-primary);
-            color: #ffffff;
-            border: 1px solid var(--gov-primary);
-        }
-
-        .modal-btn-primary:hover {
-            background: var(--gov-primary-600);
-            border-color: var(--gov-accent);
-            box-shadow: var(--gov-shadow-md);
-            transform: translateY(-1px);
-        }
-
-        .modal-btn-danger {
-            background: var(--gov-danger);
-            color: #ffffff;
-            border: 1px solid var(--gov-danger);
-        }
-
-        .modal-btn-danger:hover {
-            background: #7f1d1d;
-            box-shadow: var(--gov-shadow-md);
-            transform: translateY(-1px);
-        }
-
-        /* Wide modal for All Events / All Notes */
-        .modal-container-wide {
-            max-width: 800px;
-        }
-
-        .all-events-list, .all-notes-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            max-height: 60vh;
-            overflow-y: auto;
-        }
-
-        .all-event-item, .all-note-item {
-            padding: 16px;
-            border-bottom: 1px solid #f1f5f9;
-            transition: background 0.15s ease;
-        }
-
-        .all-event-item:hover, .all-note-item:hover {
-            background: #f8fafc;
-        }
-
-        .all-event-item:last-child, .all-note-item:last-child {
-            border-bottom: none;
-        }
-
-        .all-item-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 8px;
-        }
-
-        .all-item-title {
-            font-weight: 600;
-            font-size: 0.9375rem;
-            color: #0f172a;
-        }
-
-        .all-item-actions {
-            display: flex;
-            gap: 6px;
-        }
-
-        .all-item-action-btn {
-            padding: 4px 10px;
-            border-radius: 6px;
-            border: 1.5px solid #e2e8f0;
-            background: #ffffff;
-            cursor: pointer;
-            font-size: 0.75rem;
-            font-weight: 500;
-            color: #64748b;
-            transition: all 0.15s ease;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .all-item-action-btn:hover {
-            border-color: #3b82f6;
-            color: #3b82f6;
-            background: #eff6ff;
-        }
-
-        .all-item-action-btn.delete:hover {
-            border-color: #ef4444;
-            color: #ef4444;
-            background: #fef2f2;
-        }
-
-        .all-item-action-btn.pin {
-            color: #f59e0b;
-            border-color: #fcd34d;
-        }
-
-        .all-item-action-btn.pin:hover {
-            background: #fffbeb;
-        }
-
-        .all-item-meta {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-            font-size: 0.8125rem;
-            color: #64748b;
-        }
-
-        .all-item-meta i {
-            font-size: 0.75rem;
-        }
-
-        .all-item-description {
-            margin-top: 6px;
-            font-size: 0.8125rem;
-            color: #64748b;
-            line-height: 1.5;
-        }
-
-        .all-note-content-preview {
-            margin-top: 6px;
-            font-size: 0.8125rem;
-            color: #475569;
-            line-height: 1.5;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-
-        .all-item-pinned {
-            background: #fffbeb;
-            border-left: 3px solid #f59e0b;
-        }
-
-        .modal-filter-bar {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 16px;
-            flex-wrap: wrap;
-        }
-
-        .modal-filter-bar select {
-            padding: 6px 12px;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 6px;
-            font-size: 0.8125rem;
-            color: #334155;
-            background: #ffffff;
-        }
-
-        .modal-filter-bar select:focus {
-            outline: none;
-            border-color: #3b82f6;
-        }
-
-        .modal-empty-state {
-            text-align: center;
-            padding: 48px 20px;
-            color: #94a3b8;
-        }
-
-        .modal-empty-state i {
-            font-size: 3rem;
-            color: #cbd5e1;
-            margin-bottom: 16px;
-        }
-
-        .modal-empty-state p {
-            font-size: 0.9375rem;
-        }
-
-        .modal-loading {
-            text-align: center;
-            padding: 48px 20px;
-        }
-
-        .modal-loading i {
-            font-size: 2rem;
-            color: #3b82f6;
-        }
-
-        .modal-loading p {
-            margin-top: 16px;
-            color: #64748b;
-            font-size: 0.875rem;
-        }
-
-        /* Event List in View Modal */
-        .event-list {
-            list-style: none;
-            max-height: 450px;
-            overflow-y: auto;
-            padding: 4px;
-        }
-
-        .event-list-item {
-            padding: 20px;
-            background: #ffffff;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            margin-bottom: 14px;
-            transition: all 0.25s ease;
-        }
-
-        .event-list-item:hover {
-            background: #f0f9ff;
-            border-color: #0ea5e9;
-            box-shadow: 0 4px 16px rgba(14, 165, 233, 0.12);
-            transform: translateY(-2px);
-        }
-
-        .event-list-item-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: start;
-            margin-bottom: 12px;
-            gap: 12px;
-        }
-
-        .event-list-item-title {
-            font-weight: 700;
-            color: #0f172a;
-            font-size: 1.0625rem;
-            flex: 1;
-            line-height: 1.3;
-        }
-
-        .event-list-item-actions {
-            display: flex;
-            gap: 8px;
-            flex-shrink: 0;
-        }
-
-        .event-action-btn {
-            padding: 8px 14px;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            font-size: 0.8125rem;
-            font-weight: 600;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .event-action-btn.edit {
-            background: #0ea5e9;
-            color: #ffffff;
-        }
-
-        .event-action-btn.edit:hover {
-            background: #0284c7;
-            box-shadow: 0 3px 10px rgba(14, 165, 233, 0.3);
-            transform: translateY(-1px);
-        }
-
-        .event-action-btn.delete {
-            background: #ef4444;
-            color: #ffffff;
-        }
-
-        .event-action-btn.delete:hover {
-            background: #dc2626;
-            box-shadow: 0 3px 10px rgba(239, 68, 68, 0.3);
-            transform: translateY(-1px);
-        }
-
-        .event-list-item-meta {
-            display: flex;
-            gap: 12px;
-            font-size: 0.8125rem;
-            color: #64748b;
-            margin-bottom: 6px;
-        }
-
-        .event-list-item-meta i {
-            width: 14px;
-        }
-
-        .event-type-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px 10px;
-            background: #e0f2fe;
-            color: #0369a1;
-            border-radius: 6px;
-            font-size: 0.6875rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .event-priority-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 0.6875rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-
-        .event-priority-badge.low {
-            background: #f1f5f9;
-            color: #475569;
-        }
-
-        .event-priority-badge.medium {
-            background: #fef3c7;
-            color: #854d0e;
-        }
-
-        .event-priority-badge.high {
-            background: #fed7aa;
-            color: #9a3412;
-        }
-
-        .event-priority-badge.urgent {
-            background: #fecaca;
-            color: #991b1b;
-        }
-
-        .event-list-item-description {
-            font-size: 0.875rem;
-            color: #475569;
-            line-height: 1.5;
-            margin-top: 8px;
-        }
-
-        /* Responsive */
-        @media (max-width: 992px) {
-            .charts-section {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .dashboard-container {
-                padding: 0;
-            }
-
-            .header-content {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .header-right {
-                width: 100%;
-                align-items: flex-start;
-            }
-
-            .calendar-notes-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .stats-grid {
-                grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
-            }
-
-            .activity-filters {
-                width: 100%;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 10px;
-            }
-
-            .stat-card {
-                padding: 12px;
-            }
-
-            .stat-number {
-                font-size: 1.25rem;
-            }
-
-            .stat-label {
-                font-size: 0.68rem;
-                letter-spacing: 0.04em;
-            }
-
-            .header-identity {
-                gap: 10px;
-            }
-
-            .header-eyebrow {
-                font-size: 10px;
-            }
-
-            .activity-tab {
-                padding: 4px 8px;
-                font-size: 0.7rem;
-            }
-        }
-
-        @media (max-width: 360px) {
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (hover: none) and (pointer: coarse) {
-            .stat-card:hover,
-            .chart-card:hover,
-            .activity-section:hover {
-                transform: none;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="../assets/css/dashboard.css?v=20260908">
 </head>
-<body>
+<body class="dashboard-page" data-sidebar-breakpoint="1024">
     <?php include '../includes/preloader.php'; ?>
     <?php include '../includes/mobile_header.php'; ?>
     <?php include '../includes/sidebar_nav.php'; ?>
     <?php include '../includes/top_navbar.php'; ?>
-
-    <div class="content">
+    <?php
+        $grand_total_records = array_sum(array_map(static fn($key) => $stats['total_' . $key] ?? 0, ['births', 'marriages', 'deaths', 'licenses']));
+        $this_month_total = array_sum(array_map(static fn($key) => $stats['this_month_' . $key] ?? 0, ['births', 'marriages', 'deaths', 'licenses']));
+        $categories = [
+            ['key' => 'births', 'type' => 'birth', 'label' => 'Births', 'name' => 'Birth Certificates', 'icon' => 'file-lines', 'trend' => 'birth_trend'],
+            ['key' => 'marriages', 'type' => 'marriage', 'label' => 'Marriages', 'name' => 'Marriage Certificates', 'icon' => 'file-signature', 'trend' => 'marriage_trend'],
+            ['key' => 'deaths', 'type' => 'death', 'label' => 'Deaths', 'name' => 'Death Certificates', 'icon' => 'file-minus', 'trend' => 'death_trend'],
+            ['key' => 'licenses', 'type' => 'license', 'label' => 'Marriage Licenses', 'name' => 'Marriage Licenses', 'icon' => 'stamp', 'trend' => 'license_trend']
+        ];
+        $monthly_totals = array_map(static fn($month) => $month['births'] + $month['marriages'] + $month['deaths'] + $month['licenses'], $monthly_chart_data);
+        $total_all_months = array_sum($monthly_totals);
+        $peak_month_index = $monthly_totals ? array_search(max($monthly_totals), $monthly_totals) : false;
+    ?>
+    <main class="content" id="mainContent">
         <div class="dashboard-container">
-            <!-- Header — Official Document Banner -->
-            <div class="dashboard-header">
-                <div class="header-content">
-                    <div class="header-identity">
-                        <div class="header-seal" aria-hidden="true">
-                            <img src="../assets/img/LOGO1.png" alt="Civil Registry Office Seal">
-                        </div>
-                        <div class="header-title">
-                            <div class="header-eyebrow">Civil Registry Office</div>
-                            <h1>Administrative Dashboard</h1>
-                            <p>Welcome, <?php echo htmlspecialchars($user_first_name); ?>. Official overview of registry operations.</p>
-                        </div>
-                    </div>
-                    <div class="header-right">
-                        <div class="header-date">
-                            <i class="fas fa-calendar-day" aria-hidden="true"></i>
-                            <?php echo date('l, d F Y'); ?>
-                        </div>
+            <header class="dashboard-header">
+                <div class="header-identity">
+                    <img class="header-seal" src="../assets/img/LOGO1.png" alt="Civil Registry Office seal">
+                    <div>
+                        <p class="header-eyebrow">Civil Registry Records / iSCAN</p>
+                        <h1>Civil Registry Dashboard</h1>
                     </div>
                 </div>
-            </div>
+                <div class="header-actions">
+                    <span class="header-date"><i class="fas fa-calendar-days" aria-hidden="true"></i> <?= date('l, F j, Y') ?></span>
+                    <a class="button-secondary" href="../public/folder_browser.php"><i class="fas fa-table-list" aria-hidden="true"></i> Records</a>
+                    <a class="button-primary" href="reports.php"><i class="fas fa-chart-line" aria-hidden="true"></i> View Reports</a>
+                </div>
+            </header>
 
-        <!-- Totals Banner -->
-        <?php
-            $grand_total_records = ($stats['total_births'] ?? 0)
-                                 + ($stats['total_marriages'] ?? 0)
-                                 + ($stats['total_deaths'] ?? 0)
-                                 + ($stats['total_licenses'] ?? 0);
-            $this_month_total = ($stats['this_month_births'] ?? 0)
-                              + ($stats['this_month_marriages'] ?? 0)
-                              + ($stats['this_month_deaths'] ?? 0)
-                              + ($stats['this_month_licenses'] ?? 0);
-        ?>
-        <div class="totals-banner">
-            <div class="totals-banner-main">
-                <div class="totals-banner-eyebrow">Records Overview</div>
-                <div class="totals-banner-number"><?php echo number_format($grand_total_records); ?></div>
-                <div class="totals-banner-sublabel">Total Records on File &middot; <?php echo number_format($this_month_total); ?> registered this month</div>
-            </div>
-            <div class="totals-breakdown">
-                <div class="totals-breakdown-item">
-                    <div class="totals-breakdown-num"><?php echo number_format($stats['total_births'] ?? 0); ?></div>
-                    <div class="totals-breakdown-label">Births</div>
-                </div>
-                <div class="totals-breakdown-item">
-                    <div class="totals-breakdown-num"><?php echo number_format($stats['total_marriages'] ?? 0); ?></div>
-                    <div class="totals-breakdown-label">Marriages</div>
-                </div>
-                <div class="totals-breakdown-item">
-                    <div class="totals-breakdown-num"><?php echo number_format($stats['total_deaths'] ?? 0); ?></div>
-                    <div class="totals-breakdown-label">Deaths</div>
-                </div>
-                <div class="totals-breakdown-item">
-                    <div class="totals-breakdown-num"><?php echo number_format($stats['total_licenses'] ?? 0); ?></div>
-                    <div class="totals-breakdown-label">Licenses</div>
-                </div>
-            </div>
-            <div class="totals-banner-meta">
-                <span><i class="fas fa-clock" style="margin-right:6px;opacity:0.7;"></i>As of <?php echo date('F j, Y'); ?></span>
-                <a href="reports.php"><i class="fas fa-chart-line"></i> View Reports</a>
-            </div>
-        </div>
-
-        <!-- Security & System Status -->
-        <div class="security-status-card" role="region" aria-label="Security and system status">
-            <div class="security-header">
-                <i class="fas fa-shield-halved" aria-hidden="true"></i>
-                <h2 class="security-title">Security &amp; System Status</h2>
-            </div>
-            <div class="security-grid">
-                <div class="security-item">
-                    <div class="security-icon success">
-                        <i class="fas fa-users"></i>
-                    </div>
-                    <div class="security-content">
-                        <div class="security-label">Active Users</div>
-                        <div class="security-value"><?php echo $security_stats['active_users']; ?></div>
-                    </div>
-                </div>
-                <div class="security-item">
-                    <div class="security-icon info">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                    <div class="security-content">
-                        <div class="security-label">Last Login</div>
-                        <div class="security-value" style="font-size: 0.875rem;">
-                            <?php
-                            if ($security_stats['last_login']) {
-                                $last_login_time = strtotime($security_stats['last_login']);
-                                $time_diff = time() - $last_login_time;
-                                if ($time_diff < 3600) {
-                                    echo floor($time_diff / 60) . ' mins ago';
-                                } elseif ($time_diff < 86400) {
-                                    echo floor($time_diff / 3600) . ' hours ago';
-                                } else {
-                                    echo date('M d, Y h:i A', $last_login_time);
-                                }
-                            } else {
-                                echo 'First Login';
-                            }
-                            ?>
+            <section class="stats-grid" aria-label="Registry statistics">
+                <article class="stat-card total">
+                    <div class="stat-copy"><h2 class="stat-label">Total Records</h2><p class="stat-number" data-value="<?= (int) $grand_total_records ?>"><?= number_format($grand_total_records) ?></p><p class="stat-caption">All active records</p></div>
+                    <span class="stat-icon" aria-hidden="true"><i class="fas fa-folder-open"></i></span>
+                </article>
+                <article class="stat-card month">
+                    <div class="stat-copy"><h2 class="stat-label">This Month</h2><p class="stat-number" data-value="<?= (int) $this_month_total ?>"><?= number_format($this_month_total) ?></p><p class="stat-caption">Registered in <?= date('F Y') ?></p></div>
+                    <span class="stat-icon" aria-hidden="true"><i class="fas fa-calendar-check"></i></span>
+                </article>
+                <?php foreach ($categories as $category): ?>
+                    <?php $trend = $stats[$category['trend']] ?? 0; ?>
+                    <article class="stat-card <?= $category['type'] ?>">
+                        <div class="stat-copy">
+                            <h2 class="stat-label"><?= $category['label'] ?></h2>
+                            <p class="stat-number" data-value="<?= (int) ($stats['total_' . $category['key']] ?? 0) ?>"><?= number_format($stats['total_' . $category['key']] ?? 0) ?></p>
+                            <p class="stat-caption"><strong><?= number_format($stats['this_month_' . $category['key']] ?? 0) ?></strong> this month</p>
                         </div>
-                    </div>
-                </div>
-                <div class="security-item <?php echo $security_stats['failed_login_count'] > 5 ? 'warning-border' : ''; ?>">
-                    <div class="security-icon <?php echo $security_stats['failed_login_count'] > 5 ? 'warning' : 'success'; ?>">
-                        <i class="fas fa-exclamation-triangle"></i>
-                    </div>
-                    <div class="security-content">
-                        <div class="security-label">Failed Logins (24h)</div>
-                        <div class="security-value <?php echo $security_stats['failed_login_count'] > 5 ? 'text-warning' : ''; ?>">
-                            <?php echo $security_stats['failed_login_count']; ?>
-                        </div>
-                    </div>
-                </div>
-                <div class="security-item">
-                    <div class="security-icon success">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <div class="security-content">
-                        <div class="security-label">System Health</div>
-                        <div class="security-value" style="font-size: 0.875rem; color: var(--gov-success);">Operational</div>
-                    </div>
-                </div>
-            </div>
-        </div>
+                        <span class="stat-icon" aria-hidden="true"><i <?= $category['type'] === 'death' ? 'data-lucide="file-minus"' : 'class="fas fa-' . $category['icon'] . '"' ?>></i></span>
+                        <p class="stat-trend <?= $trend > 0 ? 'up' : ($trend < 0 ? 'down' : 'neutral') ?>">
+                            <i class="fas fa-<?= $trend > 0 ? 'arrow-up' : ($trend < 0 ? 'arrow-down' : 'minus') ?>" aria-hidden="true"></i>
+                            <?= $trend == 0 ? 'No change' : number_format(abs($trend)) . '%' ?> <span>monthly vs. last month</span>
+                        </p>
+                    </article>
+                <?php endforeach; ?>
+            </section>
 
+            <section class="charts-section" aria-label="Registration analytics">
+                <article class="panel trend-panel">
+                    <div class="panel-header"><div><h2>Monthly Registration Trends</h2><p>Active records registered over the last six months</p></div><span class="period-badge">6 months</span></div>
+                    <div class="trend-chart-wrap"><canvas id="monthlyTrendChart" role="img" aria-label="Monthly registrations by certificate type"></canvas></div>
+                    <details class="chart-data-details"><summary>View monthly data</summary><div class="table-scroll"><table class="chart-data-table"><caption class="sr-only">Monthly registrations by certificate type</caption><thead><tr><th scope="col">Month</th><?php foreach ($categories as $category): ?><th scope="col"><?= $category['label'] ?></th><?php endforeach; ?></tr></thead><tbody><?php foreach ($monthly_chart_data as $month): ?><tr><th scope="row"><?= htmlspecialchars($month['month']) ?></th><?php foreach ($categories as $category): ?><td><?= number_format($month[$category['key']]) ?></td><?php endforeach; ?></tr><?php endforeach; ?></tbody></table></div></details>
+                    <p class="chart-footnote"><i class="fas fa-circle-info" aria-hidden="true"></i>
+                    <?php if ($total_all_months > 0 && $peak_month_index !== false): ?>
+                        <span><strong><?= htmlspecialchars($monthly_chart_data[$peak_month_index]['month']) ?></strong> had the most activity: <strong><?= number_format($monthly_totals[$peak_month_index]) ?> records</strong>.</span>
+                    <?php else: ?><span>No registrations in the last six months. New records will appear here.</span><?php endif; ?>
+                    </p>
+                </article>
+                <article class="panel distribution-panel">
+                    <div class="panel-header"><div><h2>Certificate Distribution</h2><p>Share of all active records</p></div><span class="period-badge">All time</span></div>
+                    <div class="distribution-chart-wrap">
+                        <canvas id="distributionChart" role="img" aria-label="Certificate distribution; exact counts and percentages listed below" <?= $grand_total_records === 0 ? 'hidden' : '' ?>></canvas>
+                        <div class="distribution-center" aria-hidden="true"><strong><?= number_format($grand_total_records) ?></strong><span><?= $grand_total_records > 0 ? 'Total records' : 'No records yet' ?></span></div>
+                    </div>
+                    <ul class="distribution-list" aria-label="Certificate counts and percentages">
+                        <?php foreach ($categories as $category): ?>
+                            <?php $count = $stats['total_' . $category['key']] ?? 0; ?>
+                            <li class="<?= $category['type'] ?>"><span class="category-dot" aria-hidden="true"></span><span class="distribution-label"><?= $category['name'] ?></span><strong><?= number_format($count) ?></strong><span class="distribution-percentage"><?= $grand_total_records > 0 ? number_format($count / $grand_total_records * 100, 1) . '%' : '—' ?></span></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </article>
+            </section>
+
+            <section class="panel activity-section" aria-labelledby="activityHeading">
+                <div class="panel-header activity-header">
+                    <div><h2 id="activityHeading">Recent Activity</h2><p>Latest registrations across the registry</p></div>
+                    <a class="text-link" href="../public/records_viewer.php">View All Records <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+                </div>
+                <div class="activity-filters" role="group" aria-label="Filter activity by type">
+                    <?php foreach (['all' => 'All records', 'birth' => 'Births', 'marriage' => 'Marriages', 'death' => 'Deaths', 'license' => 'Licenses'] as $type => $label): ?>
+                        <button type="button" class="activity-tab <?= $type === 'all' ? 'active' : '' ?>" data-filter="<?= $type ?>" aria-pressed="<?= $type === 'all' ? 'true' : 'false' ?>"><?= $label ?></button>
+                    <?php endforeach; ?>
+                </div>
+                <div class="activity-columns" aria-hidden="true"><span>Registry / Person</span><span>Category</span><span>Created by</span><span>Added</span><span></span></div>
+                <ul class="activity-list">
+                    <?php foreach ($recent_activities as $activity): ?>
+                        <?php
+                            $view_url = '../public/records_viewer.php?type=' . rawurlencode($activity['type']) . '&id=' . (int)$activity['id'];
+                            $age_seconds = max(0, time() - strtotime($activity['created_at']));
+                            $relative_time = $age_seconds < 60 ? 'Just now' : ($age_seconds < 3600 ? floor($age_seconds / 60) . ' mins ago' : ($age_seconds < 86400 ? floor($age_seconds / 3600) . ' hours ago' : floor($age_seconds / 86400) . ' days ago'));
+                        ?>
+                        <li class="activity-item" data-type="<?= htmlspecialchars($activity['type'], ENT_QUOTES, 'UTF-8') ?>">
+                            <div class="activity-person"><span class="activity-avatar <?= htmlspecialchars($activity['type'], ENT_QUOTES, 'UTF-8') ?>" aria-hidden="true"><?= htmlspecialchars(mb_strtoupper(mb_substr(trim($activity['name']), 0, 1)), ENT_QUOTES, 'UTF-8') ?></span><div><strong class="activity-registry"><?= htmlspecialchars($activity['registry_no'] ?: 'No registry number', ENT_QUOTES, 'UTF-8') ?></strong><span class="activity-name"><?= htmlspecialchars($activity['name'], ENT_QUOTES, 'UTF-8') ?></span></div></div>
+                            <span class="category-badge <?= htmlspecialchars($activity['type'], ENT_QUOTES, 'UTF-8') ?>"><?= $activity['type'] === 'license' ? 'Marriage License' : htmlspecialchars(ucfirst($activity['type'])) . ' Certificate' ?></span>
+                            <div class="activity-author"><span><?= htmlspecialchars($activity['created_by_name'] ?? 'System', ENT_QUOTES, 'UTF-8') ?></span><?php if (!empty($activity['created_by_role'])): ?><small><?= htmlspecialchars($activity['created_by_role'], ENT_QUOTES, 'UTF-8') ?></small><?php endif; ?></div>
+                            <time class="activity-time" datetime="<?= htmlspecialchars(date('c', strtotime($activity['created_at'])), ENT_QUOTES, 'UTF-8') ?>" title="<?= htmlspecialchars(date('M j, Y g:i A', strtotime($activity['created_at'])), ENT_QUOTES, 'UTF-8') ?>"><?= $relative_time ?></time>
+                            <a class="record-view" href="<?= htmlspecialchars($view_url, ENT_QUOTES, 'UTF-8') ?>" aria-label="View <?= htmlspecialchars($activity['type'] . ' record ' . $activity['registry_no'] . ' for ' . $activity['name'], ENT_QUOTES, 'UTF-8') ?>"><i class="fas fa-eye" aria-hidden="true"></i> View</a>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+                <p class="activity-empty" id="activityEmpty" role="status" <?= $recent_activities ? 'hidden' : '' ?>>No recent activity found.</p>
+            </section>
+
+            <div class="section-heading office-heading"><h2>Office Workspace</h2><p>Your calendar and team notes</p></div>
         <!-- Calendar & Notes Grid -->
         <div class="calendar-notes-grid">
             <!-- Calendar Widget -->
@@ -2677,7 +492,7 @@ $user_first_name = explode(' ', $user_name)[0];
                     <button class="calendar-nav-btn" onclick="navigateMonth(-1)" aria-label="Previous month">
                         <i class="fas fa-chevron-left"></i>
                     </button>
-                    <h4 class="calendar-month-year">
+                    <h4 class="calendar-month-year" id="calendarMonthYear">
                         <?php echo date('F Y', $first_day_of_month); ?>
                     </h4>
                     <button class="calendar-nav-btn" onclick="navigateMonth(1)" aria-label="Next month">
@@ -2699,7 +514,7 @@ $user_first_name = explode(' ', $user_name)[0];
                     </div>
 
                     <!-- Calendar Grid -->
-                    <div class="calendar-grid">
+                    <div class="calendar-grid" id="calendarGrid">
                         <?php
                         // Add empty cells for days before month starts
                         for ($i = 0; $i < $day_of_week; $i++) {
@@ -2771,7 +586,14 @@ $user_first_name = explode(' ', $user_name)[0];
                             if (in_array($note['id'], $seen_ids)) continue;
                             $seen_ids[] = $note['id'];
                         ?>
-                            <li class="note-item <?php echo $note['is_pinned'] ? 'pinned' : ''; ?>" role="listitem">
+                            <li class="note-item <?php echo $note['is_pinned'] ? 'pinned' : ''; ?>" role="button" tabindex="0"
+                                data-note-id="<?php echo (int) $note['id']; ?>"
+                                data-note-title="<?php echo htmlspecialchars((string) $note['title'], ENT_QUOTES, 'UTF-8'); ?>"
+                                data-note-content="<?php echo htmlspecialchars((string) $note['content'], ENT_QUOTES, 'UTF-8'); ?>"
+                                data-note-type="<?php echo htmlspecialchars(ucfirst(str_replace('_', ' ', (string) $note['note_type'])), ENT_QUOTES, 'UTF-8'); ?>"
+                                data-note-author="<?php echo htmlspecialchars((string) ($note['created_by_name'] ?? 'Unknown'), ENT_QUOTES, 'UTF-8'); ?>"
+                                data-note-created-at="<?php echo htmlspecialchars(date('M d, Y g:i A', strtotime($note['created_at'])), ENT_QUOTES, 'UTF-8'); ?>"
+                                aria-label="Open note <?php echo htmlspecialchars((string) $note['title'], ENT_QUOTES, 'UTF-8'); ?>">
                                 <div class="note-header">
                                     <div class="note-title"><?php echo htmlspecialchars($note['title']); ?></div>
                                 </div>
@@ -2806,744 +628,300 @@ $user_first_name = explode(' ', $user_name)[0];
             </div>
         </div>
 
-        <!-- Statistics Cards -->
-
-        <!-- PDF Integrity Status Widget -->
-        <?php if (getUserRole() === 'Admin'): ?>
-        <?php $pdf_has_issues = $stats['pdf_integrity_issues'] > 0; ?>
-        <div style="margin-bottom:24px;">
-            <a href="../admin/pdf_integrity_report.php" style="text-decoration:none;">
-                <div style="display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:var(--radius-md);background:<?= $pdf_has_issues ? 'var(--gov-danger-50)' : 'var(--gov-success-50)' ?>;border:1px solid <?= $pdf_has_issues ? 'rgba(153,27,27,0.2)' : 'rgba(15,118,110,0.2)' ?>;border-left:3px solid <?= $pdf_has_issues ? 'var(--gov-danger)' : 'var(--gov-success)' ?>;box-shadow:var(--gov-shadow-sm);">
-                    <i data-lucide="<?= $pdf_has_issues ? 'shield-alert' : 'shield-check' ?>"
-                       style="width:24px;height:24px;color:<?= $pdf_has_issues ? 'var(--gov-danger)' : 'var(--gov-success)' ?>;flex-shrink:0;"></i>
-                    <div>
-                        <div style="font-weight:700;font-size:0.875rem;color:<?= $pdf_has_issues ? 'var(--gov-danger)' : 'var(--gov-success)' ?>;text-transform:uppercase;letter-spacing:0.04em;">
-                            Document Integrity:
-                            <?= $pdf_has_issues
-                                ? $stats['pdf_integrity_issues'] . ' issue(s) detected (last 30 days)'
-                                : 'All checks passed' ?>
-                        </div>
-                        <div style="font-size:0.8125rem;color:var(--gov-text-muted);margin-top:2px;font-weight:500;">
-                            Open the full integrity report and restore backups
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--gov-text-subtle);margin-left:auto;"></i>
-                </div>
-            </a>
-        </div>
-        <?php endif; ?>
-
-        <!-- Lifetime Totals -->
-        <div class="stat-group">
-            <div class="stat-group-header">
-                <span class="stat-group-title">Lifetime Totals</span>
-                <span class="stat-group-count">4</span>
+<div class="section-heading system-heading"><h2>System Overview</h2><p>Account activity and document checks</p></div>
+        <!-- Security & System Status -->
+        <div class="security-status-card" role="region" aria-label="Security and system status">
+            <div class="security-header">
+                <i class="fas fa-shield-halved" aria-hidden="true"></i>
+                <h2 class="security-title">Security &amp; System Status</h2>
             </div>
-            <div class="stats-grid">
-                <!-- Total Birth Certificates -->
-                <div class="stat-card blue">
-                    <div class="stat-header">
-                        <div>
-                            <div class="stat-number"><?php echo $stats['total_births'] > 0 ? number_format($stats['total_births']) : '—'; ?></div>
-                            <div class="stat-label">
-                                <span>Total Birth Certificates</span>
-                                <i class="fas fa-info-circle stat-label-info" data-tooltip="All birth certificates registered in the system"></i>
-                            </div>
-                            <?php if ($stats['total_births'] == 0): ?>
-                                <div class="stat-empty-state">No birth certificates registered yet</div>
-                            <?php elseif ($stats['birth_trend'] != 0): ?>
-                                <div class="stat-trend <?php echo $stats['birth_trend'] > 0 ? 'up' : 'down'; ?>">
-                                    <i class="fas fa-<?php echo $stats['birth_trend'] > 0 ? 'arrow-up' : 'arrow-down'; ?>"></i>
-                                    <?php echo abs($stats['birth_trend']); ?>% from last month
-                                </div>
-                            <?php else: ?>
-                                <div class="stat-trend neutral">
-                                    <i class="fas fa-minus"></i>
-                                    No change from last month
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                        <div class="stat-icon">
-                            <i class="fas fa-file-lines"></i>
-                        </div>
+            <div class="security-grid">
+                <div class="security-item">
+                    <div class="security-icon success">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="security-content">
+                        <div class="security-label">Active Users</div>
+                        <div class="security-value"><?php echo $security_stats['active_users']; ?></div>
                     </div>
                 </div>
-
-                <!-- Total Marriage Certificates -->
-                <div class="stat-card red">
-                    <div class="stat-header">
-                        <div>
-                            <div class="stat-number"><?php echo number_format($stats['total_marriages']); ?></div>
-                            <div class="stat-label">Total Marriage Certificates</div>
-                            <?php if ($stats['marriage_trend'] != 0): ?>
-                                <div class="stat-trend <?php echo $stats['marriage_trend'] > 0 ? 'up' : 'down'; ?>">
-                                    <i class="fas fa-<?php echo $stats['marriage_trend'] > 0 ? 'arrow-up' : 'arrow-down'; ?>"></i>
-                                    <?php echo abs($stats['marriage_trend']); ?>% from last month
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                        <div class="stat-icon">
-                            <i class="fas fa-file-signature"></i>
-                        </div>
+                <div class="security-item">
+                    <div class="security-icon info">
+                        <i class="fas fa-clock"></i>
                     </div>
-                </div>
-
-                <!-- Total Death Certificates -->
-                <div class="stat-card orange">
-                    <div class="stat-header">
-                        <div>
-                            <div class="stat-number"><?php echo number_format($stats['total_deaths']); ?></div>
-                            <div class="stat-label">Total Death Certificates</div>
-                            <?php if ($stats['death_trend'] != 0): ?>
-                                <div class="stat-trend <?php echo $stats['death_trend'] > 0 ? 'up' : 'down'; ?>">
-                                    <i class="fas fa-<?php echo $stats['death_trend'] > 0 ? 'arrow-up' : 'arrow-down'; ?>"></i>
-                                    <?php echo abs($stats['death_trend']); ?>% from last month
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                        <div class="stat-icon">
-                            <i class="fas fa-file-lines"></i>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Total Marriage Licenses -->
-                <div class="stat-card indigo">
-                    <div class="stat-header">
-                        <div>
-                            <div class="stat-number"><?php echo number_format($stats['total_licenses']); ?></div>
-                            <div class="stat-label">Total Marriage Licenses</div>
-                            <?php if ($stats['license_trend'] != 0): ?>
-                                <div class="stat-trend <?php echo $stats['license_trend'] > 0 ? 'up' : 'down'; ?>">
-                                    <i class="fas fa-<?php echo $stats['license_trend'] > 0 ? 'arrow-up' : 'arrow-down'; ?>"></i>
-                                    <?php echo abs($stats['license_trend']); ?>% from last month
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                        <div class="stat-icon">
-                            <i class="fas fa-stamp"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- This Month -->
-        <div class="stat-group">
-            <div class="stat-group-header">
-                <span class="stat-group-title">This Month &middot; <?php echo date('F Y'); ?></span>
-                <span class="stat-group-count">4</span>
-            </div>
-            <div class="stats-grid">
-                <!-- This Month Births -->
-                <div class="stat-card green">
-                    <div class="stat-header">
-                        <div>
-                            <div class="stat-number"><?php echo $stats['this_month_births'] > 0 ? number_format($stats['this_month_births']) : '—'; ?></div>
-                            <div class="stat-label">
-                                <span>Births This Month</span>
-                                <i class="fas fa-info-circle stat-label-info" data-tooltip="Registered in <?php echo date('F Y'); ?>"></i>
-                            </div>
-                            <?php if ($stats['this_month_births'] == 0): ?>
-                                <div class="stat-empty-state">No births recorded this month</div>
-                            <?php endif; ?>
-                        </div>
-                        <div class="stat-icon">
-                            <i class="fas fa-calendar-check"></i>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- This Month Marriages -->
-                <div class="stat-card purple">
-                    <div class="stat-header">
-                        <div>
-                            <div class="stat-number"><?php echo $stats['this_month_marriages'] > 0 ? number_format($stats['this_month_marriages']) : '—'; ?></div>
-                            <div class="stat-label">
-                                <span>Marriages This Month</span>
-                                <i class="fas fa-info-circle stat-label-info" data-tooltip="Registered in <?php echo date('F Y'); ?>"></i>
-                            </div>
-                            <?php if ($stats['this_month_marriages'] == 0): ?>
-                                <div class="stat-empty-state">No marriages recorded this month</div>
-                            <?php endif; ?>
-                        </div>
-                        <div class="stat-icon">
-                            <i class="fas fa-file-signature"></i>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- This Month Deaths -->
-                <div class="stat-card gray">
-                    <div class="stat-header">
-                        <div>
-                            <div class="stat-number"><?php echo number_format($stats['this_month_deaths']); ?></div>
-                            <div class="stat-label">Deaths This Month</div>
-                        </div>
-                        <div class="stat-icon">
-                            <i class="fas fa-calendar-xmark"></i>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- This Month Licenses -->
-                <div class="stat-card teal">
-                    <div class="stat-header">
-                        <div>
-                            <div class="stat-number"><?php echo number_format($stats['this_month_licenses']); ?></div>
-                            <div class="stat-label">Licenses This Month</div>
-                        </div>
-                        <div class="stat-icon">
-                            <i class="fas fa-clipboard-list"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <?php if (($stats['double_reg_active'] ?? 0) > 0): ?>
-        <!-- Alerts -->
-        <div class="stat-group alerts">
-            <div class="stat-group-header">
-                <span class="stat-group-title"><i class="fas fa-triangle-exclamation" style="margin-right:6px;"></i>Alerts</span>
-                <span class="stat-group-count">1</span>
-            </div>
-            <div class="stats-grid">
-                <a href="../public/double_registration.php" style="text-decoration:none;">
-                <div class="stat-card red">
-                    <div class="stat-header">
-                        <div>
-                            <div class="stat-number"><?php echo number_format($stats['double_reg_active']); ?></div>
-                            <div class="stat-label">Double Registrations<?php if ($stats['double_reg_needs_correction'] > 0): ?> <span style="font-size:11px;opacity:0.8;">(<?php echo $stats['double_reg_needs_correction']; ?> need correction)</span><?php endif; ?></div>
-                        </div>
-                        <div class="stat-icon">
-                            <i class="fas fa-link"></i>
-                        </div>
-                    </div>
-                </div>
-                </a>
-            </div>
-        </div>
-        <?php endif; ?>
-
-        <!-- Charts Section -->
-        <div class="charts-section">
-            <!-- Monthly Trend Chart -->
-            <div class="chart-card">
-                <div class="chart-header">
-                    <h3 class="chart-title">Monthly Registration Trends</h3>
-                    <p class="chart-subtitle">Last 6 months overview</p>
-                </div>
-                <?php
-                // Calculate insight for monthly trends
-                $total_all_months = array_sum(array_column($monthly_chart_data, 'births')) +
-                                   array_sum(array_column($monthly_chart_data, 'marriages')) +
-                                   array_sum(array_column($monthly_chart_data, 'deaths')) +
-                                   array_sum(array_column($monthly_chart_data, 'licenses'));
-                $total_births_6m = array_sum(array_column($monthly_chart_data, 'births'));
-                $birth_percentage = $total_all_months > 0 ? round(($total_births_6m / $total_all_months) * 100) : 0;
-
-                // Find peak month
-                $monthly_totals = [];
-                foreach ($monthly_chart_data as $month_data) {
-                    $monthly_totals[] = $month_data['births'] + $month_data['marriages'] + $month_data['deaths'] + $month_data['licenses'];
-                }
-                $peak_month_index = $monthly_totals ? array_search(max($monthly_totals), $monthly_totals) : false;
-                $peak_month = ($peak_month_index !== false && isset($monthly_chart_data[$peak_month_index])) ? $monthly_chart_data[$peak_month_index]['month'] : 'N/A';
-                ?>
-                <div class="chart-insight">
-                    <div class="chart-insight-text">
-                        <i class="fas fa-circle-info"></i>
-                        <span>
-                            <?php if ($total_all_months > 0): ?>
-                                <strong><?php echo $peak_month; ?></strong> had the highest registration activity with <strong><?php echo max($monthly_totals); ?> total records</strong>.
-                                Birth certificates account for <strong><?php echo $birth_percentage; ?>%</strong> of all registrations in the last 6 months.
-                            <?php else: ?>
-                                No registration data available for the last 6 months. Start adding records to see trends.
-                            <?php endif; ?>
-                        </span>
-                    </div>
-                </div>
-                <div class="chart-container">
-                    <canvas id="monthlyTrendChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Certificate Distribution Chart -->
-            <div class="chart-card">
-                <div class="chart-header">
-                    <h3 class="chart-title">Certificate Distribution</h3>
-                    <p class="chart-subtitle">Total active certificates</p>
-                </div>
-                <?php
-                // Calculate insight for distribution
-                $total_certs = $stats['total_births'] + $stats['total_marriages'] + $stats['total_deaths'] + $stats['total_licenses'];
-                if ($total_certs > 0) {
-                    $distribution = [
-                        'Birth' => $stats['total_births'],
-                        'Marriage' => $stats['total_marriages'],
-                        'Death' => $stats['total_deaths'],
-                        'License' => $stats['total_licenses']
-                    ];
-                    arsort($distribution);
-                    $dominant_type = key($distribution);
-                    $dominant_percentage = round((current($distribution) / $total_certs) * 100);
-                }
-                ?>
-                <div class="chart-insight">
-                    <div class="chart-insight-text">
-                        <i class="fas fa-circle-info"></i>
-                        <span>
-                            <?php if ($total_certs > 0): ?>
-                                <strong><?php echo $dominant_type; ?> certificates</strong> represent the largest category at <strong><?php echo $dominant_percentage; ?>%</strong> of all records,
-                                with a total of <strong><?php echo number_format($distribution[$dominant_type]); ?> certificates</strong> in the system.
-                            <?php else: ?>
-                                No certificates registered yet. Start by adding birth, marriage, death, or license records.
-                            <?php endif; ?>
-                        </span>
-                    </div>
-                </div>
-                <div class="chart-container">
-                    <canvas id="distributionChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Recent Activity -->
-        <div class="activity-section">
-            <div class="activity-header">
-                <h3 class="activity-title"><i class="fas fa-clock-rotate-left"></i> Recent Activity</h3>
-                <div class="activity-filters" role="group" aria-label="Filter activity by type">
-                    <button class="activity-tab active" data-filter="all" aria-pressed="true">All</button>
-                    <button class="activity-tab" data-filter="birth" aria-pressed="false">Birth</button>
-                    <button class="activity-tab" data-filter="marriage" aria-pressed="false">Marriage</button>
-                    <button class="activity-tab" data-filter="death" aria-pressed="false">Death</button>
-                    <button class="activity-tab" data-filter="license" aria-pressed="false">License</button>
-                </div>
-            </div>
-
-            <?php if (empty($recent_activities)): ?>
-                <p style="text-align: center; color: #6c757d; padding: 40px 0;">No recent activity found.</p>
-            <?php else: ?>
-                <ul class="activity-list" role="list">
-                    <?php foreach ($recent_activities as $activity): ?>
-                        <?php
-                            // Determine the URL for click-through
-                            $view_url = '';
-                            switch($activity['type']) {
-                                case 'birth':
-                                    $view_url = '../public/records_viewer.php?type=birth&id=' . $activity['id'];
-                                    break;
-                                case 'marriage':
-                                    $view_url = '../public/records_viewer.php?type=marriage&id=' . $activity['id'];
-                                    break;
-                                case 'death':
-                                    $view_url = '../public/records_viewer.php?type=death&id=' . $activity['id'];
-                                    break;
-                                case 'license':
-                                    $view_url = '../public/records_viewer.php?type=license&id=' . $activity['id'];
-                                    break;
+                    <div class="security-content">
+                        <div class="security-label">Last Login</div>
+                        <div class="security-value" style="font-size: 0.875rem;">
+                            <?php
+                            if ($security_stats['last_login']) {
+                                $last_login_time = strtotime($security_stats['last_login']);
+                                $time_diff = time() - $last_login_time;
+                                if ($time_diff < 3600) {
+                                    echo floor($time_diff / 60) . ' mins ago';
+                                } elseif ($time_diff < 86400) {
+                                    echo floor($time_diff / 3600) . ' hours ago';
+                                } else {
+                                    echo date('M d, Y h:i A', $last_login_time);
+                                }
+                            } else {
+                                echo 'First Login';
                             }
-                        ?>
-                        <li class="activity-item" onclick="window.location.href=<?= htmlspecialchars(json_encode($view_url, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8') ?>" role="listitem" tabindex="0" aria-label="View <?php echo htmlspecialchars((string)$activity['type'], ENT_QUOTES, 'UTF-8'); ?> record for <?php echo htmlspecialchars($activity['name'], ENT_QUOTES, 'UTF-8'); ?>">
-                            <div class="activity-icon <?php echo htmlspecialchars((string)$activity['type'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true">
-                                <i class="fas fa-<?php
-                                    echo $activity['type'] === 'birth' ? 'file-lines' :
-                                        ($activity['type'] === 'marriage' ? 'file-signature' :
-                                        ($activity['type'] === 'death' ? 'file-lines' : 'stamp'));
-                                ?>"></i>
-                            </div>
-                            <div class="activity-content">
-                                <div class="activity-name"><?php echo htmlspecialchars($activity['name']); ?></div>
-                                <div class="activity-meta">
-                                    <?php
-                                        echo htmlspecialchars(ucfirst((string)$activity['type']), ENT_QUOTES, 'UTF-8');
-                                        echo $activity['type'] === 'license' ? ' Application' : ' Certificate';
-                                    ?> &bull; Registry #<?php echo htmlspecialchars($activity['registry_no']); ?>
-                                </div>
-                                <div class="activity-user-info">
-                                    <span class="activity-action-badge">
-                                        <i class="fas fa-plus-circle"></i> <?php echo htmlspecialchars((string)$activity['action_type'], ENT_QUOTES, 'UTF-8'); ?>
-                                    </span>
-                                    <span>&bull;</span>
-                                    <span>By: <strong><?php echo htmlspecialchars($activity['created_by_name'] ?? 'System'); ?></strong></span>
-                                    <?php if (!empty($activity['created_by_role'])): ?>
-                                        <span class="activity-role-badge">
-                                            <i class="fas fa-user-tag"></i> <?php echo htmlspecialchars($activity['created_by_role']); ?>
-                                        </span>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                            <div class="activity-time">
-                                <?php
-                                    $time_diff = time() - strtotime($activity['created_at']);
-                                    if ($time_diff < 3600) {
-                                        echo floor($time_diff / 60) . ' mins ago';
-                                    } elseif ($time_diff < 86400) {
-                                        echo floor($time_diff / 3600) . ' hours ago';
-                                    } else {
-                                        echo floor($time_diff / 86400) . ' days ago';
-                                    }
-                                ?>
-                            </div>
-                        </li>
-                    <?php endforeach; ?>
-                </ul>
-                <div style="text-align: center; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--gov-border);">
-                    <a href="../public/records_viewer.php" style="color: var(--gov-primary); font-size: 0.8125rem; font-weight: 600; text-decoration: none; letter-spacing: 0.02em; text-transform: uppercase;">
-                        View All Records <i class="fas fa-arrow-right"></i>
-                    </a>
+                            ?>
+                        </div>
+                    </div>
                 </div>
-            <?php endif; ?>
+                <div class="security-item <?php echo $security_stats['failed_login_count'] > 5 ? 'warning-border' : ''; ?>">
+                    <div class="security-icon <?php echo $security_stats['failed_login_count'] > 5 ? 'warning' : 'success'; ?>">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="security-content">
+                        <div class="security-label">Failed Logins (24h)</div>
+                        <div class="security-value <?php echo $security_stats['failed_login_count'] > 5 ? 'text-warning' : ''; ?>">
+                            <?php echo $security_stats['failed_login_count']; ?>
+                        </div>
+                    </div>
+                </div>
+                <div class="security-item">
+                    <div class="security-icon success">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="security-content">
+                        <div class="security-label">System Health</div>
+                        <div class="security-value" style="font-size: 0.875rem; color: var(--gov-success);">Operational</div>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
+
+
+            <div class="system-checks">
+                <?php if (getUserRole() === 'Admin'): ?>
+                    <?php $pdf_has_issues = ($stats['pdf_integrity_issues'] ?? 0) > 0; ?>
+                    <a class="system-check <?= $pdf_has_issues ? 'has-issues' : 'healthy' ?>" href="pdf_integrity_report.php"><span class="check-icon"><i data-lucide="<?= $pdf_has_issues ? 'shield-alert' : 'shield-check' ?>" aria-hidden="true"></i></span><div><strong>Document Integrity</strong><p><?= $pdf_has_issues ? number_format($stats['pdf_integrity_issues']) . ' issue(s) detected in the last 30 days' : 'All checks passed' ?></p><small>View the integrity report and restore backups</small></div><i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+                <?php endif; ?>
+                <?php if (($stats['double_reg_active'] ?? 0) > 0): ?>
+                    <a class="system-check has-issues" href="../public/double_registration.php"><span class="check-icon"><i data-lucide="link-2" aria-hidden="true"></i></span><div><strong>Double Registrations</strong><p><?= number_format($stats['double_reg_active']) ?> active links<?php if (($stats['double_reg_needs_correction'] ?? 0) > 0): ?> · <?= number_format($stats['double_reg_needs_correction']) ?> need correction<?php endif; ?></p><small>Review linked records and corrections</small></div><i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+                <?php endif; ?>
+            </div>
+        </div>
 
     <script>
-        // Activity filter tabs
+        // Filter semantic rows without overriding their responsive display layout.
         const activityTabs = document.querySelectorAll('.activity-tab');
         const activityItems = document.querySelectorAll('.activity-item');
-
         activityTabs.forEach(tab => {
             tab.addEventListener('click', () => {
-                activityTabs.forEach(t => {
-                    t.classList.remove('active');
-                    t.setAttribute('aria-pressed', 'false');
+                activityTabs.forEach(button => {
+                    const selected = button === tab;
+                    button.classList.toggle('active', selected);
+                    button.setAttribute('aria-pressed', String(selected));
                 });
-                tab.classList.add('active');
-                tab.setAttribute('aria-pressed', 'true');
-
-                const filter = tab.dataset.filter;
+                let visibleCount = 0;
                 activityItems.forEach(item => {
-                    const icon = item.querySelector('.activity-icon');
-                    if (filter === 'all') {
-                        item.style.display = 'flex';
-                    } else {
-                        item.style.display = icon.classList.contains(filter) ? 'flex' : 'none';
-                    }
+                    item.hidden = tab.dataset.filter !== 'all' && item.dataset.type !== tab.dataset.filter;
+                    if (!item.hidden) visibleCount++;
                 });
+                const empty = document.getElementById('activityEmpty');
+                empty.hidden = visibleCount > 0;
+                empty.textContent = tab.dataset.filter === 'all' ? 'No recent activity found.' : 'No recent ' + tab.textContent.toLowerCase() + ' in this activity list.';
             });
         });
 
-        // Keyboard Navigation for Activity Items
-        activityItems.forEach(item => {
-            item.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    item.click();
-                }
-            });
-        });
+        // Count the summary values into view without changing the server-rendered
+        // totals. Reduced-motion users receive the final values immediately.
+        (function animateStatNumbers() {
+            const counters = document.querySelectorAll('.stat-number[data-value]');
+            const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const format = value => Math.round(value).toLocaleString();
 
-        // Count-up Animation for Statistics
-        function animateValue(element, start, end, duration) {
-            let startTimestamp = null;
-            const step = (timestamp) => {
-                if (!startTimestamp) startTimestamp = timestamp;
-                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                const value = Math.floor(progress * (end - start) + start);
-                element.textContent = value.toLocaleString();
-                if (progress < 1) {
-                    window.requestAnimationFrame(step);
-                }
-            };
-            window.requestAnimationFrame(step);
-        }
-
-        // Animate all stat numbers on page load
-        window.addEventListener('load', () => {
-            const statNumbers = document.querySelectorAll('.stat-number');
-            statNumbers.forEach(stat => {
-                const text = stat.textContent.trim();
-                // Skip animation for non-numeric values (like em dash)
-                if (text === '—' || text === '-' || text === '') {
+            counters.forEach(counter => {
+                const target = Number(counter.dataset.value) || 0;
+                if (reducedMotion || target === 0) {
+                    counter.textContent = format(target);
                     return;
                 }
-                const finalValue = parseInt(text.replace(/,/g, '')) || 0;
-                stat.textContent = '0';
-                stat.classList.add('animate');
-                setTimeout(() => {
-                    animateValue(stat, 0, finalValue, 1500);
-                }, 300);
+
+                const duration = 950;
+                const startedAt = performance.now();
+                const tick = now => {
+                    const progress = Math.min((now - startedAt) / duration, 1);
+                    const eased = 1 - Math.pow(1 - progress, 3);
+                    counter.textContent = format(target * eased);
+                    if (progress < 1) {
+                        window.requestAnimationFrame(tick);
+                    } else {
+                        counter.textContent = format(target);
+                    }
+                };
+                window.requestAnimationFrame(tick);
             });
-        });
+        }());
 
-        // Monthly Trend Chart
-        const monthlyCtx = document.getElementById('monthlyTrendChart').getContext('2d');
-        new Chart(monthlyCtx, {
-            type: 'line',
-            data: {
-                labels: <?php echo json_encode(array_column($monthly_chart_data, 'month')); ?>,
-                datasets: [
-                    {
-                        label: 'Birth Certificates',
-                        data: <?php echo json_encode(array_column($monthly_chart_data, 'births')); ?>,
-                        borderColor: '#0f2847',
-                        backgroundColor: 'rgba(15, 40, 71, 0.08)',
-                        borderWidth: 2.5,
-                        tension: 0.35,
-                        fill: true,
-                        pointRadius: 4,
-                        pointHoverRadius: 6,
-                        pointBackgroundColor: '#0f2847',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointHoverBackgroundColor: '#0f2847',
-                        pointHoverBorderColor: '#c9a961',
-                        pointHoverBorderWidth: 3
-                    },
-                    {
-                        label: 'Marriage Certificates',
-                        data: <?php echo json_encode(array_column($monthly_chart_data, 'marriages')); ?>,
-                        borderColor: '#c9a961',
-                        backgroundColor: 'rgba(201, 169, 97, 0.1)',
-                        borderWidth: 2.5,
-                        tension: 0.35,
-                        fill: true,
-                        pointRadius: 4,
-                        pointHoverRadius: 6,
-                        pointBackgroundColor: '#c9a961',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointHoverBackgroundColor: '#c9a961',
-                        pointHoverBorderColor: '#0f2847',
-                        pointHoverBorderWidth: 3
-                    },
-                    {
-                        label: 'Death Certificates',
-                        data: <?php echo json_encode(array_column($monthly_chart_data, 'deaths')); ?>,
-                        borderColor: '#991b1b',
-                        backgroundColor: 'rgba(153, 27, 27, 0.08)',
-                        borderWidth: 2.5,
-                        tension: 0.35,
-                        fill: true,
-                        pointRadius: 4,
-                        pointHoverRadius: 6,
-                        pointBackgroundColor: '#991b1b',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointHoverBackgroundColor: '#991b1b',
-                        pointHoverBorderColor: '#fff',
-                        pointHoverBorderWidth: 3
-                    },
-                    {
-                        label: 'Marriage Licenses',
-                        data: <?php echo json_encode(array_column($monthly_chart_data, 'licenses')); ?>,
-                        borderColor: '#0f766e',
-                        backgroundColor: 'rgba(15, 118, 110, 0.08)',
-                        borderWidth: 2.5,
-                        tension: 0.35,
-                        fill: true,
-                        pointRadius: 4,
-                        pointHoverRadius: 6,
-                        pointBackgroundColor: '#0f766e',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointHoverBackgroundColor: '#0f766e',
-                        pointHoverBorderColor: '#fff',
-                        pointHoverBorderWidth: 3
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: {
-                    intersect: false,
-                    mode: 'index',
-                },
-                plugins: {
-                    legend: {
-                        position: 'top',
-                        labels: {
-                            usePointStyle: true,
-                            padding: 15,
-                            font: {
-                                family: 'Inter',
-                                size: 13,
-                                weight: '500'
-                            }
-                        }
-                    },
-                    tooltip: {
-                        backgroundColor: '#0f2847',
-                        titleColor: '#ffffff',
-                        bodyColor: '#e2e8f0',
-                        borderColor: '#c9a961',
-                        borderWidth: 1,
-                        padding: 12,
-                        boxPadding: 6,
-                        usePointStyle: true,
-                        titleFont: {
-                            family: 'Inter',
-                            weight: '700'
-                        },
-                        bodyFont: {
-                            family: 'Inter'
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1,
-                            font: {
-                                family: 'Inter',
-                                size: 12
-                            },
-                            color: '#475569'
-                        },
-                        grid: {
-                            color: 'rgba(221, 227, 237, 0.6)',
-                            drawBorder: false
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            font: {
-                                family: 'Inter',
-                                size: 12
-                            },
-                            color: '#475569'
-                        },
-                        grid: {
-                            display: false
-                        }
-                    }
-                },
-                animation: {
-                    duration: 2000,
-                    easing: 'easeInOutQuart'
-                }
+        // Reuse the existing server datasets. Charts never delay the visible totals.
+        (function renderDashboardCharts() {
+            if (typeof Chart === 'undefined') {
+                document.querySelector('.chart-data-details').open = true;
+                return;
             }
-        });
-
-        // Distribution Chart
-        const distributionCtx = document.getElementById('distributionChart').getContext('2d');
-        const distributionData = <?php echo json_encode(array_column($certificate_distribution, 'count')); ?>;
-        const hasData = distributionData.some(value => value > 0);
-
-        if (hasData) {
-            new Chart(distributionCtx, {
-                type: 'doughnut',
+            const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const colors = ['#2563eb', '#7c3aed', '#64748b', '#d97706'];
+            const tints = ['rgba(37,99,235,.06)', 'rgba(124,58,237,.05)', 'rgba(100,116,139,.04)', 'rgba(217,119,6,.04)'];
+            const labels = <?php echo json_encode(array_column($categories, 'name')); ?>;
+            const series = <?php echo json_encode(array_map(static fn($category) => array_column($monthly_chart_data, $category['key']), $categories)); ?>;
+            const distribution = <?php echo json_encode(array_map(static fn($category) => $stats['total_' . $category['key']] ?? 0, $categories)); ?>;
+            const tooltip = {
+                backgroundColor: '#172033', titleColor: '#fff', bodyColor: '#e2e8f0',
+                padding: 12, cornerRadius: 10, usePointStyle: true,
+                titleFont: {family: 'Inter, Segoe UI, sans-serif', weight: '600'},
+                bodyFont: {family: 'Inter, Segoe UI, sans-serif'}
+            };
+            new Chart(document.getElementById('monthlyTrendChart'), {
+                type: 'line',
                 data: {
-                    labels: <?php echo json_encode(array_column($certificate_distribution, 'type')); ?>,
-                    datasets: [{
-                        data: distributionData,
-                        backgroundColor: [
-                            '#0f2847',
-                            '#c9a961',
-                            '#991b1b',
-                            '#0f766e'
-                        ],
-                        borderWidth: 2,
-                        borderColor: '#ffffff',
-                        hoverOffset: 8
-                    }]
+                    labels: <?php echo json_encode(array_column($monthly_chart_data, 'month')); ?>,
+                    datasets: labels.map((label, index) => ({
+                        label, data: series[index], borderColor: colors[index], backgroundColor: tints[index],
+                        borderWidth: 2.5, tension: .3, fill: true, pointRadius: 3,
+                        pointHoverRadius: 5, pointBackgroundColor: colors[index], pointBorderColor: '#fff', pointBorderWidth: 2
+                    }))
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '62%',
+                    responsive: true, maintainAspectRatio: false,
+                    animation: reducedMotion ? false : {duration: 900, easing: 'easeOutQuart'},
+                    interaction: {intersect: false, mode: 'index'},
                     plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                usePointStyle: true,
-                                padding: 15,
-                                font: {
-                                    family: 'Inter',
-                                    size: 12,
-                                    weight: '500'
-                                },
-                                color: '#0f172a'
-                            }
-                        },
-                        tooltip: {
-                            backgroundColor: '#0f2847',
-                            titleColor: '#ffffff',
-                            bodyColor: '#e2e8f0',
-                            borderColor: '#c9a961',
-                            borderWidth: 1,
-                            padding: 12,
-                            boxPadding: 6,
-                            titleFont: {
-                                family: 'Inter',
-                                weight: '700'
-                            },
-                            bodyFont: {
-                                family: 'Inter'
-                            },
-                            callbacks: {
-                                label: function(context) {
-                                    const label = context.label || '';
-                                    const value = context.parsed || 0;
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                                    return `${label}: ${value} (${percentage}%)`;
-                                }
-                            }
-                        }
+                        legend: {position: 'bottom', labels: {color: '#526078', usePointStyle: true, pointStyle: 'circle', boxWidth: 7, boxHeight: 7, padding: 16, font: {family: 'Inter, Segoe UI, sans-serif', size: 11}}},
+                        tooltip
                     },
-                    animation: {
-                        duration: 1500,
-                        easing: 'easeInOutQuart'
+                    scales: {
+                        y: {beginAtZero: true, border: {display: false}, ticks: {precision: 0, maxTicksLimit: 6, color: '#66758c', font: {size: 11}}, grid: {color: '#edf1f7', drawTicks: false}},
+                        x: {border: {display: false}, ticks: {color: '#66758c', padding: 12, font: {size: 11}}, grid: {display: false}}
                     }
                 }
             });
-        } else {
-            // Display "No data" message
-            distributionCtx.font = '14px Inter';
-            distributionCtx.fillStyle = '#9ca3af';
-            distributionCtx.textAlign = 'center';
-            distributionCtx.textBaseline = 'middle';
-            distributionCtx.fillText('No data available', distributionCtx.canvas.width / 2, distributionCtx.canvas.height / 2);
-        }
-
-        // Calendar Month Navigation
-        function navigateMonth(direction) {
-            const urlParams = new URLSearchParams(window.location.search);
-            let month = urlParams.get('month') ? parseInt(urlParams.get('month')) : <?php echo date('n'); ?>;
-            let year = urlParams.get('year') ? parseInt(urlParams.get('year')) : <?php echo date('Y'); ?>;
-
-            month += direction;
-
-            if (month > 12) {
-                month = 1;
-                year++;
-            } else if (month < 1) {
-                month = 12;
-                year--;
+            if (distribution.some(value => value > 0)) {
+                new Chart(document.getElementById('distributionChart'), {
+                    type: 'doughnut',
+                    data: {labels, datasets: [{data: distribution, backgroundColor: colors, borderWidth: 4, borderColor: '#fff', hoverOffset: 3}]},
+                    options: {
+                        responsive: true, maintainAspectRatio: false, cutout: '76%',
+                        animation: reducedMotion ? false : {duration: 1000, easing: 'easeOutQuart'},
+                        plugins: {
+                            legend: {display: false},
+                            tooltip: {...tooltip, callbacks: {label(context) {
+                                const total = distribution.reduce((sum, value) => sum + value, 0);
+                                return ' ' + context.label + ': ' + context.parsed.toLocaleString() + ' (' + (context.parsed / total * 100).toFixed(1) + '%)';
+                            }}}
+                        }
+                    }
+                });
             }
+        }());
 
-            window.location.href = `?month=${month}&year=${year}`;
+        // Calendar Month Navigation. The month changes in place so the dashboard
+        // stays in context and the rest of the widgets keep their current state.
+        let calendarState = {
+            month: <?php echo (int) $current_month; ?>,
+            year: <?php echo (int) $current_year; ?>
+        };
+        let calendarLoading = false;
+
+        function bindCalendarDayCells() {
+            document.querySelectorAll('#calendarGrid .calendar-day-cell:not(.empty)').forEach(cell => {
+                cell.setAttribute('tabindex', '0');
+                cell.setAttribute('role', 'button');
+                cell.addEventListener('click', () => {
+                    const date = cell.dataset.date;
+                    if (cell.classList.contains('has-event')) {
+                        viewEventsForDate(date);
+                    } else {
+                        openEventModal(date);
+                    }
+                });
+                cell.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        cell.click();
+                    }
+                });
+            });
         }
 
-        // Calendar Day Click Handler
-        const calendarDayCells = document.querySelectorAll('.calendar-day-cell:not(.empty)');
-        calendarDayCells.forEach(cell => {
-            cell.addEventListener('click', () => {
-                const date = cell.dataset.date;
-                const hasEvents = cell.classList.contains('has-event');
+        function renderCalendar(month, year, eventsByDate) {
+            const grid = document.getElementById('calendarGrid');
+            const title = document.getElementById('calendarMonthYear');
+            if (!grid || !title) return;
 
-                // If has events, show them. Otherwise, open create modal
-                if (hasEvents) {
-                    viewEventsForDate(date);
-                } else {
-                    openEventModal(date);
-                }
-            });
+            title.textContent = new Intl.DateTimeFormat(undefined, {month: 'long', year: 'numeric'}).format(new Date(year, month - 1, 1));
+            const firstDay = new Date(year, month - 1, 1).getDay();
+            const dayCount = new Date(year, month, 0).getDate();
+            const today = new Date();
+            const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            let html = '';
 
-            // Keyboard accessibility
-            cell.setAttribute('tabindex', '0');
-            cell.setAttribute('role', 'button');
-            cell.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    cell.click();
+            for (let index = 0; index < firstDay; index++) {
+                html += '<div class="calendar-day-cell empty"></div>';
+            }
+            for (let day = 1; day <= dayCount; day++) {
+                const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const hasEvents = Object.prototype.hasOwnProperty.call(eventsByDate, date);
+                const classes = ['calendar-day-cell'];
+                if (date === todayKey) classes.push('today');
+                if (hasEvents) classes.push('has-event');
+                const count = hasEvents ? Number(eventsByDate[date]) || 0 : 0;
+                html += `<div class="${classes.join(' ')}" data-date="${date}">`;
+                if (hasEvents && count > 0) {
+                    html += `<span class="calendar-event-count" title="${count} event(s)">${count}</span>`;
                 }
-            });
-        });
+                html += `<span class="day-number">${day}</span></div>`;
+            }
+            const remainder = (7 - ((firstDay + dayCount) % 7)) % 7;
+            for (let index = 0; index < remainder; index++) {
+                html += '<div class="calendar-day-cell empty"></div>';
+            }
+            grid.innerHTML = html;
+            bindCalendarDayCells();
+        }
+
+        function navigateMonth(direction) {
+            if (calendarLoading) return;
+            let month = calendarState.month + Number(direction);
+            let year = calendarState.year;
+            if (month > 12) { month = 1; year++; }
+            if (month < 1) { month = 12; year--; }
+
+            const monthText = String(month).padStart(2, '0');
+            const startDate = `${year}-${monthText}-01`;
+            const lastDay = new Date(year, month, 0).getDate();
+            const endDate = `${year}-${monthText}-${String(lastDay).padStart(2, '0')}`;
+            const buttons = document.querySelectorAll('.calendar-nav-btn');
+            calendarLoading = true;
+            buttons.forEach(button => { button.disabled = true; });
+            window.history.replaceState({}, '', `?month=${month}&year=${year}`);
+
+            fetch(`../api/calendar_events.php?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`, {
+                credentials: 'same-origin',
+                cache: 'no-store'
+            })
+                .then(response => response.ok ? response.json() : Promise.reject(new Error('Calendar request failed')))
+                .then(payload => {
+                    const eventsByDate = {};
+                    (payload.events || []).forEach(event => {
+                        if (event.event_date) eventsByDate[event.event_date] = (eventsByDate[event.event_date] || 0) + 1;
+                    });
+                    renderCalendar(month, year, eventsByDate);
+                    calendarState = {month, year};
+                })
+                .catch(() => {
+                    // Keep the current month visible if the calendar endpoint is unavailable.
+                })
+                .finally(() => {
+                    calendarLoading = false;
+                    buttons.forEach(button => { button.disabled = false; });
+                });
+        }
+
+        bindCalendarDayCells();
 
         // Modal Functions - Event Modal
         function openEventModal(date = null) {
@@ -3594,6 +972,44 @@ $user_first_name = explode(' ', $user_name)[0];
             const messageDiv = document.getElementById('noteFormMessage');
             messageDiv.style.display = 'none';
         }
+
+        // Open a compact detail view for a dashboard note. The full notes list
+        // remains available through "View All Notes" below the widget.
+        function openNoteDetailModal(noteElement) {
+            if (!noteElement) return;
+            const modal = document.getElementById('noteDetailModal');
+            if (!modal) return;
+            document.getElementById('noteDetailTitle').textContent = noteElement.dataset.noteTitle || 'Note';
+            document.getElementById('noteDetailType').textContent = noteElement.dataset.noteType || 'Note';
+            document.getElementById('noteDetailAuthor').textContent = noteElement.dataset.noteAuthor || 'Unknown';
+            document.getElementById('noteDetailDate').textContent = noteElement.dataset.noteCreatedAt || '';
+            document.getElementById('noteDetailContent').textContent = noteElement.dataset.noteContent || '';
+            modal.classList.add('active');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+            modal.querySelector('.modal-close')?.focus();
+        }
+
+        function closeNoteDetailModal() {
+            const modal = document.getElementById('noteDetailModal');
+            if (!modal) return;
+            modal.classList.remove('active');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = 'auto';
+        }
+
+        document.querySelectorAll('.note-item[data-note-id]').forEach(note => {
+            note.addEventListener('click', (event) => {
+                if (event.target.closest('a, button')) return;
+                openNoteDetailModal(note);
+            });
+            note.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openNoteDetailModal(note);
+                }
+            });
+        });
 
         // View Events Modal Functions
         let currentViewDate = null;
@@ -3962,7 +1378,7 @@ $user_first_name = explode(' ', $user_name)[0];
         }
     </script>
 
-    </div> <!-- Close .content -->
+    </main>
 
     <!-- Add Event Modal -->
     <div class="modal-overlay" id="eventModal">
@@ -4088,6 +1504,34 @@ $user_first_name = explode(' ', $user_name)[0];
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Note Detail Modal -->
+    <div class="modal-overlay" id="noteDetailModal" aria-hidden="true">
+        <div class="modal-container note-detail-modal" role="dialog" aria-modal="true" aria-labelledby="noteDetailTitle">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fas fa-note-sticky" aria-hidden="true"></i>
+                    <span id="noteDetailTitle">Note</span>
+                </h2>
+                <button class="modal-close" onclick="closeNoteDetailModal()" aria-label="Close note details">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="note-detail-meta">
+                    <span class="note-type-badge" id="noteDetailType">Note</span>
+                    <span><i class="fas fa-user" aria-hidden="true"></i> <span id="noteDetailAuthor">Unknown</span></span>
+                    <span><i class="fas fa-clock" aria-hidden="true"></i> <span id="noteDetailDate"></span></span>
+                </div>
+                <div class="note-detail-content" id="noteDetailContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn modal-btn-cancel" onclick="closeNoteDetailModal()">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
         </div>
     </div>
 
@@ -4244,6 +1688,15 @@ $user_first_name = explode(' ', $user_name)[0];
             });
         }
 
+        const noteDetailModalEl = document.getElementById('noteDetailModal');
+        if (noteDetailModalEl) {
+            noteDetailModalEl.addEventListener('click', (e) => {
+                if (e.target.id === 'noteDetailModal') {
+                    closeNoteDetailModal();
+                }
+            });
+        }
+
         const viewEventsModalEl = document.getElementById('viewEventsModal');
         if (viewEventsModalEl) {
             viewEventsModalEl.addEventListener('click', (e) => {
@@ -4277,6 +1730,7 @@ $user_first_name = explode(' ', $user_name)[0];
             if (e.key === 'Escape') {
                 const eventModal = document.getElementById('eventModal');
                 const noteModal = document.getElementById('noteModal');
+                const noteDetailModal = document.getElementById('noteDetailModal');
                 const viewEventsModal = document.getElementById('viewEventsModal');
                 const allEventsModal = document.getElementById('allEventsModal');
                 const allNotesModal = document.getElementById('allNotesModal');
@@ -4286,6 +1740,9 @@ $user_first_name = explode(' ', $user_name)[0];
                 }
                 if (noteModal && noteModal.classList.contains('active')) {
                     closeNoteModal();
+                }
+                if (noteDetailModal && noteDetailModal.classList.contains('active')) {
+                    closeNoteDetailModal();
                 }
                 if (viewEventsModal && viewEventsModal.classList.contains('active')) {
                     closeViewEventsModal();

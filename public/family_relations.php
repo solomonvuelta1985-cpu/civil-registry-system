@@ -138,7 +138,7 @@ function fr_full_name($first, $middle, $last) {
     <script src="<?= asset_url('notiflix_js') ?>"></script>
     <script src="../assets/js/notiflix-config.js"></script>
     <link rel="stylesheet" href="../assets/css/sidebar.css">
-    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=7">
+    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=9">
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>
         if (typeof pdfjsLib !== 'undefined') {
@@ -410,7 +410,7 @@ function fr_full_name($first, $middle, $last) {
                 </div>
 
                 <script src="../assets/js/family_relations_render.js?v=2"></script>
-                <script src="../assets/js/record-preview-modal.js?v=7"></script>
+                <script src="../assets/js/record-preview-modal.js?v=8"></script>
                 <script>
                     (function () {
                         const cache = {};
@@ -499,7 +499,7 @@ function fr_full_name($first, $middle, $last) {
             </div>
 
             <script src="../assets/js/family_relations_render.js?v=2"></script>
-            <script src="../assets/js/record-preview-modal.js?v=7"></script>
+            <script src="../assets/js/record-preview-modal.js?v=8"></script>
             <script>
                 (function () {
                     const recordId = <?= (int)$record_id ?>;

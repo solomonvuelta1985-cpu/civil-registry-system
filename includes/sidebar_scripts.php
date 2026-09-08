@@ -16,6 +16,9 @@ const sidebarOverlay = document.getElementById('sidebarOverlay');
 const sidebarCollapse = document.getElementById('sidebarCollapse');
 const mobileSidebarToggle = document.getElementById('mobileSidebarToggle');
 const body = document.body;
+// Dashboard uses the same 1024px threshold as its navigation CSS.
+// Other screens retain their existing behavior unless they explicitly opt in.
+const sidebarBreakpoint = Number(body.dataset.sidebarBreakpoint) || 768;
 
 // Desktop: Toggle sidebar collapse/expand
 if (sidebarCollapse) {
@@ -57,7 +60,7 @@ document.querySelectorAll('.sidebar-menu a').forEach(link => {
             this.style.transform = '';
         }, 150);
 
-        if (window.innerWidth <= 768) {
+        if (window.innerWidth <= sidebarBreakpoint) {
             sidebar.classList.remove('active');
             sidebarOverlay.classList.remove('active');
             body.classList.remove('sidebar-open');
@@ -67,7 +70,7 @@ document.querySelectorAll('.sidebar-menu a').forEach(link => {
 
 // Restore sidebar state on page load
 const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-if (isCollapsed && window.innerWidth > 768) {
+if (isCollapsed && window.innerWidth > sidebarBreakpoint) {
     body.classList.add('sidebar-collapsed');
 }
 
@@ -82,10 +85,13 @@ if (activeMenuItem) {
 
 // Handle window resize
 window.addEventListener('resize', function() {
-    if (window.innerWidth > 768) {
+    if (window.innerWidth > sidebarBreakpoint) {
         sidebar.classList.remove('active');
         sidebarOverlay.classList.remove('active');
         body.classList.remove('sidebar-open');
+    }
+    if (body.dataset.sidebarBreakpoint) {
+        body.classList.toggle('sidebar-collapsed', window.innerWidth > sidebarBreakpoint && localStorage.getItem('sidebarCollapsed') === 'true');
     }
 });
 
