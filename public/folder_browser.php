@@ -395,7 +395,7 @@ function renderTree(tree) {
         const safeType = safeFolderType(typeNode.type);
         const typeIcon = getTypeIcon(safeType);
         html += `<div class="tree-node tree-level-0">
-            <div class="tree-node-row" data-type="${escapeHtml(safeType)}" onclick="toggleTreeNode(this); selectFolder(${jsArg(safeType)}, null, null)">
+            <div class="tree-node-row" data-type="${escapeHtml(safeType)}">
                 <i data-lucide="chevron-right" class="chevron"></i>
                 <i data-lucide="${typeIcon}" class="type-icon"></i>
                 <span>${escapeHtml(typeNode.label)}</span>
@@ -407,7 +407,7 @@ function renderTree(tree) {
             const rawYear = String(yearNode.year || '');
             const yearVal = /^\d{4}$/.test(rawYear) ? rawYear : '__no_year__';
             html += `<div class="tree-node tree-level-1">
-                <div class="tree-node-row" data-type="${escapeHtml(safeType)}" data-year="${escapeHtml(yearVal)}" onclick="toggleTreeNode(this); selectFolder(${jsArg(safeType)}, ${jsArg(yearVal)}, null)">
+                <div class="tree-node-row" data-type="${escapeHtml(safeType)}" data-year="${escapeHtml(yearVal)}">
                     <i data-lucide="chevron-right" class="chevron"></i>
                     <i data-lucide="folder" class="folder-icon"></i>
                     <span>${escapeHtml(yearNode.label)}</span>
@@ -417,7 +417,7 @@ function renderTree(tree) {
 
             for (const nameNode of yearNode.children) {
                 html += `<div class="tree-node tree-level-2">
-                    <div class="tree-node-row" data-type="${escapeHtml(safeType)}" data-year="${escapeHtml(yearVal)}" data-lastname="${escapeHtml(nameNode.name)}" onclick="selectFolder(${jsArg(safeType)}, ${jsArg(yearVal)}, ${jsArg(nameNode.name)})">
+                    <div class="tree-node-row" data-type="${escapeHtml(safeType)}" data-year="${escapeHtml(yearVal)}" data-lastname="${escapeHtml(nameNode.name)}">
                         <i data-lucide="folder" class="folder-icon"></i>
                         <span>${escapeHtml(nameNode.name)}</span>
                         <span class="tree-count">${Number(nameNode.count) || 0}</span>
@@ -429,6 +429,12 @@ function renderTree(tree) {
         html += `</div></div>`;
     }
     container.innerHTML = html;
+    container.querySelectorAll('.tree-node-row').forEach(row => {
+        row.addEventListener('click', () => {
+            toggleTreeNode(row);
+            selectFolder(row.dataset.type || '', row.dataset.year || null, row.dataset.lastname || null);
+        });
+    });
     lucide.createIcons();
 }
 
