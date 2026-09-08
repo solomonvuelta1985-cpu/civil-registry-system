@@ -67,7 +67,9 @@ function buildContentSecurityPolicy($custom = []) {
         'connect-src' => ["'self'", "https://unpkg.com"],
         'worker-src' => ["'self'", "blob:", "https://cdnjs.cloudflare.com"],
         'frame-ancestors' => ["'self'"],
-        'frame-src' => ["'self'"],
+        // Local PDF upload previews use browser-generated blob URLs. Keep
+        // external frames blocked while allowing those same-origin previews.
+        'frame-src' => ["'self'", "blob:"],
         'object-src' => ["'none'"],
         'base-uri' => ["'self'"],
         'form-action' => ["'self'"]
