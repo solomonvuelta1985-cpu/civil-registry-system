@@ -2,8 +2,8 @@
 /**
  * Device Pending Approval Page
  * Shown to a user who logged in with valid credentials from an unregistered
- * device while ENABLE_DEVICE_LOCK is on. The session is NOT established yet —
- * the user must wait for the admin to approve the device.
+ * browser profile while ENABLE_DEVICE_LOCK is on. The session is NOT established
+ * yet — the user must wait for the admin to approve the browser profile.
  *
  * The page polls api/device_status_check.php every 15 seconds. When status
  * flips to 'Active' it auto-redirects to login.php (so the user can submit
@@ -216,7 +216,7 @@ if (!$pendingId) {
 
         <h1 id="pageTitle">Awaiting Admin Approval</h1>
         <p class="subtitle" id="pageSubtitle">
-            Your credentials are correct, but this device is not yet registered.<br>
+            Your credentials are correct, but this browser profile is not yet registered.<br>
             The administrator has been notified — please wait while they review your request.
         </p>
 
@@ -231,7 +231,7 @@ if (!$pendingId) {
                 <span class="val">#<?= (int) $pendingId ?></span>
             </div>
             <div class="info-row">
-                <span class="lbl">Device fingerprint</span>
+                <span class="lbl">Browser key</span>
                 <span class="val"><?= htmlspecialchars(substr($pendingFp, 0, 24)) ?>&hellip;</span>
             </div>
             <div class="info-row">
@@ -243,7 +243,7 @@ if (!$pendingId) {
         <div class="steps">
             <strong>What's happening:</strong><br>
             1. Your login was accepted.<br>
-            2. We sent your device to the administrator for approval.<br>
+            2. We sent your browser profile to the administrator for approval.<br>
             3. As soon as they approve it, this page will redirect you to the login screen.<br>
             4. If they reject it, you will see an error message.
         </div>
@@ -302,7 +302,7 @@ if (!$pendingId) {
                 '<polyline points="20 6 9 17 4 12"/>';
             document.getElementById('pageTitle').textContent = 'Device Approved ✓';
             document.getElementById('pageSubtitle').innerHTML =
-                'Your device has been approved by the administrator.<br>'
+                'Your browser profile has been approved by the administrator.<br>'
               + 'Redirecting you to the login page&hellip;';
             const statusLine = document.getElementById('statusLine');
             statusLine.style.background = '#f0fff4';
@@ -326,7 +326,7 @@ if (!$pendingId) {
                 '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>';
             document.getElementById('pageTitle').textContent = 'Request Rejected';
             document.getElementById('pageSubtitle').innerHTML =
-                'The administrator did not approve this device.<br>'
+                'The administrator did not approve this browser profile.<br>'
               + 'Please contact your administrator if you believe this is a mistake.';
             const statusLine = document.getElementById('statusLine');
             statusLine.style.background = '#fff5f5';

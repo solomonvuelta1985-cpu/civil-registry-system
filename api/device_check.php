@@ -1,13 +1,13 @@
 <?php
 /**
  * API: Check Current Device Registration
- * Returns whether a given fingerprint matches an Active registered device.
+ * Returns whether a given browser-profile key matches an Active registration.
  * Used by admin/devices.php to show a pre-flight safety indicator BEFORE
  * the user enables ENABLE_DEVICE_LOCK, so they cannot accidentally lock
  * themselves out.
  *
  * GET params:
- *   fp (string) SHA-256 hex hash from device-fingerprint.js
+ *   fp (string) 64-character key from device-fingerprint.js
  *
  * Response:
  *   { registered: bool, device_name: string|null, status: string|null }

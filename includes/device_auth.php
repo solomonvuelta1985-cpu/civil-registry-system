@@ -4,8 +4,8 @@
  * iScan Civil Registry Records Management System
  *
  * Provides server-side functions for the Device Registration Security system.
- * Only devices whose browser fingerprint hash is in the registered_devices
- * table (with status = 'Active') are allowed to log in.
+ * Only browser-profile keys in the registered_devices table (with status
+ * = 'Active') are allowed to log in.
  *
  * Usage in login.php:
  *   require_once __DIR__ . '/device_auth.php';
@@ -26,9 +26,9 @@ function isDeviceLockEnabled(): bool {
 }
 
 /**
- * Check if a device fingerprint hash is registered and active.
+ * Check if a browser-profile key is registered and active.
  *
- * @param  string      $hash  SHA-256 hex string from browser
+ * @param  string      $hash  64-character browser-profile key from the browser
  * @return array|false        Device row on success, false if not found/revoked
  */
 function checkDeviceRegistered(string $hash): array|false {
@@ -55,7 +55,7 @@ function checkDeviceRegistered(string $hash): array|false {
 /**
  * Update last_seen_at and last_seen_ip for a registered device.
  *
- * @param string $hash SHA-256 fingerprint hash
+ * @param string $hash 64-character browser-profile key
  * @param string $ip   Client IP address
  */
 function updateDeviceLastSeen(string $hash, string $ip): void {

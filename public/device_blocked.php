@@ -1,7 +1,7 @@
 <?php
 /**
  * Device Blocked Page
- * Shown when a device's fingerprint is not in the registered_devices table.
+ * Shown when a browser profile's key is not in the registered_devices table.
  * No login form is displayed — this is a hard block.
  */
 require_once '../includes/session_config.php';
@@ -11,7 +11,7 @@ require_once '../includes/session_config.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Device Not Authorized - Civil Registry System</title>
+    <title>Browser Profile Not Authorized - Civil Registry System</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -168,27 +168,27 @@ require_once '../includes/session_config.php';
             </svg>
         </div>
 
-        <h1>Device Not Authorized</h1>
+        <h1>Browser Profile Not Authorized</h1>
         <p class="subtitle">
-            This device is <strong>not registered</strong> to access the
+            This browser profile is <strong>not registered</strong> to access the
             Civil Registry Records Management System.<br>
             Contact your system administrator for access.
         </p>
 
-        <!-- Device ID display -->
+        <!-- Browser key display -->
         <div class="device-id-section">
-            <div class="device-id-label">Your Device ID (show this to the administrator)</div>
+            <div class="device-id-label">Your Browser Key (show this to the administrator)</div>
             <div class="device-id-value" id="deviceIdDisplay" title="Click to copy">
-                <span class="loading-text">Generating device ID...</span>
+                <span class="loading-text">Reading browser key...</span>
             </div>
-            <button class="copy-btn" id="copyBtn" onclick="copyDeviceId()">Copy Device ID</button>
+            <button class="copy-btn" id="copyBtn" onclick="copyDeviceId()">Copy Browser Key</button>
         </div>
 
         <!-- Instructions -->
         <div class="steps">
             <div class="steps-title">How to get access:</div>
             <ol>
-                <li>Copy your Device ID above</li>
+                <li>Copy your Browser Key above</li>
                 <li>Show or send it to your System Administrator</li>
                 <li>Ask them to register it in <strong>Admin &gt; Devices</strong></li>
                 <li>Reload this page and try logging in again</li>
@@ -206,7 +206,7 @@ require_once '../includes/session_config.php';
                 const hash = await window.DeviceFingerprint.get();
                 display.textContent = hash;
             } catch (e) {
-                display.textContent = 'Unable to generate device ID. Please enable JavaScript.';
+                display.textContent = 'Unable to read browser key. Please enable JavaScript.';
             }
         }
 
@@ -219,7 +219,7 @@ require_once '../includes/session_config.php';
                 btn.textContent = 'Copied!';
                 btn.classList.add('copied');
                 setTimeout(() => {
-                    btn.textContent = 'Copy Device ID';
+                btn.textContent = 'Copy Browser Key';
                     btn.classList.remove('copied');
                 }, 2500);
             }).catch(() => {

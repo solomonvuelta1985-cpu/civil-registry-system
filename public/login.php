@@ -27,10 +27,10 @@ if (isset($_GET['timeout']) && $_GET['timeout'] == '1') {
  * Device-lock gate that runs AFTER successful credential auth.
  *
  * Decision table when ENABLE_DEVICE_LOCK is on:
- *   - Active device   → allow, update last_seen, return true
- *   - Pending device  → redirect to device_pending.php (no session), exits
- *   - Revoked device  → redirect to device_blocked.php (no session), exits
- *   - Unknown device  → create Pending row, redirect to device_pending.php, exits
+ *   - Active browser profile   → allow, update last_seen, return true
+ *   - Pending browser profile  → redirect to device_pending.php (no session), exits
+ *   - Revoked browser profile  → redirect to device_blocked.php (no session), exits
+ *   - Unknown browser profile  → create Pending row, redirect to device_pending.php, exits
  *
  * Returns true only when login may proceed. If it returns at all, the caller
  * MUST establish the session (setUserSession) only after a true return.
@@ -42,7 +42,7 @@ function deviceLockGate(array $user): bool {
     $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
     $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
 
-    // Reject obviously bad / missing fingerprints — don't auto-enroll garbage.
+    // Reject obviously bad / missing browser keys — don't auto-enroll garbage.
     if (!preg_match('/^[a-f0-9]{64}$/i', $fp)) {
         logSecurityEvent('DEVICE_BLOCKED', 'HIGH', json_encode([
             'reason'         => 'missing_or_invalid_fingerprint',
@@ -706,7 +706,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php if (ENABLE_CSRF_PROTECTION): ?>
                         <?php echo csrfTokenField(); ?>
                     <?php endif; ?>
-                    <!-- Device fingerprint — filled by JS before submit -->
+                    <!-- Stable browser-profile key — filled by JS before submit -->
                     <input type="hidden" name="device_fingerprint" id="deviceFingerprintInput">
                     <div class="input-group">
                         <input type="text" name="username" class="form-input" placeholder="Username"
@@ -741,7 +741,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script src="../assets/js/device-fingerprint.js"></script>
     <script>
-        // Form submission — capture device fingerprint before submitting
+        // Form submission — capture the browser-profile key before submitting
         const loginForm = document.getElementById('loginForm');
         const loginBtn  = document.getElementById('loginBtn');
 
@@ -750,7 +750,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             loginBtn.disabled = true;
             loginBtn.innerHTML = '<span class="spinner"></span> Signing In...';
 
-            // Collect device fingerprint (async — canvas + WebGL rendering)
+            // Collect the stable browser-profile key before submitting.
             try {
                 const fp = await window.DeviceFingerprint.get();
                 document.getElementById('deviceFingerprintInput').value = fp;
@@ -758,7 +758,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 document.getElementById('deviceFingerprintInput').value = '';
             }
 
-            // Now submit the form with the fingerprint filled in
+            // Now submit the form with the browser key filled in
             loginForm.submit();
         });
 

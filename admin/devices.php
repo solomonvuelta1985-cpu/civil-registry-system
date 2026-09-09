@@ -3,9 +3,9 @@
  * Registered Devices Management
  * iScan Civil Registry Records Management System
  *
- * Admin-only page to register, view, and revoke device fingerprints.
+ * Admin-only page to register, view, and revoke browser-profile device keys.
  * Works with the ENABLE_DEVICE_LOCK setting in .env to restrict
- * system access to only pre-approved physical devices.
+ * system access to only pre-approved browser profiles/workstations.
  */
 
 require_once '../includes/session_config.php';
@@ -183,7 +183,7 @@ $pendingCount   = count($pendingDevices);
 
     <div class="page-header">
         <h1><i data-lucide="monitor-check" style="display:inline;vertical-align:middle;margin-right:8px;"></i>Registered Devices</h1>
-        <p>Manage which physical devices are allowed to access this system.</p>
+        <p>Manage which registered browser profiles and workstations are allowed to access this system.</p>
     </div>
 
     <!-- Device lock status banner -->
@@ -193,12 +193,12 @@ $pendingCount   = count($pendingDevices);
             <i data-lucide="alert-triangle"></i>
             <div>
                 <strong>Device Lock is DISABLED.</strong>
-                All devices can currently log in.
-                Once your device shows green below, click <strong>Enable Device Lock</strong> to enforce the restriction.
+                All browser profiles can currently log in.
+                Once this browser profile shows green below, click <strong>Enable Device Lock</strong> to enforce the restriction.
             </div>
         </div>
         <button class="btn-action btn-reactivate" onclick="toggleLock(true)" id="enableLockBtn"
-                title="Enable Device Lock so only registered/approved devices can log in"
+                title="Enable Device Lock so only registered/approved browser profiles can log in"
                 style="white-space:nowrap;">
             <i data-lucide="shield-check" style="width:13px;height:13px;vertical-align:middle;"></i>
             Enable Device Lock
@@ -208,7 +208,7 @@ $pendingCount   = count($pendingDevices);
     <div class="banner success" style="justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:12px;">
             <i data-lucide="shield-check"></i>
-            <span><strong>Device Lock is ACTIVE.</strong>&nbsp;Only registered devices can log in. New devices require your approval.</span>
+                <span><strong>Device Lock is ACTIVE.</strong>&nbsp;Only registered browser profiles can log in. New profiles require your approval.</span>
         </div>
         <button class="btn-action btn-revoke" onclick="toggleLock(false)" title="Disable Device Lock immediately (emergency recovery)">
             <i data-lucide="shield-off" style="width:13px;height:13px;vertical-align:middle;"></i>
@@ -221,9 +221,9 @@ $pendingCount   = count($pendingDevices);
     <div id="currentDeviceCard" class="banner" style="background:#edf2f7;border:1px solid #cbd5e0;color:#2d3748;">
         <i data-lucide="loader" id="currentDeviceIcon"></i>
         <div style="flex:1;">
-            <strong id="currentDeviceTitle">Checking this device&hellip;</strong>
+            <strong id="currentDeviceTitle">Checking this browser profile&hellip;</strong>
             <div id="currentDeviceDetail" style="font-size:0.85rem;margin-top:2px;color:#4a5568;">
-                Generating fingerprint for the browser you are using right now.
+                Reading the stable key for this browser profile.
             </div>
         </div>
         <span id="currentDeviceFpPreview" style="font-family:monospace;font-size:0.75rem;color:#718096;"></span>
@@ -238,7 +238,7 @@ $pendingCount   = count($pendingDevices);
                 Pending Approval (<?= $pendingCount ?>)
             </h2>
             <span style="font-size:0.85rem;color:#744210;">
-                These users tried to log in from a new device and are waiting for you to approve.
+                These users tried to log in from a new browser profile and are waiting for you to approve it.
             </span>
         </div>
         <table>
@@ -246,7 +246,7 @@ $pendingCount   = count($pendingDevices);
                 <tr>
                     <th>#</th>
                     <th>Requested By</th>
-                    <th>Device ID (fingerprint)</th>
+                    <th>Device ID (browser key)</th>
                     <th>Requested</th>
                     <th>IP</th>
                     <th>Suggested Name</th>
@@ -352,7 +352,7 @@ $pendingCount   = count($pendingDevices);
         <div class="card-header">
             <h2>Device Registry</h2>
             <button class="btn-register" onclick="openRegisterModal()">
-                <i data-lucide="plus-circle"></i> Register This Device
+                <i data-lucide="plus-circle"></i> Register This Browser
             </button>
         </div>
 
@@ -362,7 +362,7 @@ $pendingCount   = count($pendingDevices);
                 <rect x="2" y="3" width="20" height="14" rx="2"/>
                 <path d="M8 21h8M12 17v4"/>
             </svg>
-            <p>No devices registered yet.<br>Click <strong>Register This Device</strong> to add the current PC.</p>
+            <p>No browser profiles registered yet.<br>Click <strong>Register This Browser</strong> to add the current workstation.</p>
         </div>
         <?php else: ?>
         <table>
@@ -370,7 +370,7 @@ $pendingCount   = count($pendingDevices);
                 <tr>
                     <th>#</th>
                     <th>Device Name</th>
-                    <th>Device ID (fingerprint)</th>
+                    <th>Device ID (browser key)</th>
                     <th>Registered By</th>
                     <th>Registered</th>
                     <th>Last Seen</th>
@@ -442,10 +442,10 @@ $pendingCount   = count($pendingDevices);
 <!-- Register Device Modal -->
 <div class="modal-overlay" id="registerModal" onclick="handleOverlayClick(event)">
     <div class="modal-box">
-        <h3><i data-lucide="monitor-plus" style="display:inline;vertical-align:middle;margin-right:6px;"></i>Register This Device</h3>
-        <p>The current device's fingerprint will be saved. Give it a recognizable name.</p>
+        <h3><i data-lucide="monitor-plus" style="display:inline;vertical-align:middle;margin-right:6px;"></i>Register This Browser Profile</h3>
+        <p>This browser profile's stable key will be saved. Give the workstation a recognizable name.</p>
 
-        <div class="modal-fp" id="modalFpDisplay">Generating fingerprint...</div>
+        <div class="modal-fp" id="modalFpDisplay">Reading browser key...</div>
 
         <form id="registerForm">
             <?= $csrfField ?>
@@ -465,7 +465,7 @@ $pendingCount   = count($pendingDevices);
 
             <div class="modal-actions">
                 <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
-                <button type="submit" class="btn-save">Register Device</button>
+            <button type="submit" class="btn-save">Register Browser Profile</button>
             </div>
         </form>
     </div>
@@ -500,7 +500,7 @@ $pendingCount   = count($pendingDevices);
                 card.style.border     = '1px solid #68d391';
                 card.style.color      = '#22543d';
                 icon.setAttribute('data-lucide', 'shield-check');
-                title.textContent = '✓ This device IS registered — safe to enable Device Lock';
+                title.textContent = '✓ This browser profile IS registered — safe to enable Device Lock';
                 detail.innerHTML  = 'Registered as <strong>' + escapeHtml(data.device_name) + '</strong>. '
                                   + 'You can safely set <code>ENABLE_DEVICE_LOCK=true</code> in .env without losing access from this browser.';
             } else if (data.status === 'Revoked') {
@@ -509,7 +509,7 @@ $pendingCount   = count($pendingDevices);
                 card.style.border     = '1px solid #f6ad55';
                 card.style.color      = '#744210';
                 icon.setAttribute('data-lucide', 'alert-triangle');
-                title.textContent = '⚠ This device is REVOKED — you would be blocked';
+                title.textContent = '⚠ This browser profile is REVOKED — you would be blocked';
                 detail.innerHTML  = 'Found as <strong>' + escapeHtml(data.device_name) + '</strong> but status is Revoked. '
                                   + 'Reactivate it below before enabling Device Lock.';
             } else {
@@ -518,16 +518,16 @@ $pendingCount   = count($pendingDevices);
                 card.style.border     = '1px solid #fc8181';
                 card.style.color      = '#742a2a';
                 icon.setAttribute('data-lucide', 'shield-alert');
-                title.textContent = '⚠ This device is NOT registered — DO NOT enable Device Lock yet';
+                title.textContent = '⚠ This browser profile is NOT registered — DO NOT enable Device Lock yet';
                 detail.innerHTML  = 'If you enable <code>ENABLE_DEVICE_LOCK=true</code> right now, this browser will be blocked at the next login. '
-                                  + 'Click <strong>Register This Device</strong> first to add it.';
+                                  + 'Click <strong>Register This Browser</strong> first to add it.';
             }
             lucide.createIcons();
         } catch (err) {
             card.style.background = '#fff5f5';
             card.style.border     = '1px solid #fc8181';
             card.style.color      = '#742a2a';
-            title.textContent = 'Could not check this device';
+            title.textContent = 'Could not check this browser profile';
             detail.textContent = 'Error: ' + (err.message || err);
         }
     })();
@@ -624,7 +624,7 @@ $pendingCount   = count($pendingDevices);
         );
     }
 
-    // ── Copy fingerprint to clipboard ─────────────────────────────────────
+    // ── Copy browser key to clipboard ──────────────────────────────────────
     function copyText(text, el) {
         navigator.clipboard.writeText(text).then(() => {
             const orig = el.textContent;
@@ -660,7 +660,7 @@ $pendingCount   = count($pendingDevices);
     function rejectDevice(deviceId, requesterName) {
         Notiflix.Confirm.show(
             'Reject Device',
-            'Reject the device request from "' + requesterName + '"? They will not be able to log in until they request again from this device.',
+            'Reject the browser-profile request from "' + requesterName + '"? They will not be able to log in until they request again from this browser profile.',
             'Reject',
             'Cancel',
             async () => {
@@ -689,7 +689,7 @@ $pendingCount   = count($pendingDevices);
 
     // ── Permanently delete a device row ──────────────────────────────────
     async function deleteDevice(deviceId, deviceName, fingerprint) {
-        // Safety: if the row being deleted is THIS browser's fingerprint, warn
+        // Safety: if the row being deleted is THIS browser profile's key, warn
         // extra strongly because the admin will lock themselves out next login.
         let isCurrentDevice = false;
         try {
@@ -737,8 +737,8 @@ $pendingCount   = count($pendingDevices);
         const okLabel = enable ? 'Enable Now'         : 'Disable Now';
         const color   = enable ? '#38a169'            : '#e53e3e';
         const msg     = enable
-            ? 'This will start blocking logins from any device that is not Active. Make sure THIS device shows the green "registered" banner above before enabling. Continue?'
-            : 'This will TURN OFF device-based access control. Any device with valid credentials will be able to log in until you re-enable it. Use this only for emergency recovery. Continue?';
+            ? 'This will start blocking logins from any browser profile that is not Active. Make sure THIS browser profile shows the green "registered" banner above before enabling. Continue?'
+            : 'This will TURN OFF browser-profile access control. Any browser profile with valid credentials will be able to log in until you re-enable it. Use this only for emergency recovery. Continue?';
 
         Notiflix.Confirm.show(title, msg, okLabel, 'Cancel',
             async () => {
