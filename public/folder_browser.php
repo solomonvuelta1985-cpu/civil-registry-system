@@ -33,7 +33,7 @@ $csrfMeta = csrfTokenMeta();
     <script src="<?= asset_url('notiflix_js') ?>"></script>
 
     <link rel="stylesheet" href="../assets/css/sidebar.css">
-    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=9">
+    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=10">
 
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>
@@ -478,17 +478,17 @@ function selectFolder(type, year, lastName) {
 function updateBreadcrumb() {
     const bar = document.getElementById('breadcrumbBar');
     const search = bar.querySelector('.breadcrumb-search');
-    let html = `<span class="breadcrumb-item" onclick="resetFolder()">All Folders</span>`;
+    let html = `<span class="breadcrumb-item" data-folder-reset>All Folders</span>`;
 
     if (currentState.type) {
         html += `<span class="breadcrumb-sep"><i data-lucide="chevron-right" style="width:12px;height:12px;"></i></span>`;
         const isLast = !currentState.year && !currentState.lastName;
-        html += `<span class="breadcrumb-item ${isLast ? 'active' : ''}" onclick="selectFolder(${jsArg(safeFolderType(currentState.type))}, null, null)">${escapeHtml(getTypeLabel(safeFolderType(currentState.type)))}</span>`;
+        html += `<span class="breadcrumb-item ${isLast ? 'active' : ''}" data-select-type="${escapeHtml(safeFolderType(currentState.type))}" data-select-year="">${escapeHtml(getTypeLabel(safeFolderType(currentState.type)))}</span>`;
     }
     if (currentState.year) {
         html += `<span class="breadcrumb-sep"><i data-lucide="chevron-right" style="width:12px;height:12px;"></i></span>`;
         const isLast = !currentState.lastName;
-        html += `<span class="breadcrumb-item ${isLast ? 'active' : ''}" onclick="selectFolder(${jsArg(safeFolderType(currentState.type))}, ${jsArg(currentState.year)}, null)">${escapeHtml(currentState.year)}</span>`;
+        html += `<span class="breadcrumb-item ${isLast ? 'active' : ''}" data-select-type="${escapeHtml(safeFolderType(currentState.type))}" data-select-year="${escapeHtml(currentState.year)}">${escapeHtml(currentState.year)}</span>`;
     }
     if (currentState.lastName) {
         html += `<span class="breadcrumb-sep"><i data-lucide="chevron-right" style="width:12px;height:12px;"></i></span>`;
@@ -497,6 +497,12 @@ function updateBreadcrumb() {
 
     bar.innerHTML = html;
     bar.appendChild(search);
+    bar.querySelector('[data-folder-reset]')?.addEventListener('click', resetFolder);
+    bar.querySelectorAll('[data-select-type]').forEach(item => {
+        item.addEventListener('click', () => {
+            selectFolder(item.dataset.selectType || '', item.dataset.selectYear || null, null);
+        });
+    });
     lucide.createIcons();
 }
 
@@ -587,11 +593,11 @@ function renderRecords(data) {
 
         html += `<td class="col-actions">
             <div class="action-dropdown">
-                <button class="action-dropdown-btn" onclick="toggleActionDropdown(event, this)">
+                <button type="button" class="action-dropdown-btn" aria-label="Record actions">
                     <i data-lucide="more-vertical" style="width:14px;height:14px;"></i>
                 </button>
                 <div class="action-dropdown-menu">
-                    <button class="action-dropdown-item view-action" onclick="openPreview(${Number(rec.id) || 0}, ${jsArg(safeFolderType(type))}); closeAllDropdowns();">
+                    <button type="button" class="action-dropdown-item view-action" data-preview-id="${Number(rec.id) || 0}" data-preview-type="${escapeHtml(safeFolderType(type))}">
                         <i data-lucide="file-text"></i><span>View</span>
                     </button>
                 </div>
@@ -602,6 +608,16 @@ function renderRecords(data) {
 
     html += `</tbody></table></div>`;
     container.innerHTML = html;
+    container.querySelectorAll('.action-dropdown-btn').forEach(btn => {
+        btn.addEventListener('click', event => toggleActionDropdown(event, btn));
+    });
+    container.querySelectorAll('[data-preview-id]').forEach(item => {
+        item.addEventListener('click', event => {
+            event.preventDefault();
+            openPreview(Number(item.dataset.previewId) || 0, item.dataset.previewType || '');
+            closeAllDropdowns();
+        });
+    });
     lucide.createIcons();
 
     renderPagination(pagination);
@@ -615,7 +631,7 @@ function getColumnsForType(type) {
     };
     const nameLink = (rec, id, type, f, m, l) => {
         const n = name(rec, f, m, l);
-        return `<a href="javascript:void(0)" class="record-name-link" onclick="openPreview(${Number(id) || 0}, ${jsArg(safeFolderType(type))})">${esc(n)}</a>`;
+        return `<a href="#" class="record-name-link" data-preview-id="${Number(id) || 0}" data-preview-type="${escapeHtml(safeFolderType(type))}">${esc(n)}</a>`;
     };
     const fmtDate = v => {
         if (!v) return '';
@@ -697,6 +713,12 @@ function renderPagination(p) {
     html += `<span class="pagination-info" style="margin-left:8px;">${p.from}-${p.to} of ${p.total_records}</span>`;
 
     bar.innerHTML = html;
+    bar.querySelectorAll('[data-page]').forEach(item => {
+        item.addEventListener('click', event => {
+            event.preventDefault();
+            if (!item.classList.contains('disabled')) goToPage(Number(item.dataset.page) || 1);
+        });
+    });
     lucide.createIcons();
 }
 
@@ -704,7 +726,7 @@ function pgBtn(label, page, disabled, active) {
     const cls = ['pagination-btn'];
     if (disabled) cls.push('disabled');
     if (active) cls.push('active');
-    return `<a href="javascript:void(0)" class="${cls.join(' ')}" onclick="goToPage(${page})">${label}</a>`;
+    return `<a href="#" class="${cls.join(' ')}" data-page="${Number(page) || 1}">${label}</a>`;
 }
 
 function goToPage(page) {
@@ -741,11 +763,17 @@ function buildSkeletonRows(n) {
 
 // --- Actions ---
 function toggleActionDropdown(event, btn) {
-    event.stopPropagation();
+    event?.stopPropagation?.();
     closeAllDropdowns();
-    const menu = btn.nextElementSibling;
+    // The menu is rendered beside the button, but a stale/partial row must
+    // never make the whole Folder Browser fail when it is opened.
+    const menu = btn?.closest?.('.action-dropdown')?.querySelector?.('.action-dropdown-menu')
+        || btn?.nextElementSibling;
+    if (!menu || !menu.classList) return;
     menu.classList.toggle('show');
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
+        lucide.createIcons();
+    }
 }
 
 function closeAllDropdowns() {
@@ -765,7 +793,8 @@ function openPreview(id, type) {
 </script>
 
 <script src="../assets/js/family_relations_render.js?v=2"></script>
-<script src="../assets/js/record-preview-modal.js?v=8"></script>
+<script src="../assets/js/record-preview-modal.js?v=9"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
 </body>
 </html>
+

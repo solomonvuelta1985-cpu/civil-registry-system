@@ -101,8 +101,9 @@ class RecordPreviewModal {
                             </div>
                         </div>
                         <div class="pdf-preview-container" id="pdfPreviewContainer">
-                            <div class="pdf-canvas-wrapper">
-                                <canvas id="recordPdfCanvas"></canvas>
+                            <div class="pdf-loading" role="status" aria-live="polite">
+                                <i class="fas fa-spinner" aria-hidden="true"></i>
+                                <p>Loading PDF preview...</p>
                             </div>
                         </div>
                     </div>
@@ -126,7 +127,7 @@ class RecordPreviewModal {
 
         // Get canvas context
         this.canvas = document.getElementById('recordPdfCanvas');
-        this.ctx = this.canvas.getContext('2d');
+        this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
 
         // Initialize Lucide icons
         if (typeof lucide !== 'undefined') {
@@ -192,6 +193,11 @@ class RecordPreviewModal {
         this.modal.setAttribute('aria-hidden', 'false');
         document.body.style.overflow = 'hidden';
 
+        // Start every preview with one centered loading state. This prevents
+        // the old empty canvas from appearing beside the spinner while the
+        // record details and PDF are still being fetched.
+        this.showPDFLoading('Loading PDF preview...');
+
         // Load record data
         await this.loadRecordData();
     }
@@ -218,6 +224,7 @@ class RecordPreviewModal {
                 <p>Loading record details...</p>
             </div>
         `;
+        this.showPDFLoading('Loading PDF preview...');
 
         try {
             const response = await fetch(`../api/record_details.php?id=${this.currentRecordId}&type=${this.currentRecordType}`);
@@ -726,12 +733,7 @@ class RecordPreviewModal {
 
     async loadPDF(url) {
         const container = document.getElementById('pdfPreviewContainer');
-        container.innerHTML = `
-            <div class="pdf-loading">
-                <i class="fas fa-spinner"></i>
-                <p>Loading PDF...</p>
-            </div>
-        `;
+        this.showPDFLoading('Loading PDF...');
 
         try {
             // Fetch the PDF first to detect server-side integrity errors
@@ -776,6 +778,18 @@ class RecordPreviewModal {
             console.error('Error loading PDF:', error);
             this.showPDFError('Failed to load PDF document.');
         }
+    }
+
+    showPDFLoading(message = 'Loading PDF...') {
+        const container = document.getElementById('pdfPreviewContainer');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="pdf-loading" role="status" aria-live="polite">
+                <i class="fas fa-spinner" aria-hidden="true"></i>
+                <p>${this.escapeHtml(message)}</p>
+            </div>
+        `;
     }
 
     async renderPage(pageNum) {
