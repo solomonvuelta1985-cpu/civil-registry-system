@@ -695,7 +695,7 @@ class RecordPreviewModal {
             && window.CRF1A_CAN_GENERATE === true
             && window.crf1aGenerator) {
             html += `
-                <button type="button" class="modal-btn modal-btn-primary crf-1a-modal-action" onclick="crf1aGenerator.openFromRecordId(${Number(this.currentRecordId) || 0})">
+                <button type="button" class="modal-btn modal-btn-primary crf-1a-modal-action" onclick="if (window.recordPreviewModal) window.recordPreviewModal.close(); crf1aGenerator.openFromRecordId(${Number(this.currentRecordId) || 0})">
                     <i data-lucide="file-check-2"></i>
                     <span>Generate CRF No. 1A</span>
                 </button>

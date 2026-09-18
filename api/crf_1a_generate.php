@@ -89,12 +89,11 @@ $inputs = [
     'amount_paid' => $amountPaid,
     'or_number' => $orNumber,
     'date_paid' => $datePaid,
-    'certified_by_name' => crf_1a_post_string('certified_by_name', 150),
-    'certified_by_position' => crf_1a_post_string('certified_by_position', 100),
+    'mcr_full_name' => crf_1a_required_string('mcr_full_name', 'Municipal Civil Registrar Name', 150),
+    'mcr_title' => crf_1a_required_string('mcr_title', 'Municipal Civil Registrar Position', 100),
+    'certified_by_name' => crf_1a_required_string('certified_by_name', 'Certified By Name', 150),
+    'certified_by_position' => crf_1a_required_string('certified_by_position', 'Certified By Position', 100),
 ];
-$crfConfig = crf_1a_config();
-$inputs['certified_by_name'] = $inputs['certified_by_name'] ?: $crfConfig['mcr_full_name'];
-$inputs['certified_by_position'] = $inputs['certified_by_position'] ?: $crfConfig['mcr_title'];
 
 try {
     $recordStmt = $pdo->prepare(
@@ -158,14 +157,14 @@ try {
              registry_no_snapshot, child_name_snapshot, child_last_name_snapshot,
              record_snapshot_json, issue_date, page_number, book_number,
              population_reference_no, requester_name, amount_paid, or_number,
-             date_paid, certified_by_name, certified_by_position,
+             date_paid, mcr_full_name, mcr_title, certified_by_name, certified_by_position,
              pdf_filename, pdf_filepath, pdf_hash, created_by, status)
          VALUES
             (:crf_year, :sequence_no, :crf_number, :birth_record_id,
              :registry_no_snapshot, :child_name_snapshot, :child_last_name_snapshot,
              :record_snapshot_json, :issue_date, :page_number, :book_number,
              :population_reference_no, :requester_name, :amount_paid, :or_number,
-             :date_paid, :certified_by_name, :certified_by_position,
+             :date_paid, :mcr_full_name, :mcr_title, :certified_by_name, :certified_by_position,
              :pdf_filename, :pdf_filepath, :pdf_hash, :created_by, 'Active')"
     );
     $insert->execute([
@@ -185,6 +184,8 @@ try {
         ':amount_paid' => $amountPaid,
         ':or_number' => $orNumber,
         ':date_paid' => $datePaid,
+        ':mcr_full_name' => $inputs['mcr_full_name'],
+        ':mcr_title' => $inputs['mcr_title'],
         ':certified_by_name' => $inputs['certified_by_name'] ?: null,
         ':certified_by_position' => $inputs['certified_by_position'] ?: null,
         ':pdf_filename' => basename($pdfAbsolutePath),

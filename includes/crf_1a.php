@@ -185,11 +185,11 @@ function crf_1a_render_document_html(array $record, array $inputs, string $crfNu
 
     return '<!doctype html>
 <html><head><meta charset="utf-8"><style>
-@page { size: A4; margin: 0; }
+@page { size: A4 portrait; margin: 0; }
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; background: #fff; }
+html, body { width: 210mm; min-height: 297mm; margin: 0; padding: 0; background: #fff; }
 body { font-family: "Courier New", Courier, monospace; color: #111; font-size: 9.5pt; }
- .sheet { width: 210mm; height: 296mm; padding: 0; position: relative; overflow: hidden; }
+ .sheet { width: 210mm; height: 297mm; max-height: 297mm; padding: 0; position: relative; overflow: hidden; page-break-after: avoid; break-after: avoid; }
  .header { position: absolute; top: 5mm; left: 14mm; right: 12mm; height: 30mm; display: flex; align-items: center; gap: 4mm; }
  .header-logo { display: flex; align-items: center; justify-content: center; }
  .header-logo-seal { width: 27mm; height: 27mm; flex: 0 0 27mm; }
@@ -227,7 +227,7 @@ body { font-family: "Courier New", Courier, monospace; color: #111; font-size: 9
  .certified-heading > span:first-child { width: 32mm; flex: 0 0 32mm; }
 .certified-line { display: inline-block; width: 62mm; border-bottom: 1px solid #222; vertical-align: bottom; height: 5mm; }
 .certified-label { margin-left: 32mm; font-weight: 700; text-align: center; width: 62mm; }
-.certified-position { margin-left: 32mm; text-align: center; width: 62mm; }
+.certified-position { margin-left: 32mm; text-align: left; width: 62mm; }
  .payment-block { position: absolute; top: 219mm; left: 21mm; margin: 0; width: 90mm; }
  .payment-row { display: flex; min-height: 4.6mm; line-height: 1.05; }
 .payment-row .payment-label { width: 35mm; }
@@ -265,8 +265,8 @@ body { font-family: "Courier New", Courier, monospace; color: #111; font-size: 9
     . $field('Place of Marriage of parents', $values['parents_marriage_place'])
     . '</div>
  <div class="certification">This certification is issued to ' . $requesterLine . ' upon his/her<br>request.</div>
-<div class="signature-block"><strong>' . $e($cfg['mcr_full_name']) . '</strong><div>' . $e($cfg['mcr_title']) . '</div></div>
- <div class="certified-block"><div class="certified-heading"><span>Certified by:</span><span class="certified-line">' . $e($inputs['certified_by_name'] ?? '') . '</span></div><div class="certified-label">NAME AND SIGNATURE</div><div class="certified-position">' . $e($inputs['certified_by_position'] ?? '') . '</div></div>
+<div class="signature-block"><strong>' . $e(array_key_exists('mcr_full_name', $inputs) ? $inputs['mcr_full_name'] : $cfg['mcr_full_name']) . '</strong><div>' . $e(array_key_exists('mcr_title', $inputs) ? $inputs['mcr_title'] : $cfg['mcr_title']) . '</div></div>
+ <div class="certified-block"><div class="certified-heading"><span>Certified by:</span><span class="certified-line">' . $e($inputs['certified_by_name'] ?? '') . '</span></div><div class="certified-position">' . $e($inputs['certified_by_position'] ?? '') . '</div></div>
 <div class="payment-block"><div class="payment-row"><span class="payment-label">Amount paid</span><span class="payment-colon">:</span><span class="payment-value">' . $line($amount) . '</span></div>
 <div class="payment-row"><span class="payment-label">O.R. Number</span><span class="payment-colon">:</span><span class="payment-value">' . $line($inputs['or_number'] ?? '') . '</span></div>
  <div class="payment-row"><span class="payment-label">Date paid</span><span class="payment-colon">:</span><span class="payment-value">' . $line($inputs['date_paid'] ?? '') . '</span></div></div>

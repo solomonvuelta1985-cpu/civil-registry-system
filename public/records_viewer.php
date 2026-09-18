@@ -720,7 +720,7 @@ function detect_late_registration($record, $record_type) {
 
     <!-- Record Preview Modal Styles -->
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=10">
-    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=13">
+    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=22">
 
     <!-- PDF.js Library -->
     <script src="<?= asset_url('pdfjs') ?>"></script>
@@ -3847,8 +3847,8 @@ function detect_late_registration($record, $record_type) {
 
     <!-- Record Preview Modal Script -->
     <script src="../assets/js/family_relations_render.js?v=2"></script>
-    <script src="../assets/js/record-preview-modal.js?v=11"></script>
-    <script src="../assets/js/crf-1a-generator.js?v=8"></script>
+    <script src="../assets/js/record-preview-modal.js?v=12"></script>
+    <script src="../assets/js/crf-1a-generator.js?v=14"></script>
 
     <!-- Double Registration Comparison Modal -->
     <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=7">

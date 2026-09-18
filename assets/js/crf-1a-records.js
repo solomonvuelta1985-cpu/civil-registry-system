@@ -21,6 +21,7 @@
             this.searchTimer = null;
             this.sort = { by: 'crf_id', dir: 'desc' };
             this.detailBackdrop = null;
+            this.detailLoader = null;
             this.bind();
             this.load();
         }
@@ -104,7 +105,7 @@
             };
             let html = `<div class="crf1a-records-table-wrap"><table class="crf1a-records-table"><thead><tr>${sortHeader('CRF ID', 'crf_id')}${sortHeader('Registry No.', 'registry')}${sortHeader('Child', 'child')}${sortHeader('Page / Book', 'page_book')}${sortHeader('Payment', 'amount')}${sortHeader('Date Paid', 'date_paid')}${sortHeader('Issue Date', 'issue_date')}<th scope="col">Actions</th></tr></thead><tbody>`;
             records.forEach(record => {
-                html += `<tr><td class="crf-number">${esc(record.crf_number)}</td><td>${esc(record.registry_no_snapshot || '—')}</td><td>${esc(record.child_name_snapshot || '—')}</td><td>${esc(record.page_number)} / ${esc(record.book_number)}</td><td>₱${esc(money(record.amount_paid))}<br><span class="muted">O.R. ${esc(record.or_number)}</span></td><td>${formatDate(record.date_paid)}</td><td>${formatDate(record.issue_date)}</td><td><div class="crf1a-records-actions"><button type="button" class="crf1a-icon-btn" title="Preview issuance" data-crf-detail="${Number(record.id) || 0}"><i data-lucide="eye"></i></button><a class="crf1a-icon-btn" title="Download PDF" href="${esc(record.download_url || '#')}"><i data-lucide="download"></i></a><button type="button" class="crf1a-icon-btn" title="View source birth record" data-crf-source="${Number(record.birth_record_id) || 0}"><i data-lucide="file-text"></i></button></div></td></tr>`;
+                html += `<tr><td class="crf-number"><button type="button" class="crf1a-crf-id-link" data-crf-detail="${Number(record.id) || 0}" title="Open preview">${esc(record.crf_number)}</button></td><td>${esc(record.registry_no_snapshot || '—')}</td><td>${esc(record.child_name_snapshot || '—')}</td><td>${esc(record.page_number)} / ${esc(record.book_number)}</td><td>₱${esc(money(record.amount_paid))}<br><span class="muted">O.R. ${esc(record.or_number)}</span></td><td>${formatDate(record.date_paid)}</td><td>${formatDate(record.issue_date)}</td><td><div class="crf1a-records-actions"><button type="button" class="crf1a-icon-btn" title="Preview issuance" data-crf-detail="${Number(record.id) || 0}"><i data-lucide="eye"></i></button><a class="crf1a-icon-btn" title="Download PDF" href="${esc(record.download_url || '#')}"><i data-lucide="download"></i></a><button type="button" class="crf1a-icon-btn" title="View source birth record" data-crf-source="${Number(record.birth_record_id) || 0}"><i data-lucide="file-text"></i></button></div></td></tr>`;
             });
             host.innerHTML = html + '</tbody></table></div>';
             const actionGroups = host.querySelectorAll('.crf1a-records-actions');
@@ -134,7 +135,7 @@
                     actions.appendChild(button);
                 }
             });
-            host.querySelectorAll('[data-crf-detail]').forEach(button => button.addEventListener('click', () => this.openDetail(Number(button.dataset.crfDetail))));
+            host.querySelectorAll('[data-crf-detail]').forEach(button => button.addEventListener('click', () => this.openDetail(Number(button.dataset.crfDetail), button)));
             host.querySelectorAll('[data-crf-source]').forEach(button => button.addEventListener('click', () => this.openSource(Number(button.dataset.crfSource))));
             host.querySelectorAll('[data-crf-archive]').forEach(button => button.addEventListener('click', () => this.archiveIssuance(Number(button.dataset.crfArchive), button.dataset.crfNumber || '')));
             host.querySelectorAll('[data-crf-delete]').forEach(button => button.addEventListener('click', () => this.deleteIssuance(Number(button.dataset.crfDelete), button.dataset.crfNumber || '')));
@@ -175,14 +176,42 @@
             host.querySelectorAll('[data-page]').forEach(button => button.addEventListener('click', () => { this.page = Number(button.dataset.page) || 1; this.load(); }));
         }
 
-        async openDetail(id) {
+        showDetailLoader(trigger = null) {
+            if (trigger) {
+                trigger.disabled = true;
+                trigger.classList.add('is-loading');
+                trigger.setAttribute('aria-busy', 'true');
+            }
+            if (!this.detailLoader) {
+                this.detailLoader = document.createElement('div');
+                this.detailLoader.className = 'crf1a-detail-loader';
+                this.detailLoader.setAttribute('role', 'status');
+                this.detailLoader.setAttribute('aria-live', 'polite');
+                this.detailLoader.innerHTML = '<div class="crf1a-detail-loader-card"><span class="crf1a-detail-loader-spinner" aria-hidden="true"></span><strong>Opening CRF preview</strong><span>Please wait…</span></div>';
+                document.body.appendChild(this.detailLoader);
+            }
+            this.detailLoader.classList.add('is-open');
+        }
+
+        hideDetailLoader(trigger = null) {
+            if (trigger) {
+                trigger.disabled = false;
+                trigger.classList.remove('is-loading');
+                trigger.removeAttribute('aria-busy');
+            }
+            this.detailLoader?.classList.remove('is-open');
+        }
+
+        async openDetail(id, trigger = null) {
             if (!id) return;
+            this.showDetailLoader(trigger);
             try {
                 const response = await fetch(`${apiUrl}?action=detail&id=${id}`, { credentials:'same-origin' });
                 const data = await response.json();
                 if (!response.ok || !data.success) throw new Error(data.message || 'Unable to load issuance.');
                 this.showDetail(data.data);
             } catch (error) { if (typeof Notiflix !== 'undefined') Notiflix.Notify.failure(error.message); }
+            finally { this.hideDetailLoader(trigger); }
         }
 
         showDetail(record) {
@@ -198,6 +227,8 @@
                 amount_paid: record.amount_paid ?? '',
                 or_number: record.or_number || '',
                 date_paid: record.date_paid || '',
+                mcr_full_name: record.mcr_full_name || window.CRF1A_OFFICE_CONFIG?.mcr_full_name || '',
+                mcr_title: record.mcr_title || window.CRF1A_OFFICE_CONFIG?.mcr_title || '',
                 certified_by_name: record.certified_by_name || window.CRF1A_DEFAULT_CERTIFIED_BY?.name || '',
                 certified_by_position: record.certified_by_position || window.CRF1A_DEFAULT_CERTIFIED_BY?.position || ''
             };
@@ -206,27 +237,42 @@
                 ? window.crf1aGenerator.buildDocumentMarkup(sourceRecord, previewInputs, record.crf_number)
                 : '';
             const previewPanel = hasHtmlPreview
-                ? `<div class="crf1a-record-preview"><div class="crf1a-preview-toolbar"><span>Issued A4 preview</span><strong>${esc(record.crf_number)}</strong></div><div class="crf1a-document-wrap">${previewMarkup}</div></div>`
+                ? `<div class="crf1a-record-preview"><div class="crf1a-preview-toolbar"><div class="crf1a-preview-title"><span>Issued A4 preview</span><strong>${esc(record.crf_number)}</strong></div><div class="crf1a-preview-controls" aria-label="Preview controls"><button type="button" class="crf1a-preview-control-btn" data-record-preview-zoom-out title="Zoom out" aria-label="Zoom out"><i data-lucide="zoom-out"></i></button><span class="crf1a-preview-zoom-display" data-record-preview-zoom>100%</span><button type="button" class="crf1a-preview-control-btn" data-record-preview-zoom-in title="Zoom in" aria-label="Zoom in"><i data-lucide="zoom-in"></i></button><span class="crf1a-preview-divider" aria-hidden="true"></span><button type="button" class="crf1a-preview-control-btn" data-record-preview-prev title="Previous page" aria-label="Previous page" disabled><i data-lucide="chevron-left"></i></button><span class="crf1a-preview-page-info"><span data-record-preview-current>1</span> of <span data-record-preview-total>1</span></span><button type="button" class="crf1a-preview-control-btn" data-record-preview-next title="Next page" aria-label="Next page" disabled><i data-lucide="chevron-right"></i></button><span class="crf1a-preview-divider" aria-hidden="true"></span><button type="button" class="crf1a-preview-control-btn" data-record-preview-rotate-left title="Rotate left" aria-label="Rotate left"><i data-lucide="rotate-ccw"></i></button><button type="button" class="crf1a-preview-control-btn" data-record-preview-rotate-right title="Rotate right" aria-label="Rotate right"><i data-lucide="rotate-cw"></i></button></div></div><div class="crf1a-document-wrap">${previewMarkup}</div></div>`
                 : `<div class="crf1a-record-pdf"><iframe class="crf1a-pdf-frame" src="${esc(record.pdf_url)}" title="${esc(record.crf_number)} PDF"></iframe></div>`;
-            const details = [
-                ['CRF ID', record.crf_number], ['Registry No.', record.registry_no_snapshot], ['Child', record.child_name_snapshot],
-                ['Page / Book', `${record.page_number || '—'} / ${record.book_number || '—'}`], ['Amount Paid', `₱${money(record.amount_paid)}`],
-                ['O.R. Number', record.or_number], ['Date Paid', formatDate(record.date_paid)], ['Issued', formatDate(record.issue_date)],
-                ['Issued By', record.created_by_name || '—'], ['Source Birth Record', record.birth_record_id]
-            ];
-            const sourceRows = [['Sex', snapshot.sex], ['Date of Birth', snapshot.date_of_birth], ['Place of Birth', snapshot.place_of_birth], ['Mother', snapshot.name_of_mother], ['Father', snapshot.name_of_father]];
-            const detailHtml = details.concat(sourceRows).map(([label, value]) => `<div class="crf1a-detail-row"><span class="crf1a-detail-label">${esc(label)}</span><span class="crf1a-detail-value">${esc(value || '—')}</span></div>`).join('');
+            const detailRows = rows => rows.map(([label, value]) => `<div class="crf1a-detail-row"><span class="crf1a-detail-label">${esc(label)}</span><span class="crf1a-detail-value">${esc(value || '—')}</span></div>`).join('');
+            const detailSection = (title, icon, rows) => `<section class="crf1a-detail-section"><div class="crf1a-detail-section-title"><i data-lucide="${icon}"></i><span>${esc(title)}</span></div>${detailRows(rows)}</section>`;
+            const detailHtml = `<div class="crf1a-detail-panel">${[
+                detailSection('Issuance Details', 'file-check-2', [
+                    ['CRF ID', record.crf_number], ['Registry No.', record.registry_no_snapshot], ['Child', record.child_name_snapshot],
+                    ['Page / Book', `${record.page_number || '—'} / ${record.book_number || '—'}`]
+                ]),
+                detailSection('Payment and Dates', 'receipt', [
+                    ['Amount Paid', `₱${money(record.amount_paid)}`], ['O.R. Number', record.or_number],
+                    ['Date Paid', formatDate(record.date_paid)], ['Issued', formatDate(record.issue_date)]
+                ]),
+                detailSection('Source and Audit', 'file-text', [
+                    ['Issued By', record.created_by_name || '—'], ['Source Birth Record', record.birth_record_id]
+                ]),
+                detailSection('Birth Information', 'baby', [
+                    ['Sex', snapshot.sex], ['Date of Birth', snapshot.date_of_birth], ['Place of Birth', snapshot.place_of_birth],
+                    ['Mother', snapshot.name_of_mother], ['Father', snapshot.name_of_father]
+                ])
+            ].join('')}</div>`;
             const correctedAction = window.CRF1A_CAN_GENERATE === true && window.crf1aGenerator
                 ? '<button type="button" class="modal-btn modal-btn-primary" data-corrected-copy><i data-lucide="file-pen-line"></i><span>Generate Corrected Copy</span></button>'
                 : '';
             const sourceAction = record.birth_record_id
                 ? `<button type="button" class="modal-btn modal-btn-outline" data-source-record="${Number(record.birth_record_id) || 0}"><i data-lucide="file-text"></i><span>Source Record</span></button>`
                 : '';
+            const printAction = record.pdf_url
+                ? '<button type="button" class="modal-btn modal-btn-success" data-crf-print title="Print this CRF No. 1A"><i data-lucide="printer"></i><span>Print</span><span class="btn-shortcut">P</span></button>'
+                : '';
             const downloadAction = `<a class="modal-btn modal-btn-info" href="${esc(record.download_url)}"><i data-lucide="file-down"></i><span>Download</span></a>`;
             this.detailBackdrop = document.createElement('div');
             this.detailBackdrop.className = 'crf1a-record-backdrop is-open';
-            this.detailBackdrop.innerHTML = `<div class="crf1a-record-modal" role="dialog" aria-modal="true" aria-labelledby="crf1aDetailTitle"><div class="crf1a-record-header"><div><h2 id="crf1aDetailTitle">${esc(record.crf_number)}</h2><p>Immutable issuance detail and A4 preview</p></div><button type="button" class="crf1a-close" data-detail-close aria-label="Close"><i data-lucide="x"></i></button></div><div class="crf1a-record-modal-body"><div class="crf1a-record-details">${detailHtml}</div>${previewPanel}</div><div class="crf1a-record-modal-footer"><div class="crf1a-record-modal-footer-left"><button type="button" class="modal-btn modal-btn-outline" data-detail-close><i data-lucide="x"></i><span>Close</span></button></div><div class="crf1a-record-modal-footer-right">${correctedAction}${sourceAction}${downloadAction}</div></div></div>`;
+            this.detailBackdrop.innerHTML = `<div class="crf1a-record-modal" role="dialog" aria-modal="true" aria-labelledby="crf1aDetailTitle"><div class="crf1a-record-header"><div><h2 id="crf1aDetailTitle">${esc(record.crf_number)}</h2><p>Immutable issuance detail and A4 preview</p></div><button type="button" class="crf1a-close" data-detail-close aria-label="Close"><i data-lucide="x"></i></button></div><div class="crf1a-record-modal-body"><div class="crf1a-record-details">${detailHtml}</div>${previewPanel}</div><div class="crf1a-record-modal-footer"><div class="crf1a-record-modal-footer-left"><button type="button" class="modal-btn modal-btn-outline" data-detail-close><i data-lucide="x"></i><span>Close</span></button></div><div class="crf1a-record-modal-footer-right">${correctedAction}${sourceAction}${printAction}${downloadAction}</div></div></div>`;
             document.body.appendChild(this.detailBackdrop);
+            this.bindDetailPreviewControls();
             this.detailBackdrop.querySelector('[data-corrected-copy]')?.addEventListener('click', () => {
                 this.confirmAction(
                     'Edit CRF No. 1A',
@@ -242,7 +288,117 @@
             this.detailBackdrop.querySelectorAll('[data-detail-close]').forEach(button => button.addEventListener('click', () => this.closeDetail()));
             this.detailBackdrop.addEventListener('click', event => { if (event.target === this.detailBackdrop) this.closeDetail(); });
             this.detailBackdrop.querySelector('[data-source-record]')?.addEventListener('click', () => this.openSource(Number(record.birth_record_id)));
+            this.detailBackdrop.querySelector('[data-crf-print]')?.addEventListener('click', () => this.printIssuance(record));
             this.icons();
+        }
+
+        printIssuance(record) {
+            const documentNode = this.detailBackdrop?.querySelector('.crf1a-record-preview .crf1a-document');
+            if (!documentNode) {
+                if (typeof Notiflix !== 'undefined') Notiflix.Notify.warning('The A4 preview is not ready yet.');
+                return;
+            }
+
+            const printWindow = window.open('', '_blank');
+            if (!printWindow) {
+                if (typeof Notiflix !== 'undefined') Notiflix.Notify.warning('Please allow pop-ups to print the CRF preview.');
+                return;
+            }
+
+            const printableDocument = documentNode.cloneNode(true);
+            // Preview zoom/rotation are for on-screen inspection only.
+            printableDocument.style.transform = 'none';
+            printableDocument.style.transformOrigin = '';
+            printableDocument.querySelectorAll('img').forEach(image => {
+                // The preview uses relative asset paths. Resolve them before moving the
+                // document into the new print window so all logos are retained.
+                image.src = image.currentSrc || image.src;
+            });
+            const cssUrl = new URL('../assets/css/crf-1a.css?v=22', window.location.href).href;
+            printWindow.document.open();
+            printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(record?.crf_number || 'CRF No. 1A')}</title><link rel="stylesheet" href="${cssUrl}"><style>
+                @page { size: A4 portrait; margin: 0; }
+                html, body { width: 210mm; min-height: 297mm; margin: 0; padding: 0; background: #fff; }
+                body { overflow: hidden; }
+                .crf1a-print-page { width: 210mm; height: 297mm; margin: 0; overflow: hidden; page-break-after: avoid; break-after: avoid; }
+                .crf1a-document-wrap { min-width: 0 !important; width: 210mm !important; margin: 0 !important; }
+                .crf1a-document { width: 210mm !important; height: 297mm !important; min-height: 297mm !important; margin: 0 !important; box-shadow: none !important; }
+                @media screen { body { background: #e2e8f0; padding: 12px; } .crf1a-print-page { box-shadow: 0 5px 18px rgba(15, 23, 42, .15); } }
+                @media print { .crf1a-print-page, .crf1a-document { page-break-after: avoid !important; break-after: avoid !important; } }
+            </style></head><body><main class="crf1a-print-page"><div class="crf1a-document-wrap">${printableDocument.outerHTML}</div></main></body></html>`);
+            printWindow.document.close();
+
+            const images = Array.from(printWindow.document.images);
+            const waitForImages = Promise.all(images.map(image => image.complete
+                ? Promise.resolve()
+                : new Promise(resolve => { image.onload = image.onerror = resolve; })));
+            const stylesheets = Array.from(printWindow.document.querySelectorAll('link[rel="stylesheet"]'));
+            const waitForStyles = Promise.all(stylesheets.map(link => link.sheet
+                ? Promise.resolve()
+                : new Promise(resolve => {
+                    link.onload = link.onerror = resolve;
+                    setTimeout(resolve, 1500);
+                })));
+            const waitForFonts = printWindow.document.fonts?.ready || Promise.resolve();
+            Promise.all([waitForImages, waitForStyles, waitForFonts]).then(() => setTimeout(() => {
+                printWindow.focus();
+                printWindow.print();
+            }, 250));
+            printWindow.onafterprint = () => printWindow.close();
+        }
+
+        bindDetailPreviewControls() {
+            const root = this.detailBackdrop?.querySelector('.crf1a-record-preview');
+            const documentNode = root?.querySelector('.crf1a-document');
+            if (!root || !documentNode) return;
+
+            let scale = 1;
+            let rotation = 0;
+            let currentPage = 1;
+            const totalPages = 1;
+            const zoom = root.querySelector('[data-record-preview-zoom]');
+            const current = root.querySelector('[data-record-preview-current]');
+            const total = root.querySelector('[data-record-preview-total]');
+            const previous = root.querySelector('[data-record-preview-prev]');
+            const next = root.querySelector('[data-record-preview-next]');
+
+            const update = () => {
+                if (zoom) zoom.textContent = `${Math.round(scale * 100)}%`;
+                if (current) current.textContent = String(currentPage);
+                if (total) total.textContent = String(totalPages);
+                if (previous) previous.disabled = currentPage <= 1;
+                if (next) next.disabled = currentPage >= totalPages;
+            };
+            const apply = () => {
+                documentNode.style.transformOrigin = 'top center';
+                documentNode.style.transform = `scale(${scale}) rotate(${rotation}deg)`;
+            };
+
+            root.querySelector('[data-record-preview-zoom-out]')?.addEventListener('click', () => {
+                scale = Math.max(0.5, scale - 0.25);
+                update();
+                apply();
+            });
+            root.querySelector('[data-record-preview-zoom-in]')?.addEventListener('click', () => {
+                scale = Math.min(2.5, scale + 0.25);
+                update();
+                apply();
+            });
+            root.querySelector('[data-record-preview-prev]')?.addEventListener('click', () => {
+                if (currentPage > 1) { currentPage -= 1; update(); }
+            });
+            root.querySelector('[data-record-preview-next]')?.addEventListener('click', () => {
+                if (currentPage < totalPages) { currentPage += 1; update(); }
+            });
+            root.querySelector('[data-record-preview-rotate-left]')?.addEventListener('click', () => {
+                rotation = (rotation + 270) % 360;
+                apply();
+            });
+            root.querySelector('[data-record-preview-rotate-right]')?.addEventListener('click', () => {
+                rotation = (rotation + 90) % 360;
+                apply();
+            });
+            update();
         }
 
         openSource(id) {

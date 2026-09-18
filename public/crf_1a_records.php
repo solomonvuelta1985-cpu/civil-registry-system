@@ -38,12 +38,12 @@ $crfDefaults = crf_1a_config();
     <script src="<?= asset_url('notiflix_js') ?>"></script>
     <link rel="stylesheet" href="../assets/css/sidebar.css">
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=11">
-    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=13">
+    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=22">
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = '<?= asset_url("pdfjs_worker") ?>';</script>
     <style>
         body { background:#f8fafc; color:#1e293b; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
-        .crf1a-records-page { margin-left:var(--sidebar-width); padding:24px 32px; max-width:1700px; transition:margin-left .25s ease; }
+        .crf1a-records-page { margin-left:var(--sidebar-width); padding:88px 32px 24px; max-width:1700px; transition:margin-left .25s ease; }
         .sidebar-collapsed .crf1a-records-page { margin-left:var(--sidebar-collapsed-width); }
         .crf1a-page-header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px; padding-bottom:14px; border-bottom:2px solid #f1f5f9; }
         .crf1a-page-header h1 { display:flex; align-items:center; gap:10px; margin:0; font-size:24px; color:#0f172a; }
@@ -54,7 +54,7 @@ $crfDefaults = crf_1a_config();
         .crf1a-records-message.error { color:#b91c1c; }
         .crf1a-records-empty { padding:54px 20px; text-align:center; color:#94a3b8; }
         .crf1a-records-empty [data-lucide] { width:46px; height:46px; margin-bottom:10px; }
-        @media (max-width:1100px) { .crf1a-records-page { margin-left:0; } .sidebar-collapsed .crf1a-records-page { margin-left:0; } }
+        @media (max-width:1100px) { .crf1a-records-page { margin-left:0; padding:24px 18px; } .sidebar-collapsed .crf1a-records-page { margin-left:0; } }
         @media (max-width:700px) { .crf1a-records-page { padding:18px 14px; } .crf1a-page-header { align-items:flex-start; } .crf1a-page-header h1 { font-size:20px; } .crf1a-page-header p { margin-left:0; } .crf1a-records-card { padding:12px; } }
     </style>
 </head>
@@ -94,9 +94,9 @@ $crfDefaults = crf_1a_config();
     window.CRF1A_DEFAULT_CERTIFIED_BY = { name: <?= json_encode($crfDefaults['mcr_full_name'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>, position: <?= json_encode($crfDefaults['mcr_title'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?> };
     window.CRF1A_DEFAULT_ISSUE_DATE = <?= json_encode(date('Y-m-d')) ?>;
 </script>
-<script src="../assets/js/record-preview-modal.js?v=11"></script>
-<script src="../assets/js/crf-1a-generator.js?v=8"></script>
-<script src="../assets/js/crf-1a-records.js?v=11"></script>
+<script src="../assets/js/record-preview-modal.js?v=12"></script>
+<script src="../assets/js/crf-1a-generator.js?v=14"></script>
+<script src="../assets/js/crf-1a-records.js?v=18"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
 </body>
 </html>

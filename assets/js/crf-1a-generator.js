@@ -16,6 +16,10 @@
             this.existingIssuances = [];
             this.issuanceCheckPending = false;
             this.issuanceCheckComplete = false;
+            this.previewScale = 1;
+            this.previewRotation = 0;
+            this.previewCurrentPage = 1;
+            this.previewTotalPages = 1;
             this.createModal();
         }
 
@@ -50,10 +54,12 @@
                                     <div class="crf1a-form-group"><label for="crf1aDatePaid">Date Paid <span class="required">*</span></label><input id="crf1aDatePaid" name="date_paid" type="date" class="crf1a-form-control" required></div>
                                     <div class="crf1a-form-group"><label for="crf1aIssueDate">Issue Date</label><input id="crf1aIssueDate" name="issue_date" type="date" class="crf1a-form-control" readonly></div>
                                 </div>
-                                <div class="crf1a-section-title" style="margin-top:20px;"><i data-lucide="badge-check"></i><span>Certification</span></div>
-                                <div class="crf1a-form-group"><label for="crf1aCertifiedName">Certified By Name</label><input id="crf1aCertifiedName" name="certified_by_name" class="crf1a-form-control" maxlength="150"></div>
-                                <div class="crf1a-form-group"><label for="crf1aCertifiedPosition">Certified By Position</label><input id="crf1aCertifiedPosition" name="certified_by_position" class="crf1a-form-control" maxlength="100"></div>
-                                <div class="crf1a-form-help">Page Number, Book Number, Amount Paid, O.R. Number, and Date Paid are required. The generated CRF ID is assigned only after successful generation.</div>
+                                <div class="crf1a-section-title" style="margin-top:20px;"><i data-lucide="badge-check"></i><span>Registrar and Certification</span></div>
+                                <div class="crf1a-form-group"><label for="crf1aMcrName">Municipal Civil Registrar Name <span class="required">*</span></label><input id="crf1aMcrName" name="mcr_full_name" class="crf1a-form-control" maxlength="150" placeholder="Enter registrar name" required></div>
+                                <div class="crf1a-form-group"><label for="crf1aMcrPosition">Municipal Civil Registrar Position <span class="required">*</span></label><input id="crf1aMcrPosition" name="mcr_title" class="crf1a-form-control" maxlength="100" placeholder="Enter registrar position" required></div>
+                                <div class="crf1a-form-group"><label for="crf1aCertifiedName">Certified By Name <span class="required">*</span></label><input id="crf1aCertifiedName" name="certified_by_name" class="crf1a-form-control" maxlength="150" placeholder="Enter certifier name" required></div>
+                                <div class="crf1a-form-group"><label for="crf1aCertifiedPosition">Certified By Position <span class="required">*</span></label><input id="crf1aCertifiedPosition" name="certified_by_position" class="crf1a-form-control" maxlength="100" placeholder="Enter certifier position" required></div>
+                                <div class="crf1a-form-help">Page Number, Book Number, Amount Paid, O.R. Number, Date Paid, registrar name and position, and certifier name and position are required. The generated CRF ID is assigned only after successful generation.</div>
                                 <div class="crf1a-form-actions">
                                     <button type="button" class="crf1a-btn crf1a-btn-secondary" data-crf1a-close>Cancel</button>
                                     <button type="submit" class="crf1a-btn crf1a-btn-primary" id="crf1aGenerateButton"><i data-lucide="file-output"></i> Generate PDF</button>
@@ -62,7 +68,21 @@
                             </form>
                         </div>
                         <div class="crf1a-generator-preview-panel">
-                            <div class="crf1a-preview-toolbar"><span>Live A4 preview</span><strong id="crf1aPreviewId">ID assigned on generate</strong></div>
+                            <div class="crf1a-preview-toolbar">
+                                <div class="crf1a-preview-title"><span>Live A4 preview</span><strong id="crf1aPreviewId">ID assigned on generate</strong></div>
+                                <div class="crf1a-preview-controls" aria-label="Preview controls">
+                                    <button type="button" class="crf1a-preview-control-btn" data-crf1a-preview-zoom-out title="Zoom out" aria-label="Zoom out"><i data-lucide="zoom-out"></i></button>
+                                    <span class="crf1a-preview-zoom-display" data-crf1a-preview-zoom>100%</span>
+                                    <button type="button" class="crf1a-preview-control-btn" data-crf1a-preview-zoom-in title="Zoom in" aria-label="Zoom in"><i data-lucide="zoom-in"></i></button>
+                                    <span class="crf1a-preview-divider" aria-hidden="true"></span>
+                                    <button type="button" class="crf1a-preview-control-btn" data-crf1a-preview-prev title="Previous page" aria-label="Previous page" disabled><i data-lucide="chevron-left"></i></button>
+                                    <span class="crf1a-preview-page-info"><span data-crf1a-preview-current>1</span> of <span data-crf1a-preview-total>1</span></span>
+                                    <button type="button" class="crf1a-preview-control-btn" data-crf1a-preview-next title="Next page" aria-label="Next page" disabled><i data-lucide="chevron-right"></i></button>
+                                    <span class="crf1a-preview-divider" aria-hidden="true"></span>
+                                    <button type="button" class="crf1a-preview-control-btn" data-crf1a-preview-rotate-left title="Rotate left" aria-label="Rotate left"><i data-lucide="rotate-ccw"></i></button>
+                                    <button type="button" class="crf1a-preview-control-btn" data-crf1a-preview-rotate-right title="Rotate right" aria-label="Rotate right"><i data-lucide="rotate-cw"></i></button>
+                                </div>
+                            </div>
                             <div class="crf1a-document-wrap" id="crf1aPreviewHost"></div>
                             <div class="crf1a-pdf-viewer" id="crf1aPdfViewer" hidden><iframe class="crf1a-pdf-frame" title="Generated CRF No. 1A PDF"></iframe></div>
                         </div>
@@ -83,6 +103,12 @@
             this.status = this.backdrop.querySelector('#crf1aStatus');
             this.generateButton = this.backdrop.querySelector('#crf1aGenerateButton');
             this.loadingOverlay = this.backdrop.querySelector('.crf1a-generation-overlay');
+            this.backdrop.querySelector('[data-crf1a-preview-zoom-out]').addEventListener('click', () => this.zoomPreview(-0.25));
+            this.backdrop.querySelector('[data-crf1a-preview-zoom-in]').addEventListener('click', () => this.zoomPreview(0.25));
+            this.backdrop.querySelector('[data-crf1a-preview-prev]').addEventListener('click', () => this.changePreviewPage(-1));
+            this.backdrop.querySelector('[data-crf1a-preview-next]').addEventListener('click', () => this.changePreviewPage(1));
+            this.backdrop.querySelector('[data-crf1a-preview-rotate-left]').addEventListener('click', () => this.rotatePreview(-90));
+            this.backdrop.querySelector('[data-crf1a-preview-rotate-right]').addEventListener('click', () => this.rotatePreview(90));
             this.backdrop.querySelectorAll('[data-crf1a-close]').forEach(button => button.addEventListener('click', () => this.close()));
             this.backdrop.addEventListener('click', event => { if (event.target === this.backdrop) this.close(); });
             this.form.addEventListener('submit', event => { event.preventDefault(); this.confirmGeneration(); });
@@ -94,12 +120,17 @@
         openFromRecordId(recordId) {
             const id = Number(recordId) || 0;
             if (id <= 0) return this.notify('Invalid birth record.', true);
+            const sourcePreview = window.recordPreviewModal
+                || (typeof recordPreviewModal !== 'undefined' ? recordPreviewModal : null);
             this.confirmAction(
                 'Generate CRF No. 1A',
                 'Start generating a CRF No. 1A for this birth record?<br><br><span style="color:#475569;">The source birth record will not be changed.</span>',
                 'Continue',
                 '#2563EB',
-                () => this.loadFromRecordId(id)
+                () => {
+                    if (sourcePreview && typeof sourcePreview.close === 'function') sourcePreview.close();
+                    return this.loadFromRecordId(id);
+                }
             );
         }
 
@@ -134,8 +165,10 @@
                 this.setValue('crf1aAmountPaid', issuance.amount_paid);
                 this.setValue('crf1aOrNumber', issuance.or_number);
                 this.setValue('crf1aDatePaid', issuance.date_paid);
-                this.setValue('crf1aCertifiedName', issuance.certified_by_name || (window.CRF1A_DEFAULT_CERTIFIED_BY || {}).name || '');
-                this.setValue('crf1aCertifiedPosition', issuance.certified_by_position || (window.CRF1A_DEFAULT_CERTIFIED_BY || {}).position || '');
+                this.setValue('crf1aMcrName', issuance.mcr_full_name || '');
+                this.setValue('crf1aMcrPosition', issuance.mcr_title || '');
+                this.setValue('crf1aCertifiedName', issuance.certified_by_name || '');
+                this.setValue('crf1aCertifiedPosition', issuance.certified_by_position || '');
                 this.renderPreview();
                 await this.loadExistingIssuances(sourceId);
                 if (this.issuanceCheckComplete) {
@@ -156,9 +189,14 @@
             this.form.reset();
             this.setValue('crf1aIssueDate', today);
             this.setValue('crf1aDatePaid', today);
-            const defaults = window.CRF1A_DEFAULT_CERTIFIED_BY || {};
-            this.setValue('crf1aCertifiedName', defaults.name || '');
-            this.setValue('crf1aCertifiedPosition', defaults.position || '');
+            this.setValue('crf1aMcrName', '');
+            this.setValue('crf1aMcrPosition', '');
+            this.setValue('crf1aCertifiedName', '');
+            this.setValue('crf1aCertifiedPosition', '');
+            this.previewScale = 1;
+            this.previewRotation = 0;
+            this.previewCurrentPage = 1;
+            this.updatePreviewControls();
             this.backdrop.querySelector('#crf1aPdfViewer').hidden = true;
             this.previewHost.hidden = false;
             this.backdrop.querySelector('#crf1aPreviewId').textContent = 'ID assigned on generate';
@@ -166,6 +204,44 @@
             this.setStatus('');
             this.renderPreview();
             this.refreshIcons();
+        }
+
+        zoomPreview(step) {
+            this.previewScale = Math.min(2.5, Math.max(0.5, this.previewScale + step));
+            this.updatePreviewControls();
+            this.applyPreviewTransform();
+        }
+
+        rotatePreview(step) {
+            this.previewRotation = (this.previewRotation + step + 360) % 360;
+            this.applyPreviewTransform();
+        }
+
+        changePreviewPage(step) {
+            const nextPage = this.previewCurrentPage + step;
+            if (nextPage < 1 || nextPage > this.previewTotalPages) return;
+            this.previewCurrentPage = nextPage;
+            this.updatePreviewControls();
+        }
+
+        updatePreviewControls() {
+            const zoom = this.backdrop?.querySelector('[data-crf1a-preview-zoom]');
+            const current = this.backdrop?.querySelector('[data-crf1a-preview-current]');
+            const total = this.backdrop?.querySelector('[data-crf1a-preview-total]');
+            const previous = this.backdrop?.querySelector('[data-crf1a-preview-prev]');
+            const next = this.backdrop?.querySelector('[data-crf1a-preview-next]');
+            if (zoom) zoom.textContent = `${Math.round(this.previewScale * 100)}%`;
+            if (current) current.textContent = String(this.previewCurrentPage);
+            if (total) total.textContent = String(this.previewTotalPages);
+            if (previous) previous.disabled = this.previewCurrentPage <= 1;
+            if (next) next.disabled = this.previewCurrentPage >= this.previewTotalPages;
+        }
+
+        applyPreviewTransform() {
+            const documentNode = this.previewHost?.querySelector('.crf1a-document');
+            if (!documentNode) return;
+            documentNode.style.transformOrigin = 'top center';
+            documentNode.style.transform = `scale(${this.previewScale}) rotate(${this.previewRotation}deg)`;
         }
 
         async loadExistingIssuances(recordId) {
@@ -316,10 +392,13 @@
                 amount_paid: this.value('crf1aAmountPaid'),
                 or_number: this.value('crf1aOrNumber'),
                 date_paid: this.value('crf1aDatePaid'),
+                mcr_full_name: this.value('crf1aMcrName'),
+                mcr_title: this.value('crf1aMcrPosition'),
                 certified_by_name: this.value('crf1aCertifiedName'),
                 certified_by_position: this.value('crf1aCertifiedPosition')
             };
             this.previewHost.innerHTML = this.buildDocumentMarkup(this.record, inputs, crfNumber || 'ID assigned on generate');
+            this.applyPreviewTransform();
         }
 
         buildDocumentMarkup(record, inputs, crfNumber) {
@@ -352,8 +431,18 @@
             const requesterSize = requester.length > 68 ? '6.5pt' : (requester.length > 48 ? '7.5pt' : '');
             const requesterLine = `<span class="doc-requester-line"${requesterSize ? ` style="font-size:${requesterSize}"` : ''}>${requester ? this.escape(requester) : '&nbsp;'}</span>`;
             const row = (label, value) => `<div class="doc-row"><span class="doc-label">${this.escape(label)}</span><span class="doc-colon">:</span><span class="doc-value">${line(value)}</span></div>`;
-            const config = window.CRF1A_OFFICE_CONFIG || {};
-            const logoSeal = `<img src="../${this.escape(config.logo_seal || 'assets/img/LOGO1.png')}" alt="Baggao seal" style="display:block;width:27mm;height:27mm;">`;
+             const config = window.CRF1A_OFFICE_CONFIG || {};
+             const isDraftPreview = String(crfNumber || '').trim() === 'ID assigned on generate';
+             const previewValue = (value, placeholder) => {
+                 const text = String(value ?? '').trim();
+                 if (text) return this.escape(text);
+                 return isDraftPreview ? `<span class="doc-preview-placeholder">${this.escape(placeholder)}</span>` : '&nbsp;';
+             };
+             const registrarName = previewValue(inputs?.mcr_full_name, 'Enter registrar name');
+             const registrarPosition = previewValue(inputs?.mcr_title, 'Enter registrar position');
+             const certifiedName = previewValue(inputs?.certified_by_name, 'Enter certifier name');
+             const certifiedPosition = previewValue(inputs?.certified_by_position, 'Enter certifier position');
+             const logoSeal = `<img src="../${this.escape(config.logo_seal || 'assets/img/LOGO1.png')}" alt="Baggao seal" style="display:block;width:27mm;height:27mm;">`;
             const logoBaggao = `<img src="../${this.escape(config.logo_baggao || 'assets/img/CRF1A_BAGGAO_REFERENCE.png')}" alt="Baggao reference logo" style="display:block;width:27mm;height:27mm;">`;
             const logoPilipinas = `<img src="../${this.escape(config.logo_pilipinas || 'assets/img/CRF1A_BAGONG_PILIPINAS.png')}" alt="Bagong Pilipinas" style="display:block;width:34mm;height:28mm;">`;
             const officeName = String(config.office_name || 'OFFICE OF THE MUNICIPAL CIVIL REGISTRAR').trim();
@@ -375,8 +464,8 @@
                 <div class="doc-intro"><strong>TO WHOM IT MAY CONCERN:</strong><div class="doc-intro-statement">We certify that, among others, the following facts of birth<br>appear in our Register of Births on page ${shortLine(page)} Book number ${shortLine(book)}.</div></div>
                 <div class="doc-grid">${row('Registry Number', values.registry_no)}${row('Date of Registration', values.date_of_registration)}${row('Population Reference No.', values.population_reference_no)}${row('Name of Child', values.name_of_child)}${row('Sex', values.sex)}${row('Date of Birth', values.date_of_birth)}${row('Place of Birth', values.place_of_birth)}${row('Name of Mother', values.name_of_mother)}${row('Citizenship of Mother', values.mother_citizenship)}${row('Name of father', values.name_of_father)}${row('Citizenship of Father', values.father_citizenship)}${row('Date of marriage of parents', values.parents_marriage_date)}${row('Place of Marriage of parents', values.parents_marriage_place)}</div>
                 <div class="doc-certification">This certification is issued to ${requesterLine} upon his/her<br>request.</div>
-                <div class="doc-signature"><strong>${this.escape(config.mcr_full_name || '')}</strong><div>${this.escape(config.mcr_title || '')}</div></div>
-                <div class="doc-certified"><div class="doc-certified-heading"><span>Certified by:</span><span class="doc-certified-line">${this.escape(inputs?.certified_by_name || '')}</span></div><div class="doc-certified-label">NAME AND SIGNATURE</div><div class="doc-certified-position">${this.escape(inputs?.certified_by_position || '')}</div></div>
+                <div class="doc-signature"><strong>${registrarName}</strong><div>${registrarPosition}</div></div>
+                <div class="doc-certified"><div class="doc-certified-heading"><span>Certified by:</span><span class="doc-certified-line">${certifiedName}</span></div><div class="doc-certified-position">${certifiedPosition}</div></div>
                  <div class="doc-payment"><div class="doc-payment-row"><span class="doc-payment-label">Amount paid</span><span class="doc-payment-colon">:</span><span class="doc-payment-value">${line(amountText)}</span></div><div class="doc-payment-row"><span class="doc-payment-label">O.R. Number</span><span class="doc-payment-colon">:</span><span class="doc-payment-value">${line(inputs?.or_number || '')}</span></div><div class="doc-payment-row"><span class="doc-payment-label">Date paid</span><span class="doc-payment-colon">:</span><span class="doc-payment-value">${line(inputs?.date_paid || '')}</span></div></div>
                  <div class="doc-note"><strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>System ID: ${this.escape(crfNumber || '')}</small></div>
             </div>`;
