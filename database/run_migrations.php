@@ -34,7 +34,11 @@ $migrations = [
     '005_add_barangay_and_time_of_birth.sql',
     '006_registered_devices.sql',
     '007_add_pdf_hash.sql',
-    '020_double_registration_linking.sql'
+    '020_double_registration_linking.sql',
+    '028_crf_1a_issuance.sql',
+    '029_crf_1a_archive_delete.sql',
+    '030_crf_1a_archive_timestamp.sql',
+    '031_crf_1a_delete_timestamp.sql'
 ];
 
 $results = [];

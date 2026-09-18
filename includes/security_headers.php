@@ -47,6 +47,9 @@ function buildContentSecurityPolicy($custom = []) {
         'default-src' => ["'self'"],
         'script-src' => [
             "'self'", "'unsafe-inline'",
+            // Tesseract.js compiles its WebAssembly OCR core in a worker.
+            // Keep this scoped to WASM instead of enabling general eval.
+            "'wasm-unsafe-eval'",
             "https://fonts.googleapis.com",
             "https://cdnjs.cloudflare.com",
             "https://cdn.jsdelivr.net",
@@ -64,8 +67,20 @@ function buildContentSecurityPolicy($custom = []) {
             "https://cdnjs.cloudflare.com",
         ],
         'img-src' => ["'self'", "data:", "https:"],
-        'connect-src' => ["'self'", "https://unpkg.com"],
-        'worker-src' => ["'self'", "blob:", "https://cdnjs.cloudflare.com"],
+        // Tesseract.js loads its worker, core, and language data from
+        // jsDelivr at runtime.
+        'connect-src' => [
+            "'self'",
+            "https://cdn.jsdelivr.net",
+            "https://unpkg.com",
+        ],
+        'worker-src' => [
+            "'self'",
+            "blob:",
+            "https://cdnjs.cloudflare.com",
+            "https://cdn.jsdelivr.net",
+            "https://unpkg.com",
+        ],
         'frame-ancestors' => ["'self'"],
         // Local PDF upload previews use browser-generated blob URLs. Keep
         // external frames blocked while allowing those same-origin previews.

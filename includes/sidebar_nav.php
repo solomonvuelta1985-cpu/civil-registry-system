@@ -93,6 +93,13 @@ if ($__is_admin) {
                 <i data-lucide="folder-tree"></i> <span>Folder Browser</span>
             </a>
         </li>
+        <?php if (function_exists('hasPermission') && hasPermission('birth_crf_1a_view')): ?>
+        <li>
+            <a href="<?= BASE_URL ?>public/crf_1a_records.php" class="<?php echo $current_page == 'crf_1a_records.php' ? 'active' : ''; ?>" title="CRF No. 1A Issuance Records">
+                <i data-lucide="file-check-2"></i> <span>CRF No. 1A Records</span>
+            </a>
+        </li>
+        <?php endif; ?>
         <li>
             <a href="<?= BASE_URL ?>public/double_registration.php" class="<?php echo $current_page == 'double_registration.php' ? 'active' : ''; ?>" title="Double Registration Detection (PSA MC 2019-23)">
                 <i data-lucide="link-2"></i> <span>Double Registration</span>
@@ -158,13 +165,13 @@ if ($__is_admin) {
             </a>
         </li>
         <li>
-            <a href="<?= BASE_URL ?>admin/pdf_integrity_report.php" class="<?php echo $current_page == 'pdf_integrity_report.php' ? 'active' : ''; ?>" title="PDF Integrity Report">
-                <i data-lucide="file-check"></i> <span>PDF Integrity</span>
+            <a href="<?= BASE_URL ?>admin/pdf_integrity_report.php" class="<?php echo $current_page == 'pdf_integrity_report.php' ? 'active' : ''; ?>" title="PDF Inventory &amp; Integrity">
+                <i data-lucide="file-check"></i> <span>PDF Inventory</span>
             </a>
         </li>
         <li>
-            <a href="<?= BASE_URL ?>admin/pdf_backup_manager.php" class="<?php echo $current_page == 'pdf_backup_manager.php' ? 'active' : ''; ?>" title="PDF Backup Manager">
-                <i data-lucide="hard-drive"></i> <span>PDF Backups</span>
+            <a href="<?= BASE_URL ?>admin/pdf_backup_manager.php" class="<?php echo $current_page == 'pdf_backup_manager.php' ? 'active' : ''; ?>" title="PDF Version History &amp; Restore">
+                <i data-lucide="archive-restore"></i> <span>PDF Versions</span>
             </a>
         </li>
         <li>

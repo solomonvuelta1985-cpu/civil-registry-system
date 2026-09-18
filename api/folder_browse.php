@@ -166,6 +166,39 @@ function handle_tree(PDO $pdo) {
         ];
     }
 
+    // CRF 1A issuances are stored separately from original certificate uploads.
+    // Keep this branch tolerant while a deployment is between code and migration.
+    if (hasPermission('birth_crf_1a_view')) {
+        try {
+            $rows = $pdo->query(
+                "SELECT crf_year, child_last_name_snapshot
+                 FROM crf_1a_issuances
+                 WHERE status = 'Active' AND pdf_filename IS NOT NULL AND pdf_filename != ''"
+            )->fetchAll();
+            $folders = [];
+            foreach ($rows as $row) {
+                $yearKey = (string)((int)$row['crf_year']);
+                if (!isset($folders[$yearKey])) $folders[$yearKey] = ['count' => 0, 'children' => []];
+                $folders[$yearKey]['count']++;
+                $lastName = folder_safe_last_name($row['child_last_name_snapshot'] ?? 'UNKNOWN');
+                $folders[$yearKey]['children'][$lastName] = ($folders[$yearKey]['children'][$lastName] ?? 0) + 1;
+            }
+            ksort($folders);
+            $yearNodes = [];
+            foreach ($folders as $yearKey => $data) {
+                ksort($data['children']);
+                $children = [];
+                foreach ($data['children'] as $name => $count) $children[] = ['name' => $name, 'count' => $count];
+                $yearNodes[] = ['year' => $yearKey, 'label' => $yearKey, 'count' => $data['count'], 'children' => $children];
+            }
+            usort($yearNodes, static fn($a, $b) => (int)$b['year'] - (int)$a['year']);
+            $tree[] = ['type' => 'crf_1a', 'label' => 'CRF No. 1A', 'count' => array_sum(array_column($yearNodes, 'count')), 'children' => $yearNodes];
+        } catch (Throwable $e) {
+            // Migration may not have run yet; omit the optional branch.
+            error_log('CRF 1A folder tree unavailable: ' . $e->getMessage());
+        }
+    }
+
     echo json_encode(['success' => true, 'tree' => $tree]);
 }
 
@@ -176,6 +209,62 @@ function handle_list(PDO $pdo) {
     $search = mb_substr(trim((string)($_GET['search'] ?? '')), 0, 100);
     $page = max(1, (int)($_GET['page'] ?? 1));
     $perPage = min(100, max(1, (int)($_GET['per_page'] ?? 25)));
+
+    if ($type === 'crf_1a') {
+        if (!hasPermission('birth_crf_1a_view')) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Permission denied']);
+            return;
+        }
+        $where = ["status = 'Active'", "pdf_filename IS NOT NULL", "pdf_filename != ''"];
+        $params = [];
+        if ($year !== null && $year !== '') {
+            if (!preg_match('/^\d{4}$/', (string)$year)) {
+                echo json_encode(['success' => false, 'message' => 'Invalid year']);
+                return;
+            }
+            $where[] = 'crf_year = :crf_year';
+            $params[':crf_year'] = (int)$year;
+        }
+        if ($lastName !== null && $lastName !== '') {
+            $where[] = 'UPPER(child_last_name_snapshot) LIKE :crf_last_name';
+            $params[':crf_last_name'] = str_replace('_', '%', strtoupper($lastName));
+        }
+        if ($search !== '') {
+            $where[] = '(crf_number LIKE :crf_search OR registry_no_snapshot LIKE :crf_registry
+                OR child_name_snapshot LIKE :crf_child OR page_number LIKE :crf_page
+                OR book_number LIKE :crf_book OR or_number LIKE :crf_or
+                OR requester_name LIKE :crf_requester)';
+            $like = '%' . $search . '%';
+            foreach (['search' => $like, 'registry' => $like, 'child' => $like, 'page' => $like, 'book' => $like, 'or' => $like, 'requester' => $like] as $key => $value) $params[':crf_' . $key] = $value;
+        }
+        $whereSql = implode(' AND ', $where);
+        $countStmt = $pdo->prepare("SELECT COUNT(*) FROM crf_1a_issuances WHERE {$whereSql}");
+        $countStmt->execute($params);
+        $totalRecords = (int)$countStmt->fetchColumn();
+        $totalPages = max(1, (int)ceil($totalRecords / $perPage));
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $perPage;
+        $dataStmt = $pdo->prepare(
+            "SELECT id, crf_number, birth_record_id, registry_no_snapshot, child_name_snapshot,
+                    child_last_name_snapshot, issue_date, page_number, book_number,
+                    amount_paid, or_number, date_paid, pdf_filename, status, created_at
+             FROM crf_1a_issuances WHERE {$whereSql}
+             ORDER BY id DESC LIMIT {$perPage} OFFSET {$offset}"
+        );
+        $dataStmt->execute($params);
+        echo json_encode([
+            'success' => true,
+            'type' => $type,
+            'records' => $dataStmt->fetchAll(),
+            'pagination' => [
+                'current_page' => $page, 'total_pages' => $totalPages, 'total_records' => $totalRecords,
+                'per_page' => $perPage, 'from' => $totalRecords > 0 ? $offset + 1 : 0,
+                'to' => min($offset + $perPage, $totalRecords),
+            ],
+        ]);
+        return;
+    }
 
     $reorgDefs = reorg_table_defs();
     $tableDefs = [

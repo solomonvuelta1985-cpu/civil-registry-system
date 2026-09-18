@@ -2,7 +2,7 @@
 /**
  * Trash Restore API
  * Restores a soft-deleted record (status='Deleted') back to Active
- * Supports: birth, marriage, death, marriage_license
+ * Supports: birth, marriage, death, marriage_license, crf_1a
  */
 
 require_once '../includes/session_config.php';
@@ -43,6 +43,11 @@ $type_map = [
         'table' => 'application_for_marriage_license',
         'label' => 'Application for Marriage License'
     ],
+    'crf_1a' => [
+        'table' => 'crf_1a_issuances',
+        'label' => 'CRF No. 1A issuance',
+        'reference_column' => 'crf_number'
+    ],
 ];
 
 try {
@@ -63,7 +68,8 @@ try {
 
     // Admin check already happened at top of file via requireAdminApi().
     // Verify record exists and is currently deleted
-    $stmt = $pdo->prepare("SELECT id, registry_no, status FROM {$config['table']} WHERE id = :id");
+    $referenceColumn = $config['reference_column'] ?? 'registry_no';
+    $stmt = $pdo->prepare("SELECT id, {$referenceColumn} AS reference_no, status FROM {$config['table']} WHERE id = :id");
     $stmt->execute([':id' => $record_id]);
     $record = $stmt->fetch();
 
@@ -80,20 +86,26 @@ try {
     $pdo->beginTransaction();
 
     try {
-        $stmt = $pdo->prepare(
-            "UPDATE {$config['table']}
-             SET status = 'Active', updated_at = NOW(), updated_by = :updated_by
-             WHERE id = :id"
-        );
-        $stmt->execute([
-            ':updated_by' => $_SESSION['user_id'] ?? null,
-            ':id' => $record_id
-        ]);
+        if ($record_type === 'crf_1a') {
+            $stmt = $pdo->prepare("UPDATE {$config['table']} SET status = 'Active', deleted_at = NULL, archived_at = NULL WHERE id = :id");
+            $stmt->execute([':id' => $record_id]);
+        } else {
+            $stmt = $pdo->prepare(
+                "UPDATE {$config['table']}
+                 SET status = 'Active', updated_at = NOW(), updated_by = :updated_by
+                 WHERE id = :id"
+            );
+            $stmt->execute([
+                ':updated_by' => $_SESSION['user_id'] ?? null,
+                ':id' => $record_id
+            ]);
+        }
 
         log_activity(
             $pdo,
             'RESTORE_CERTIFICATE',
-            "Restored {$config['label']}: Registry No. {$record['registry_no']} (ID: {$record_id})",
+            $record_type === 'crf_1a' ? 'RESTORE_CRF_1A' : 'RESTORE_CERTIFICATE',
+            "Restored {$config['label']}: {$record['reference_no']} (ID: {$record_id})",
             $_SESSION['user_id'] ?? null
         );
 

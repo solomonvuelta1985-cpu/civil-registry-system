@@ -1,9 +1,9 @@
 <?php
 /**
- * PDF Integrity Report
+ * PDF Inventory & Integrity
  * iScan Civil Registry Records Management System
  *
- * Admin-only page to run full archive integrity scans and manage corrupt/missing PDFs.
+ * Admin-only page to understand current PDF coverage and scan for corrupt/missing PDFs.
  */
 
 require_once '../includes/session_config.php';
@@ -31,18 +31,34 @@ try {
     $recentFailures = 0;
 }
 
-// Total record counts (approximate, for info)
+// Registry and current-PDF coverage counts (for clear inventory context)
 try {
     $countStmt = $pdo->query(
         "SELECT
-            (SELECT COUNT(*) FROM certificate_of_live_birth WHERE pdf_filename IS NOT NULL AND status != 'Deleted') +
-            (SELECT COUNT(*) FROM certificate_of_death        WHERE pdf_filename IS NOT NULL AND status != 'Deleted') +
-            (SELECT COUNT(*) FROM certificate_of_marriage     WHERE pdf_filename IS NOT NULL AND status != 'Deleted') +
-            (SELECT COUNT(*) FROM application_for_marriage_license WHERE pdf_filename IS NOT NULL AND status != 'Deleted')
-            AS total_pdfs"
+            COUNT(*) AS non_deleted_records,
+            SUM(status = 'Active') AS active_records,
+            SUM(status = 'Active' AND pdf_filename IS NOT NULL AND pdf_filename != '') AS active_pdfs,
+            SUM(status = 'Active' AND (pdf_filename IS NULL OR pdf_filename = '')) AS active_without_pdf,
+            SUM(pdf_filename IS NOT NULL AND pdf_filename != '') AS total_pdfs
+         FROM (
+            SELECT status, pdf_filename FROM certificate_of_live_birth WHERE status != 'Deleted'
+            UNION ALL
+            SELECT status, pdf_filename FROM certificate_of_death WHERE status != 'Deleted'
+            UNION ALL
+            SELECT status, pdf_filename FROM certificate_of_marriage WHERE status != 'Deleted'
+            UNION ALL
+            SELECT status, pdf_filename FROM application_for_marriage_license WHERE status != 'Deleted'
+         ) inventory"
     );
-    $totalPdfs = (int)($countStmt->fetchColumn() ?? 0);
+    $coverage = $countStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    $activeRecords = (int)($coverage['active_records'] ?? 0);
+    $activePdfs = (int)($coverage['active_pdfs'] ?? 0);
+    $activeWithoutPdf = (int)($coverage['active_without_pdf'] ?? 0);
+    $totalPdfs = (int)($coverage['total_pdfs'] ?? 0);
 } catch (Exception $e) {
+    $activeRecords = 0;
+    $activePdfs = 0;
+    $activeWithoutPdf = 0;
     $totalPdfs = 0;
 }
 ?>
@@ -52,7 +68,7 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <?= $csrfMeta ?>
-    <title>PDF Integrity Report - iScan</title>
+    <title>PDF Inventory &amp; Integrity - iScan</title>
     <?= google_fonts_tag('Inter:wght@400;500;600;700;800') ?>
     <link rel="stylesheet" href="<?= asset_url('fontawesome_css') ?>">
     <script src="<?= asset_url('lucide') ?>"></script>
@@ -138,6 +154,29 @@ try {
             max-width: 700px;
             position: relative;
         }
+
+        .coverage-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .coverage-card {
+            background: #fff;
+            border-radius: 14px;
+            padding: 18px 20px;
+            box-shadow: var(--elevation-1);
+            border-top: 4px solid #3b82f6;
+        }
+
+        .coverage-card.pdf { border-color: #22c55e; }
+        .coverage-card.missing { border-color: #f59e0b; }
+        .coverage-card .num { font-size: 32px; font-weight: 800; line-height: 1.1; color: #1e293b; }
+        .coverage-card.pdf .num { color: #15803d; }
+        .coverage-card.missing .num { color: #b45309; }
+        .coverage-card .lbl { margin-top: 6px; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: .5px; font-weight: 700; }
+        .coverage-card .sub { margin-top: 4px; font-size: 12px; color: #94a3b8; }
 
         /* Alert Banner */
         .alert-banner {
@@ -386,6 +425,31 @@ try {
             background: #fafbfc;
         }
 
+        .results-pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 14px 16px;
+            border-top: 1px solid #e2e8f0;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .results-pagination button {
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #334155;
+            border-radius: 7px;
+            padding: 6px 10px;
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .results-pagination button:hover:not(:disabled) { background: #f1f5f9; }
+        .results-pagination button:disabled { opacity: .45; cursor: not-allowed; }
+
         /* Badges */
         .badge {
             display: inline-flex;
@@ -487,8 +551,26 @@ try {
 <div class="content">
     <!-- Hero -->
     <div class="integrity-hero">
-        <h1><i data-lucide="shield-check" style="width:28px;height:28px;vertical-align:middle;margin-right:.4rem;"></i>PDF Integrity Report</h1>
-        <p>Scan all stored PDFs for corruption, missing files, or hash mismatches. Run a scan to view detailed results.</p>
+        <h1><i data-lucide="file-check-2" style="width:28px;height:28px;vertical-align:middle;margin-right:.4rem;"></i>PDF Inventory &amp; Integrity</h1>
+        <p>See how many active records have current PDFs, identify records without a PDF, and scan stored PDFs for corruption or hash mismatches.</p>
+    </div>
+
+    <div class="coverage-cards" aria-label="PDF coverage summary">
+        <div class="coverage-card">
+            <div class="num"><?= number_format($activeRecords) ?></div>
+            <div class="lbl">Active Registry Records</div>
+            <div class="sub">The dashboard total</div>
+        </div>
+        <div class="coverage-card pdf">
+            <div class="num"><?= number_format($activePdfs) ?></div>
+            <div class="lbl">Active Records With PDF</div>
+            <div class="sub">Current PDF attachments</div>
+        </div>
+        <div class="coverage-card missing">
+            <div class="num"><?= number_format($activeWithoutPdf) ?></div>
+            <div class="lbl">Active Records Without PDF</div>
+            <div class="sub">No current PDF attached</div>
+        </div>
     </div>
 
     <!-- Alert: recent failures -->
@@ -508,13 +590,13 @@ try {
         <button id="backfill-all-btn" class="btn btn-secondary">
             <i data-lucide="hash" style="width:16px;height:16px;"></i> Backfill All Missing Hashes
         </button>
-        <span>Total PDFs in archive: <strong><?= number_format($totalPdfs) ?></strong></span>
+        <span>Current PDFs available for scanning: <strong><?= number_format($totalPdfs) ?></strong></span>
     </div>
 
     <!-- Progress indicator -->
     <div class="progress-wrap" id="scan-progress">
         <div class="spinner"></div>
-        <span>Scanning PDF archive — this may take a moment for large archives&hellip;</span>
+        <span id="scan-progress-text">Scanning PDF archive in small batches&hellip;</span>
     </div>
 
     <!-- Summary cards (hidden until scan runs) -->
@@ -582,6 +664,7 @@ try {
                         </tbody>
                     </table>
                 </div>
+                <div id="results-pagination" class="results-pagination" hidden></div>
             </div>
         </div>
     </div>
@@ -593,6 +676,10 @@ lucide.createIcons();
 
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 let allResults = [];
+let scanCounts = { total: 0, ok: 0, corrupt: 0, missing: 0, no_hash: 0 };
+let resultPage = 1;
+const SCAN_BATCH_SIZE = 100;
+const RESULT_PAGE_SIZE = 100;
 
 // ── Run Scan ──────────────────────────────────────────────────────────────────
 document.getElementById('run-scan-btn').addEventListener('click', runScan);
@@ -600,32 +687,55 @@ document.getElementById('run-scan-btn').addEventListener('click', runScan);
 async function runScan() {
     const btn      = document.getElementById('run-scan-btn');
     const progress = document.getElementById('scan-progress');
+    const progressText = document.getElementById('scan-progress-text');
     btn.disabled   = true;
     progress.classList.add('visible');
     document.getElementById('summary-cards').style.display = 'none';
     document.getElementById('results-panel').style.display = 'none';
+    allResults = [];
+    scanCounts = { total: 0, ok: 0, corrupt: 0, missing: 0, no_hash: 0 };
+    resultPage = 1;
 
     try {
-        const fd = new FormData();
-        fd.append('csrf_token', csrfToken);
+        let offset = 0;
+        let totalCandidates = 0;
+        let hasMore = true;
 
-        const res  = await fetch('../api/pdf_integrity_scan.php', { method: 'POST', body: fd });
-        const data = await res.json();
+        while (hasMore) {
+            const fd = new FormData();
+            fd.append('csrf_token', csrfToken);
+            fd.append('offset', String(offset));
+            fd.append('batch_size', String(SCAN_BATCH_SIZE));
 
-        if (!data.success) {
-            alert('Scan failed: ' + (data.message || 'Unknown error'));
-            return;
+            const res  = await fetch('../api/pdf_integrity_scan.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.message || 'The server could not scan this batch.');
+            }
+
+            totalCandidates = Number(data.total_candidates) || totalCandidates;
+            allResults.push(...(data.results || []));
+            const batchCounts = data.counts || {};
+            ['total', 'ok', 'corrupt', 'missing', 'no_hash'].forEach(key => {
+                scanCounts[key] += Number(batchCounts[key]) || 0;
+            });
+
+            offset = Number(data.next_offset) || (offset + (Number(data.scanned) || 0));
+            hasMore = data.has_more === true;
+            const scanned = Math.min(offset, totalCandidates || offset);
+            progressText.textContent = totalCandidates
+                ? `Scanning PDF archive: ${scanned.toLocaleString()} of ${totalCandidates.toLocaleString()} checked…`
+                : `Scanning PDF archive: ${scanned.toLocaleString()} checked…`;
         }
 
-        allResults = data.results || [];
-        displaySummary(data.counts || {});
+        displaySummary(scanCounts);
         renderTable(allResults);
 
         document.getElementById('summary-cards').style.display = '';
         document.getElementById('results-panel').style.display = '';
 
         // Show backfill button if there are no_hash entries
-        const noHashCount = (data.counts || {}).no_hash || 0;
+        const noHashCount = scanCounts.no_hash || 0;
         const backfillBtn = document.getElementById('backfill-all-btn');
         if (noHashCount > 0) {
             backfillBtn.style.display = 'inline-flex';
@@ -634,10 +744,11 @@ async function runScan() {
         }
 
     } catch (err) {
-        alert('Network error: ' + err.message);
+        alert('Integrity scan stopped: ' + err.message);
     } finally {
         btn.disabled = false;
         progress.classList.remove('visible');
+        progressText.textContent = 'Scanning PDF archive in small batches…';
     }
 }
 
@@ -668,11 +779,38 @@ function renderTable(rows) {
 
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">No results match your filters.</div></td></tr>';
+        renderPagination(0, 1);
         return;
     }
 
-    tbody.innerHTML = filtered.map(r => buildRow(r)).join('');
+    const totalPages = Math.max(1, Math.ceil(filtered.length / RESULT_PAGE_SIZE));
+    resultPage = Math.min(Math.max(1, resultPage), totalPages);
+    const start = (resultPage - 1) * RESULT_PAGE_SIZE;
+    const pageRows = filtered.slice(start, start + RESULT_PAGE_SIZE);
+
+    tbody.innerHTML = pageRows.map(r => buildRow(r)).join('');
+    renderPagination(filtered.length, totalPages);
     lucide.createIcons();
+}
+
+function renderPagination(totalRows, totalPages) {
+    const pager = document.getElementById('results-pagination');
+    if (!pager || totalRows <= RESULT_PAGE_SIZE) {
+        if (pager) { pager.hidden = true; pager.innerHTML = ''; }
+        return;
+    }
+
+    pager.hidden = false;
+    pager.innerHTML = `
+        <button type="button" onclick="changeResultPage(${resultPage - 1})" ${resultPage <= 1 ? 'disabled' : ''}>Previous</button>
+        <span>Page ${resultPage.toLocaleString()} of ${totalPages.toLocaleString()} · ${totalRows.toLocaleString()} results</span>
+        <button type="button" onclick="changeResultPage(${resultPage + 1})" ${resultPage >= totalPages ? 'disabled' : ''}>Next</button>`;
+}
+
+function changeResultPage(page) {
+    resultPage = page;
+    renderTable(allResults);
+    document.getElementById('results-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function escapeHtml(value) {
@@ -740,9 +878,9 @@ function buildRow(r) {
 
 // ── Filters ───────────────────────────────────────────────────────────────────
 ['filter-status', 'filter-type'].forEach(id =>
-    document.getElementById(id).addEventListener('change', () => renderTable(allResults))
+    document.getElementById(id).addEventListener('change', () => { resultPage = 1; renderTable(allResults); })
 );
-document.getElementById('filter-search').addEventListener('input', () => renderTable(allResults));
+document.getElementById('filter-search').addEventListener('input', () => { resultPage = 1; renderTable(allResults); });
 
 // ── Backfill Single Hash ──────────────────────────────────────────────────────
 async function backfillHash(certType, recordId, btn) {

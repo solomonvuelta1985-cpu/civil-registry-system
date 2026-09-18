@@ -49,41 +49,62 @@ $pendingCount   = count($pendingDevices);
 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', 'Segoe UI', Arial, sans-serif; background: #f4f6f9; color: #1a202c; }
+        :root {
+            --navy: #14253d; --blue: #2f80d0; --blue-soft: #eef6ff;
+            --muted: #66758a; --line: #e5ebf2; --green: #1f9d68;
+        }
+        body { font-family: 'Inter', 'Segoe UI', Arial, sans-serif; background: #f5f7fb; color: #18263a; }
 
-        .page-header { margin-bottom: 24px; }
-        .page-header h1 { font-size: 1.6rem; font-weight: 700; color: #1a202c; }
-        .page-header p  { color: #718096; font-size: 0.95rem; margin-top: 4px; }
+        .page-wrap { max-width: 1500px; margin: 0 auto; }
+        .page-header {
+            display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;
+            padding: 8px 0 22px; margin-bottom: 0;
+        }
+        .page-kicker { color: var(--blue); font-size: .73rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; margin-bottom: 7px; }
+        .page-header h1 { font-size: 1.85rem; font-weight: 750; color: var(--navy); letter-spacing: -.025em; }
+        .page-header p  { color: var(--muted); font-size: .92rem; margin-top: 7px; max-width: 690px; line-height: 1.55; }
+        .page-help { display: flex; align-items: center; gap: 8px; color: #55708e; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-size: .78rem; box-shadow: 0 3px 14px rgba(22,43,73,.04); }
+        .page-help svg { color: var(--blue); width: 17px; height: 17px; }
 
         /* Banner */
         .banner {
             display: flex; align-items: center; gap: 12px;
-            padding: 14px 18px; border-radius: 10px; margin-bottom: 22px;
+            padding: 15px 18px; border-radius: 12px; margin-bottom: 18px;
             font-size: 0.9rem; font-weight: 500;
+            box-shadow: 0 3px 14px rgba(22,43,73,.04);
         }
         .banner.warning { background: #fffbeb; border: 1px solid #f6ad55; color: #744210; }
         .banner.success { background: #f0fff4; border: 1px solid #68d391; color: #22543d; }
         .banner i { font-size: 1.1rem; flex-shrink: 0; }
 
         /* Stats row */
-        .stats-row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+        .stats-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; margin: 22px 0 24px; }
         .stat-card {
-            background: #fff; border-radius: 12px; padding: 18px 22px;
-            box-shadow: 0 1px 8px rgba(0,0,0,0.06); flex: 1; min-width: 140px;
+            position: relative; overflow: hidden; background: #fff; border-radius: 13px; padding: 17px 18px 16px;
+            border: 1px solid #edf1f6; box-shadow: 0 4px 16px rgba(22,43,73,.055); min-width: 140px;
         }
+        .stat-card::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--blue); }
+        .stat-card:nth-child(2)::after { background: var(--green); }
+        .stat-card:nth-child(3)::after { background: #e3a72f; }
+        .stat-card:nth-child(4)::after { background: #d95d68; }
+        .stat-card:nth-child(5)::after { background: #8294ad; }
         .stat-card .label { font-size: 0.75rem; color: #718096; text-transform: uppercase; letter-spacing: 0.06em; }
-        .stat-card .value { font-size: 1.8rem; font-weight: 700; color: #2d3748; margin-top: 4px; }
+        .stat-card .value { font-size: 1.85rem; font-weight: 750; color: #243852; margin-top: 5px; }
 
         /* Card */
         .card {
-            background: #fff; border-radius: 12px;
-            box-shadow: 0 1px 8px rgba(0,0,0,0.06); overflow: hidden;
+            background: #fff; border-radius: 14px;
+            border: 1px solid #edf1f6; box-shadow: 0 4px 18px rgba(22,43,73,.055); overflow: hidden;
         }
         .card-header {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 18px 22px; border-bottom: 1px solid #e2e8f0;
+            display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+            padding: 18px 22px; border-bottom: 1px solid var(--line);
         }
-        .card-header h2 { font-size: 1rem; font-weight: 600; color: #2d3748; }
+        .card-header h2 { font-size: 1rem; font-weight: 700; color: var(--navy); }
+        .card-header p { color: var(--muted); font-size: .78rem; margin-top: 5px; }
+        .card-heading { display: flex; align-items: center; gap: 11px; }
+        .card-heading-icon { display: inline-flex; align-items: center; justify-content: center; width: 35px; height: 35px; border-radius: 10px; background: var(--blue-soft); color: var(--blue); }
+        .card-heading-icon svg { width: 18px; height: 18px; }
 
         /* Register button */
         .btn-register {
@@ -95,16 +116,18 @@ $pendingCount   = count($pendingDevices);
         .btn-register:hover { background: #2b6cb0; }
 
         /* Table */
-        table { width: 100%; border-collapse: collapse; }
+        .table-scroll { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 980px; }
         thead th {
-            background: #f7fafc; padding: 12px 16px;
+            background: #f8fafc; padding: 13px 16px;
             text-align: left; font-size: 0.75rem; font-weight: 600;
             color: #4a5568; text-transform: uppercase; letter-spacing: 0.06em;
             border-bottom: 1px solid #e2e8f0;
         }
         tbody td { padding: 14px 16px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; font-size: 0.9rem; }
         tbody tr:last-child td { border-bottom: none; }
-        tbody tr:hover { background: #f7fafc; }
+        tbody tr:hover { background: #fbfdff; }
+        tbody tr { transition: background .15s ease; }
 
         /* Fingerprint display */
         .fp-code {
@@ -138,6 +161,25 @@ $pendingCount   = count($pendingDevices);
         .empty-state { text-align: center; padding: 52px; color: #a0aec0; }
         .empty-state svg { width: 52px; height: 52px; margin-bottom: 14px; opacity: 0.4; }
         .empty-state p { font-size: 0.95rem; }
+
+        .workflow-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0 0 22px; }
+        .workflow-step { display: flex; align-items: center; gap: 11px; padding: 13px 15px; background: #fff; border: 1px solid var(--line); border-radius: 11px; }
+        .workflow-step .step-no { flex: 0 0 27px; width: 27px; height: 27px; display: grid; place-items: center; border-radius: 50%; background: #e9f3ff; color: var(--blue); font-size: .75rem; font-weight: 800; }
+        .workflow-step strong { display: block; color: var(--navy); font-size: .8rem; }
+        .workflow-step span { display: block; color: var(--muted); font-size: .72rem; margin-top: 2px; }
+        .section-caption { color: var(--muted); font-size: .78rem; margin: 0 22px 14px; }
+        .ip-value { display: inline-flex; align-items: center; gap: 5px; font-family: 'Courier New', monospace; font-size: .76rem; color: #52657e; background: #f2f5f9; padding: 4px 7px; border-radius: 5px; }
+        .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #22a06b; display: inline-block; }
+        @media (max-width: 1050px) {
+            .stats-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .page-header { align-items: flex-start; flex-direction: column; gap: 12px; }
+            .page-help { align-self: stretch; }
+        }
+        @media (max-width: 700px) {
+            .stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .workflow-strip { grid-template-columns: 1fr; }
+            .page-header h1 { font-size: 1.5rem; }
+        }
 
         /* Modal overlay */
         .modal-overlay {
@@ -180,10 +222,21 @@ $pendingCount   = count($pendingDevices);
 <?php require_once '../includes/sidebar_nav.php'; ?>
 
 <div class="content">
+<div class="page-wrap">
 
     <div class="page-header">
-        <h1><i data-lucide="monitor-check" style="display:inline;vertical-align:middle;margin-right:8px;"></i>Registered Devices</h1>
-        <p>Manage which registered browser profiles and workstations are allowed to access this system.</p>
+        <div>
+            <div class="page-kicker">ACCESS CONTROL CENTER</div>
+            <h1><i data-lucide="monitor-check" style="display:inline;vertical-align:middle;margin-right:8px;color:#2f80d0;"></i>Registered Devices</h1>
+            <p>Review approved browser profiles, monitor recent access, and control which workstations may use iScan.</p>
+        </div>
+        <div class="page-help"><i data-lucide="info"></i><span>IP addresses are recorded for audit history.</span></div>
+    </div>
+
+    <div class="workflow-strip" aria-label="Device access workflow">
+        <div class="workflow-step"><span class="step-no">1</span><div><strong>Review request</strong><span>Check the user and access details.</span></div></div>
+        <div class="workflow-step"><span class="step-no">2</span><div><strong>Approve access</strong><span>Allow only recognized browser profiles.</span></div></div>
+        <div class="workflow-step"><span class="step-no">3</span><div><strong>Monitor and revoke</strong><span>Review last seen activity anytime.</span></div></div>
     </div>
 
     <!-- Device lock status banner -->
@@ -223,7 +276,7 @@ $pendingCount   = count($pendingDevices);
         <div style="flex:1;">
             <strong id="currentDeviceTitle">Checking this browser profile&hellip;</strong>
             <div id="currentDeviceDetail" style="font-size:0.85rem;margin-top:2px;color:#4a5568;">
-                Reading the stable key for this browser profile.
+                Checking whether this browser profile is already approved.
             </div>
         </div>
         <span id="currentDeviceFpPreview" style="font-family:monospace;font-size:0.75rem;color:#718096;"></span>
@@ -233,20 +286,18 @@ $pendingCount   = count($pendingDevices);
     <?php if ($pendingCount > 0): ?>
     <div class="card" style="margin-bottom:24px;border:2px solid #f6ad55;">
         <div class="card-header" style="background:#fffbeb;">
-            <h2 style="color:#744210;">
-                <i data-lucide="clock" style="display:inline;vertical-align:middle;margin-right:6px;width:18px;height:18px;"></i>
-                Pending Approval (<?= $pendingCount ?>)
-            </h2>
-            <span style="font-size:0.85rem;color:#744210;">
-                These users tried to log in from a new browser profile and are waiting for you to approve it.
-            </span>
+            <div class="card-heading">
+                <span class="card-heading-icon" style="background:#fff4d6;color:#b7791f;"><i data-lucide="clock-3"></i></span>
+                <div><h2 style="color:#744210;">Pending Approval (<?= $pendingCount ?>)</h2><p style="color:#936b27;">New browser profiles waiting for an administrator decision</p></div>
+            </div>
+            <span style="font-size:0.78rem;color:#744210;">Review the requester and captured IP before approving.</span>
         </div>
-        <table>
+        <div class="table-scroll"><table>
             <thead>
                 <tr>
                     <th>#</th>
                     <th>Requested By</th>
-                    <th>Device ID (browser key)</th>
+                    <th>Browser Key</th>
                     <th>Requested</th>
                     <th>IP</th>
                     <th>Suggested Name</th>
@@ -287,8 +338,8 @@ $pendingCount   = count($pendingDevices);
                             ? date('M d, g:i A', strtotime($d['requested_at']))
                             : '<em style="color:#cbd5e0;">—</em>' ?>
                     </td>
-                    <td style="font-size:0.83rem;color:#718096;">
-                        <?= htmlspecialchars($d['request_ip'] ?? '—') ?>
+                    <td>
+                        <span class="ip-value"><span class="status-dot"></span><?= htmlspecialchars($d['request_ip'] ?? '—') ?></span>
                     </td>
                     <td>
                         <input type="text"
@@ -313,14 +364,14 @@ $pendingCount   = count($pendingDevices);
                 </tr>
             <?php endforeach; ?>
             </tbody>
-        </table>
+        </table></div>
     </div>
     <?php endif; ?>
 
     <!-- Stats -->
     <div class="stats-row">
         <div class="stat-card">
-            <div class="label">Registered Devices</div>
+            <div class="label">Browser Profiles</div>
             <div class="value"><?= count($devices) ?></div>
         </div>
         <div class="stat-card">
@@ -350,11 +401,16 @@ $pendingCount   = count($pendingDevices);
     <!-- Devices table -->
     <div class="card">
         <div class="card-header">
-            <h2>Device Registry</h2>
+            <div class="card-heading">
+                <span class="card-heading-icon"><i data-lucide="list-checks"></i></span>
+                <div><h2>Device Registry</h2><p>Approved profiles and their latest activity</p></div>
+            </div>
             <button class="btn-register" onclick="openRegisterModal()">
                 <i data-lucide="plus-circle"></i> Register This Browser
             </button>
         </div>
+
+        <div class="section-caption">Use <strong>Revoke</strong> when access should stop but the history should remain. Permanent deletion removes the registry row.</div>
 
         <?php if (empty($otherDevices)): ?>
         <div class="empty-state">
@@ -365,12 +421,12 @@ $pendingCount   = count($pendingDevices);
             <p>No browser profiles registered yet.<br>Click <strong>Register This Browser</strong> to add the current workstation.</p>
         </div>
         <?php else: ?>
-        <table>
+        <div class="table-scroll"><table>
             <thead>
                 <tr>
                     <th>#</th>
                     <th>Device Name</th>
-                    <th>Device ID (browser key)</th>
+                    <th>Browser Key</th>
                     <th>Registered By</th>
                     <th>Registered</th>
                     <th>Last Seen</th>
@@ -434,9 +490,10 @@ $pendingCount   = count($pendingDevices);
                 </tr>
             <?php endforeach; ?>
             </tbody>
-        </table>
+        </table></div>
         <?php endif; ?>
     </div>
+</div>
 </div>
 
 <!-- Register Device Modal -->

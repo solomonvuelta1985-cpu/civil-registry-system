@@ -516,8 +516,8 @@
     flex: 1;
     overflow: auto;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: flex-start;
+    justify-content: flex-start;
     padding: 26px;
     min-height: 280px;
     position: relative;
@@ -529,6 +529,8 @@
     border: 1px solid #D5DDE8;
     border-radius: 5px;
     display: inline-block;
+    margin: 0 auto;
+    flex: 0 0 auto;
 }
 
 #recordPdfCanvas {

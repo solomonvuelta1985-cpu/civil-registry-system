@@ -13,7 +13,10 @@ class RecordPreviewModal {
         this.pdfDoc = null;
         this.currentPage = 1;
         this.totalPages = 0;
-        this.scale = 1.5;
+        // Start at fit-to-width. A 150% default makes tall documents open in
+        // the middle and can leave the top of the first page outside the
+        // scrollable area on smaller screens.
+        this.scale = 1.0;
         this.rotation = 0;
         this.canvas = null;
         this.ctx = null;
@@ -73,7 +76,7 @@ class RecordPreviewModal {
                                 <button type="button" class="pdf-control-btn" id="pdfZoomOut" title="Zoom Out">
                                     <i data-lucide="zoom-out"></i>
                                 </button>
-                                <span class="pdf-zoom-display" id="pdfZoomDisplay">150%</span>
+                                <span class="pdf-zoom-display" id="pdfZoomDisplay">100%</span>
                                 <button type="button" class="pdf-control-btn" id="pdfZoomIn" title="Zoom In">
                                     <i data-lucide="zoom-in"></i>
                                 </button>
@@ -212,8 +215,10 @@ class RecordPreviewModal {
         this.pdfDoc = null;
         this.currentPage = 1;
         this.totalPages = 0;
-        this.scale = 1.5;
+        this.scale = 1.0;
         this.rotation = 0;
+        const zoomDisplay = document.getElementById('pdfZoomDisplay');
+        if (zoomDisplay) zoomDisplay.textContent = '100%';
     }
 
     async loadRecordData() {
@@ -686,6 +691,17 @@ class RecordPreviewModal {
         const actionButtons = document.getElementById('modalActionButtons');
         let html = '';
 
+        if (this.currentRecordType === 'birth'
+            && window.CRF1A_CAN_GENERATE === true
+            && window.crf1aGenerator) {
+            html += `
+                <button type="button" class="modal-btn modal-btn-primary crf-1a-modal-action" onclick="crf1aGenerator.openFromRecordId(${Number(this.currentRecordId) || 0})">
+                    <i data-lucide="file-check-2"></i>
+                    <span>Generate CRF No. 1A</span>
+                </button>
+            `;
+        }
+
         // Edit button (if user has permission)
         html += `
             <button type="button" class="modal-btn modal-btn-primary" onclick="recordPreviewModal.editRecord()" title="Keyboard shortcut: E">
@@ -773,6 +789,12 @@ class RecordPreviewModal {
             this.ctx = this.canvas.getContext('2d');
 
             await this.renderPage(1);
+
+            // Always begin at the top-left of the first page. The container
+            // uses flex-start for oversized pages, so the top remains
+            // reachable even when the PDF is taller than the modal.
+            container.scrollTop = 0;
+            container.scrollLeft = 0;
 
         } catch (error) {
             console.error('Error loading PDF:', error);
@@ -888,11 +910,11 @@ class RecordPreviewModal {
             ? `<div style="margin-top:1rem;display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap;">
                  <a href="../admin/pdf_integrity_report.php" target="_blank"
                     style="display:inline-flex;align-items:center;gap:.3rem;padding:.4rem .9rem;background:#ef4444;color:#fff;border-radius:6px;font-size:.82rem;font-weight:600;text-decoration:none;">
-                    <i class="fas fa-shield-alt" style="font-size:.8rem;"></i> PDF Integrity Report
+                    <i class="fas fa-shield-alt" style="font-size:.8rem;"></i> PDF Inventory &amp; Integrity
                  </a>
                  <a href="../admin/pdf_backup_manager.php" target="_blank"
                     style="display:inline-flex;align-items:center;gap:.3rem;padding:.4rem .9rem;background:#3b82f6;color:#fff;border-radius:6px;font-size:.82rem;font-weight:600;text-decoration:none;">
-                    <i class="fas fa-archive" style="font-size:.8rem;"></i> PDF Backup Manager
+                    <i class="fas fa-archive" style="font-size:.8rem;"></i> PDF Version History
                  </a>
                </div>`
             : '';
@@ -1334,4 +1356,5 @@ class RecordPreviewModal {
 let recordPreviewModal;
 document.addEventListener('DOMContentLoaded', function() {
     recordPreviewModal = new RecordPreviewModal();
+    window.recordPreviewModal = recordPreviewModal;
 });

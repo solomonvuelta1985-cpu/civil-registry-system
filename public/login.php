@@ -653,7 +653,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="logo-circle" id="logoCircle">
                     <img src="../assets/img/LOGO1.png" alt="Baggao Logo">
                 </div>
-                <h1 class="brand-name">Civil Registry Document<br>Management System (CRDMS)</h1>
+                <h1 class="brand-name">Civil Registry Documents<br>Management System (CRDMS)</h1>
                 <p class="tagline">Lalawigan ng Cagayan - Bayan ng Baggao</p>
             </div>
         </div>

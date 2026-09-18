@@ -16,7 +16,10 @@ class OCRProcessor {
             language: options.language || 'eng',
             workerPath: options.workerPath || 'https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/worker.min.js',
             corePath: options.corePath || 'https://cdn.jsdelivr.net/npm/tesseract.js-core@4/tesseract-core.wasm.js',
-            langPath: options.langPath || 'https://tessdata.projectnaptha.com/4.0.0',
+            // Keep the English model on the same CDN as the worker/core.
+            // The legacy tessdata.projectnaptha.com host is not reliably
+            // reachable from local and managed deployments.
+            langPath: options.langPath || 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng/4.0.0',
             logger: options.logger || null,
             dpi: options.dpi || 300,
             ...options

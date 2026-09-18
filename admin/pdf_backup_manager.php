@@ -1,10 +1,10 @@
 <?php
 /**
- * PDF Backup Manager — Backup Operations Console
+ * PDF Version History & Restore — Old PDF Operations Console
  * iScan Civil Registry Records Management System
  *
  * Admin-only page to search, audit, restore, preview, export, deduplicate,
- * reconcile, and clean up PDF backups created when certificate records are updated.
+ * reconcile, and clean up old PDF versions created when certificate records are updated.
  */
 
 require_once '../includes/session_config.php';
@@ -141,7 +141,7 @@ $qs_base = http_build_query(array_filter([
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Backup Manager - <?= htmlspecialchars(APP_SHORT_NAME) ?></title>
+    <title>PDF Version History &amp; Restore - <?= htmlspecialchars(APP_SHORT_NAME) ?></title>
     <?= $csrfMeta ?>
 
     <?= google_fonts_tag('Inter:wght@400;500;600;700;800') ?>
@@ -188,6 +188,14 @@ $qs_base = http_build_query(array_filter([
         }
         .hero h1 { font-size:28px; font-weight:800; margin-bottom:8px; display:flex; align-items:center; gap:12px; position:relative; }
         .hero p  { font-size:15px; opacity:.9; max-width:720px; position:relative; }
+
+        .purpose-banner {
+            display:flex; align-items:flex-start; gap:12px; padding:14px 18px;
+            margin-bottom:22px; background:#eff6ff; border:1px solid #bfdbfe;
+            border-radius:12px; color:#1e3a8a; box-shadow:var(--elevation-1);
+        }
+        .purpose-banner strong { display:block; margin-bottom:2px; font-size:13px; }
+        .purpose-banner span { display:block; font-size:12px; line-height:1.5; }
 
         /* Tabs */
         .tabs { display:flex; gap:4px; margin-bottom:20px; border-bottom:2px solid #e2e8f0; flex-wrap:wrap; }
@@ -386,19 +394,27 @@ $qs_base = http_build_query(array_filter([
 
 <div class="content">
     <div class="hero">
-        <h1><i data-lucide="archive-restore" style="width:28px;height:28px;"></i>PDF Backup Manager</h1>
-        <p>Browse, search, preview, restore, deduplicate, and reconcile every PDF backup created when certificate records are updated. Restored backups are protected from cleanup.</p>
+        <h1><i data-lucide="archive-restore" style="width:28px;height:28px;"></i>PDF Version History &amp; Restore</h1>
+        <p>View and restore older PDF versions that were preserved when an existing certificate PDF was replaced. This page does not count or back up all registry records.</p>
+    </div>
+
+    <div class="purpose-banner">
+        <i data-lucide="info" style="width:20px;height:20px;flex-shrink:0;margin-top:1px;"></i>
+        <div>
+            <strong>What is this page for?</strong>
+            <span>Use it only when you need to recover a previous PDF after an edit or replacement. New records and current PDFs are not listed here. For all current records and PDF health, use <a href="pdf_integrity_report.php" style="color:#1d4ed8;font-weight:700;">PDF Inventory &amp; Integrity</a>.</span>
+        </div>
     </div>
 
     <!-- Summary cards -->
     <div class="summary-cards">
         <div class="summary-card total">
-            <div class="lbl">Total Backups</div>
+            <div class="lbl">Old PDF Versions</div>
             <div class="num"><?= number_format((int)$stats['total']) ?></div>
             <div class="sub"><?= number_format((int)$stats['last_7d']) ?> in last 7 days</div>
         </div>
         <div class="summary-card pending">
-            <div class="lbl">Pending</div>
+            <div class="lbl">Available to Restore</div>
             <div class="num"><?= number_format((int)$stats['pending']) ?></div>
             <div class="sub">
                 <?php if (!empty($stats['oldest_pending'])): ?>
@@ -407,22 +423,22 @@ $qs_base = http_build_query(array_filter([
             </div>
         </div>
         <div class="summary-card restored">
-            <div class="lbl">Restored</div>
+            <div class="lbl">Already Restored</div>
             <div class="num"><?= number_format((int)$stats['restored']) ?></div>
             <div class="sub">Protected from cleanup</div>
         </div>
         <div class="summary-card size">
-            <div class="lbl">Backup Size</div>
+            <div class="lbl">Stored Old PDFs</div>
             <div class="num"><?= round($backup_size / 1024 / 1024, 1) ?> <span style="font-size:14px;">MB</span></div>
             <div class="sub">Largest: <?= round((int)$stats['largest_bytes'] / 1024 / 1024, 2) ?> MB</div>
         </div>
         <div class="summary-card disk">
-            <div class="lbl">Files on Disk</div>
+            <div class="lbl">Old PDFs on Disk</div>
             <div class="num"><?= number_format($backup_files_on_disk) ?></div>
             <div class="sub">DB rows: <?= number_format((int)$stats['total']) ?></div>
         </div>
         <div class="summary-card recent">
-            <div class="lbl">Verified</div>
+            <div class="lbl">Hash-checked Versions</div>
             <div class="num"><?= number_format((int)$stats['verified']) ?></div>
             <div class="sub">Hash-checked</div>
         </div>
@@ -430,10 +446,10 @@ $qs_base = http_build_query(array_filter([
 
     <!-- Tabs -->
     <div class="tabs">
-        <button class="tab active" data-tab="registry"><i data-lucide="list" style="width:16px;height:16px;"></i> Registry</button>
-        <button class="tab" data-tab="dedupe"><i data-lucide="copy-check" style="width:16px;height:16px;"></i> Near-Duplicates</button>
-        <button class="tab" data-tab="reconcile"><i data-lucide="scan-search" style="width:16px;height:16px;"></i> Reconcile</button>
-        <button class="tab" data-tab="cleanup"><i data-lucide="trash-2" style="width:16px;height:16px;"></i> Cleanup</button>
+        <button class="tab active" data-tab="registry"><i data-lucide="list" style="width:16px;height:16px;"></i> Version List</button>
+        <button class="tab" data-tab="dedupe"><i data-lucide="copy-check" style="width:16px;height:16px;"></i> Similar Versions</button>
+        <button class="tab" data-tab="reconcile"><i data-lucide="scan-search" style="width:16px;height:16px;"></i> Check Storage</button>
+        <button class="tab" data-tab="cleanup"><i data-lucide="trash-2" style="width:16px;height:16px;"></i> Remove Old Versions</button>
     </div>
 
     <!-- ── Registry Tab ─────────────────────────────────────────────────────── -->
@@ -446,7 +462,7 @@ $qs_base = http_build_query(array_filter([
                 <form method="GET" id="filterForm">
                     <div class="filter-grid">
                         <div>
-                            <label>Search filename / path</label>
+                            <label>Search old PDF filename / path</label>
                             <input type="text" name="q" value="<?= htmlspecialchars($filter_q) ?>" placeholder="e.g. cert_2026">
                         </div>
                         <div>
@@ -507,15 +523,15 @@ $qs_base = http_build_query(array_filter([
         <!-- Registry table -->
         <div class="card">
             <div class="card-header">
-                <h3>Backup Registry — <?= number_format($total_rows) ?> result<?= $total_rows === 1 ? '' : 's' ?></h3>
+                <h3>Old PDF Version List — <?= number_format($total_rows) ?> result<?= $total_rows === 1 ? '' : 's' ?></h3>
             </div>
 
             <?php if (empty($backups)): ?>
             <div class="empty-state">
                 <i data-lucide="archive" style="width:48px;height:48px;opacity:.3;"></i>
-                <p style="margin-top:10px;">No backups found<?= ($filter_type || $filter_status || $filter_q || $filter_from || $filter_to || $filter_user) ? ' for this filter' : ' yet' ?>.</p>
+                <p style="margin-top:10px;">No previous PDF versions found<?= ($filter_type || $filter_status || $filter_q || $filter_from || $filter_to || $filter_user) ? ' for this filter' : ' yet' ?>.</p>
                 <?php if (!$filter_type && !$filter_status && !$filter_q && !$filter_from && !$filter_to && !$filter_user): ?>
-                <p style="margin-top:6px;font-size:12px;">Backups are created automatically when you update a record with a new PDF.</p>
+                <p style="margin-top:6px;font-size:12px;">A previous version is created automatically only when an existing record PDF is replaced.</p>
                 <?php endif; ?>
             </div>
             <?php else: ?>

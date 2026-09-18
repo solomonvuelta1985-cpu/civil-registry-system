@@ -32,7 +32,7 @@ if (sidebarCollapse) {
 }
 
 // Mobile: Toggle sidebar visibility
-if (mobileSidebarToggle) {
+if (mobileSidebarToggle && sidebar && sidebarOverlay) {
     mobileSidebarToggle.addEventListener('click', function() {
         sidebar.classList.toggle('active');
         sidebarOverlay.classList.toggle('active');
@@ -41,7 +41,7 @@ if (mobileSidebarToggle) {
 }
 
 // Close sidebar when clicking overlay
-if (sidebarOverlay) {
+if (sidebarOverlay && sidebar) {
     sidebarOverlay.addEventListener('click', function() {
         sidebar.classList.remove('active');
         sidebarOverlay.classList.remove('active');
@@ -60,7 +60,7 @@ document.querySelectorAll('.sidebar-menu a').forEach(link => {
             this.style.transform = '';
         }, 150);
 
-        if (window.innerWidth <= sidebarBreakpoint) {
+        if (window.innerWidth <= sidebarBreakpoint && sidebar && sidebarOverlay) {
             sidebar.classList.remove('active');
             sidebarOverlay.classList.remove('active');
             body.classList.remove('sidebar-open');
@@ -85,7 +85,7 @@ if (activeMenuItem) {
 
 // Handle window resize
 window.addEventListener('resize', function() {
-    if (window.innerWidth > sidebarBreakpoint) {
+    if (window.innerWidth > sidebarBreakpoint && sidebar && sidebarOverlay) {
         sidebar.classList.remove('active');
         sidebarOverlay.classList.remove('active');
         body.classList.remove('sidebar-open');

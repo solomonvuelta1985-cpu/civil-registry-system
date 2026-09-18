@@ -33,7 +33,8 @@ $csrfMeta = csrfTokenMeta();
     <script src="<?= asset_url('notiflix_js') ?>"></script>
 
     <link rel="stylesheet" href="../assets/css/sidebar.css">
-    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=10">
+    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=11">
+    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=4">
 
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>
@@ -360,7 +361,7 @@ function jsArg(value) {
     return escapeHtml(encoded);
 }
 function safeFolderType(type) {
-    const allowed = new Set(['birth', 'death', 'marriage', 'marriage_license']);
+    const allowed = new Set(['birth', 'death', 'marriage', 'marriage_license', 'crf_1a']);
     return allowed.has(String(type)) ? String(type) : '';
 }
 
@@ -448,12 +449,12 @@ function toggleTreeNode(row) {
 }
 
 function getTypeIcon(type) {
-    const icons = { birth: 'baby', death: 'user-x', marriage: 'heart', marriage_license: 'clipboard-list' };
+    const icons = { birth: 'baby', death: 'user-x', marriage: 'heart', marriage_license: 'clipboard-list', crf_1a: 'file-check-2' };
     return icons[type] || 'file';
 }
 
 function getTypeLabel(type) {
-    const labels = { birth: 'Birth', death: 'Death', marriage: 'Marriage', marriage_license: 'Marriage License' };
+    const labels = { birth: 'Birth', death: 'Death', marriage: 'Marriage', marriage_license: 'Marriage License', crf_1a: 'CRF No. 1A' };
     return labels[type] || type;
 }
 
@@ -649,6 +650,15 @@ function getColumnsForType(type) {
     };
 
     switch (type) {
+        case 'crf_1a': return [
+            { label: 'CRF ID', cls: 'col-registry', render: r => `<span class="crf-number">${esc(r.crf_number || '')}</span>` },
+            { label: 'Registry No.', cls: 'col-registry', render: r => esc(r.registry_no_snapshot || '') },
+            { label: 'Child', cls: 'col-name', render: r => `<span class="record-name-link">${esc(r.child_name_snapshot || '')}</span>` },
+            { label: 'Page / Book', cls: '', render: r => `${esc(r.page_number || '')} / ${esc(r.book_number || '')}` },
+            { label: 'Payment', cls: '', render: r => `₱${esc(r.amount_paid || '0.00')}<br><small>O.R. ${esc(r.or_number || '')}</small>` },
+            { label: 'Date Paid', cls: 'col-date', render: r => fmtDate(r.date_paid) },
+            { label: 'Issue Date', cls: 'col-date', render: r => fmtDate(r.issue_date) },
+        ];
         case 'birth': return [
             { label: 'Registry No.', cls: 'col-registry', render: r => esc(r.registry_no || '') },
             { label: 'Child', cls: 'col-name', render: r => nameLink(r, r.id, type, 'child_first_name', 'child_middle_name', 'child_last_name') },
@@ -783,6 +793,10 @@ function closeAllDropdowns() {
 document.addEventListener('click', closeAllDropdowns);
 
 function openPreview(id, type) {
+    if (safeFolderType(type) === 'crf_1a') {
+        if (typeof window.openCrfIssuancePreview === 'function') window.openCrfIssuancePreview(id);
+        return;
+    }
     if (typeof recordPreviewModal !== 'undefined') {
         recordPreviewModal.open(id, type);
     } else {
@@ -793,8 +807,8 @@ function openPreview(id, type) {
 </script>
 
 <script src="../assets/js/family_relations_render.js?v=2"></script>
-<script src="../assets/js/record-preview-modal.js?v=9"></script>
+<script src="../assets/js/record-preview-modal.js?v=11"></script>
+<script src="../assets/js/crf-1a-records.js?v=3"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
 </body>
 </html>
-

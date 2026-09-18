@@ -1,11 +1,13 @@
 <?php
 /**
  * Archives - View and Unarchive archived records
- * Aggregates archived records (status='Archived') from all 4 record tables:
+ * Aggregates archived records (status='Archived') from all record tables,
+ * including CRF No. 1A issuance records:
  *  - certificate_of_live_birth
  *  - certificate_of_marriage
  *  - certificate_of_death
  *  - application_for_marriage_license
+ *  - crf_1a_issuances
  *
  * Archive is distinct from Trash:
  *  - Archived records are retained for legal/historical reference, just hidden
@@ -18,6 +20,7 @@ require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/security.php';
 
 // Admin-only: the Archives management page lets users unarchive records,
 // which is a destructive state change. Only administrators can access it.
@@ -69,6 +72,14 @@ $type_configs = [
         'date_field' => 'date_of_application',
         'date_label' => 'Application Date',
     ],
+    'crf_1a' => [
+        'table' => 'crf_1a_issuances',
+        'label' => 'CRF No. 1A',
+        'plural_label' => 'CRF No. 1A',
+        'icon' => 'file-check-2',
+        'permission' => 'birth_archive',
+        'special' => 'crf_1a',
+    ],
 ];
 
 // Filter: record type
@@ -98,6 +109,33 @@ $sort_order = isset($_GET['sort_order']) && strtoupper($_GET['sort_order']) === 
  * Build a normalized SELECT for one table.
  */
 function build_type_select($record_type, $config, $search, $search_prefix) {
+    if ($record_type === 'crf_1a') {
+        $sql = "SELECT
+                    id,
+                    'crf_1a' AS record_type,
+                    crf_number AS registry_no,
+                    COALESCE(NULLIF(TRIM(child_name_snapshot), ''), '') AS display_name,
+                    issue_date AS record_date,
+                    COALESCE(archived_at, created_at) AS archived_at,
+                    created_at
+                FROM crf_1a_issuances
+                WHERE status = 'Archived'";
+        $params = [];
+
+        if (!empty($search)) {
+            $search_param = ":{$search_prefix}_search";
+            $sql .= " AND (crf_number LIKE $search_param
+                OR registry_no_snapshot LIKE $search_param
+                OR child_name_snapshot LIKE $search_param
+                OR page_number LIKE $search_param
+                OR book_number LIKE $search_param
+                OR or_number LIKE $search_param)";
+            $params[$search_param] = "%{$search}%";
+        }
+
+        return [$sql, $params];
+    }
+
     $table = $config['table'];
     $name_fields = $config['name_fields'];
     $secondary_fields = $config['secondary_fields'] ?? null;
@@ -247,6 +285,7 @@ function fmt_datetime($val) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Archives - Civil Registry</title>
 
+    <?= csrfTokenMeta() ?>
     <?= google_fonts_tag('Inter:wght@300;400;500;600;700') ?>
     <link rel="stylesheet" href="<?= asset_url('fontawesome_css') ?>">
     <script src="<?= asset_url('lucide') ?>"></script>
@@ -572,6 +611,7 @@ function fmt_datetime($val) {
         .type-badge.marriage { background: #FCE7F3; color: #BE185D; }
         .type-badge.death { background: #E5E7EB; color: #374151; }
         .type-badge.marriage_license { background: #FEF3C7; color: #92400E; }
+        .type-badge.crf_1a { background: #E0E7FF; color: #3730A3; }
 
         .records-table th.actions-header,
         .records-table td.actions-cell {
@@ -773,7 +813,7 @@ function fmt_datetime($val) {
                         <option value="">All Record Types</option>
                         <?php foreach ($accessible_types as $key => $cfg): ?>
                             <option value="<?php echo htmlspecialchars($key); ?>" <?php echo $filter_type === $key ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($cfg['label']); ?>s
+                                <?php echo htmlspecialchars($cfg['plural_label'] ?? ($cfg['label'] . 's')); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -958,7 +998,8 @@ function fmt_datetime($val) {
             'birth': 'Birth Record',
             'marriage': 'Marriage Record',
             'death': 'Death Record',
-            'marriage_license': 'Marriage License'
+            'marriage_license': 'Marriage License',
+            'crf_1a': 'CRF No. 1A'
         };
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -1029,10 +1070,14 @@ function fmt_datetime($val) {
             formData.append('record_id', id);
             formData.append('record_type', recordType);
             formData.append('action', 'unarchive');
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            if (csrfToken) formData.append('csrf_token', csrfToken);
 
             fetch('../api/archive_toggle.php', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+                credentials: 'same-origin'
             })
             .then(r => r.json())
             .then(data => {

@@ -54,6 +54,11 @@ $type_map = [
         'table' => 'application_for_marriage_license',
         'label' => 'Application for Marriage License',
     ],
+    'crf_1a' => [
+        'table' => 'crf_1a_issuances',
+        'label' => 'CRF No. 1A issuance',
+        'reference_column' => 'crf_number',
+    ],
 ];
 
 try {
@@ -77,13 +82,16 @@ try {
     $config = $type_map[$record_type];
 
     // Permission check — uses the central helper from auth.php
-    if (!canArchive($record_type)) {
+    // CRF No. 1A follows the existing birth archive permission.
+    $archivePermissionType = $record_type === 'crf_1a' ? 'birth' : $record_type;
+    if (!canArchive($archivePermissionType)) {
         json_response(false, 'You do not have permission to archive this record.', null, 403);
         exit;
     }
 
     // Verify record exists and current status matches the action
-    $stmt = $pdo->prepare("SELECT id, registry_no, status FROM {$config['table']} WHERE id = :id");
+    $referenceColumn = $config['reference_column'] ?? 'registry_no';
+    $stmt = $pdo->prepare("SELECT id, {$referenceColumn} AS reference_no, status FROM {$config['table']} WHERE id = :id");
     $stmt->execute([':id' => $record_id]);
     $record = $stmt->fetch();
 
@@ -121,21 +129,30 @@ try {
     $pdo->beginTransaction();
 
     try {
-        $stmt = $pdo->prepare(
-            "UPDATE {$config['table']}
-             SET status = :status, updated_at = NOW(), updated_by = :updated_by
-             WHERE id = :id"
-        );
-        $stmt->execute([
-            ':status'     => $new_status,
-            ':updated_by' => $_SESSION['user_id'] ?? null,
-            ':id'         => $record_id,
-        ]);
+        if ($record_type === 'crf_1a') {
+            if ($action === 'archive') {
+                $stmt = $pdo->prepare("UPDATE {$config['table']} SET status = :status, archived_at = NOW() WHERE id = :id");
+            } else {
+                $stmt = $pdo->prepare("UPDATE {$config['table']} SET status = :status, archived_at = NULL WHERE id = :id");
+            }
+            $stmt->execute([':status' => $new_status, ':id' => $record_id]);
+        } else {
+            $stmt = $pdo->prepare(
+                "UPDATE {$config['table']}
+                 SET status = :status, updated_at = NOW(), updated_by = :updated_by
+                 WHERE id = :id"
+            );
+            $stmt->execute([
+                ':status'     => $new_status,
+                ':updated_by' => $_SESSION['user_id'] ?? null,
+                ':id'         => $record_id,
+            ]);
+        }
 
         log_activity(
             $pdo,
-            $log_action,
-            "{$log_verb} {$config['label']}: Registry No. {$record['registry_no']} (ID: {$record_id})",
+            $record_type === 'crf_1a' ? ($action === 'archive' ? 'ARCHIVE_CRF_1A' : 'UNARCHIVE_CRF_1A') : $log_action,
+            "{$log_verb} {$config['label']}: {$record['reference_no']} (ID: {$record_id})",
             $_SESSION['user_id'] ?? null
         );
 

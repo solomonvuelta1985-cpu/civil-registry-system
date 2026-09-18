@@ -67,6 +67,13 @@ yarn-error.log
 dist/
 build/
 
+# Local PowerPoint work and render artifacts (keep presentations out of source control)
+documents/*.pptx
+documents/~$*.pptx
+.codex-final-output/
+.codex-ppt-render*/
+.codex-ppt-security-v17-build/
+
 # Vendor assets (downloaded by download_assets.sh — do not commit binaries)
 assets/vendor/
 

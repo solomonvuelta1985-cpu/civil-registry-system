@@ -221,7 +221,7 @@ $sort_icon = static function (string $column) use ($sort_by, $sort_order): strin
     <script src="<?= asset_url('notiflix_js') ?>"></script>
     <script src="../assets/js/notiflix-config.js"></script>
     <link rel="stylesheet" href="../assets/css/sidebar.css">
-    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=9">
+    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=10">
     <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=7">
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>
@@ -518,7 +518,7 @@ $sort_icon = static function (string $column) use ($sort_by, $sort_order): strin
     </script>
 
     <script src="../assets/js/family_relations_render.js?v=2"></script>
-    <script src="../assets/js/record-preview-modal.js?v=8"></script>
+    <script src="../assets/js/record-preview-modal.js?v=10"></script>
     <script src="../assets/js/double-reg-comparison-modal.js?v=9"></script>
 
     <script>
