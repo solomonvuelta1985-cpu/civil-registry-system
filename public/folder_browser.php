@@ -9,6 +9,7 @@ require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
+require_once '../includes/crf_1a.php';
 
 if (!isLoggedIn()) {
     header('Location: login.php');
@@ -17,6 +18,7 @@ if (!isLoggedIn()) {
 
 setSecurityHeaders();
 $csrfMeta = csrfTokenMeta();
+$crfDefaults = crf_1a_config();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -33,8 +35,8 @@ $csrfMeta = csrfTokenMeta();
     <script src="<?= asset_url('notiflix_js') ?>"></script>
 
     <link rel="stylesheet" href="../assets/css/sidebar.css">
-    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=11">
-    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=4">
+    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=12">
+    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=22">
 
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>
@@ -651,7 +653,7 @@ function getColumnsForType(type) {
 
     switch (type) {
         case 'crf_1a': return [
-            { label: 'CRF ID', cls: 'col-registry', render: r => `<span class="crf-number">${esc(r.crf_number || '')}</span>` },
+            { label: 'CRF ID', cls: 'col-registry', render: r => `<a href="#" class="record-name-link crf-folder-id-link" data-preview-id="${Number(r.id) || 0}" data-preview-type="crf_1a" title="Open CRF preview">${esc(r.crf_number || '')}</a>` },
             { label: 'Registry No.', cls: 'col-registry', render: r => esc(r.registry_no_snapshot || '') },
             { label: 'Child', cls: 'col-name', render: r => `<span class="record-name-link">${esc(r.child_name_snapshot || '')}</span>` },
             { label: 'Page / Book', cls: '', render: r => `${esc(r.page_number || '')} / ${esc(r.book_number || '')}` },
@@ -794,7 +796,11 @@ document.addEventListener('click', closeAllDropdowns);
 
 function openPreview(id, type) {
     if (safeFolderType(type) === 'crf_1a') {
-        if (typeof window.openCrfIssuancePreview === 'function') window.openCrfIssuancePreview(id);
+        if (typeof window.openCrfIssuancePreview === 'function') {
+            window.openCrfIssuancePreview(id);
+        } else if (id) {
+            window.open('../api/serve_crf_1a.php?id=' + encodeURIComponent(id), '_blank');
+        }
         return;
     }
     if (typeof recordPreviewModal !== 'undefined') {
@@ -806,9 +812,18 @@ function openPreview(id, type) {
 }
 </script>
 
+<script>
+    window.CRF1A_OFFICE_CONFIG = <?= json_encode($crfDefaults, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    window.CRF1A_CAN_GENERATE = <?= hasPermission(crf_1a_generate_permission()) ? 'true' : 'false' ?>;
+    window.CRF1A_CAN_ARCHIVE = <?= canArchive('birth') ? 'true' : 'false' ?>;
+    window.CRF1A_CAN_DELETE = <?= isAdmin() ? 'true' : 'false' ?>;
+    window.CRF1A_DEFAULT_CERTIFIED_BY = { name: <?= json_encode($crfDefaults['mcr_full_name'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>, position: <?= json_encode($crfDefaults['mcr_title'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?> };
+    window.CRF1A_DEFAULT_ISSUE_DATE = <?= json_encode(date('Y-m-d')) ?>;
+</script>
 <script src="../assets/js/family_relations_render.js?v=2"></script>
-<script src="../assets/js/record-preview-modal.js?v=11"></script>
-<script src="../assets/js/crf-1a-records.js?v=3"></script>
+<script src="../assets/js/record-preview-modal.js?v=12"></script>
+<script src="../assets/js/crf-1a-generator.js?v=14"></script>
+<script src="../assets/js/crf-1a-records.js?v=18"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
 </body>
 </html>
