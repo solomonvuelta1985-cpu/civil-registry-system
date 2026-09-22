@@ -100,6 +100,20 @@ if ($__is_admin) {
             </a>
         </li>
         <?php endif; ?>
+        <?php if (function_exists('hasPermission') && hasPermission('death_crf_2a_view')): ?>
+        <li>
+            <a href="<?= BASE_URL ?>public/crf_2a_records.php" class="<?php echo $current_page == 'crf_2a_records.php' ? 'active' : ''; ?>" title="CRF No. 2A Issuance Records">
+                <i data-lucide="file-heart"></i> <span>CRF No. 2A Records</span>
+            </a>
+        </li>
+        <?php endif; ?>
+        <?php if (function_exists('hasPermission') && hasPermission('marriage_crf_3a_view')): ?>
+        <li>
+            <a href="<?= BASE_URL ?>public/crf_3a_records.php" class="<?php echo $current_page == 'crf_3a_records.php' ? 'active' : ''; ?>" title="CRF No. 3A Issuance Records">
+                <i data-lucide="heart-handshake"></i> <span>CRF No. 3A Records</span>
+            </a>
+        </li>
+        <?php endif; ?>
         <li>
             <a href="<?= BASE_URL ?>public/double_registration.php" class="<?php echo $current_page == 'double_registration.php' ? 'active' : ''; ?>" title="Double Registration Detection (PSA MC 2019-23)">
                 <i data-lucide="link-2"></i> <span>Double Registration</span>

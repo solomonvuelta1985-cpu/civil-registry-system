@@ -19,17 +19,23 @@ ini_set('session.use_trans_sid', 0);
 ini_set('session.gc_maxlifetime', SESSION_TIMEOUT);
 ini_set('session.gc_probability', 1);
 ini_set('session.gc_divisor', 100);
+$secureCookies = shouldUseSecureCookies();
+ini_set('session.cookie_secure', $secureCookies ? '1' : '0');
+ini_set('session.cookie_httponly', '1');
+ini_set('session.cookie_samesite', 'Lax');
 
 // Set cookie params atomically before session_start so Secure/SameSite/HttpOnly
 // are applied consistently. SameSite=Lax (not Strict) is required behind
 // Cloudflare Tunnel / reverse proxies so the cookie survives top-level
-// redirects. Secure flag is auto-enabled when isHTTPS() (honors X-Forwarded-Proto).
+// redirects. Production cookies fail closed with Secure even if a proxy
+// forwarding header is missing; configure TRUSTED_PROXY_IPS for correct HTTPS
+// detection and FORCE_SECURE_COOKIES for explicit staging behavior.
 if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([
         'lifetime' => 0,
         'path'     => '/',
         'domain'   => '',
-        'secure'   => isHTTPS(),
+        'secure'   => $secureCookies,
         'httponly' => true,
         'samesite' => 'Lax',
     ]);
@@ -45,7 +51,7 @@ if (isset($_SESSION['LAST_ACTIVITY']) && (time() - $_SESSION['LAST_ACTIVITY'] > 
         'lifetime' => 0,
         'path'     => '/',
         'domain'   => '',
-        'secure'   => isHTTPS(),
+        'secure'   => $secureCookies,
         'httponly' => true,
         'samesite' => 'Lax',
     ]);
@@ -81,4 +87,7 @@ if (!isset($_SESSION['CREATED'])) {
 // including APIs and pages that do not call setSecurityHeaders() themselves.
 if (php_sapi_name() !== 'cli' && function_exists('setSecurityHeaders')) {
     setSecurityHeaders();
+    if (function_exists('startCspNonceOutputBuffer')) {
+        startCspNonceOutputBuffer();
+    }
 }

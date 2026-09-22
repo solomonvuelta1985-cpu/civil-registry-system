@@ -26,7 +26,7 @@ if ($id === false || $id === null) {
 }
 
 $stmt = $pdo->prepare(
-    "SELECT pdf_filepath, pdf_filename, pdf_hash
+    "SELECT crf_number, pdf_filepath, pdf_filename, pdf_hash
      FROM crf_1a_issuances WHERE id = :id AND status = 'Active' LIMIT 1"
 );
 $stmt->execute([':id' => (int)$id]);
@@ -58,6 +58,12 @@ if (!empty($issuance['pdf_hash']) && !hash_equals((string)$issuance['pdf_hash'],
 
 $filename = basename((string)$issuance['pdf_filename']) ?: basename($absPath);
 $download = !empty($_GET['download']);
+$accessAction = strtolower(trim((string)($_GET['action'] ?? '')));
+if ($accessAction === 'print') {
+    crf_1a_record_history($pdo, (int)$id, (string)$issuance['crf_number'], 'printed', 'PDF opened for printing');
+} elseif ($accessAction === 'download' || $download) {
+    crf_1a_record_history($pdo, (int)$id, (string)$issuance['crf_number'], 'downloaded', 'PDF downloaded');
+}
 while (ob_get_level() > 0) {
     ob_end_clean();
 }

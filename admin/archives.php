@@ -21,6 +21,7 @@ require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
+require_once '../includes/crf_3a.php';
 
 // Admin-only: the Archives management page lets users unarchive records,
 // which is a destructive state change. Only administrators can access it.
@@ -80,6 +81,22 @@ $type_configs = [
         'permission' => 'birth_archive',
         'special' => 'crf_1a',
     ],
+    'crf_2a' => [
+        'table' => 'crf_2a_issuances',
+        'label' => 'CRF No. 2A',
+        'plural_label' => 'CRF No. 2A',
+        'icon' => 'file-heart',
+        'permission' => 'death_archive',
+        'special' => 'crf_2a',
+    ],
+    'crf_3a' => [
+        'table' => 'crf_3a_issuances',
+        'label' => 'CRF No. 3A',
+        'plural_label' => 'CRF No. 3A',
+        'icon' => 'heart-handshake',
+        'permission' => 'marriage_archive',
+        'special' => 'crf_3a',
+    ],
 ];
 
 // Filter: record type
@@ -109,16 +126,18 @@ $sort_order = isset($_GET['sort_order']) && strtoupper($_GET['sort_order']) === 
  * Build a normalized SELECT for one table.
  */
 function build_type_select($record_type, $config, $search, $search_prefix) {
-    if ($record_type === 'crf_1a') {
+    if (in_array($record_type, ['crf_1a', 'crf_2a', 'crf_3a'], true)) {
+        $table = $record_type === 'crf_2a' ? 'crf_2a_issuances' : ($record_type === 'crf_3a' ? 'crf_3a_issuances' : 'crf_1a_issuances');
+        $name = $record_type === 'crf_2a' ? 'deceased_name_snapshot' : ($record_type === 'crf_3a' ? "CONCAT_WS(' / ', husband_name_snapshot, wife_name_snapshot)" : 'child_name_snapshot');
         $sql = "SELECT
                     id,
-                    'crf_1a' AS record_type,
+                    '{$record_type}' AS record_type,
                     crf_number AS registry_no,
-                    COALESCE(NULLIF(TRIM(child_name_snapshot), ''), '') AS display_name,
+                    COALESCE(NULLIF(TRIM({$name}), ''), '') AS display_name,
                     issue_date AS record_date,
                     COALESCE(archived_at, created_at) AS archived_at,
                     created_at
-                FROM crf_1a_issuances
+                FROM {$table}
                 WHERE status = 'Archived'";
         $params = [];
 
@@ -126,7 +145,7 @@ function build_type_select($record_type, $config, $search, $search_prefix) {
             $search_param = ":{$search_prefix}_search";
             $sql .= " AND (crf_number LIKE $search_param
                 OR registry_no_snapshot LIKE $search_param
-                OR child_name_snapshot LIKE $search_param
+                OR {$name} LIKE $search_param
                 OR page_number LIKE $search_param
                 OR book_number LIKE $search_param
                 OR or_number LIKE $search_param)";
@@ -999,7 +1018,9 @@ function fmt_datetime($val) {
             'marriage': 'Marriage Record',
             'death': 'Death Record',
             'marriage_license': 'Marriage License',
-            'crf_1a': 'CRF No. 1A'
+            'crf_1a': 'CRF No. 1A',
+            'crf_2a': 'CRF No. 2A',
+            'crf_3a': 'CRF No. 3A'
         };
 
         document.addEventListener('DOMContentLoaded', function() {

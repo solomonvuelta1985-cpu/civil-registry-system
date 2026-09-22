@@ -14,6 +14,7 @@ require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
 require_once '../includes/reorganize_uploads.php';
+require_once '../includes/crf_3a.php';
 
 header('Content-Type: application/json');
 
@@ -199,6 +200,42 @@ function handle_tree(PDO $pdo) {
         }
     }
 
+    if (hasPermission('death_crf_2a_view')) {
+        try {
+            $rows = $pdo->query("SELECT crf_year, deceased_last_name_snapshot FROM crf_2a_issuances WHERE status = 'Active' AND pdf_filename IS NOT NULL AND pdf_filename != ''")->fetchAll();
+            $folders = [];
+            foreach ($rows as $row) {
+                $yearKey = (string)((int)$row['crf_year']);
+                if (!isset($folders[$yearKey])) $folders[$yearKey] = ['count' => 0, 'children' => []];
+                $folders[$yearKey]['count']++;
+                $lastName = folder_safe_last_name($row['deceased_last_name_snapshot'] ?? 'UNKNOWN');
+                $folders[$yearKey]['children'][$lastName] = ($folders[$yearKey]['children'][$lastName] ?? 0) + 1;
+            }
+            ksort($folders); $yearNodes = [];
+            foreach ($folders as $yearKey => $data) { ksort($data['children']); $children = []; foreach ($data['children'] as $name => $count) $children[] = ['name' => $name, 'count' => $count]; $yearNodes[] = ['year' => $yearKey, 'label' => $yearKey, 'count' => $data['count'], 'children' => $children]; }
+            usort($yearNodes, static fn($a, $b) => (int)$b['year'] - (int)$a['year']);
+            $tree[] = ['type' => 'crf_2a', 'label' => 'CRF No. 2A', 'count' => array_sum(array_column($yearNodes, 'count')), 'children' => $yearNodes];
+        } catch (Throwable $e) { error_log('CRF 2A folder tree unavailable: ' . $e->getMessage()); }
+    }
+
+    if (hasPermission('marriage_crf_3a_view')) {
+        try {
+            $rows = $pdo->query("SELECT crf_year, husband_last_name_snapshot FROM crf_3a_issuances WHERE status = 'Active' AND pdf_filename IS NOT NULL AND pdf_filename != ''")->fetchAll();
+            $folders = [];
+            foreach ($rows as $row) {
+                $yearKey = (string)((int)$row['crf_year']);
+                if (!isset($folders[$yearKey])) $folders[$yearKey] = ['count' => 0, 'children' => []];
+                $folders[$yearKey]['count']++;
+                $lastName = folder_safe_last_name($row['husband_last_name_snapshot'] ?? 'UNKNOWN');
+                $folders[$yearKey]['children'][$lastName] = ($folders[$yearKey]['children'][$lastName] ?? 0) + 1;
+            }
+            ksort($folders); $yearNodes = [];
+            foreach ($folders as $yearKey => $data) { ksort($data['children']); $children = []; foreach ($data['children'] as $name => $count) $children[] = ['name' => $name, 'count' => $count]; $yearNodes[] = ['year' => $yearKey, 'label' => $yearKey, 'count' => $data['count'], 'children' => $children]; }
+            usort($yearNodes, static fn($a, $b) => (int)$b['year'] - (int)$a['year']);
+            $tree[] = ['type' => 'crf_3a', 'label' => 'CRF No. 3A', 'count' => array_sum(array_column($yearNodes, 'count')), 'children' => $yearNodes];
+        } catch (Throwable $e) { error_log('CRF 3A folder tree unavailable: ' . $e->getMessage()); }
+    }
+
     echo json_encode(['success' => true, 'tree' => $tree]);
 }
 
@@ -264,6 +301,28 @@ function handle_list(PDO $pdo) {
             ],
         ]);
         return;
+    }
+
+    if ($type === 'crf_2a') {
+        if (!hasPermission('death_crf_2a_view')) { http_response_code(403); echo json_encode(['success' => false, 'message' => 'Permission denied']); return; }
+        $where = ["status = 'Active'", "pdf_filename IS NOT NULL", "pdf_filename != ''"]; $params = [];
+        if ($year !== null && $year !== '') { if (!preg_match('/^\d{4}$/', (string)$year)) { echo json_encode(['success' => false, 'message' => 'Invalid year']); return; } $where[] = 'crf_year = :year'; $params[':year'] = (int)$year; }
+        if ($lastName !== null && $lastName !== '') { $where[] = 'UPPER(deceased_last_name_snapshot) LIKE :last_name'; $params[':last_name'] = str_replace('_', '%', strtoupper($lastName)); }
+        if ($search !== '') { $where[] = '(crf_number LIKE :search OR registry_no_snapshot LIKE :search_registry OR deceased_name_snapshot LIKE :search_name OR page_number LIKE :search_page OR book_number LIKE :search_book OR or_number LIKE :search_or)'; $like = '%' . $search . '%'; foreach (['search' => $like, 'search_registry' => $like, 'search_name' => $like, 'search_page' => $like, 'search_book' => $like, 'search_or' => $like] as $k => $v) $params[':' . $k] = $v; }
+        $whereSql = implode(' AND ', $where); $count = $pdo->prepare("SELECT COUNT(*) FROM crf_2a_issuances WHERE {$whereSql}"); $count->execute($params); $total = (int)$count->fetchColumn(); $pages = max(1, (int)ceil($total / $perPage)); $page = min($page, $pages); $offset = ($page - 1) * $perPage;
+        $stmt = $pdo->prepare("SELECT id, crf_number, death_record_id, registry_no_snapshot, deceased_name_snapshot, deceased_last_name_snapshot, issue_date, page_number, book_number, amount_paid, or_number, date_paid, pdf_filename, status, created_at FROM crf_2a_issuances WHERE {$whereSql} ORDER BY id DESC LIMIT {$perPage} OFFSET {$offset}"); $stmt->execute($params);
+        echo json_encode(['success' => true, 'type' => $type, 'records' => $stmt->fetchAll(), 'pagination' => ['current_page' => $page, 'total_pages' => $pages, 'total_records' => $total, 'per_page' => $perPage, 'from' => $total ? $offset + 1 : 0, 'to' => min($offset + $perPage, $total)]]); return;
+    }
+
+    if ($type === 'crf_3a') {
+        if (!hasPermission('marriage_crf_3a_view')) { http_response_code(403); echo json_encode(['success' => false, 'message' => 'Permission denied']); return; }
+        $where = ["status = 'Active'", "pdf_filename IS NOT NULL", "pdf_filename != ''"]; $params = [];
+        if ($year !== null && $year !== '') { if (!preg_match('/^\d{4}$/', (string)$year)) { echo json_encode(['success' => false, 'message' => 'Invalid year']); return; } $where[] = 'crf_year = :year'; $params[':year'] = (int)$year; }
+        if ($lastName !== null && $lastName !== '') { $where[] = 'UPPER(husband_last_name_snapshot) LIKE :last_name'; $params[':last_name'] = str_replace('_', '%', strtoupper($lastName)); }
+        if ($search !== '') { $where[] = '(crf_number LIKE :search OR registry_no_snapshot LIKE :search_registry OR husband_name_snapshot LIKE :search_husband OR wife_name_snapshot LIKE :search_wife OR page_number LIKE :search_page OR book_number LIKE :search_book OR or_number LIKE :search_or)'; $like = '%' . $search . '%'; foreach (['search' => $like, 'search_registry' => $like, 'search_husband' => $like, 'search_wife' => $like, 'search_page' => $like, 'search_book' => $like, 'search_or' => $like] as $k => $v) $params[':' . $k] = $v; }
+        $whereSql = implode(' AND ', $where); $count = $pdo->prepare("SELECT COUNT(*) FROM crf_3a_issuances WHERE {$whereSql}"); $count->execute($params); $total = (int)$count->fetchColumn(); $pages = max(1, (int)ceil($total / $perPage)); $page = min($page, $pages); $offset = ($page - 1) * $perPage;
+        $stmt = $pdo->prepare("SELECT id, crf_number, marriage_record_id, registry_no_snapshot, husband_name_snapshot, husband_last_name_snapshot, wife_name_snapshot, wife_last_name_snapshot, issue_date, page_number, book_number, amount_paid, or_number, date_paid, pdf_filename, status, created_at FROM crf_3a_issuances WHERE {$whereSql} ORDER BY id DESC LIMIT {$perPage} OFFSET {$offset}"); $stmt->execute($params);
+        echo json_encode(['success' => true, 'type' => $type, 'records' => $stmt->fetchAll(), 'pagination' => ['current_page' => $page, 'total_pages' => $pages, 'total_records' => $total, 'per_page' => $perPage, 'from' => $total ? $offset + 1 : 0, 'to' => min($offset + $perPage, $total)]]); return;
     }
 
     $reorgDefs = reorg_table_defs();

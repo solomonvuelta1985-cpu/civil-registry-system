@@ -9,6 +9,8 @@ require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/crf_1a.php';
+require_once '../includes/crf_2a.php';
+require_once '../includes/crf_3a.php';
 
 // Check authentication
 if (!isLoggedIn()) {
@@ -312,6 +314,10 @@ if (!isset($record_configs[$record_type])) {
 $config = $record_configs[$record_type];
 $crf_1a_can_generate = $record_type === 'birth' && hasPermission(crf_1a_generate_permission());
 $crf_1a_defaults = crf_1a_config();
+$crf_2a_can_generate = $record_type === 'death' && hasPermission(crf_2a_generate_permission());
+$crf_2a_defaults = crf_2a_config();
+$crf_3a_can_generate = $record_type === 'marriage' && hasPermission(crf_3a_generate_permission());
+$crf_3a_defaults = crf_3a_config();
 
 // Pagination settings
 $records_per_page = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
@@ -720,7 +726,7 @@ function detect_late_registration($record, $record_type) {
 
     <!-- Record Preview Modal Styles -->
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=10">
-    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=22">
+    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=24">
 
     <!-- PDF.js Library -->
     <script src="<?= asset_url('pdfjs') ?>"></script>
@@ -737,6 +743,12 @@ function detect_late_registration($record, $record_type) {
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
         window.CRF1A_OFFICE_CONFIG = <?php echo json_encode($crf_1a_defaults, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
         window.CRF1A_DEFAULT_ISSUE_DATE = <?php echo json_encode(date('Y-m-d')); ?>;
+        window.CRF2A_CAN_GENERATE = <?php echo $crf_2a_can_generate ? 'true' : 'false'; ?>;
+        window.CRF2A_OFFICE_CONFIG = <?php echo json_encode($crf_2a_defaults, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+        window.CRF2A_DEFAULT_ISSUE_DATE = <?php echo json_encode(date('Y-m-d')); ?>;
+        window.CRF3A_CAN_GENERATE = <?php echo $crf_3a_can_generate ? 'true' : 'false'; ?>;
+        window.CRF3A_OFFICE_CONFIG = <?php echo json_encode($crf_3a_defaults, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+        window.CRF3A_DEFAULT_ISSUE_DATE = <?php echo json_encode(date('Y-m-d')); ?>;
     </script>
 
     <style>
@@ -2433,6 +2445,20 @@ function detect_late_registration($record, $record_type) {
                                             <span>Generate CRF No. 1A</span>
                                         </button>
                                         <?php endif; ?>
+                                        <?php if ($crf_2a_can_generate): ?>
+                                        <button class="action-dropdown-item crf-1a-action"
+                                                onclick="crf2aGenerator.openFromRecordId(<?php echo (int)$record['id']; ?>); closeAllDropdowns();">
+                                            <i data-lucide="file-heart"></i>
+                                            <span>Generate CRF No. 2A</span>
+                                        </button>
+                                        <?php endif; ?>
+                                        <?php if ($crf_3a_can_generate): ?>
+                                        <button class="action-dropdown-item crf-1a-action"
+                                                onclick="crf3aGenerator.openFromRecordId(<?php echo (int)$record['id']; ?>); closeAllDropdowns();">
+                                            <i data-lucide="heart-handshake"></i>
+                                            <span>Generate CRF No. 3A</span>
+                                        </button>
+                                        <?php endif; ?>
                                         <?php if (hasPermission($edit_permission)): ?>
                                         <button class="action-dropdown-item edit-action"
                                                 onclick="editRecord(<?php echo $record['id']; ?>, '<?php echo $config['entry_form']; ?>', <?php echo htmlspecialchars(json_encode($record_safe), ENT_QUOTES, 'UTF-8'); ?>); closeAllDropdowns();">
@@ -3175,6 +3201,8 @@ function detect_late_registration($record, $record_type) {
         const canLink = <?php echo (isset($link_perm) && hasPermission($link_perm)) ? 'true' : 'false'; ?>;
         const canManualCompare = <?php echo ($record_type === 'birth' && hasPermission('birth_link')) ? 'true' : 'false'; ?>;
         const canGenerateCrf1A = <?php echo $crf_1a_can_generate ? 'true' : 'false'; ?>;
+        const canGenerateCrf2A = <?php echo $crf_2a_can_generate ? 'true' : 'false'; ?>;
+        const canGenerateCrf3A = <?php echo $crf_3a_can_generate ? 'true' : 'false'; ?>;
         const entryFormUrl = '<?php echo $config['entry_form']; ?>';
         let currentRecordLinkMap = {};
 
@@ -3395,6 +3423,20 @@ function detect_late_registration($record, $record_type) {
                 html += `<button class="action-dropdown-item crf-1a-action" onclick="crf1aGenerator.openFromRecordId(${recordId}); closeAllDropdowns();">
                             <i data-lucide="file-check-2"></i>
                             <span>Generate CRF No. 1A</span>
+                        </button>`;
+            }
+
+            if (canGenerateCrf2A) {
+                html += `<button class="action-dropdown-item crf-1a-action" onclick="crf2aGenerator.openFromRecordId(${recordId}); closeAllDropdowns();">
+                            <i data-lucide="file-heart"></i>
+                            <span>Generate CRF No. 2A</span>
+                        </button>`;
+            }
+
+            if (canGenerateCrf3A) {
+                html += `<button class="action-dropdown-item crf-1a-action" onclick="crf3aGenerator.openFromRecordId(${recordId}); closeAllDropdowns();">
+                            <i data-lucide="heart-handshake"></i>
+                            <span>Generate CRF No. 3A</span>
                         </button>`;
             }
 
@@ -3847,8 +3889,10 @@ function detect_late_registration($record, $record_type) {
 
     <!-- Record Preview Modal Script -->
     <script src="../assets/js/family_relations_render.js?v=2"></script>
-    <script src="../assets/js/record-preview-modal.js?v=12"></script>
-    <script src="../assets/js/crf-1a-generator.js?v=14"></script>
+    <script src="../assets/js/record-preview-modal.js?v=13"></script>
+    <script src="../assets/js/crf-1a-generator.js?v=16"></script>
+    <script src="../assets/js/crf-2a-generator.js?v=3"></script>
+    <script src="../assets/js/crf-3a-generator.js?v=1"></script>
 
     <!-- Double Registration Comparison Modal -->
     <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=7">

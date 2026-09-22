@@ -10,6 +10,8 @@ require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
 require_once '../includes/crf_1a.php';
+require_once '../includes/crf_2a.php';
+require_once '../includes/crf_3a.php';
 
 if (!isLoggedIn()) {
     header('Location: login.php');
@@ -19,6 +21,8 @@ if (!isLoggedIn()) {
 setSecurityHeaders();
 $csrfMeta = csrfTokenMeta();
 $crfDefaults = crf_1a_config();
+$crf2aDefaults = crf_2a_config();
+$crf3aDefaults = crf_3a_config();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -36,7 +40,7 @@ $crfDefaults = crf_1a_config();
 
     <link rel="stylesheet" href="../assets/css/sidebar.css">
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=12">
-    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=22">
+    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=24">
 
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>
@@ -363,7 +367,7 @@ function jsArg(value) {
     return escapeHtml(encoded);
 }
 function safeFolderType(type) {
-    const allowed = new Set(['birth', 'death', 'marriage', 'marriage_license', 'crf_1a']);
+    const allowed = new Set(['birth', 'death', 'marriage', 'marriage_license', 'crf_1a', 'crf_2a', 'crf_3a']);
     return allowed.has(String(type)) ? String(type) : '';
 }
 
@@ -451,12 +455,12 @@ function toggleTreeNode(row) {
 }
 
 function getTypeIcon(type) {
-    const icons = { birth: 'baby', death: 'user-x', marriage: 'heart', marriage_license: 'clipboard-list', crf_1a: 'file-check-2' };
+    const icons = { birth: 'baby', death: 'user-x', marriage: 'heart', marriage_license: 'clipboard-list', crf_1a: 'file-check-2', crf_2a: 'file-heart', crf_3a: 'heart-handshake' };
     return icons[type] || 'file';
 }
 
 function getTypeLabel(type) {
-    const labels = { birth: 'Birth', death: 'Death', marriage: 'Marriage', marriage_license: 'Marriage License', crf_1a: 'CRF No. 1A' };
+    const labels = { birth: 'Birth', death: 'Death', marriage: 'Marriage', marriage_license: 'Marriage License', crf_1a: 'CRF No. 1A', crf_2a: 'CRF No. 2A', crf_3a: 'CRF No. 3A' };
     return labels[type] || type;
 }
 
@@ -661,6 +665,25 @@ function getColumnsForType(type) {
             { label: 'Date Paid', cls: 'col-date', render: r => fmtDate(r.date_paid) },
             { label: 'Issue Date', cls: 'col-date', render: r => fmtDate(r.issue_date) },
         ];
+        case 'crf_2a': return [
+            { label: 'CRF ID', cls: 'col-registry', render: r => `<a href="#" class="record-name-link crf-folder-id-link" data-preview-id="${Number(r.id) || 0}" data-preview-type="crf_2a" title="Open CRF preview">${esc(r.crf_number || '')}</a>` },
+            { label: 'Registry No.', cls: 'col-registry', render: r => esc(r.registry_no_snapshot || '') },
+            { label: 'Deceased', cls: 'col-name', render: r => `<span class="record-name-link">${esc(r.deceased_name_snapshot || '')}</span>` },
+            { label: 'Page / Book', cls: '', render: r => `${esc(r.page_number || '')} / ${esc(r.book_number || '')}` },
+            { label: 'Payment', cls: '', render: r => `₱${esc(r.amount_paid || '0.00')}<br><small>O.R. ${esc(r.or_number || '')}</small>` },
+            { label: 'Date Paid', cls: 'col-date', render: r => fmtDate(r.date_paid) },
+            { label: 'Issue Date', cls: 'col-date', render: r => fmtDate(r.issue_date) },
+        ];
+        case 'crf_3a': return [
+            { label: 'CRF ID', cls: 'col-registry', render: r => `<a href="#" class="record-name-link crf-folder-id-link" data-preview-id="${Number(r.id) || 0}" data-preview-type="crf_3a" title="Open CRF preview">${esc(r.crf_number || '')}</a>` },
+            { label: 'Registry No.', cls: 'col-registry', render: r => esc(r.registry_no_snapshot || '') },
+            { label: 'Husband', cls: 'col-name', render: r => `<span class="record-name-link">${esc(r.husband_name_snapshot || '')}</span>` },
+            { label: 'Wife', cls: '', render: r => `<span class="record-name-link">${esc(r.wife_name_snapshot || '')}</span>` },
+            { label: 'Page / Book', cls: '', render: r => `${esc(r.page_number || '')} / ${esc(r.book_number || '')}` },
+            { label: 'Payment', cls: '', render: r => `₱${esc(r.amount_paid || '0.00')}<br><small>O.R. ${esc(r.or_number || '')}</small>` },
+            { label: 'Date Paid', cls: 'col-date', render: r => fmtDate(r.date_paid) },
+            { label: 'Issue Date', cls: 'col-date', render: r => fmtDate(r.issue_date) },
+        ];
         case 'birth': return [
             { label: 'Registry No.', cls: 'col-registry', render: r => esc(r.registry_no || '') },
             { label: 'Child', cls: 'col-name', render: r => nameLink(r, r.id, type, 'child_first_name', 'child_middle_name', 'child_last_name') },
@@ -803,6 +826,16 @@ function openPreview(id, type) {
         }
         return;
     }
+    if (safeFolderType(type) === 'crf_2a') {
+        if (typeof window.openCrf2AIssuancePreview === 'function') window.openCrf2AIssuancePreview(id);
+        else if (id) window.open('../api/serve_crf_2a.php?id=' + encodeURIComponent(id), '_blank');
+        return;
+    }
+    if (safeFolderType(type) === 'crf_3a') {
+        if (typeof window.openCrf3AIssuancePreview === 'function') window.openCrf3AIssuancePreview(id);
+        else if (id) window.open('../api/serve_crf_3a.php?id=' + encodeURIComponent(id), '_blank');
+        return;
+    }
     if (typeof recordPreviewModal !== 'undefined') {
         recordPreviewModal.open(id, type);
     } else {
@@ -819,11 +852,25 @@ function openPreview(id, type) {
     window.CRF1A_CAN_DELETE = <?= isAdmin() ? 'true' : 'false' ?>;
     window.CRF1A_DEFAULT_CERTIFIED_BY = { name: <?= json_encode($crfDefaults['mcr_full_name'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>, position: <?= json_encode($crfDefaults['mcr_title'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?> };
     window.CRF1A_DEFAULT_ISSUE_DATE = <?= json_encode(date('Y-m-d')) ?>;
+    window.CRF2A_OFFICE_CONFIG = <?= json_encode($crf2aDefaults, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    window.CRF2A_CAN_GENERATE = <?= hasPermission(crf_2a_generate_permission()) ? 'true' : 'false' ?>;
+    window.CRF2A_CAN_ARCHIVE = <?= canArchive('death') ? 'true' : 'false' ?>;
+    window.CRF2A_CAN_DELETE = <?= isAdmin() ? 'true' : 'false' ?>;
+    window.CRF2A_DEFAULT_ISSUE_DATE = <?= json_encode(date('Y-m-d')) ?>;
+    window.CRF3A_OFFICE_CONFIG = <?= json_encode($crf3aDefaults, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    window.CRF3A_CAN_GENERATE = <?= hasPermission(crf_3a_generate_permission()) ? 'true' : 'false' ?>;
+    window.CRF3A_CAN_ARCHIVE = <?= canArchive('marriage') ? 'true' : 'false' ?>;
+    window.CRF3A_CAN_DELETE = <?= isAdmin() ? 'true' : 'false' ?>;
+    window.CRF3A_DEFAULT_ISSUE_DATE = <?= json_encode(date('Y-m-d')) ?>;
 </script>
 <script src="../assets/js/family_relations_render.js?v=2"></script>
-<script src="../assets/js/record-preview-modal.js?v=12"></script>
-<script src="../assets/js/crf-1a-generator.js?v=14"></script>
-<script src="../assets/js/crf-1a-records.js?v=18"></script>
+<script src="../assets/js/record-preview-modal.js?v=13"></script>
+<script src="../assets/js/crf-1a-generator.js?v=16"></script>
+<script src="../assets/js/crf-2a-generator.js?v=3"></script>
+<script src="../assets/js/crf-2a-records.js?v=4"></script>
+<script src="../assets/js/crf-3a-generator.js?v=1"></script>
+<script src="../assets/js/crf-3a-records.js?v=1"></script>
+<script src="../assets/js/crf-1a-records.js?v=20"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
 </body>
 </html>

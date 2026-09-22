@@ -14,6 +14,7 @@ require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/crf_3a.php';
 
 // Admin-only: Trash contains soft-deleted records. Only administrators
 // can restore or permanently delete, matching the Admin-only delete policy.
@@ -71,6 +72,22 @@ $type_configs = [
         'permission' => 'birth_delete',
         'special' => 'crf_1a',
     ],
+    'crf_2a' => [
+        'table' => 'crf_2a_issuances',
+        'label' => 'CRF No. 2A',
+        'plural_label' => 'CRF No. 2A',
+        'icon' => 'file-heart',
+        'permission' => 'death_delete',
+        'special' => 'crf_2a',
+    ],
+    'crf_3a' => [
+        'table' => 'crf_3a_issuances',
+        'label' => 'CRF No. 3A',
+        'plural_label' => 'CRF No. 3A',
+        'icon' => 'heart-handshake',
+        'permission' => 'marriage_delete',
+        'special' => 'crf_3a',
+    ],
 ];
 
 // Filter: record type
@@ -102,24 +119,27 @@ $sort_order = isset($_GET['sort_order']) && strtoupper($_GET['sort_order']) === 
  * Returns [sql, params] — uses unique param names per subquery.
  */
 function build_type_select($record_type, $config, $search, $search_prefix) {
-    if ($record_type === 'crf_1a') {
+    if (in_array($record_type, ['crf_1a', 'crf_2a', 'crf_3a'], true)) {
+        $table = $record_type === 'crf_2a' ? 'crf_2a_issuances' : ($record_type === 'crf_3a' ? 'crf_3a_issuances' : 'crf_1a_issuances');
+        $name = $record_type === 'crf_2a' ? 'deceased_name_snapshot' : ($record_type === 'crf_3a' ? "CONCAT_WS(' / ', husband_name_snapshot, wife_name_snapshot)" : 'child_name_snapshot');
+        $registry = 'registry_no_snapshot';
         $sql = "SELECT
                     id,
-                    'crf_1a' AS record_type,
+                    '{$record_type}' AS record_type,
                     crf_number AS registry_no,
-                    COALESCE(NULLIF(TRIM(child_name_snapshot), ''), '') AS display_name,
+                    COALESCE(NULLIF(TRIM({$name}), ''), '') AS display_name,
                     issue_date AS record_date,
                     COALESCE(deleted_at, created_at) AS deleted_at,
                     created_at
-                FROM crf_1a_issuances
+                FROM {$table}
                 WHERE status = 'Deleted'";
         $params = [];
 
         if (!empty($search)) {
             $search_param = ":{$search_prefix}_search";
             $sql .= " AND (crf_number LIKE $search_param
-                OR registry_no_snapshot LIKE $search_param
-                OR child_name_snapshot LIKE $search_param
+                OR {$registry} LIKE $search_param
+                OR {$name} LIKE $search_param
                 OR page_number LIKE $search_param
                 OR book_number LIKE $search_param
                 OR or_number LIKE $search_param)";
@@ -1161,7 +1181,9 @@ function fmt_datetime($val) {
             'marriage': '../api/certificate_of_marriage_delete.php',
             'death': '../api/certificate_of_death_delete.php',
             'marriage_license': '../api/application_for_marriage_license_delete.php',
-            'crf_1a': '../api/crf_1a_delete.php'
+            'crf_1a': '../api/crf_1a_delete.php',
+            'crf_2a': '../api/crf_2a_delete.php',
+            'crf_3a': '../api/crf_3a_delete.php'
         };
 
         const TYPE_LABELS = {
@@ -1169,7 +1191,9 @@ function fmt_datetime($val) {
             'marriage': 'Marriage Record',
             'death': 'Death Record',
             'marriage_license': 'Marriage License',
-            'crf_1a': 'CRF No. 1A'
+            'crf_1a': 'CRF No. 1A',
+            'crf_2a': 'CRF No. 2A',
+            'crf_3a': 'CRF No. 3A'
         };
 
         document.addEventListener('DOMContentLoaded', function() {

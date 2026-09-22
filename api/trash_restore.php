@@ -2,7 +2,7 @@
 /**
  * Trash Restore API
  * Restores a soft-deleted record (status='Deleted') back to Active
- * Supports: birth, marriage, death, marriage_license, crf_1a
+ * Supports: birth, marriage, death, marriage_license, crf_1a, crf_2a
  */
 
 require_once '../includes/session_config.php';
@@ -10,6 +10,8 @@ require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
+require_once '../includes/crf_2a.php';
+require_once '../includes/crf_3a.php';
 
 header('Content-Type: application/json');
 
@@ -46,6 +48,16 @@ $type_map = [
     'crf_1a' => [
         'table' => 'crf_1a_issuances',
         'label' => 'CRF No. 1A issuance',
+        'reference_column' => 'crf_number'
+    ],
+    'crf_2a' => [
+        'table' => 'crf_2a_issuances',
+        'label' => 'CRF No. 2A issuance',
+        'reference_column' => 'crf_number'
+    ],
+    'crf_3a' => [
+        'table' => 'crf_3a_issuances',
+        'label' => 'CRF No. 3A issuance',
         'reference_column' => 'crf_number'
     ],
 ];
@@ -86,7 +98,7 @@ try {
     $pdo->beginTransaction();
 
     try {
-        if ($record_type === 'crf_1a') {
+        if (in_array($record_type, ['crf_1a', 'crf_2a', 'crf_3a'], true)) {
             $stmt = $pdo->prepare("UPDATE {$config['table']} SET status = 'Active', deleted_at = NULL, archived_at = NULL WHERE id = :id");
             $stmt->execute([':id' => $record_id]);
         } else {
@@ -103,11 +115,17 @@ try {
 
         log_activity(
             $pdo,
-            'RESTORE_CERTIFICATE',
-            $record_type === 'crf_1a' ? 'RESTORE_CRF_1A' : 'RESTORE_CERTIFICATE',
+            $record_type === 'crf_1a' ? 'RESTORE_CRF_1A' : ($record_type === 'crf_2a' ? 'RESTORE_CRF_2A' : ($record_type === 'crf_3a' ? 'RESTORE_CRF_3A' : 'RESTORE_CERTIFICATE')),
             "Restored {$config['label']}: {$record['reference_no']} (ID: {$record_id})",
             $_SESSION['user_id'] ?? null
         );
+        if ($record_type === 'crf_2a') {
+            crf_2a_record_history($pdo, (int)$record_id, (string)$record['reference_no'], 'restored', 'Issuance restored from Trash');
+        } elseif ($record_type === 'crf_1a') {
+            crf_1a_record_history($pdo, (int)$record_id, (string)$record['reference_no'], 'restored', 'Issuance restored from Trash');
+        } elseif ($record_type === 'crf_3a') {
+            crf_3a_record_history($pdo, (int)$record_id, (string)$record['reference_no'], 'restored', 'Issuance restored from Trash');
+        }
 
         $pdo->commit();
 

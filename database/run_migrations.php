@@ -39,7 +39,11 @@ $migrations = [
     '029_crf_1a_archive_delete.sql',
     '030_crf_1a_archive_timestamp.sql',
     '031_crf_1a_delete_timestamp.sql',
-    '032_crf_1a_registrar_fields.sql'
+    '032_crf_1a_registrar_fields.sql',
+    '033_crf_2a_death_issuance.sql',
+    '034_crf_2a_controls_history.sql',
+    '035_crf_1a_controls_history.sql',
+    '036_crf_3a_marriage_issuance.sql'
 ];
 
 $results = [];

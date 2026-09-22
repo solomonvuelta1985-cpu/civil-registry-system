@@ -79,6 +79,17 @@ if ((float)$amountPaid > 9999999999.99) {
     json_response(false, 'Amount Paid is too large.', null, 422);
 }
 $amountPaid = number_format((float)$amountPaid, 2, '.', '');
+$issuanceKind = crf_1a_post_string('issuance_kind', 20) ?: 'Original';
+if (!in_array($issuanceKind, crf_1a_issuance_kinds(), true)) {
+    json_response(false, 'Issuance Type must be Original, Corrected, or Reprint.', null, 422);
+}
+$replacesId = filter_var($_POST['replaces_issuance_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
+if ($issuanceKind === 'Corrected' && !$replacesId) {
+    json_response(false, 'A corrected issuance must identify the original CRF record it replaces.', null, 422);
+}
+if ($issuanceKind !== 'Corrected' && $replacesId) {
+    json_response(false, 'Only a Corrected issuance can replace another CRF record.', null, 422);
+}
 
 $inputs = [
     'issue_date' => $issueDate,
@@ -106,6 +117,53 @@ try {
     }
 
     $values = crf_1a_record_values($record);
+    if ($replacesId) {
+        $replaceStmt = $pdo->prepare("SELECT id, crf_number, birth_record_id, status FROM crf_1a_issuances WHERE id = :id LIMIT 1");
+        $replaceStmt->execute([':id' => $replacesId]);
+        $replacement = $replaceStmt->fetch(PDO::FETCH_ASSOC);
+        if (!$replacement || (int)$replacement['birth_record_id'] !== (int)$birthRecordId || !in_array($replacement['status'], ['Active', 'Archived'], true)) {
+            json_response(false, 'The original CRF record selected for correction is invalid or no longer available.', null, 422);
+        }
+    }
+    $duplicateKey = crf_1a_duplicate_key((int)$birthRecordId, $amountPaid, $orNumber, $datePaid, $issueDate);
+    $duplicateStmt = $pdo->prepare("SELECT id, crf_number, issuance_kind FROM crf_1a_issuances
+        WHERE birth_record_id = :birth_id
+          AND status IN ('Active', 'Archived')
+          AND (
+              duplicate_key = :duplicate_key
+              OR (duplicate_key IS NULL AND amount_paid = :amount_paid AND or_number = :or_number AND date_paid = :date_paid AND issue_date = :issue_date)
+          )
+        ORDER BY id DESC LIMIT 1");
+    $duplicateStmt->execute([
+        ':birth_id' => (int)$birthRecordId,
+        ':duplicate_key' => $duplicateKey,
+        ':amount_paid' => $amountPaid,
+        ':or_number' => $orNumber,
+        ':date_paid' => $datePaid,
+        ':issue_date' => $issueDate,
+    ]);
+    $duplicate = $duplicateStmt->fetch(PDO::FETCH_ASSOC);
+    if ($duplicate && $issuanceKind === 'Original') {
+        json_response(false, 'A matching CRF No. 1A already exists for this birth record, payment, and issue date. Choose Corrected or Reprint instead.', [
+            'duplicate' => true,
+            'existing_issuance_id' => (int)$duplicate['id'],
+            'existing_crf_number' => $duplicate['crf_number'],
+            'existing_issuance_kind' => $duplicate['issuance_kind'],
+        ], 409);
+    }
+    if (!$duplicate && $issuanceKind === 'Original') {
+        $existingStmt = $pdo->prepare("SELECT id, crf_number, issuance_kind FROM crf_1a_issuances WHERE birth_record_id = :birth_id AND status IN ('Active', 'Archived') ORDER BY id DESC LIMIT 1");
+        $existingStmt->execute([':birth_id' => (int)$birthRecordId]);
+        $existing = $existingStmt->fetch(PDO::FETCH_ASSOC);
+        if ($existing) {
+            json_response(false, 'An Original CRF No. 1A already exists for this birth record. Choose Corrected or Reprint instead.', [
+                'duplicate' => true,
+                'existing_issuance_id' => (int)$existing['id'],
+                'existing_crf_number' => $existing['crf_number'],
+                'existing_issuance_kind' => $existing['issuance_kind'],
+            ], 409);
+        }
+    }
     $lastName = trim((string)($record['child_last_name'] ?? '')) ?: 'UNKNOWN';
     $year = (int)substr($issueDate, 0, 4);
     $pdfRelativePath = null;
@@ -154,24 +212,28 @@ try {
     $insert = $pdo->prepare(
         "INSERT INTO crf_1a_issuances
             (crf_year, sequence_no, crf_number, birth_record_id,
+             replaces_issuance_id, issuance_kind,
              registry_no_snapshot, child_name_snapshot, child_last_name_snapshot,
              record_snapshot_json, issue_date, page_number, book_number,
              population_reference_no, requester_name, amount_paid, or_number,
              date_paid, mcr_full_name, mcr_title, certified_by_name, certified_by_position,
-             pdf_filename, pdf_filepath, pdf_hash, created_by, status)
+             pdf_filename, pdf_filepath, pdf_hash, duplicate_key, created_by, status)
          VALUES
             (:crf_year, :sequence_no, :crf_number, :birth_record_id,
+             :replaces_issuance_id, :issuance_kind,
              :registry_no_snapshot, :child_name_snapshot, :child_last_name_snapshot,
              :record_snapshot_json, :issue_date, :page_number, :book_number,
              :population_reference_no, :requester_name, :amount_paid, :or_number,
              :date_paid, :mcr_full_name, :mcr_title, :certified_by_name, :certified_by_position,
-             :pdf_filename, :pdf_filepath, :pdf_hash, :created_by, 'Active')"
+             :pdf_filename, :pdf_filepath, :pdf_hash, :duplicate_key, :created_by, 'Active')"
     );
     $insert->execute([
         ':crf_year' => $year,
         ':sequence_no' => $sequence,
         ':crf_number' => $crfNumber,
         ':birth_record_id' => (int)$birthRecordId,
+        ':replaces_issuance_id' => $replacesId,
+        ':issuance_kind' => $issuanceKind,
         ':registry_no_snapshot' => $values['registry_no'],
         ':child_name_snapshot' => $values['name_of_child'],
         ':child_last_name_snapshot' => $lastName,
@@ -191,9 +253,11 @@ try {
         ':pdf_filename' => basename($pdfAbsolutePath),
         ':pdf_filepath' => $pdfRelativePath,
         ':pdf_hash' => $pdfHash,
+        ':duplicate_key' => $duplicateKey,
         ':created_by' => (int)getUserId(),
     ]);
     $issuanceId = (int)$pdo->lastInsertId();
+    crf_1a_record_history($pdo, $issuanceId, $crfNumber, 'generated', ucfirst($issuanceKind) . ' issuance generated from birth record #' . (int)$birthRecordId);
     $pdo->commit();
 
     log_activity($pdo, 'Generate CRF No. 1A', "Generated {$crfNumber} for birth record #{$birthRecordId}", getUserId());
@@ -202,9 +266,11 @@ try {
     json_response(true, 'CRF No. 1A generated successfully.', [
         'issuance_id' => $issuanceId,
         'crf_number' => $crfNumber,
+        'issuance_kind' => $issuanceKind,
+        'replaces_issuance_id' => $replacesId,
         'issue_date' => $issueDate,
         'pdf_url' => $baseUrl . '/api/serve_crf_1a.php?id=' . $issuanceId,
-        'download_url' => $baseUrl . '/api/serve_crf_1a.php?id=' . $issuanceId . '&download=1',
+        'download_url' => $baseUrl . '/api/serve_crf_1a.php?id=' . $issuanceId . '&download=1&action=download',
     ]);
 } catch (Throwable $e) {
     if (isset($pdo) && $pdo->inTransaction()) {

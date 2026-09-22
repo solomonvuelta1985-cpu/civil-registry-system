@@ -49,10 +49,13 @@ try {
     $age = sanitize_input($_POST['age'] ?? '');
     $age_unit = sanitize_input($_POST['age_unit'] ?? 'years');
     $sex = sanitize_input($_POST['sex'] ?? '');
+    $civil_status = sanitize_input($_POST['civil_status'] ?? '');
+    $citizenship = sanitize_input($_POST['citizenship'] ?? '');
     $occupation = sanitize_input($_POST['occupation'] ?? null);
 
     // Place of death
     $place_of_death = sanitize_input($_POST['place_of_death'] ?? '');
+    $cause_of_death = sanitize_input($_POST['cause_of_death'] ?? '');
 
     // Father's information
     $father_first_name = sanitize_input($_POST['father_first_name'] ?? null);
@@ -112,6 +115,9 @@ try {
     if (empty($place_of_death)) {
         $errors[] = "Place of death is required.";
     }
+    if (empty($civil_status)) $errors[] = "Civil status is required.";
+    if (empty($citizenship)) $errors[] = "Citizenship is required.";
+    if (empty($cause_of_death)) $errors[] = "Cause of death is required.";
 
     // Validate field lengths against database column limits
     $length_errors = validate_field_lengths([
@@ -121,6 +127,9 @@ try {
         'Deceased last name'    => [$deceased_last_name, 100],
         'Occupation'            => [$occupation, 100],
         'Place of death'        => [$place_of_death, 255],
+        'Civil status'          => [$civil_status, 50],
+        'Citizenship'           => [$citizenship, 100],
+        'Cause of death'        => [$cause_of_death, 500],
         'Father first name'     => [$father_first_name, 100],
         'Father middle name'    => [$father_middle_name, 100],
         'Father last name'      => [$father_last_name, 100],
@@ -232,6 +241,8 @@ try {
                     deceased_middle_name,
                     deceased_last_name,
                     sex,
+                    civil_status,
+                    citizenship,
                     date_of_birth,
                     date_of_birth_format,
                     date_of_birth_partial_month,
@@ -242,6 +253,7 @@ try {
                     age_unit,
                     occupation,
                     place_of_death,
+                    cause_of_death,
                     father_first_name,
                     father_middle_name,
                     father_last_name,
@@ -267,6 +279,8 @@ try {
                     :deceased_middle_name,
                     :deceased_last_name,
                     :sex,
+                    :civil_status,
+                    :citizenship,
                     :date_of_birth,
                     :date_of_birth_format,
                     :date_of_birth_partial_month,
@@ -277,6 +291,7 @@ try {
                     :age_unit,
                     :occupation,
                     :place_of_death,
+                    :cause_of_death,
                     :father_first_name,
                     :father_middle_name,
                     :father_last_name,
@@ -308,6 +323,8 @@ try {
             ':deceased_middle_name' => $deceased_middle_name,
             ':deceased_last_name' => $deceased_last_name,
             ':sex' => $sex,
+            ':civil_status' => $civil_status,
+            ':citizenship' => $citizenship,
             ':date_of_birth' => $date_of_birth,
             ':date_of_birth_format'        => $dob_format,
             ':date_of_birth_partial_month' => $dob_stored_month,
@@ -318,6 +335,7 @@ try {
             ':age_unit' => $age_unit,
             ':occupation' => $occupation,
             ':place_of_death' => $place_of_death,
+            ':cause_of_death' => $cause_of_death,
             ':father_first_name' => $father_first_name,
             ':father_middle_name' => $father_middle_name,
             ':father_last_name' => $father_last_name,

@@ -50,6 +50,12 @@ composer.lock
 .env.*
 !.env.example
 
+# Local agent/tooling configuration must never be deployed with the web root.
+# Existing tracked files still need to be removed from the deployment artifact.
+.claude/
+.codex/
+.agents/
+
 # Session files
 sessions/
 *.sess

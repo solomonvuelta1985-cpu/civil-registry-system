@@ -17,6 +17,11 @@ RewriteEngine On
 # Block direct access to protected directories
 RewriteRule ^(?:\.|includes|database|logs|scanner_service|tmp|backups?|tests?)(/|$) - [F,L,NC]
 
+# Explicitly block local AI/IDE/tooling metadata. Keep this rule even though
+# the generic dot-file rule above exists; it documents the deployment boundary
+# and protects deployments whose FilesMatch handling differs.
+RewriteRule ^(?:\.claude|\.codex|\.agents)(/|$) - [F,L,NC]
+
 # Uploaded documents and generated files are always private; applications must
 # stream them through an authorization-checked endpoint.
 RewriteRule ^uploads(/|$) - [F,L,NC]
@@ -147,6 +152,9 @@ AddDefaultCharset UTF-8
 
     # Referrer Policy
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Restrict browser capabilities on every origin response, including errors
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
 
     # HSTS — 1 year, include subdomains. Safe to always-set: browsers only honor
     # it over HTTPS, and Cloudflare terminates TLS at the edge. Guarantees the

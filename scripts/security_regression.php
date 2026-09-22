@@ -9,6 +9,9 @@ $checks = [
     ['Sessions rotate and revalidate', 'includes/auth.php', ['session_regenerate_id(true)', 'password_fingerprint']],
     ['PDF is record-bound', 'api/serve_pdf.php', ['$recordFound', 'status = \'Active\'']],
     ['Private upload root', '.htaccess', ['RewriteRule ^uploads', '(^\\.']],
+    ['Tooling metadata is blocked', '.htaccess', ['\\.claude', '\\.codex', '\\.agents']],
+    ['Production cookies fail closed', 'includes/session_config.php', ['shouldUseSecureCookies', 'session.cookie_secure', 'session.cookie_samesite']],
+    ['CSP inline scripts use nonces', 'includes/security_headers.php', ['getCspNonce', "'nonce-", 'script-src-attr']],
     ['Scanner has pairing token', 'scanner_service/scanner_service.py', ['ISCAN_SCANNER_TOKEN', 'X-Scanner-Token']],
 ];
 $failed = [];

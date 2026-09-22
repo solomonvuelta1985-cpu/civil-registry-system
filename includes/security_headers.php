@@ -40,13 +40,47 @@ function setSecurityHeaders($options = []) {
 }
 
 /**
+ * Return one per-response CSP nonce. The nonce is reused when multiple
+ * application files call setSecurityHeaders() during the same request.
+ */
+function getCspNonce() {
+    static $nonce = null;
+    if ($nonce === null) {
+        $nonce = base64_encode(random_bytes(18));
+    }
+    return $nonce;
+}
+
+/**
+ * Add the CSP nonce to inline script elements emitted by legacy PHP views.
+ * This is an incremental migration aid while inline event handlers are being
+ * moved to addEventListener(). It does not make event-handler attributes safe.
+ */
+function startCspNonceOutputBuffer() {
+    static $started = false;
+    if ($started) {
+        return;
+    }
+    $started = true;
+    ob_start(function ($buffer) {
+        $nonce = htmlspecialchars(getCspNonce(), ENT_QUOTES, 'UTF-8');
+        return preg_replace_callback('/<script\b([^>]*)>/i', function ($match) use ($nonce) {
+            if (preg_match('/\bnonce\s*=/i', $match[1])) {
+                return $match[0];
+            }
+            return '<script nonce="' . $nonce . '"' . $match[1] . '>';
+        }, $buffer);
+    });
+}
+
+/**
  * Build Content Security Policy header
  */
 function buildContentSecurityPolicy($custom = []) {
     $defaults = [
         'default-src' => ["'self'"],
         'script-src' => [
-            "'self'", "'unsafe-inline'",
+            "'self'", "'nonce-" . getCspNonce() . "'",
             // Tesseract.js compiles its WebAssembly OCR core in a worker.
             // Keep this scoped to WASM instead of enabling general eval.
             "'wasm-unsafe-eval'",
@@ -55,6 +89,10 @@ function buildContentSecurityPolicy($custom = []) {
             "https://cdn.jsdelivr.net",
             "https://unpkg.com",
         ],
+        // Legacy inline event handlers remain temporarily supported while
+        // views migrate to addEventListener(). Inline script blocks require
+        // the nonce above and no longer use unsafe-inline in script-src.
+        'script-src-attr' => ["'unsafe-inline'"],
         'style-src' => [
             "'self'", "'unsafe-inline'",
             "https://fonts.googleapis.com",
@@ -115,6 +153,27 @@ function isHTTPS() {
 }
 
 /**
+ * Decide whether application cookies must be marked Secure.
+ *
+ * Development may run over plain HTTP, but production must fail closed: a
+ * missing proxy forwarding header must never silently downgrade a session
+ * cookie. FORCE_SECURE_COOKIES can be set explicitly for staging/proxy setups.
+ */
+function shouldUseSecureCookies() {
+    if (function_exists('env')) {
+        $configured = env('FORCE_SECURE_COOKIES', null);
+        if ($configured !== null) {
+            if (function_exists('isProduction') && isProduction()) {
+                return true;
+            }
+            return (bool)$configured;
+        }
+    }
+
+    return isHTTPS() || (function_exists('isProduction') && isProduction());
+}
+
+/**
  * Enforce HTTPS (redirect if not on HTTPS)
  */
 function enforceHTTPS() {
@@ -129,7 +188,7 @@ function enforceHTTPS() {
  * Set secure cookie
  */
 function setSecureCookie($name, $value, $expire = 0, $path = '/', $domain = '', $httponly = true) {
-    $secure = isHTTPS(); // Only set secure flag if on HTTPS
+    $secure = shouldUseSecureCookies();
     $samesite = 'Strict'; // Or 'Lax' for less strict
 
     if (PHP_VERSION_ID >= 70300) {

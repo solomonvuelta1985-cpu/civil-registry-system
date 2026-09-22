@@ -1995,6 +1995,9 @@ $user_first_name = explode(' ', $user_name)[0];
 
         // Delete Note Function
         async function confirmDeleteNote(noteId) {
+            const note = allNotesData.find(item => Number(item.id) === Number(noteId));
+            const noteTitle = note?.title || 'this note';
+
             if (confirm(`Are you sure you want to delete the note "${noteTitle}"?`)) {
                 try {
                     const response = await fetch('../api/notes.php', {

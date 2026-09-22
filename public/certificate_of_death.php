@@ -499,6 +499,28 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
                                 >
                             </div>
                         </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="civil_status">Civil Status <span class="required">*</span></label>
+                                <?php $civil_status_options = ['Single', 'Married', 'Widowed', 'Divorced/Separated', 'Unknown/Not Stated']; ?>
+                                <select id="civil_status" name="civil_status" required>
+                                    <option value="">-- Select Civil Status --</option>
+                                    <?php foreach ($civil_status_options as $status_opt): ?>
+                                        <option value="<?= htmlspecialchars($status_opt) ?>" <?= ($edit_mode && ($record['civil_status'] ?? '') === $status_opt) ? 'selected' : '' ?>><?= htmlspecialchars($status_opt) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="citizenship">Citizenship <span class="required">*</span></label>
+                                <input type="text" id="citizenship" name="citizenship" maxlength="100" required placeholder="Enter citizenship" value="<?= $edit_mode ? htmlspecialchars($record['citizenship'] ?? '') : '' ?>">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cause_of_death">Cause of Death <span class="required">*</span></label>
+                            <textarea id="cause_of_death" name="cause_of_death" maxlength="500" required rows="3" placeholder="Enter cause of death"><?= $edit_mode ? htmlspecialchars($record['cause_of_death'] ?? '') : '' ?></textarea>
+                        </div>
                     </div>
 
                     <!-- Place of Death Section -->

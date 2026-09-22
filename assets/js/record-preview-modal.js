@@ -702,6 +702,28 @@ class RecordPreviewModal {
             `;
         }
 
+        if (this.currentRecordType === 'death'
+            && window.CRF2A_CAN_GENERATE === true
+            && window.crf2aGenerator) {
+            html += `
+                <button type="button" class="modal-btn modal-btn-primary crf-2a-modal-action" onclick="if (window.recordPreviewModal) window.recordPreviewModal.close(); crf2aGenerator.openFromRecordId(${Number(this.currentRecordId) || 0})">
+                    <i data-lucide="file-heart"></i>
+                    <span>Generate CRF No. 2A</span>
+                </button>
+            `;
+        }
+
+        if (this.currentRecordType === 'marriage'
+            && window.CRF3A_CAN_GENERATE === true
+            && window.crf3aGenerator) {
+            html += `
+                <button type="button" class="modal-btn modal-btn-primary crf-3a-modal-action" onclick="if (window.recordPreviewModal) window.recordPreviewModal.close(); crf3aGenerator.openFromRecordId(${Number(this.currentRecordId) || 0})">
+                    <i data-lucide="heart-handshake"></i>
+                    <span>Generate CRF No. 3A</span>
+                </button>
+            `;
+        }
+
         // Edit button (if user has permission)
         html += `
             <button type="button" class="modal-btn modal-btn-primary" onclick="recordPreviewModal.editRecord()" title="Keyboard shortcut: E">

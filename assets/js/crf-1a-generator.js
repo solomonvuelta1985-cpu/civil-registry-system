@@ -14,6 +14,7 @@
             this.generateButton = null;
             this.loadingOverlay = null;
             this.existingIssuances = [];
+            this.replacesIssuanceId = 0;
             this.issuanceCheckPending = false;
             this.issuanceCheckComplete = false;
             this.previewScale = 1;
@@ -102,6 +103,7 @@
             this.pdfFrame = this.backdrop.querySelector('.crf1a-pdf-frame');
             this.status = this.backdrop.querySelector('#crf1aStatus');
             this.generateButton = this.backdrop.querySelector('#crf1aGenerateButton');
+            this.addIssuanceKindField();
             this.loadingOverlay = this.backdrop.querySelector('.crf1a-generation-overlay');
             this.backdrop.querySelector('[data-crf1a-preview-zoom-out]').addEventListener('click', () => this.zoomPreview(-0.25));
             this.backdrop.querySelector('[data-crf1a-preview-zoom-in]').addEventListener('click', () => this.zoomPreview(0.25));
@@ -115,6 +117,15 @@
             this.form.addEventListener('input', () => this.renderPreview());
             document.addEventListener('keydown', event => { if (event.key === 'Escape' && this.backdrop.classList.contains('is-open')) this.close(); });
             this.refreshIcons();
+        }
+
+        addIssuanceKindField() {
+            const group = document.createElement('div');
+            group.className = 'crf1a-form-group';
+            group.innerHTML = '<label for="crf1aIssuanceKind">Issuance Type <span class="required">*</span></label><select id="crf1aIssuanceKind" name="issuance_kind" class="crf1a-form-control" required><option value="Original">Original</option><option value="Corrected">Corrected</option><option value="Reprint">Reprint</option></select><div class="crf1a-form-help">Original is the first issuance. Corrected creates a new record linked to the previous issuance. Reprint creates a new immutable copy without overwriting the original.</div>';
+            this.form.insertBefore(group, this.form.firstElementChild);
+            this.issuanceKind = this.form.elements.issuance_kind;
+            this.issuanceKind.addEventListener('change', () => this.renderPreview());
         }
 
         openFromRecordId(recordId) {
@@ -158,6 +169,7 @@
                 const data = await response.json();
                 if (!response.ok || !data.success || !data.record) throw new Error(data.message || 'Birth record could not be loaded.');
                 this.open(data.record);
+                this.replacesIssuanceId = Number(issuance?.id || issuance?.issuance_id) || 0;
                 this.setValue('crf1aPageNumber', issuance.page_number);
                 this.setValue('crf1aBookNumber', issuance.book_number);
                 this.setValue('crf1aPopulationReference', issuance.population_reference_no);
@@ -169,6 +181,7 @@
                 this.setValue('crf1aMcrPosition', issuance.mcr_title || '');
                 this.setValue('crf1aCertifiedName', issuance.certified_by_name || '');
                 this.setValue('crf1aCertifiedPosition', issuance.certified_by_position || '');
+                this.setValue('crf1aIssuanceKind', 'Corrected');
                 this.renderPreview();
                 await this.loadExistingIssuances(sourceId);
                 if (this.issuanceCheckComplete) {
@@ -181,12 +194,14 @@
 
         open(record) {
             this.record = record || {};
+            this.replacesIssuanceId = 0;
             this.existingIssuances = [];
             this.issuanceCheckPending = false;
             this.issuanceCheckComplete = false;
             this.show();
             const today = this.today();
             this.form.reset();
+            this.setValue('crf1aIssuanceKind', 'Original');
             this.setValue('crf1aIssueDate', today);
             this.setValue('crf1aDatePaid', today);
             this.setValue('crf1aMcrName', '');
@@ -260,6 +275,10 @@
                 const data = await response.json();
                 if (!response.ok || !data.success) throw new Error(data.message || 'Unable to check existing CRF issuances.');
                 this.existingIssuances = Array.isArray(data.data?.records) ? data.data.records : [];
+                if (this.existingIssuances.length && !this.replacesIssuanceId) {
+                    this.setValue('crf1aIssuanceKind', 'Corrected');
+                    this.replacesIssuanceId = Number(this.existingIssuances[0]?.id || this.existingIssuances[0]?.issuance_id) || 0;
+                }
                 this.issuanceCheckComplete = true;
             } catch (error) {
                 this.existingIssuances = [];
@@ -322,6 +341,13 @@
 
             const existing = Array.isArray(this.existingIssuances) ? this.existingIssuances : [];
             const hasExisting = existing.length > 0;
+            const issuanceKind = this.value('crf1aIssuanceKind') || 'Original';
+            if (issuanceKind === 'Reprint') this.replacesIssuanceId = 0;
+            if (issuanceKind === 'Corrected' && !this.replacesIssuanceId && hasExisting) {
+                this.replacesIssuanceId = Number(existing[0]?.id || existing[0]?.issuance_id) || 0;
+            }
+            if (issuanceKind === 'Corrected' && !this.replacesIssuanceId) return this.setStatus('Select an existing CRF record before creating a corrected issuance.', true);
+            if (issuanceKind === 'Original' && hasExisting) return this.setStatus('An issuance already exists for this birth record. Choose Corrected or Reprint to prevent redundancy.', true);
             const existingNumbers = existing
                 .map(item => String(item?.crf_number || '').trim())
                 .filter(Boolean)
@@ -329,13 +355,15 @@
             const existingSummary = existingNumbers.length
                 ? `<br><br><span style="color:#475569;">Existing issuance${existingNumbers.length > 1 ? 's' : ''}: ${this.escape(existingNumbers.join(', '))}${existing.length > existingNumbers.length ? '...' : ''}</span>`
                 : '';
-            const message = hasExisting
-                ? 'An active CRF No. 1A already exists for this birth record. Issued CRF records are immutable and cannot be overwritten.<br><br><span style="color:#475569;">Choose Create New Record only if you need a separate corrected or additional issuance. Choose Cancel to keep the existing record.</span>' + existingSummary
-                : 'Generate this CRF No. 1A PDF and save it as a new immutable issuance?<br><br><span style="color:#475569;">The source birth record will remain unchanged.</span>';
+            const message = issuanceKind === 'Reprint'
+                ? 'Create a new Reprint issuance using these same source and payment details?<br><br><span style="color:#475569;">The existing CRF will remain unchanged.</span>' + existingSummary
+                : issuanceKind === 'Corrected'
+                    ? 'Create a new Corrected issuance linked to the previous CRF?<br><br><span style="color:#475569;">The source birth record and previous issuance will remain unchanged.</span>' + existingSummary
+                    : 'Generate this Original CRF No. 1A PDF and save it as a new immutable issuance?<br><br><span style="color:#475569;">The source birth record will remain unchanged.</span>';
             this.confirmAction(
-                hasExisting ? 'Existing CRF No. 1A Found' : 'Generate CRF No. 1A',
+                issuanceKind === 'Reprint' ? 'Generate Reprint' : issuanceKind === 'Corrected' ? 'Generate Corrected CRF' : 'Generate CRF No. 1A',
                 message,
-                hasExisting ? 'Create New Record' : 'Generate PDF',
+                issuanceKind === 'Original' ? 'Generate PDF' : 'Create New Record',
                 '#2563EB',
                 () => this.generate()
             );
@@ -344,8 +372,11 @@
         async generate() {
             if (!this.record || !this.record.id) return this.setStatus('No source birth record selected.', true);
             if (!this.form.reportValidity()) return this.setStatus('Complete the required issuance fields.', true);
+            const selectedKind = this.value('crf1aIssuanceKind') || 'Original';
+            if (this.replacesIssuanceId && selectedKind !== 'Corrected') this.setValue('crf1aIssuanceKind', 'Corrected');
             const formData = new FormData(this.form);
             formData.append('birth_record_id', String(this.record.id));
+            if (this.replacesIssuanceId) formData.append('replaces_issuance_id', String(this.replacesIssuanceId));
             const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
             if (csrf) formData.append('csrf_token', csrf);
             this.generateButton.disabled = true;
@@ -363,7 +394,7 @@
                 this.backdrop.querySelector('#crf1aPdfViewer').hidden = true;
                 this.pdfFrame.removeAttribute('src');
                 this.renderPreview(result.crf_number);
-                this.existingIssuances = [{ issuance_id: result.issuance_id, crf_number: result.crf_number }, ...this.existingIssuances];
+                this.existingIssuances = [{ id: result.issuance_id, issuance_id: result.issuance_id, crf_number: result.crf_number, issuance_kind: result.issuance_kind }, ...this.existingIssuances];
                 this.issuanceCheckComplete = true;
                 this.setStatus(`${result.crf_number} generated and saved for reprint.`, false, true);
                 this.notify('CRF No. 1A generated successfully.');

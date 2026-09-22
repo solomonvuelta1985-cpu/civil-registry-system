@@ -20,6 +20,7 @@ require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
+require_once '../includes/crf_2a.php';
 
 header('Content-Type: application/json');
 
@@ -59,6 +60,16 @@ $type_map = [
         'label' => 'CRF No. 1A issuance',
         'reference_column' => 'crf_number',
     ],
+    'crf_2a' => [
+        'table' => 'crf_2a_issuances',
+        'label' => 'CRF No. 2A issuance',
+        'reference_column' => 'crf_number',
+    ],
+    'crf_3a' => [
+        'table' => 'crf_3a_issuances',
+        'label' => 'CRF No. 3A issuance',
+        'reference_column' => 'crf_number',
+    ],
 ];
 
 try {
@@ -83,7 +94,7 @@ try {
 
     // Permission check — uses the central helper from auth.php
     // CRF No. 1A follows the existing birth archive permission.
-    $archivePermissionType = $record_type === 'crf_1a' ? 'birth' : $record_type;
+    $archivePermissionType = $record_type === 'crf_1a' ? 'birth' : ($record_type === 'crf_2a' ? 'death' : ($record_type === 'crf_3a' ? 'marriage' : $record_type));
     if (!canArchive($archivePermissionType)) {
         json_response(false, 'You do not have permission to archive this record.', null, 403);
         exit;
@@ -129,7 +140,7 @@ try {
     $pdo->beginTransaction();
 
     try {
-        if ($record_type === 'crf_1a') {
+        if (in_array($record_type, ['crf_1a', 'crf_2a', 'crf_3a'], true)) {
             if ($action === 'archive') {
                 $stmt = $pdo->prepare("UPDATE {$config['table']} SET status = :status, archived_at = NOW() WHERE id = :id");
             } else {
@@ -151,10 +162,18 @@ try {
 
         log_activity(
             $pdo,
-            $record_type === 'crf_1a' ? ($action === 'archive' ? 'ARCHIVE_CRF_1A' : 'UNARCHIVE_CRF_1A') : $log_action,
+            $record_type === 'crf_1a' ? ($action === 'archive' ? 'ARCHIVE_CRF_1A' : 'UNARCHIVE_CRF_1A') : ($record_type === 'crf_2a' ? ($action === 'archive' ? 'ARCHIVE_CRF_2A' : 'UNARCHIVE_CRF_2A') : ($record_type === 'crf_3a' ? ($action === 'archive' ? 'ARCHIVE_CRF_3A' : 'UNARCHIVE_CRF_3A') : $log_action)),
             "{$log_verb} {$config['label']}: {$record['reference_no']} (ID: {$record_id})",
             $_SESSION['user_id'] ?? null
         );
+        if ($record_type === 'crf_2a') {
+            crf_2a_record_history($pdo, (int)$record_id, (string)$record['reference_no'], $action === 'archive' ? 'archived' : 'unarchived', $success_msg);
+        } elseif ($record_type === 'crf_1a') {
+            crf_1a_record_history($pdo, (int)$record_id, (string)$record['reference_no'], $action === 'archive' ? 'archived' : 'unarchived', $success_msg);
+        } elseif ($record_type === 'crf_3a') {
+            require_once '../includes/crf_3a.php';
+            crf_3a_record_history($pdo, (int)$record_id, (string)$record['reference_no'], $action === 'archive' ? 'archived' : 'unarchived', $success_msg);
+        }
 
         $pdo->commit();
 

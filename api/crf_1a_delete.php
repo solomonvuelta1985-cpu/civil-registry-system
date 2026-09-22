@@ -9,6 +9,7 @@ require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
+require_once '../includes/crf_1a.php';
 
 header('Content-Type: application/json');
 
@@ -48,6 +49,7 @@ try {
     $pdo->beginTransaction();
     try {
         if ($deleteType === 'hard') {
+            crf_1a_record_history($pdo, (int)$recordId, (string)$record['crf_number'], 'hard_deleted', 'Issuance permanently deleted from Trash');
             $delete = $pdo->prepare('DELETE FROM crf_1a_issuances WHERE id = :id');
             $delete->execute([':id' => (int)$recordId]);
 
@@ -70,6 +72,7 @@ try {
 
         $update = $pdo->prepare("UPDATE crf_1a_issuances SET status = 'Deleted', deleted_at = NOW() WHERE id = :id");
         $update->execute([':id' => (int)$recordId]);
+        crf_1a_record_history($pdo, (int)$recordId, (string)$record['crf_number'], 'deleted', 'Issuance moved to Trash');
 
         log_activity(
             $pdo,

@@ -314,7 +314,7 @@
                 // document into the new print window so all logos are retained.
                 image.src = image.currentSrc || image.src;
             });
-            const cssUrl = new URL('../assets/css/crf-1a.css?v=22', window.location.href).href;
+            const cssUrl = new URL('../assets/css/crf-1a.css?v=24', window.location.href).href;
             printWindow.document.open();
             printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(record?.crf_number || 'CRF No. 1A')}</title><link rel="stylesheet" href="${cssUrl}"><style>
                 @page { size: A4 portrait; margin: 0; }
@@ -532,4 +532,60 @@
         if (!window.crf1aRecords) window.crf1aRecords = new Crf1ARecords();
         window.crf1aRecords.openDetail(Number(id) || 0);
     };
+})();
+
+(function () {
+    'use strict';
+    const Records = window.Crf1ARecords;
+    if (!Records || Records.__historyEnhancementsApplied) return;
+    const escapeHtml = value => { const node = document.createElement('div'); node.textContent = value ?? ''; return node.innerHTML; };
+    const originalRender = Records.prototype.render;
+    Records.prototype.render = function (records, pagination) {
+        originalRender.call(this, records, pagination);
+        const rows = document.querySelectorAll('#crf1aRecordsTableHost tbody tr');
+        (records || []).forEach((record, index) => {
+            const cell = rows[index]?.cells?.[0];
+            if (!cell || cell.querySelector('.crf1a-issuance-badge')) return;
+            const badge = document.createElement('span');
+            badge.className = 'crf1a-issuance-badge crf1a-issuance-' + String(record.issuance_kind || 'Original').toLowerCase();
+            badge.textContent = record.issuance_kind || 'Original';
+            cell.appendChild(document.createElement('br'));
+            cell.appendChild(badge);
+        });
+    };
+    const originalShowDetail = Records.prototype.openDetail;
+    Records.prototype.openDetail = async function (id, trigger) {
+        await originalShowDetail.call(this, id, trigger);
+        const modal = this.detailBackdrop?.querySelector('.crf1a-record-modal');
+        if (!modal) return;
+        const detail = await this.fetchDetailForHistory(id);
+        if (!detail) return;
+        const subtitle = modal.querySelector('.crf1a-record-header p');
+        if (subtitle) {
+            subtitle.insertAdjacentHTML('beforeend', ' <span class="crf1a-issuance-badge crf1a-issuance-' + String(detail.issuance_kind || 'Original').toLowerCase() + '">' + escapeHtml(detail.issuance_kind || 'Original') + '</span>');
+        }
+        const details = modal.querySelector('.crf1a-record-details');
+        if (details) {
+            const history = Array.isArray(detail.history) ? detail.history : [];
+            const panel = document.createElement('section');
+            panel.className = 'crf1a-detail-section crf1a-history-panel';
+            panel.innerHTML = '<div class="crf1a-detail-section-title"><i data-lucide="history"></i><span>Generation History</span></div>' +
+                (history.length ? '<div class="crf1a-history-list">' + history.map(item => {
+                    const when = item.created_at ? new Date(String(item.created_at).replace(' ', 'T')).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+                    return '<div class="crf1a-history-item"><strong>' + escapeHtml(String(item.action || '').replaceAll('_', ' ')) + '</strong><span>' + escapeHtml(item.actor_name || 'System') + ' · ' + escapeHtml(when) + '</span><small>' + escapeHtml(item.details || '') + '</small></div>';
+                }).join('') + '</div>' : '<div class="crf1a-history-empty">No history recorded yet.</div>');
+            details.appendChild(panel);
+        }
+        this.icons();
+    };
+    Records.prototype.fetchDetailForHistory = async function (id) {
+        try {
+            const response = await fetch('../api/crf_1a_records.php?action=detail&id=' + encodeURIComponent(id), { credentials: 'same-origin' });
+            const data = await response.json();
+            return response.ok && data.success ? data.data : null;
+        } catch (error) {
+            return null;
+        }
+    };
+    Records.__historyEnhancementsApplied = true;
 })();
