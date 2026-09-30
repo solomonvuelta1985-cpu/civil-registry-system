@@ -2,8 +2,6 @@
 -- Migration 047: Controlled production PDF restore approvals
 -- ============================================================
 
-USE iscan_db;
-
 CREATE TABLE IF NOT EXISTS production_restore_jobs (
     id                    BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     recovery_job_id       BIGINT UNSIGNED NOT NULL,

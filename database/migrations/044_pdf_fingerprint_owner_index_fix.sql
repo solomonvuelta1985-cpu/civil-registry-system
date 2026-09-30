@@ -7,8 +7,6 @@
 -- trigger execution order, so ownership is validated by the hash key and
 -- the lifecycle triggers.
 
-USE iscan_db;
-
 ALTER TABLE pdf_fingerprints
     DROP INDEX uq_pdf_fingerprint_owner;
 

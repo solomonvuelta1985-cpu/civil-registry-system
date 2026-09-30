@@ -2,8 +2,6 @@
 -- Migration 046: Isolated database restore preview jobs
 -- ============================================================
 
-USE iscan_db;
-
 CREATE TABLE IF NOT EXISTS database_restore_preview_jobs (
     id                    BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     backup_job_id         BIGINT UNSIGNED NOT NULL,

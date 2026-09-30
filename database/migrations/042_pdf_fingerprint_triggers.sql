@@ -7,8 +7,6 @@
 -- SQL workflow. The PRIMARY KEY on pdf_fingerprints.pdf_hash is the final
 -- concurrency boundary.
 
-USE iscan_db;
-
 DROP TRIGGER IF EXISTS trg_pdf_fp_birth_ai;
 DROP TRIGGER IF EXISTS trg_pdf_fp_birth_au_add;
 DROP TRIGGER IF EXISTS trg_pdf_fp_birth_au_release;

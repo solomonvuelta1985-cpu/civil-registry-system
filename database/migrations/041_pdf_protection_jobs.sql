@@ -3,8 +3,6 @@
 -- iSCAN Civil Registry Records Management System
 -- ============================================================
 
-USE iscan_db;
-
 CREATE TABLE IF NOT EXISTS pdf_protection_jobs (
     id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     job_type            ENUM('recovery','backup') NOT NULL,

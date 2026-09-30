@@ -2,8 +2,6 @@
 -- Migration 045: Verified full database backup jobs
 -- ============================================================
 
-USE iscan_db;
-
 CREATE TABLE IF NOT EXISTS database_backup_jobs (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     status          ENUM('queued','running','completed','completed_with_errors','failed','cancelled') NOT NULL DEFAULT 'queued',

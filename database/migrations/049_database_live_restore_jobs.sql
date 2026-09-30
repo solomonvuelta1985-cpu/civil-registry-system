@@ -2,8 +2,6 @@
 -- Migration 049: Full database restore and rollback controls
 -- ============================================================
 
-USE iscan_db;
-
 CREATE TABLE IF NOT EXISTS database_live_restore_jobs (
     id                    BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     preview_job_id        BIGINT UNSIGNED NOT NULL,

@@ -5,8 +5,6 @@
 -- release only the old hash. When a record leaves Active status, release
 -- both old and new hash values that may be associated with that record.
 
-USE iscan_db;
-
 DROP TRIGGER IF EXISTS trg_pdf_fp_birth_au_release;
 CREATE TRIGGER trg_pdf_fp_birth_au_release
 AFTER UPDATE ON certificate_of_live_birth

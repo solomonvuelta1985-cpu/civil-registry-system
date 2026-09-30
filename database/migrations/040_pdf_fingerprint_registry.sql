@@ -16,8 +16,6 @@
 --   a separate history table, not in this unique reservation table.
 -- ============================================================
 
-USE iscan_db;
-
 CREATE TABLE IF NOT EXISTS pdf_fingerprints (
     pdf_hash       CHAR(64)     NOT NULL,
     cert_type      VARCHAR(40)  NOT NULL,
