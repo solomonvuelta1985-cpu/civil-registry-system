@@ -220,7 +220,7 @@ $sort_icon = static function (string $column) use ($sort_by, $sort_order): strin
     <link rel="stylesheet" href="<?= asset_url('notiflix_css') ?>">
     <script src="<?= asset_url('notiflix_js') ?>"></script>
     <script src="../assets/js/notiflix-config.js"></script>
-    <link rel="stylesheet" href="../assets/css/sidebar.css">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=10">
     <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=7">
     <script src="<?= asset_url('pdfjs') ?>"></script>

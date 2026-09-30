@@ -235,7 +235,7 @@ foreach ($CATEGORY_LABELS as $cat => $_) {
     <title>Activity Logs - <?php echo APP_SHORT_NAME; ?></title>
     <?= google_fonts_tag('Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500') ?>
     <script src="<?= asset_url('lucide') ?>"></script>
-    <link rel="stylesheet" href="../assets/css/sidebar.css">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
     <style>
         :root {
             --c-primary: #3b82f6;

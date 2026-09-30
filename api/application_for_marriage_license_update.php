@@ -182,6 +182,10 @@ try {
         }
     }
 
+    if (empty($pdf_filename)) {
+        json_response(false, 'PDF file is required.', null, 400);
+    }
+
     // Reconcile PDF folder with (possibly renamed) groom last name / date of application.
     if ($old_pdf_filename === null && $pdf_filename) {
         $reconcile_year = year_from_date($date_of_application) ?? registry_folder_year($registry_no);

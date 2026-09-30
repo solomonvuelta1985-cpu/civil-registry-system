@@ -473,9 +473,9 @@
              const registrarPosition = previewValue(inputs?.mcr_title, 'Enter registrar position');
              const certifiedName = previewValue(inputs?.certified_by_name, 'Enter certifier name');
              const certifiedPosition = previewValue(inputs?.certified_by_position, 'Enter certifier position');
-             const logoSeal = `<img src="../${this.escape(config.logo_seal || 'assets/img/LOGO1.png')}" alt="Baggao seal" style="display:block;width:27mm;height:27mm;">`;
-            const logoBaggao = `<img src="../${this.escape(config.logo_baggao || 'assets/img/CRF1A_BAGGAO_REFERENCE.png')}" alt="Baggao reference logo" style="display:block;width:27mm;height:27mm;">`;
-            const logoPilipinas = `<img src="../${this.escape(config.logo_pilipinas || 'assets/img/CRF1A_BAGONG_PILIPINAS.png')}" alt="Bagong Pilipinas" style="display:block;width:34mm;height:28mm;">`;
+             const logoSeal = config.logo_seal === '__hidden__' ? '' : `<img src="../${this.escape(config.logo_seal || 'assets/img/LOGO1.png')}" alt="Baggao seal" style="display:block;width:27mm;height:27mm;">`;
+            const logoBaggao = config.logo_baggao === '__hidden__' ? '' : `<img src="../${this.escape(config.logo_baggao || 'assets/img/CRF1A_BAGGAO_REFERENCE.png')}" alt="Baggao reference logo" style="display:block;width:27mm;height:27mm;">`;
+            const logoPilipinas = config.logo_pilipinas === '__hidden__' ? '' : `<img src="../${this.escape(config.logo_pilipinas || 'assets/img/CRF1A_BAGONG_PILIPINAS.png')}" alt="Bagong Pilipinas" style="display:block;width:34mm;height:28mm;">`;
             const officeName = String(config.office_name || 'OFFICE OF THE MUNICIPAL CIVIL REGISTRAR').trim();
             const officeHtml = officeName === 'OFFICE OF THE MUNICIPAL CIVIL REGISTRAR'
                 ? 'OFFICE OF THE MUNICIPAL CIVIL<br>REGISTRAR'

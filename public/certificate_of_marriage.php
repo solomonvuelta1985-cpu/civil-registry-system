@@ -9,6 +9,7 @@ require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/settings.php';
+require_once '../includes/branding.php';
 require_once '../includes/security.php';
 
 // Check authentication
@@ -117,11 +118,101 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
     <script src="../assets/js/notiflix-config.js"></script>
 
     <!-- Shared Sidebar Styles -->
-    <link rel="stylesheet" href="../assets/css/sidebar.css">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
 
     <!-- Shared Certificate Form Styles -->
-    <link rel="stylesheet" href="../assets/css/certificate-forms-shared.css?v=2.1">
-</head>
+    <link rel="stylesheet" href="../assets/css/certificate-forms-shared.css?v=2.2">
+    <style>
+        /* Keep each residence group full width, with its three locality fields aligned. */
+        .residence-form-group {
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-rows: auto auto auto auto;
+            gap: 0 12px;
+            align-items: end;
+            grid-column: 1 / -1;
+            width: 100%;
+            min-width: 0;
+        }
+        .residence-form-group > .form-group,
+        .residence-form-group .residence-locality-fields,
+        .residence-form-group .residence-locality-fields > div,
+        .residence-form-group .residence-locality-fields .form-group {
+            display: contents !important;
+        }
+        .residence-form-group .residence-locality-fields.is-outside {
+            display: none !important;
+        }
+        .residence-form-group label[for$="_residence"] {
+            grid-column: 1 / -1;
+            grid-row: 1;
+        }
+        .residence-form-group label:has(> input.residence-outside-toggle) {
+            display: inline-flex !important;
+            grid-column: 1 / -1;
+            grid-row: 2;
+            width: max-content;
+        }
+        .residence-form-group select[id$="_residence"] {
+            grid-column: 1;
+            grid-row: 4;
+            width: 100%;
+            min-width: 0;
+        }
+        .residence-form-group input[id$="_residence_other"] {
+            grid-column: 1 / -1;
+            grid-row: 4;
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+        .residence-form-group label[for$="_residence_municipality"] {
+            grid-column: 2;
+            grid-row: 3;
+        }
+        .residence-form-group input[id$="_residence_municipality"] {
+            grid-column: 2;
+            grid-row: 4;
+            width: 100%;
+            min-width: 0;
+        }
+        .residence-form-group label[for$="_residence_province"] {
+            grid-column: 3;
+            grid-row: 3;
+        }
+        .residence-form-group input[id$="_residence_province"] {
+            grid-column: 3;
+            grid-row: 4;
+            width: 100%;
+            min-width: 0;
+        }
+        @media (max-width: 720px) {
+            .residence-form-group {
+                grid-template-columns: minmax(0, 1fr);
+                grid-template-rows: auto auto auto auto auto auto auto;
+            }
+            .residence-form-group select[id$="_residence"],
+            .residence-form-group input[id$="_residence_other"] {
+                grid-column: 1;
+                grid-row: 3;
+            }
+            .residence-form-group label[for$="_residence_municipality"] {
+                grid-column: 1;
+                grid-row: 4;
+            }
+            .residence-form-group input[id$="_residence_municipality"] {
+                grid-column: 1;
+                grid-row: 5;
+            }
+            .residence-form-group label[for$="_residence_province"] {
+                grid-column: 1;
+                grid-row: 6;
+            }
+            .residence-form-group input[id$="_residence_province"] {
+                grid-column: 1;
+                grid-row: 7;
+            }
+        }    </style></head>
 <body>
     <?php include '../includes/preloader.php'; ?>
     <?php include '../includes/mobile_header.php'; ?>
@@ -136,7 +227,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
             <!-- System Header with Logo -->
             <div class="system-header">
                 <div class="system-logo">
-                    <img src="../assets/img/LOGO1.png" alt="Bayan ng Baggao Logo">
+                    <img src="<?= htmlspecialchars(branding_logo_url('app'), ENT_QUOTES, 'UTF-8') ?>" alt="Bayan ng Baggao Logo">
                 </div>
                 <div class="system-title-container">
                     <h1 class="system-title">Civil Registry Document Management System (CRDMS)</h1>
@@ -458,7 +549,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                         $hr_val     = $edit_mode ? ($record['husband_residence'] ?? '') : '';
                         $hr_outside = $hr_val !== '' && !in_array($hr_val, $baggao_barangays, true);
                         ?>
-                        <div class="form-group">
+                        <div class="form-group residence-form-group">
                             <label for="husband_residence">
                                 Residence <span class="required">*</span>
                             </label>
@@ -494,22 +585,29 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 <?php echo $hr_outside ? 'required' : ''; ?>
                                 style="display: <?php echo $hr_outside ? 'block' : 'none'; ?>;"
                             >
-                            <div id="husband_residence_locality" class="residence-locality" style="display: <?php echo $hr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
-                                Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
-                                <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
-                                Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
+                                                        <div id="husband_residence_locality" class="residence-locality-fields" style="display:block; margin-top:8px;">
+                                <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
+                                    <div class="form-group">
+                                        <label for="husband_residence_municipality">Municipality <span class="required">*</span></label>
+                                        <input type="text" id="husband_residence_municipality" name="husband_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_residence_municipality'] ?? '') : '') ?: ($hr_outside ? '' : 'Baggao')); ?>" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="husband_residence_province">Province <span class="required">*</span></label>
+                                        <input type="text" id="husband_residence_province" name="husband_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_residence_province'] ?? '') : '') ?: ($hr_outside ? '' : 'Cagayan')); ?>" required>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label for="husband_citizenship">Citizenship</label>
+                            <label for="husband_citizenship">Nationality / Citizenship</label>
                             <?php
                             $citizenship_options = ['Filipino', 'American', 'Chinese', 'Japanese', 'Korean', 'British', 'Australian', 'Canadian', 'Indian', 'Other'];
                             $husband_cit_val = $edit_mode ? ($record['husband_citizenship'] ?? '') : '';
                             $husband_cit_is_other = $husband_cit_val !== '' && !in_array($husband_cit_val, array_diff($citizenship_options, ['Other']));
                             ?>
                             <select id="husband_citizenship" name="husband_citizenship">
-                                <option value="">-- Select Citizenship --</option>
+                                <option value="">-- Select Nationality / Citizenship --</option>
                                 <?php foreach ($citizenship_options as $opt):
                                     $sel = ($husband_cit_is_other && $opt === 'Other') || (!$husband_cit_is_other && $husband_cit_val === $opt) ? 'selected' : '';
                                 ?>
@@ -519,7 +617,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                         </div>
 
                         <div class="form-group" id="husband_citizenship_other_group" style="display: <?php echo $husband_cit_is_other ? 'block' : 'none'; ?>;">
-                            <label for="husband_citizenship_other">Specify Citizenship</label>
+                            <label for="husband_citizenship_other">Specify Nationality / Citizenship</label>
                             <input
                                 type="text"
                                 id="husband_citizenship_other"
@@ -548,8 +646,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                         $hfr_val     = $edit_mode ? ($record['husband_father_residence'] ?? '') : '';
                         $hfr_outside = $hfr_val !== '' && !in_array($hfr_val, $baggao_barangays, true);
                         ?>
-                        <div class="form-row">
-                            <div class="form-group">
+                            <div class="form-group residence-form-group">
                                 <label for="husband_father_residence">
                                     Father's Residence
                                 </label>
@@ -583,14 +680,39 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                     value="<?php echo $hfr_outside ? htmlspecialchars($hfr_val) : ''; ?>"
                                     style="display: <?php echo $hfr_outside ? 'block' : 'none'; ?>;"
                                 >
-                                <div id="husband_father_residence_locality" class="residence-locality" style="display: <?php echo $hfr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
-                                    Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
-                                    <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
-                                    Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
+                                                            <div id="husband_father_residence_locality" class="residence-locality-fields" style="display:block; margin-top:8px;">
+                                <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
+                                    <div class="form-group">
+                                        <label for="husband_father_residence_municipality">Municipality</label>
+                                        <input type="text" id="husband_father_residence_municipality" name="husband_father_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_father_residence_municipality'] ?? '') : '') ?: ($hfr_outside ? '' : 'Baggao')); ?>">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="husband_father_residence_province">Province</label>
+                                        <input type="text" id="husband_father_residence_province" name="husband_father_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_father_residence_province'] ?? '') : '') ?: ($hfr_outside ? '' : 'Cagayan')); ?>">
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
+                        <div class="form-group">
+                            <?php
+                            $husband_father_cit_val = $edit_mode ? ($record['husband_father_citizenship'] ?? '') : '';
+                            $husband_father_cit_is_other = $husband_father_cit_val !== '' && !in_array($husband_father_cit_val, array_diff($citizenship_options, ['Other']));
+                            ?>
+                            <label for="husband_father_citizenship">Father's Nationality / Citizenship</label>
+                            <select id="husband_father_citizenship" name="husband_father_citizenship">
+                                <option value="">-- Select Nationality / Citizenship --</option>
+                                <?php foreach ($citizenship_options as $opt):
+                                    $sel = ($husband_father_cit_is_other && $opt === 'Other') || (!$husband_father_cit_is_other && $husband_father_cit_val === $opt) ? 'selected' : '';
+                                ?>
+                                <option value="<?php echo $opt; ?>" <?php echo $sel; ?>><?php echo $opt; ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="form-group" id="husband_father_citizenship_other_group" style="display: <?php echo $husband_father_cit_is_other ? 'block' : 'none'; ?>;">
+                            <label for="husband_father_citizenship_other">Specify Father's Nationality / Citizenship</label>
+                            <input type="text" id="husband_father_citizenship_other" name="husband_father_citizenship_other" placeholder="Please specify" value="<?php echo $husband_father_cit_is_other ? htmlspecialchars($husband_father_cit_val) : ''; ?>">
+                        </div>
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="husband_mother_name">
@@ -610,8 +732,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                         $hmr_val     = $edit_mode ? ($record['husband_mother_residence'] ?? '') : '';
                         $hmr_outside = $hmr_val !== '' && !in_array($hmr_val, $baggao_barangays, true);
                         ?>
-                        <div class="form-row">
-                            <div class="form-group">
+                            <div class="form-group residence-form-group">
                                 <label for="husband_mother_residence">
                                     Mother's Residence
                                 </label>
@@ -645,12 +766,37 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                     value="<?php echo $hmr_outside ? htmlspecialchars($hmr_val) : ''; ?>"
                                     style="display: <?php echo $hmr_outside ? 'block' : 'none'; ?>;"
                                 >
-                                <div id="husband_mother_residence_locality" class="residence-locality" style="display: <?php echo $hmr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
-                                    Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
-                                    <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
-                                    Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
+                                                            <div id="husband_mother_residence_locality" class="residence-locality-fields" style="display:block; margin-top:8px;">
+                                <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
+                                    <div class="form-group">
+                                        <label for="husband_mother_residence_municipality">Municipality</label>
+                                        <input type="text" id="husband_mother_residence_municipality" name="husband_mother_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_mother_residence_municipality'] ?? '') : '') ?: ($hmr_outside ? '' : 'Baggao')); ?>">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="husband_mother_residence_province">Province</label>
+                                        <input type="text" id="husband_mother_residence_province" name="husband_mother_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_mother_residence_province'] ?? '') : '') ?: ($hmr_outside ? '' : 'Cagayan')); ?>">
+                                    </div>
                                 </div>
                             </div>
+                        </div>
+                        <div class="form-group">
+                            <?php
+                            $husband_mother_cit_val = $edit_mode ? ($record['husband_mother_citizenship'] ?? '') : '';
+                            $husband_mother_cit_is_other = $husband_mother_cit_val !== '' && !in_array($husband_mother_cit_val, array_diff($citizenship_options, ['Other']));
+                            ?>
+                            <label for="husband_mother_citizenship">Mother's Nationality / Citizenship</label>
+                            <select id="husband_mother_citizenship" name="husband_mother_citizenship">
+                                <option value="">-- Select Nationality / Citizenship --</option>
+                                <?php foreach ($citizenship_options as $opt):
+                                    $sel = ($husband_mother_cit_is_other && $opt === 'Other') || (!$husband_mother_cit_is_other && $husband_mother_cit_val === $opt) ? 'selected' : '';
+                                ?>
+                                <option value="<?php echo $opt; ?>" <?php echo $sel; ?>><?php echo $opt; ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="form-group" id="husband_mother_citizenship_other_group" style="display: <?php echo $husband_mother_cit_is_other ? 'block' : 'none'; ?>;">
+                            <label for="husband_mother_citizenship_other">Specify Mother's Nationality / Citizenship</label>
+                            <input type="text" id="husband_mother_citizenship_other" name="husband_mother_citizenship_other" placeholder="Please specify" value="<?php echo $husband_mother_cit_is_other ? htmlspecialchars($husband_mother_cit_val) : ''; ?>">
                         </div>
                     </div>
 
@@ -788,7 +934,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                         $wr_val     = $edit_mode ? ($record['wife_residence'] ?? '') : '';
                         $wr_outside = $wr_val !== '' && !in_array($wr_val, $baggao_barangays, true);
                         ?>
-                        <div class="form-group">
+                        <div class="form-group residence-form-group">
                             <label for="wife_residence">
                                 Residence <span class="required">*</span>
                             </label>
@@ -824,21 +970,28 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 <?php echo $wr_outside ? 'required' : ''; ?>
                                 style="display: <?php echo $wr_outside ? 'block' : 'none'; ?>;"
                             >
-                            <div id="wife_residence_locality" class="residence-locality" style="display: <?php echo $wr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
-                                Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
-                                <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
-                                Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
+                                                        <div id="wife_residence_locality" class="residence-locality-fields" style="display:block; margin-top:8px;">
+                                <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
+                                    <div class="form-group">
+                                        <label for="wife_residence_municipality">Municipality <span class="required">*</span></label>
+                                        <input type="text" id="wife_residence_municipality" name="wife_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_residence_municipality'] ?? '') : '') ?: ($wr_outside ? '' : 'Baggao')); ?>" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="wife_residence_province">Province <span class="required">*</span></label>
+                                        <input type="text" id="wife_residence_province" name="wife_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_residence_province'] ?? '') : '') ?: ($wr_outside ? '' : 'Cagayan')); ?>" required>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label for="wife_citizenship">Citizenship</label>
+                            <label for="wife_citizenship">Nationality / Citizenship</label>
                             <?php
                             $wife_cit_val = $edit_mode ? ($record['wife_citizenship'] ?? '') : '';
                             $wife_cit_is_other = $wife_cit_val !== '' && !in_array($wife_cit_val, array_diff($citizenship_options, ['Other']));
                             ?>
                             <select id="wife_citizenship" name="wife_citizenship">
-                                <option value="">-- Select Citizenship --</option>
+                                <option value="">-- Select Nationality / Citizenship --</option>
                                 <?php foreach ($citizenship_options as $opt):
                                     $sel = ($wife_cit_is_other && $opt === 'Other') || (!$wife_cit_is_other && $wife_cit_val === $opt) ? 'selected' : '';
                                 ?>
@@ -848,7 +1001,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                         </div>
 
                         <div class="form-group" id="wife_citizenship_other_group" style="display: <?php echo $wife_cit_is_other ? 'block' : 'none'; ?>;">
-                            <label for="wife_citizenship_other">Specify Citizenship</label>
+                            <label for="wife_citizenship_other">Specify Nationality / Citizenship</label>
                             <input
                                 type="text"
                                 id="wife_citizenship_other"
@@ -877,8 +1030,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                         $wfr_val     = $edit_mode ? ($record['wife_father_residence'] ?? '') : '';
                         $wfr_outside = $wfr_val !== '' && !in_array($wfr_val, $baggao_barangays, true);
                         ?>
-                        <div class="form-row">
-                            <div class="form-group">
+                            <div class="form-group residence-form-group">
                                 <label for="wife_father_residence">
                                     Father's Residence
                                 </label>
@@ -912,14 +1064,39 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                     value="<?php echo $wfr_outside ? htmlspecialchars($wfr_val) : ''; ?>"
                                     style="display: <?php echo $wfr_outside ? 'block' : 'none'; ?>;"
                                 >
-                                <div id="wife_father_residence_locality" class="residence-locality" style="display: <?php echo $wfr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
-                                    Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
-                                    <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
-                                    Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
+                                                            <div id="wife_father_residence_locality" class="residence-locality-fields" style="display:block; margin-top:8px;">
+                                <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
+                                    <div class="form-group">
+                                        <label for="wife_father_residence_municipality">Municipality</label>
+                                        <input type="text" id="wife_father_residence_municipality" name="wife_father_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_father_residence_municipality'] ?? '') : '') ?: ($wfr_outside ? '' : 'Baggao')); ?>">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="wife_father_residence_province">Province</label>
+                                        <input type="text" id="wife_father_residence_province" name="wife_father_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_father_residence_province'] ?? '') : '') ?: ($wfr_outside ? '' : 'Cagayan')); ?>">
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
+                        <div class="form-group">
+                            <?php
+                            $wife_father_cit_val = $edit_mode ? ($record['wife_father_citizenship'] ?? '') : '';
+                            $wife_father_cit_is_other = $wife_father_cit_val !== '' && !in_array($wife_father_cit_val, array_diff($citizenship_options, ['Other']));
+                            ?>
+                            <label for="wife_father_citizenship">Father's Nationality / Citizenship</label>
+                            <select id="wife_father_citizenship" name="wife_father_citizenship">
+                                <option value="">-- Select Nationality / Citizenship --</option>
+                                <?php foreach ($citizenship_options as $opt):
+                                    $sel = ($wife_father_cit_is_other && $opt === 'Other') || (!$wife_father_cit_is_other && $wife_father_cit_val === $opt) ? 'selected' : '';
+                                ?>
+                                <option value="<?php echo $opt; ?>" <?php echo $sel; ?>><?php echo $opt; ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="form-group" id="wife_father_citizenship_other_group" style="display: <?php echo $wife_father_cit_is_other ? 'block' : 'none'; ?>;">
+                            <label for="wife_father_citizenship_other">Specify Father's Nationality / Citizenship</label>
+                            <input type="text" id="wife_father_citizenship_other" name="wife_father_citizenship_other" placeholder="Please specify" value="<?php echo $wife_father_cit_is_other ? htmlspecialchars($wife_father_cit_val) : ''; ?>">
+                        </div>
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="wife_mother_name">
@@ -939,8 +1116,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                         $wmr_val     = $edit_mode ? ($record['wife_mother_residence'] ?? '') : '';
                         $wmr_outside = $wmr_val !== '' && !in_array($wmr_val, $baggao_barangays, true);
                         ?>
-                        <div class="form-row">
-                            <div class="form-group">
+                            <div class="form-group residence-form-group">
                                 <label for="wife_mother_residence">
                                     Mother's Residence
                                 </label>
@@ -974,12 +1150,37 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                     value="<?php echo $wmr_outside ? htmlspecialchars($wmr_val) : ''; ?>"
                                     style="display: <?php echo $wmr_outside ? 'block' : 'none'; ?>;"
                                 >
-                                <div id="wife_mother_residence_locality" class="residence-locality" style="display: <?php echo $wmr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
-                                    Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
-                                    <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
-                                    Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
+                                                            <div id="wife_mother_residence_locality" class="residence-locality-fields" style="display:block; margin-top:8px;">
+                                <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
+                                    <div class="form-group">
+                                        <label for="wife_mother_residence_municipality">Municipality</label>
+                                        <input type="text" id="wife_mother_residence_municipality" name="wife_mother_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_mother_residence_municipality'] ?? '') : '') ?: ($wmr_outside ? '' : 'Baggao')); ?>">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="wife_mother_residence_province">Province</label>
+                                        <input type="text" id="wife_mother_residence_province" name="wife_mother_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_mother_residence_province'] ?? '') : '') ?: ($wmr_outside ? '' : 'Cagayan')); ?>">
+                                    </div>
                                 </div>
                             </div>
+                        </div>
+                        <div class="form-group">
+                            <?php
+                            $wife_mother_cit_val = $edit_mode ? ($record['wife_mother_citizenship'] ?? '') : '';
+                            $wife_mother_cit_is_other = $wife_mother_cit_val !== '' && !in_array($wife_mother_cit_val, array_diff($citizenship_options, ['Other']));
+                            ?>
+                            <label for="wife_mother_citizenship">Mother's Nationality / Citizenship</label>
+                            <select id="wife_mother_citizenship" name="wife_mother_citizenship">
+                                <option value="">-- Select Nationality / Citizenship --</option>
+                                <?php foreach ($citizenship_options as $opt):
+                                    $sel = ($wife_mother_cit_is_other && $opt === 'Other') || (!$wife_mother_cit_is_other && $wife_mother_cit_val === $opt) ? 'selected' : '';
+                                ?>
+                                <option value="<?php echo $opt; ?>" <?php echo $sel; ?>><?php echo $opt; ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="form-group" id="wife_mother_citizenship_other_group" style="display: <?php echo $wife_mother_cit_is_other ? 'block' : 'none'; ?>;">
+                            <label for="wife_mother_citizenship_other">Specify Mother's Nationality / Citizenship</label>
+                            <input type="text" id="wife_mother_citizenship_other" name="wife_mother_citizenship_other" placeholder="Please specify" value="<?php echo $wife_mother_cit_is_other ? htmlspecialchars($wife_mother_cit_val) : ''; ?>">
                         </div>
                     </div>
 
@@ -1058,8 +1259,9 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                     </div>
 
                     <div class="form-group">
+                        <?php $pdf_required = !$edit_mode || empty($record['pdf_filename']); ?>
                         <label for="pdf_file">
-                            Upload PDF Certificate <?php echo !$edit_mode ? '<span class="required">*</span>' : ''; ?>
+                            Upload PDF Certificate <?php echo $pdf_required ? '<span class="required">*</span>' : ''; ?>
                         </label>
 
                         <div class="upload-scanner-container">
@@ -1068,7 +1270,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 id="pdf_file"
                                 name="pdf_file"
                                 accept=".pdf"
-                                <?php echo !$edit_mode ? 'required' : ''; ?>
+                                <?php echo $pdf_required ? 'required' : ''; ?>
                             >
 
                             <button type="button" id="scanDocumentBtn" class="btn-scan" title="Scan using DS-530 II">
@@ -1126,7 +1328,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
 
     <!-- Shared Certificate Form Handler -->
     <script>window.APP_BASE = '<?= rtrim(BASE_URL, '/') ?>';</script>
-    <script src="../assets/js/certificate-form-handler.js?v=2.2"></script>
+    <script src="../assets/js/certificate-form-handler.js?v=2.3"></script>
 
     <!-- Marriage Certificate Specific Logic -->
     <script>
@@ -1165,6 +1367,22 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
             }
         });
 
+        // Parent citizenship "Other" toggles
+        ['husband_father_citizenship', 'husband_mother_citizenship', 'wife_father_citizenship', 'wife_mother_citizenship'].forEach(function(fieldId) {
+            const select = document.getElementById(fieldId);
+            const otherGroup = document.getElementById(fieldId + '_other_group');
+            const otherInput = document.getElementById(fieldId + '_other');
+            if (!select || !otherGroup || !otherInput) return;
+            select.addEventListener('change', function() {
+                if (this.value === 'Other') {
+                    otherGroup.style.display = 'block';
+                    otherInput.focus();
+                } else {
+                    otherGroup.style.display = 'none';
+                    otherInput.value = '';
+                }
+            });
+        });
         // "Outside Baggao" residence toggle handlers
         (function() {
             const residenceFields = [
@@ -1183,21 +1401,43 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
 
                 const locality = document.getElementById(fieldId + '_locality');
 
-                toggle.addEventListener('change', function() {
+                const residenceRequired = select.hasAttribute('required') || other.hasAttribute('required');
+                const modeLabel = toggle.closest('label');
+
+                function syncResidenceMode() {
                     const outside = toggle.checked;
                     select.style.display = outside ? 'none'  : 'block';
                     other.style.display  = outside ? 'block' : 'none';
-                    if (locality) locality.style.display = outside ? 'none' : 'block';
+                    if (locality) locality.classList.toggle('is-outside', outside);
+
+                    // Only the active address control should be submitted and validated.
                     select.name = outside ? '' : fieldId;
                     other.name  = outside ? fieldId : '';
-                    const wasRequired = select.hasAttribute('required') || other.hasAttribute('required');
-                    if (wasRequired) {
-                        if (outside) { other.setAttribute('required',''); select.removeAttribute('required'); }
-                        else         { select.setAttribute('required',''); other.removeAttribute('required'); }
+                    select.disabled = outside;
+                    other.disabled = !outside;
+
+                    if (residenceRequired) {
+                        if (outside) {
+                            other.setAttribute('required', '');
+                            select.removeAttribute('required');
+                        } else {
+                            select.setAttribute('required', '');
+                            other.removeAttribute('required');
+                        }
                     }
-                    if (outside) select.value = '';
-                    else         other.value  = '';
+
+                    toggle.setAttribute('aria-checked', outside ? 'true' : 'false');
+                    if (modeLabel) modeLabel.classList.toggle('is-outside', outside);
+                }
+
+                toggle.addEventListener('change', function() {
+                    if (toggle.checked) select.value = '';
+                    else other.value = '';
+                    syncResidenceMode();
                 });
+
+                // Apply the correct state on edit and on first render as well.
+                syncResidenceMode();
             });
         })();
     </script>
@@ -1460,7 +1700,16 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
             formColumn.classList.add('skeleton-loading-active');
 
             // Find ALL input fields, selects, and textareas in the form
-            const allInputs = formColumn.querySelectorAll('input[type="text"], input[type="date"], input[type="datetime-local"], select, textarea');
+            const allInputs = Array.from(formColumn.querySelectorAll('input[type="text"], input[type="date"], input[type="datetime-local"], select, textarea'))
+                .filter(input => input.getClientRects().length > 0);
+
+            function matchResidenceGridCell(skeleton, element) {
+                if (!element.closest('.residence-form-group')) return;
+                const position = window.getComputedStyle(element);
+                skeleton.style.gridColumn = position.gridColumn;
+                skeleton.style.gridRow = position.gridRow;
+                skeleton.style.minWidth = '0';
+            }
 
             // Hide all inputs and create skeleton for each
             allInputs.forEach(input => {
@@ -1474,18 +1723,21 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                 // Create skeleton placeholder
                 const skeleton = document.createElement('div');
                 skeleton.className = 'skeleton skeleton-input';
+                matchResidenceGridCell(skeleton, input);
 
                 // Insert skeleton before the input
                 input.parentNode.insertBefore(skeleton, input);
             });
 
             // Also add skeleton to labels
-            const allLabels = formColumn.querySelectorAll('label');
+            const allLabels = Array.from(formColumn.querySelectorAll('label'))
+                .filter(label => label.getClientRects().length > 0);
             allLabels.forEach(label => {
                 label.style.opacity = '0';
 
                 const labelSkeleton = document.createElement('div');
                 labelSkeleton.className = 'skeleton skeleton-label';
+                matchResidenceGridCell(labelSkeleton, label);
                 label.parentNode.insertBefore(labelSkeleton, label);
             });
 

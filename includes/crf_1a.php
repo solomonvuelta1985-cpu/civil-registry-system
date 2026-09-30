@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/branding.php';
 /**
  * Shared CRF No. 1A helpers.
  *
@@ -45,7 +46,7 @@ function crf_1a_config(): array
         return $config;
     }
 
-    $config = [
+    $config = branding_apply_crf_logo_overrides([
         'office_name' => env('CRF1A_OFFICE_NAME', 'OFFICE OF THE MUNICIPAL CIVIL REGISTRAR'),
         'municipality' => env('CRF1A_MUNICIPALITY', 'BAGGAO'),
         'province' => env('CRF1A_PROVINCE', 'CAGAYAN'),
@@ -55,7 +56,7 @@ function crf_1a_config(): array
         'logo_seal' => env('CRF1A_LOGO_SEAL', 'assets/img/LOGO1.png'),
         'logo_baggao' => env('CRF1A_LOGO_BAGGAO', 'assets/img/CRF1A_BAGGAO_REFERENCE.png'),
         'logo_pilipinas' => env('CRF1A_LOGO_PILIPINAS', 'assets/img/CRF1A_BAGONG_PILIPINAS.png'),
-    ];
+    ]);
 
     return $config;
 }
@@ -262,6 +263,8 @@ body { font-family: "Courier New", Courier, monospace; color: #111; font-size: 9
  .header-logo-baggao { left: 31mm; top: 1.5mm; width: 27mm; height: 27mm; }
  .header-logo-pilipinas { left: 0; top: 0; width: 34mm; height: 28mm; }
  .header-logo img { width: 100%; height: 100%; object-fit: contain; }
+ .header-logo-baggao img { transform: scale(1.35); }
+ .header-logo-pilipinas img { transform: scale(1.2); }
  .header-copy { position: absolute; left: 62mm; top: 4.5mm; width: 84mm; height: 24mm; text-align: left; line-height: 1.05; }
  .header-copy .republic, .header-copy .province { font-size: 9pt; }
  .header-copy .municipality { font-family: "Times New Roman", serif; font-size: 13.5pt; font-weight: 700; letter-spacing: .01em; }
@@ -414,7 +417,7 @@ function crf_1a_render_table_pdf_html(
         . '.logo-pair .pair-logo-cell{width:50%}'
         . '.header-table .copy-cell{width:50%;text-align:left;line-height:1.05}'
         . '.header-table .right-cell{width:18%;padding:0;vertical-align:top}'
-        . '.logo-pair img{display:block;width:27mm;height:27mm;margin:0 auto}'
+        . '.logo-pair img{display:block;width:27mm;height:27mm;margin:0 auto}.logo-pair .pair-logo-baggao img{transform:scale(1.35)}'
         . '.copy-cell .small{font-size:9pt}'
         . '.copy-cell .municipality{font-family:"Times New Roman",serif;font-size:13.5pt;font-weight:700}'
         . '.copy-cell .office{font-family:"Times New Roman",serif;font-size:12pt;font-weight:700}'
@@ -422,7 +425,7 @@ function crf_1a_render_table_pdf_html(
         . '.right-table{width:100%;height:30mm;border-collapse:collapse;table-layout:fixed}'
         . '.right-table td{padding:0;text-align:center}'
         . '.right-logo{height:28mm;vertical-align:top}'
-        . '.right-logo img{display:block;width:34mm;height:28mm;margin:0 auto}'
+        . '.right-logo img{display:block;width:34mm;height:28mm;margin:0 auto;transform:scale(1.2)}'
         . '.header-meta{height:2mm;text-align:right;font-family:Arial,sans-serif;font-size:5.5pt;color:#334155;white-space:nowrap}'
         . '.header-meta strong{font-family:"Courier New",monospace;font-size:5.5pt;color:#111;margin-left:1mm}'
         . '.header-gap{height:3mm;line-height:0;font-size:0}'
@@ -473,7 +476,7 @@ function crf_1a_render_table_pdf_html(
         . '.note{width:168mm;font-size:8pt;line-height:1.1}'
         . '</style></head><body><table class="pdf-page" cellspacing="0" cellpadding="0" border="0"><tr><td class="top-spacer">&nbsp;</td></tr>'
         . '<tr><td style="padding-left:14mm;padding-right:12mm;"><table class="header-table" cellspacing="0" cellpadding="0" border="0"><tr>'
-        . '<td class="logo-group" width="32%"><table class="logo-pair" cellspacing="0" cellpadding="0" border="0"><tr><td class="pair-logo-cell" width="50%">' . $logo((string)($cfg['logo_seal'] ?? ''), 'Baggao seal', '27mm', '27mm') . '</td><td class="pair-logo-cell" width="50%">' . $logo((string)($cfg['logo_baggao'] ?? ''), 'Baggao reference logo', '27mm', '27mm') . '</td></tr></table></td>'
+        . '<td class="logo-group" width="32%"><table class="logo-pair" cellspacing="0" cellpadding="0" border="0"><tr><td class="pair-logo-cell" width="50%">' . $logo((string)($cfg['logo_seal'] ?? ''), 'Baggao seal', '27mm', '27mm') . '</td><td class="pair-logo-cell pair-logo-baggao" width="50%">' . $logo((string)($cfg['logo_baggao'] ?? ''), 'Baggao reference logo', '27mm', '27mm') . '</td></tr></table></td>'
         . '<td class="copy-cell" width="50%"><div class="small">Republic of the Philippines</div><div class="small">Province of ' . $e($cfg['province'] ?? '') . '</div><div class="municipality">MUNICIPALITY OF ' . $e($cfg['municipality'] ?? '') . '</div><div class="office">' . $officeHtml . '</div><div class="address">' . $e($cfg['address'] ?? '') . '</div></td>'
         . '<td class="right-cell" width="18%"><table class="right-table" cellspacing="0" cellpadding="0" border="0"><tr><td class="right-logo">' . $logo((string)($cfg['logo_pilipinas'] ?? ''), 'Bagong Pilipinas', '34mm', '28mm') . '</td></tr><tr><td class="header-meta">CRF ID<strong>' . $e($crfNumber) . '</strong></td></tr></table></td>'
         . '</tr></table></td></tr><tr><td class="header-gap">&nbsp;</td></tr><tr><td class="rule-row"><div class="red-rule">&nbsp;</div></td></tr><tr><td class="after-rule">&nbsp;</td></tr>'

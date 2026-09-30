@@ -10,6 +10,7 @@ require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
 require_once '../includes/settings.php';
+require_once '../includes/branding.php';
 
 requireAuth();
 if (!isAdmin()) {
@@ -31,20 +32,136 @@ $TOGGLE_DEFINITIONS = [
     ],
     [
         'key'         => 'maintenance_mode',
-        'label'       => 'Maintenance Mode',
-        'description' => 'When ON, all non-admin users (Encoders, Viewers) are immediately logged out on their next request and shown the maintenance page. Only Administrators can sign in or use the system. Use this during upgrades, database migrations, or scheduled downtime.',
+        'label'       => 'Emergency Maintenance Override',
+        'description' => 'Turn ON to force maintenance immediately. Turn OFF to return control to the scheduled maintenance window, if one is active.',
         'category'    => 'System',
         'danger'      => true,
     ],
 ];
 
 $flash = null;
+$logoDefinitions = branding_logo_definitions();
+$scheduleInput = [
+    'starts_at' => '',
+    'ends_at' => '',
+    'message' => 'The system will be unavailable during the scheduled maintenance window.',
+];
+$initialSchedule = maintenance_get_public_schedule();
+if ($initialSchedule) {
+    $scheduleInput['starts_at'] = maintenance_datetime_local_input($initialSchedule['starts_at']);
+    $scheduleInput['ends_at'] = maintenance_datetime_local_input($initialSchedule['ends_at']);
+    $scheduleInput['message'] = $initialSchedule['message'];
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     requireCSRFToken();
 
-    $allowed_keys = array_column($TOGGLE_DEFINITIONS, 'key');
+    if (($_POST['form_action'] ?? '') === 'maintenance_schedule') {
+        $scheduleAction = (string)($_POST['schedule_action'] ?? '');
+        $scheduleInput = [
+            'starts_at' => trim((string)($_POST['maintenance_starts_at'] ?? '')),
+            'ends_at' => trim((string)($_POST['maintenance_ends_at'] ?? '')),
+            'message' => trim((string)($_POST['scheduled_maintenance_message'] ?? '')),
+        ];
+
+        if ($scheduleAction === 'save') {
+            if ($scheduleInput['starts_at'] === '' || $scheduleInput['ends_at'] === '' || $scheduleInput['message'] === '') {
+                $flash = ['type' => 'error', 'message' => 'Enter a start, end, and maintenance message.'];
+            } elseif (mb_strlen($scheduleInput['message']) > 500) {
+                $flash = ['type' => 'error', 'message' => 'The maintenance message must be 500 characters or fewer.'];
+            } else {
+                $startsAtUtc = maintenance_local_datetime_to_utc($scheduleInput['starts_at']);
+                $endsAtUtc = maintenance_local_datetime_to_utc($scheduleInput['ends_at']);
+                $startDate = maintenance_parse_utc_datetime($startsAtUtc);
+                $endDate = maintenance_parse_utc_datetime($endsAtUtc);
+                if (!$startDate || !$endDate) {
+                    $flash = ['type' => 'error', 'message' => 'Enter valid start and end dates and times.'];
+                } elseif ($endDate <= $startDate) {
+                    $flash = ['type' => 'error', 'message' => 'The maintenance end must be later than its start.'];
+                } else {
+                    $wasScheduled = maintenance_get_public_schedule() !== null;
+                    $schedule = [
+                        'id' => bin2hex(random_bytes(12)),
+                        'status' => 'scheduled',
+                        'starts_at' => $startsAtUtc,
+                        'ends_at' => $endsAtUtc,
+                        'message' => $scheduleInput['message'],
+                        'published_at' => gmdate('Y-m-d\TH:i:s\Z'),
+                        'updated_by' => getUserId(),
+                    ];
+                    if (set_setting($pdo, 'maintenance_schedule', $schedule, getUserId())) {
+                        log_activity($pdo, 'settings_updated', $wasScheduled ? 'Maintenance schedule updated' : 'Maintenance schedule created', getUserId());
+                        $_SESSION['settings_flash'] = ['type' => 'success', 'message' => $wasScheduled ? 'Maintenance schedule updated. Users will be notified.' : 'Maintenance schedule saved. Users will be notified.'];
+                        header('Location: ' . BASE_URL . 'admin/settings.php');
+                        exit;
+                    }
+                    $flash = ['type' => 'error', 'message' => 'The maintenance schedule could not be saved. Please try again.'];
+                }
+            }
+        } elseif ($scheduleAction === 'cancel') {
+            $schedule = maintenance_get_schedule();
+            $publicSchedule = maintenance_get_public_schedule();
+            $submittedId = trim((string)($_POST['schedule_id'] ?? ''));
+            if (!$schedule || !$publicSchedule || $submittedId === '' || !hash_equals((string)$schedule['id'], $submittedId)) {
+                $flash = ['type' => 'error', 'message' => 'There is no current maintenance schedule to cancel. Refresh the page and try again.'];
+            } else {
+                $schedule['status'] = 'cancelled';
+                $schedule['cancelled_at'] = gmdate('Y-m-d\TH:i:s\Z');
+                $schedule['updated_by'] = getUserId();
+                if (set_setting($pdo, 'maintenance_schedule', $schedule, getUserId())) {
+                    log_activity($pdo, 'settings_updated', 'Maintenance schedule cancelled', getUserId());
+                    $_SESSION['settings_flash'] = ['type' => 'success', 'message' => 'Maintenance schedule cancelled. Users will be notified.'];
+                    header('Location: ' . BASE_URL . 'admin/settings.php');
+                    exit;
+                }
+                $flash = ['type' => 'error', 'message' => 'The maintenance schedule could not be cancelled. Please try again.'];
+            }
+        } else {
+            $flash = ['type' => 'error', 'message' => 'Choose save or cancel for the maintenance schedule.'];
+        }
+    } elseif (($_POST['form_action'] ?? '') === 'branding') {
+        $slot = trim((string) ($_POST['logo_slot'] ?? ''));
+        $brandingAction = trim((string) ($_POST['branding_action'] ?? ''));
+        if (!isset($logoDefinitions[$slot])) {
+            $flash = ['type' => 'error', 'message' => 'Choose a valid logo slot.'];
+        } elseif ($brandingAction === 'upload') {
+            $uploadError = '';
+            if (branding_store_logo_upload($pdo, $slot, $_FILES['logo_file'] ?? [], getUserId(), $uploadError)) {
+                log_activity($pdo, 'settings_updated', $logoDefinitions[$slot]['label'] . ' uploaded', getUserId());
+                $_SESSION['settings_flash'] = ['type' => 'success', 'message' => $logoDefinitions[$slot]['label'] . ' updated.'];
+                header('Location: ' . BASE_URL . 'admin/settings.php');
+                exit;
+            }
+            $flash = ['type' => 'error', 'message' => $uploadError];
+        } elseif ($brandingAction === 'hide' && $slot !== 'app') {
+            $settingKey = $logoDefinitions[$slot]['setting_key'];
+            $previousPath = (string) get_setting($settingKey, '');
+            if (set_setting($pdo, $settingKey, BRANDING_LOGO_HIDDEN_VALUE, getUserId())) {
+                branding_delete_uploaded_logo_if_unused($previousPath, $settingKey);
+                log_activity($pdo, 'settings_updated', $logoDefinitions[$slot]['label'] . ' hidden', getUserId());
+                $_SESSION['settings_flash'] = ['type' => 'success', 'message' => $logoDefinitions[$slot]['label'] . ' hidden from CRF forms.'];
+                header('Location: ' . BASE_URL . 'admin/settings.php');
+                exit;
+            }
+            $flash = ['type' => 'error', 'message' => 'The logo could not be hidden. Please try again.'];
+        } elseif ($brandingAction === 'reset') {
+            $settingKey = $logoDefinitions[$slot]['setting_key'];
+            $previousPath = (string) get_setting($settingKey, '');
+            if (set_setting($pdo, $settingKey, '', getUserId())) {
+                branding_delete_uploaded_logo_if_unused($previousPath, $settingKey);
+                log_activity($pdo, 'settings_updated', $logoDefinitions[$slot]['label'] . ' reset to default', getUserId());
+                $_SESSION['settings_flash'] = ['type' => 'success', 'message' => $logoDefinitions[$slot]['label'] . ' reset to its default.'];
+                header('Location: ' . BASE_URL . 'admin/settings.php');
+                exit;
+            }
+            $flash = ['type' => 'error', 'message' => 'The logo setting could not be reset. Please try again.'];
+        } else {
+            $flash = ['type' => 'error', 'message' => 'Choose upload, hide, or reset.'];
+        }
+    } elseif (($_POST['form_action'] ?? '') === 'save_settings') {
+        $allowed_keys = array_column($TOGGLE_DEFINITIONS, 'key');
     $changes = [];
+    $manualMaintenanceEnabled = false;
 
     foreach ($allowed_keys as $key) {
         $submitted = isset($_POST[$key]) && $_POST[$key] === '1';
@@ -52,6 +169,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($submitted !== $current) {
             if (set_setting($pdo, $key, $submitted ? 'true' : 'false', getUserId())) {
                 $changes[] = $key . '=' . ($submitted ? 'true' : 'false');
+                if ($key === 'maintenance_mode' && $submitted) {
+                    $manualMaintenanceEnabled = true;
+                }
             }
         }
     }
@@ -72,14 +192,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($manualMaintenanceEnabled) {
+        $manualMessage = trim((string)($_POST['maintenance_message'] ?? get_setting('maintenance_message', '')));
+        if ($manualMessage === '') $manualMessage = 'The system is undergoing scheduled maintenance. Please try again shortly.';
+        set_setting($pdo, 'maintenance_manual_event', [
+            'id' => bin2hex(random_bytes(12)),
+            'message' => $manualMessage,
+            'started_at' => gmdate('Y-m-d\TH:i:s\Z'),
+        ], getUserId());
+    }
     if (!empty($changes)) {
         log_activity($pdo, 'settings_updated', implode('; ', $changes), getUserId());
-        $flash = ['type' => 'success', 'message' => 'Settings saved.'];
+        $_SESSION['settings_flash'] = ['type' => 'success', 'message' => 'Settings saved.'];
     } else {
-        $flash = ['type' => 'info', 'message' => 'No changes.'];
+        $_SESSION['settings_flash'] = ['type' => 'info', 'message' => 'No changes.'];
+    }
+    header('Location: ' . BASE_URL . 'admin/settings.php');
+    exit;
+    } else {
+        $flash = ['type' => 'error', 'message' => 'Choose a valid settings action.'];
     }
 }
 
+if ($flash === null && isset($_SESSION['settings_flash']) && is_array($_SESSION['settings_flash'])) {
+    $flash = $_SESSION['settings_flash'];
+    unset($_SESSION['settings_flash']);
+}
+
+$maintenanceSchedule = maintenance_get_public_schedule();
+$storedMaintenanceSchedule = maintenance_get_schedule();
+$maintenanceEffective = maintenance_is_active();
+$manualMaintenanceOverride = (bool)get_setting('maintenance_mode', false);
+$maintenanceStatusLabel = $maintenanceEffective
+    ? ($manualMaintenanceOverride ? 'ACTIVE — emergency override' : 'ACTIVE — scheduled window')
+    : ($maintenanceSchedule ? 'SCHEDULED' : 'OFF');
 $current_page = 'settings.php';
 $csrf_token = generateCSRFToken();
 ?>
@@ -92,7 +238,7 @@ $csrf_token = generateCSRFToken();
 
     <?= google_fonts_tag('Inter:wght@300;400;500;600;700') ?>
     <script src="<?= asset_url('lucide') ?>"></script>
-    <link rel="stylesheet" href="../assets/css/sidebar.css">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -164,6 +310,77 @@ $csrf_token = generateCSRFToken();
             color: #111827;
             text-transform: uppercase;
             letter-spacing: 0.04em;
+        }
+        .branding-list { display: grid; gap: 10px; padding: 16px 24px 8px; }
+        .branding-item { min-width: 0; border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; }
+        .branding-item summary {
+            display: grid;
+            grid-template-columns: 56px minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 14px;
+            min-height: 76px;
+            padding: 10px 14px;
+            cursor: pointer;
+            list-style: none;
+        }
+        .branding-item summary::-webkit-details-marker { display: none; }
+        .branding-item summary::marker { content: ''; }
+        .branding-item summary:focus-visible { outline: 3px solid #7ca3fc; outline-offset: -3px; border-radius: 9px; }
+        .branding-preview {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 56px;
+            height: 56px;
+            padding: 6px;
+            border: 1px dashed #d1d5db;
+            border-radius: 8px;
+            background: #f9fafb;
+        }
+        .branding-preview img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .branding-preview-empty {
+            color: #6b7280;
+            font-size: 0.625rem;
+            text-align: center;
+            line-height: 1.2;
+        }
+        .branding-copy { min-width: 0; }
+        .branding-name { display: block; margin-bottom: 3px; color: #111827; font-size: 0.9375rem; font-weight: 700; }
+        .branding-status { color: #6b7280; font-size: 0.8125rem; }
+        .branding-summary-action { display: inline-flex; align-items: center; gap: 6px; color: #2563eb; font-size: 0.8125rem; font-weight: 600; white-space: nowrap; }
+        .branding-summary-action svg, .branding-summary-action [data-lucide] { width: 16px; height: 16px; transition: transform .18s ease; }
+        .branding-item[open] .branding-summary-action svg, .branding-item[open] .branding-summary-action [data-lucide] { transform: rotate(180deg); }
+        .branding-panel { padding: 16px 20px 18px; border-top: 1px solid #e5e7eb; }
+        .branding-description { margin: 0 0 14px; color: #6b7280; font-size: 0.8125rem; }
+        .branding-upload { display: flex; align-items: end; gap: 12px; }
+        .branding-file-group { flex: 1; min-width: 0; }
+        .branding-file-group label { display: block; margin-bottom: 6px; }
+        .branding-item input[type="file"] {
+            display: block;
+            width: 100%;
+            font-size: 0.8125rem;
+        }
+        .branding-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .branding-secondary-actions { margin-top: 10px; }
+        .btn-secondary {
+            color: #374151;
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+        }
+        .btn-secondary:hover:not(:disabled) { background: #e5e7eb; }
+        .btn:disabled { cursor: not-allowed; opacity: 0.55; }
+        .branding-note {
+            padding: 4px 24px 16px;
+            color: #6b7280;
+            font-size: 0.8125rem;
         }
         .toggle-row {
             display: flex;
@@ -291,6 +508,16 @@ $csrf_token = generateCSRFToken();
             box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
         }
 
+        .schedule-card-body { padding: 20px 24px; }
+        .schedule-status { padding: 12px 14px; margin-bottom: 18px; border-radius: 8px; background: #f3f4f6; color: #374151; font-size: 0.875rem; }
+        .schedule-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+        .schedule-grid label { display: block; font-size: 0.875rem; font-weight: 600; color: #111827; }
+        .schedule-grid input, .schedule-grid textarea { display: block; width: 100%; margin-top: 6px; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font: inherit; color: #1f2937; background: #fff; }
+        .schedule-grid textarea { min-height: 84px; resize: vertical; grid-column: 1 / -1; }
+        .schedule-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+        .btn-secondary { background: #fff; color: #374151; border: 1px solid #d1d5db; }
+        .btn-secondary:hover { background: #f9fafb; }
+        @media (max-width: 640px) { .schedule-grid { grid-template-columns: 1fr; } .schedule-grid textarea { grid-column: auto; } }
         @media (max-width: 991px) {
             .sidebar { transform: translateX(-100%); }
             .sidebar.show { transform: translateX(0); }
@@ -299,10 +526,172 @@ $csrf_token = generateCSRFToken();
             .mobile-header { display: block; }
             .sidebar-overlay.active { display: block; }
         }
-        @media (max-width: 768px) {
-            .toggle-row { flex-direction: column; gap: 14px; }
+        @media (max-width: 768px) { .toggle-row { flex-direction: column; gap: 14px; } }
+
+        /* Settings page visual refresh */
+        :root {
+            --set-ink: #17243b;
+            --set-muted: #66758b;
+            --set-line: #e3e9f2;
+            --set-blue: #356df3;
+            --set-shadow: 0 12px 32px rgba(24, 45, 82, .055);
         }
-    </style>
+
+        body { background: #f3f6fb; color: var(--set-ink); }
+        .page-container { max-width: 1240px; padding: 28px 30px 48px; }
+        .page-header {
+            position: relative;
+            overflow: hidden;
+            min-height: 142px;
+            padding: 30px 34px;
+            border: 1px solid #dce6f5;
+            border-radius: 18px;
+            background: linear-gradient(115deg, #fff, #f8faff 62%, #eef4ff);
+            box-shadow: var(--set-shadow);
+        }
+        .page-header::after {
+            content: "";
+            position: absolute;
+            width: 240px;
+            height: 240px;
+            top: -124px;
+            right: -70px;
+            border-radius: 50%;
+            background: rgba(67, 122, 249, .075);
+            pointer-events: none;
+        }
+        .page-title { position: relative; z-index: 1; gap: 14px; color: #14223a; font-size: 1.85rem; }
+        .page-title [data-lucide] {
+            width: 42px;
+            height: 42px;
+            padding: 10px;
+            border-radius: 13px;
+            color: var(--set-blue);
+            background: #eaf0ff;
+        }
+        .page-subtitle { position: relative; z-index: 1; margin: 8px 0 0 56px; color: #61718a; font-size: .94rem; }
+
+        .category-card {
+            margin-bottom: 22px;
+            border: 1px solid var(--set-line);
+            border-radius: 16px;
+            background: #fff;
+            box-shadow: var(--set-shadow);
+        }
+        .category-header {
+            min-height: 62px;
+            padding: 18px 26px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(180deg, #fff, #fbfcfe);
+        }
+        .category-title { color: #263650; font-size: .88rem; letter-spacing: .075em; }
+
+        .branding-list { padding: 16px 26px 8px; }
+        .branding-item { border-color: #e4eaf2; border-radius: 11px; }
+        .branding-item:hover, .branding-item[open] { border-color: #c7d7f6; }
+        .branding-name { color: #1d2b43; font-size: .94rem; }
+        .branding-status, .branding-description { color: var(--set-muted); }
+        .branding-preview {
+            border-color: #cbd6e5;
+            background: radial-gradient(ellipse at center, #fff, #f6f8fc);
+        }
+        .branding-preview img { filter: drop-shadow(0 3px 5px rgba(32, 51, 79, .09)); }
+        .branding-item input[type="file"] {
+            min-height: 43px;
+            padding: 6px;
+            border: 1px solid #e1e7f0;
+            border-radius: 9px;
+            color: #5f6f85;
+            background: #fafbfd;
+        }
+        .branding-item input[type="file"]::file-selector-button {
+            margin-right: 10px;
+            padding: 7px 11px;
+            border: 0;
+            border-radius: 6px;
+            color: #334968;
+            background: #eaf0fa;
+            font: 600 .78rem Inter, sans-serif;
+            cursor: pointer;
+        }
+        .branding-note { color: #718096; }
+
+        .toggle-row { align-items: center; padding: 22px 26px; }
+        .toggle-label { color: #1d2b43; font-size: .98rem; }
+        .toggle-desc, .text-row .text-desc { color: var(--set-muted); font-size: .86rem; }
+        .switch { width: 50px; height: 27px; }
+        .slider { background: #d8dfeb; }
+        .slider:before { width: 21px; height: 21px; }
+        input:checked + .slider { background: var(--set-blue); }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+        .category-card.danger { border-color: #f1dfb9; }
+        .category-card.danger .category-header {
+            min-height: 64px;
+            background: linear-gradient(100deg, #fffaf0, #fffdf8);
+        }
+        .category-card.danger .category-title { color: #8b5013; }
+        .category-card.danger .category-header [data-lucide] { width: 19px; height: 19px; }
+        .toggle-row.danger input:checked + .slider { background: #d88925; }
+
+        .text-row, .schedule-card-body { padding: 22px 26px; }
+        .text-row textarea, .schedule-grid input, .schedule-grid textarea { border-color: #dce3ed; border-radius: 10px; }
+        .text-row textarea:focus, .schedule-grid input:focus, .schedule-grid textarea:focus {
+            outline: none;
+            border-color: #7ca3fc;
+            box-shadow: 0 0 0 3px rgba(53, 109, 243, .12);
+        }
+        .text-row textarea { min-height: 96px; }
+        .schedule-status {
+            padding: 15px 18px;
+            border: 1px solid #dce7fb;
+            border-left: 4px solid #4d7ff0;
+            border-radius: 10px;
+            color: #405574;
+            background: linear-gradient(100deg, #f1f6ff, #f9fbff);
+            line-height: 1.7;
+        }
+        .schedule-status strong { color: #244578; }
+        .schedule-grid { gap: 18px; }
+        .schedule-grid label { color: #263650; font-size: .85rem; }
+        .schedule-grid input, .schedule-grid textarea { min-height: 44px; margin-top: 8px; padding: 11px 13px; }
+
+        .btn { min-height: 43px; padding: 10px 17px; border-radius: 9px; font-weight: 600; }
+        .btn-primary { background: var(--set-blue); box-shadow: 0 4px 10px rgba(53, 109, 243, .15); }
+        .btn-primary:hover { background: #285fe4; }
+        .btn-secondary { border-color: #d9e0ea; color: #3f5069; }
+        .form-actions { padding: 5px 0 22px; }
+        .flash { border-radius: 11px; }
+
+        @media (max-width: 640px) {
+            .schedule-grid { grid-template-columns: 1fr; }
+            .schedule-grid textarea { grid-column: auto; }
+        }
+        @media (max-width: 768px) {
+            .page-container { padding: 18px 16px 32px; }
+            .page-header { min-height: auto; padding: 23px 20px; border-radius: 14px; }
+            .page-title { font-size: 1.5rem; }
+            .page-title [data-lucide] { width: 38px; height: 38px; }
+            .page-subtitle { margin-left: 52px; font-size: .86rem; }
+            .category-header, .toggle-row { padding-right: 20px; padding-left: 20px; }
+            .branding-list { padding-right: 20px; padding-left: 20px; }
+            .schedule-card-body, .text-row { padding-right: 20px; padding-left: 20px; }
+            .toggle-row { flex-direction: column; align-items: flex-start; gap: 14px; }
+            .toggle-row .switch { align-self: flex-end; margin-top: -38px; }
+            .form-actions .btn, .schedule-actions .btn { width: 100%; justify-content: center; }
+            .schedule-actions { flex-direction: column-reverse; }
+        }
+        @media (max-width: 560px) {
+            .branding-item summary { grid-template-columns: 48px minmax(0, 1fr) auto; gap: 10px; padding: 9px 10px; }
+            .branding-preview { width: 48px; height: 48px; }
+            .branding-panel { padding: 14px; }
+            .branding-upload { align-items: stretch; flex-direction: column; }
+            .branding-upload .btn { justify-content: center; }
+            .branding-actions .btn { flex: 1; justify-content: center; }
+        }
+</style>
 </head>
 <body>
     <?php include '../includes/preloader.php'; ?>
@@ -310,7 +699,7 @@ $csrf_token = generateCSRFToken();
     <!-- Mobile Header -->
     <div class="mobile-header">
         <div class="mobile-header-content">
-            <h4><i data-lucide="file-badge"></i> Civil Registry</h4>
+            <h4 style="display:flex;align-items:center;gap:8px;"><img src="<?= htmlspecialchars(branding_logo_url('app'), ENT_QUOTES, 'UTF-8') ?>" alt="" style="width:30px;height:30px;object-fit:contain;"> Civil Registry</h4>
             <button id="mobileSidebarToggle">
                 <i data-lucide="menu"></i>
             </button>
@@ -329,7 +718,7 @@ $csrf_token = generateCSRFToken();
                         <i data-lucide="settings"></i>
                         System Settings
                     </h1>
-                    <p class="page-subtitle">Turn features on or off across the system.</p>
+                    <p class="page-subtitle">Manage system features and the logos shown across iSCAN.</p>
                 </div>
             </div>
 
@@ -340,8 +729,74 @@ $csrf_token = generateCSRFToken();
                 </div>
             <?php endif; ?>
 
+            <section class="category-card" aria-labelledby="branding-title">
+                <div class="category-header">
+                    <div class="category-title" id="branding-title">Branding Logos</div>
+                </div>
+                <div class="branding-list">
+                    <?php foreach ($logoDefinitions as $slot => $definition):
+                        $previewUrl = branding_logo_url($slot);
+                        $storedPath = (string) get_setting($definition['setting_key'], '');
+                        $hasCustomLogo = trim($storedPath) !== '';
+                        $isLogoHidden = branding_is_logo_hidden($storedPath);
+                        $logoStatus = $isLogoHidden ? 'Hidden' : ($previewUrl === '' ? 'Logo unavailable' : ($hasCustomLogo ? 'Custom logo' : 'Default logo'));
+                        $slotId = preg_replace('/[^a-z0-9_-]/i', '-', $slot);
+                    ?>
+                        <details class="branding-item">
+                            <summary>
+                                <span class="branding-preview">
+                                    <?php if ($isLogoHidden): ?><span class="branding-preview-empty">Hidden</span><?php elseif ($previewUrl !== ''): ?>
+                                        <img src="<?= htmlspecialchars($previewUrl, ENT_QUOTES, 'UTF-8') ?>" alt="">
+                                    <?php else: ?>
+                                        <span class="branding-preview-empty">No logo</span>
+                                    <?php endif; ?>
+                                </span>
+                                <span class="branding-copy">
+                                    <span class="branding-name"><?= htmlspecialchars($definition['label'], ENT_QUOTES, 'UTF-8') ?></span>
+                                    <span class="branding-status"><?= htmlspecialchars($logoStatus, ENT_QUOTES, 'UTF-8') ?></span>
+                                </span>
+                                <span class="branding-summary-action">Change <i data-lucide="chevron-down" aria-hidden="true"></i></span>
+                            </summary>
+                            <div class="branding-panel">
+                                <p class="branding-description"><?= htmlspecialchars($definition['description'], ENT_QUOTES, 'UTF-8') ?></p>
+                                <form class="branding-upload" method="post" action="" enctype="multipart/form-data">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8') ?>">
+                                    <input type="hidden" name="form_action" value="branding">
+                                    <input type="hidden" name="branding_action" value="upload">
+                                    <input type="hidden" name="logo_slot" value="<?= htmlspecialchars($slot, ENT_QUOTES, 'UTF-8') ?>">
+                                    <div class="branding-file-group">
+                                        <label class="toggle-label" for="logo-file-<?= htmlspecialchars($slotId, ENT_QUOTES, 'UTF-8') ?>">Choose PNG or JPEG (up to 5 MB)</label>
+                                        <input id="logo-file-<?= htmlspecialchars($slotId, ENT_QUOTES, 'UTF-8') ?>"
+                                               type="file"
+                                               name="logo_file"
+                                               accept="image/png,image/jpeg"
+                                               required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary"><i data-lucide="upload"></i> Upload Logo</button>
+                                </form>
+                                <form class="branding-actions branding-secondary-actions" method="post" action="">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8') ?>">
+                                    <input type="hidden" name="form_action" value="branding">
+                                    <input type="hidden" name="logo_slot" value="<?= htmlspecialchars($slot, ENT_QUOTES, 'UTF-8') ?>">
+                                    <?php if ($slot !== 'app'): ?>
+                                        <button type="submit" name="branding_action" value="hide" class="btn btn-secondary" <?= $isLogoHidden ? 'disabled' : '' ?>>
+                                            <i data-lucide="eye-off"></i> Hide Logo
+                                        </button>
+                                    <?php endif; ?>
+                                    <button type="submit" name="branding_action" value="reset" class="btn btn-secondary" <?= $hasCustomLogo ? '' : 'disabled' ?>>
+                                        <i data-lucide="rotate-ccw"></i> Reset to Default
+                                    </button>
+                                </form>
+                            </div>
+                        </details>
+                    <?php endforeach; ?>
+                </div>
+                <p class="branding-note">The CRF logo settings apply to Forms 1A, 2A, and 3A. Use Hide Logo to omit a logo. Reset to Default restores the configured fallback.</p>
+            </section>
+
             <form method="post" action="">
                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8') ?>">
+                <input type="hidden" name="form_action" value="save_settings">
 
                 <?php
                 $by_category = [];
@@ -399,6 +854,44 @@ $csrf_token = generateCSRFToken();
                     </button>
                 </div>
             </form>
+            <?php
+                $canCancelSchedule = $maintenanceSchedule !== null && $storedMaintenanceSchedule && ($storedMaintenanceSchedule['status'] ?? '') === 'scheduled';
+                $scheduleId = $canCancelSchedule ? (string)$storedMaintenanceSchedule['id'] : '';
+            ?>
+            <section class="category-card" aria-labelledby="schedule-title">
+                <div class="category-header"><div class="category-title" id="schedule-title">Scheduled Maintenance</div></div>
+                <div class="schedule-card-body">
+                    <div class="schedule-status">
+                        <strong>Current status: <?= htmlspecialchars($maintenanceStatusLabel, ENT_QUOTES, 'UTF-8') ?></strong>
+                        <?php if ($maintenanceSchedule): ?>
+                            <br>Window: <?= htmlspecialchars($maintenanceSchedule['starts_at_display'], ENT_QUOTES, 'UTF-8') ?> to <?= htmlspecialchars($maintenanceSchedule['ends_at_display'], ENT_QUOTES, 'UTF-8') ?>
+                        <?php endif; ?>
+                    </div>
+                    <p class="text-desc">Set one maintenance window. Users receive a notice when you save it and again when it starts. App timezone: <?= htmlspecialchars(date_default_timezone_get(), ENT_QUOTES, 'UTF-8') ?>. Emergency override remains available above.</p>
+                    <form method="post" action="">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8') ?>">
+                        <input type="hidden" name="form_action" value="maintenance_schedule">
+                        <input type="hidden" name="schedule_id" value="<?= htmlspecialchars($scheduleId, ENT_QUOTES, 'UTF-8') ?>">
+                        <div class="schedule-grid">
+                            <label for="maintenance_starts_at">Start date and time
+                                <input id="maintenance_starts_at" name="maintenance_starts_at" type="datetime-local" step="60" value="<?= htmlspecialchars($scheduleInput['starts_at'], ENT_QUOTES, 'UTF-8') ?>" required>
+                            </label>
+                            <label for="maintenance_ends_at">End date and time
+                                <input id="maintenance_ends_at" name="maintenance_ends_at" type="datetime-local" step="60" value="<?= htmlspecialchars($scheduleInput['ends_at'], ENT_QUOTES, 'UTF-8') ?>" required>
+                            </label>
+                            <label for="scheduled_maintenance_message">Notice for users
+                                <textarea id="scheduled_maintenance_message" name="scheduled_maintenance_message" maxlength="500" required><?= htmlspecialchars($scheduleInput['message'], ENT_QUOTES, 'UTF-8') ?></textarea>
+                            </label>
+                        </div>
+                        <div class="schedule-actions">
+                            <?php if ($canCancelSchedule): ?>
+                                <button type="submit" name="schedule_action" value="cancel" class="btn btn-secondary" onclick="return confirm('Cancel this maintenance schedule? Users will be notified.');">Cancel Schedule</button>
+                            <?php endif; ?>
+                            <button type="submit" name="schedule_action" value="save" class="btn btn-primary"><i data-lucide="calendar-clock"></i> Save Schedule</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
         </div>
     </div>
 
@@ -414,8 +907,8 @@ $csrf_token = generateCSRFToken();
                 var label = cb.getAttribute('data-confirm-label') || 'this setting';
                 var ok = window.confirm(
                     'Enable ' + label + '?\n\n' +
-                    'All non-admin users will be logged out on their next request ' +
-                    'and only Administrators will be able to use the system until you turn it back OFF.'
+                    'All non-admin users will be logged out on their next request. ' +
+                    'Only Administrators may use the system while the override or schedule is active. Turning the override OFF returns control to the scheduled window.'
                 );
                 if (!ok) {
                     cb.checked = false;

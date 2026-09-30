@@ -1,31 +1,27 @@
 <?php
 /**
- * Maintenance Status Heartbeat
+ * Public maintenance status and notification feed.
  *
- * Lightweight JSON endpoint polled by client-side JS on every protected page.
- * Returns whether maintenance mode is active and whether the *current viewer*
- * should be kicked out (i.e. logged-in non-admin).
- *
- * IMPORTANT: This endpoint deliberately does NOT include auth.php — including
- * auth.php triggers enforceMaintenanceMode() which would log the user out as
- * a side effect of the poll. We read session state directly instead.
+ * This endpoint deliberately avoids auth.php: that guard would log out a
+ * non-admin before this heartbeat can report the change to the browser.
  */
-
 require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/settings.php';
 
-header('Content-Type: application/json');
-header('Cache-Control: no-store');
+header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store, no-cache, must-revalidate');
 
-$is_on = (bool) get_setting('maintenance_mode', false);
-
+$isOn = maintenance_is_active();
 $role = $_SESSION['user_role'] ?? null;
-$logged_in = !empty($_SESSION['user_id']);
-$should_logout = $is_on && $logged_in && $role !== 'Admin';
+$loggedIn = !empty($_SESSION['user_id']);
+$shouldLogout = $isOn && $loggedIn && $role !== 'Admin';
 
 echo json_encode([
-    'maintenance' => $is_on,
-    'logout'      => $should_logout,
-    'message'     => $is_on ? (string) get_setting('maintenance_message', '') : '',
-]);
+    'maintenance' => $isOn,
+    'logout' => $shouldLogout,
+    'message' => $isOn ? maintenance_get_message() : '',
+    'schedule' => maintenance_get_public_schedule(),
+    'notifications' => maintenance_get_notification_events(),
+    'timezone' => date_default_timezone_get(),
+], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);

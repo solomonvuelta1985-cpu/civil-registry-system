@@ -223,6 +223,10 @@ try {
         json_response(false, 'Invalid date of death.', null, 400);
     }
 
+    if (empty($pdf_filename)) {
+        json_response(false, 'PDF file is required.', null, 400);
+    }
+
     // Reconcile PDF folder with (possibly renamed) last name / date of death.
     if ($old_pdf_filename === null && $pdf_filename) {
         $reconcile_year = year_from_date($date_of_death) ?? registry_folder_year($registry_no);

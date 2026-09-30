@@ -22,7 +22,7 @@ if (!hasPermission(crf_2a_view_permission())) {
 
 setSecurityHeaders();
 $csrfMeta = csrfTokenMeta();
-$crfDefaults = crf_2a_config();
+$crfDefaults = branding_crf_preview_config(crf_2a_config());
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -36,9 +36,9 @@ $crfDefaults = crf_2a_config();
     <script src="<?= asset_url('lucide') ?>"></script>
     <link rel="stylesheet" href="<?= asset_url('notiflix_css') ?>">
     <script src="<?= asset_url('notiflix_js') ?>"></script>
-    <link rel="stylesheet" href="../assets/css/sidebar.css">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=13">
-    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=24">
+    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=27">
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = '<?= asset_url("pdfjs_worker") ?>';</script>
     <style>
@@ -95,7 +95,7 @@ $crfDefaults = crf_2a_config();
     window.CRF2A_DEFAULT_ISSUE_DATE = <?= json_encode(date('Y-m-d')) ?>;
 </script>
 <script src="../assets/js/record-preview-modal.js?v=13"></script>
-<script src="../assets/js/crf-2a-generator.js?v=3"></script>
+<script src="../assets/js/crf-2a-generator.js?v=4"></script>
 <script src="../assets/js/crf-2a-records.js?v=4"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
 </body>

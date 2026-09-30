@@ -9,6 +9,7 @@ require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
+require_once '../includes/branding.php';
 
 // Require authentication
 requireAuth();
@@ -351,7 +352,7 @@ $user_first_name = explode(' ', $user_name)[0];
     <script src="<?= asset_url('chartjs') ?>"></script>
 
     <!-- Shared Sidebar Styles -->
-    <link rel="stylesheet" href="../assets/css/sidebar.css">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
 
     <link rel="stylesheet" href="../assets/css/dashboard.css?v=20260908">
 </head>
@@ -377,7 +378,7 @@ $user_first_name = explode(' ', $user_name)[0];
         <div class="dashboard-container">
             <header class="dashboard-header">
                 <div class="header-identity">
-                    <img class="header-seal" src="../assets/img/LOGO1.png" alt="Civil Registry Office seal">
+                    <img class="header-seal" src="<?= htmlspecialchars(branding_logo_url('app'), ENT_QUOTES, 'UTF-8') ?>" alt="Civil Registry Office seal">
                     <div>
                         <p class="header-eyebrow">Civil Registry Records / iSCAN</p>
                         <h1>Civil Registry Dashboard</h1>

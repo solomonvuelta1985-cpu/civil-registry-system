@@ -13,7 +13,7 @@ if (!hasPermission(crf_3a_view_permission())) { http_response_code(403); include
 
 setSecurityHeaders();
 $csrfMeta = csrfTokenMeta();
-$crfDefaults = crf_3a_config();
+$crfDefaults = branding_crf_preview_config(crf_3a_config());
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -27,9 +27,9 @@ $crfDefaults = crf_3a_config();
     <script src="<?= asset_url('lucide') ?>"></script>
     <link rel="stylesheet" href="<?= asset_url('notiflix_css') ?>">
     <script src="<?= asset_url('notiflix_js') ?>"></script>
-    <link rel="stylesheet" href="../assets/css/sidebar.css">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=13">
-    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=25">
+    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=27">
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = '<?= asset_url("pdfjs_worker") ?>';</script>
     <style>
@@ -81,8 +81,8 @@ $crfDefaults = crf_3a_config();
     window.CRF3A_CAN_DELETE = <?= isAdmin() ? 'true' : 'false' ?>;
     window.CRF3A_DEFAULT_ISSUE_DATE = <?= json_encode(date('Y-m-d')) ?>;
 </script>
-<script src="../assets/js/crf-3a-generator.js?v=1"></script>
-<script src="../assets/js/crf-3a-records.js?v=1"></script>
+<script src="../assets/js/crf-3a-generator.js?v=4"></script>
+<script src="../assets/js/crf-3a-records.js?v=2"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
 </body>
 </html>

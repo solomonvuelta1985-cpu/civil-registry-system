@@ -20,9 +20,9 @@ if (!isLoggedIn()) {
 
 setSecurityHeaders();
 $csrfMeta = csrfTokenMeta();
-$crfDefaults = crf_1a_config();
-$crf2aDefaults = crf_2a_config();
-$crf3aDefaults = crf_3a_config();
+$crfDefaults = branding_crf_preview_config(crf_1a_config());
+$crf2aDefaults = branding_crf_preview_config(crf_2a_config());
+$crf3aDefaults = branding_crf_preview_config(crf_3a_config());
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -38,9 +38,9 @@ $crf3aDefaults = crf_3a_config();
     <link rel="stylesheet" href="<?= asset_url('notiflix_css') ?>">
     <script src="<?= asset_url('notiflix_js') ?>"></script>
 
-    <link rel="stylesheet" href="../assets/css/sidebar.css">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=12">
-    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=24">
+    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=27">
 
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>
@@ -865,11 +865,11 @@ function openPreview(id, type) {
 </script>
 <script src="../assets/js/family_relations_render.js?v=2"></script>
 <script src="../assets/js/record-preview-modal.js?v=13"></script>
-<script src="../assets/js/crf-1a-generator.js?v=16"></script>
-<script src="../assets/js/crf-2a-generator.js?v=3"></script>
+<script src="../assets/js/crf-1a-generator.js?v=17"></script>
+<script src="../assets/js/crf-2a-generator.js?v=4"></script>
 <script src="../assets/js/crf-2a-records.js?v=4"></script>
-<script src="../assets/js/crf-3a-generator.js?v=1"></script>
-<script src="../assets/js/crf-3a-records.js?v=1"></script>
+<script src="../assets/js/crf-3a-generator.js?v=4"></script>
+<script src="../assets/js/crf-3a-records.js?v=2"></script>
 <script src="../assets/js/crf-1a-records.js?v=20"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
 </body>

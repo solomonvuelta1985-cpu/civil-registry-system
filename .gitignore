@@ -87,3 +87,7 @@ assets/vendor/
 tests/
 phpunit.xml
 .phpunit.result.cache
+
+# Runtime restore previews and job artifacts
+storage/
+

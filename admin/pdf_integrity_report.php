@@ -72,7 +72,7 @@ try {
     <?= google_fonts_tag('Inter:wght@400;500;600;700;800') ?>
     <link rel="stylesheet" href="<?= asset_url('fontawesome_css') ?>">
     <script src="<?= asset_url('lucide') ?>"></script>
-    <link rel="stylesheet" href="../assets/css/sidebar.css">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
     <style>
         :root {
             /* Material Design 3 Colors */

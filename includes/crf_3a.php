@@ -47,7 +47,7 @@ function crf_3a_config(): array
     if ($config !== null) return $config;
 
     $oneA = crf_1a_config();
-    $config = [
+    $config = branding_apply_crf_logo_overrides([
         'office_name' => env('CRF3A_OFFICE_NAME', $oneA['office_name']),
         'municipality' => env('CRF3A_MUNICIPALITY', $oneA['municipality']),
         'province' => env('CRF3A_PROVINCE', $oneA['province']),
@@ -55,7 +55,7 @@ function crf_3a_config(): array
         'logo_seal' => env('CRF3A_LOGO_SEAL', $oneA['logo_seal']),
         'logo_baggao' => env('CRF3A_LOGO_BAGGAO', $oneA['logo_baggao']),
         'logo_pilipinas' => env('CRF3A_LOGO_PILIPINAS', $oneA['logo_pilipinas']),
-    ];
+    ]);
     return $config;
 }
 
@@ -94,6 +94,17 @@ function crf_3a_record_values(array $record, array $inputs = []): array
     $pick = static function (string $key) use ($inputs): string {
         return trim((string)($inputs[$key] ?? ''));
     };
+    $recordValue = static function (array $keys) use ($record): string {
+        foreach ($keys as $key) {
+            $value = trim((string)($record[$key] ?? ''));
+            if ($value !== '') return $value;
+        }
+        return '';
+    };
+    $pickOrRecord = static function (string $inputKey, array $recordKeys) use ($pick, $recordValue): string {
+        $inputValue = $pick($inputKey);
+        return $inputValue !== '' ? $inputValue : $recordValue($recordKeys);
+    };
     $husbandDob = crf_3a_date($record, 'husband_date_of_birth');
     $wifeDob = crf_3a_date($record, 'wife_date_of_birth');
     $husbandAge = crf_3a_age_at_marriage($record, 'husband');
@@ -106,22 +117,24 @@ function crf_3a_record_values(array $record, array $inputs = []): array
         'husband_date_of_birth' => $husbandDob,
         'husband_age' => $husbandAge,
         'husband_date_of_birth_age' => $husbandDob !== '' && $husbandAge !== '' ? $husbandDob . ' / ' . $husbandAge : $husbandDob,
-        'husband_nationality' => $pick('husband_nationality'),
-        'husband_civil_status' => $pick('husband_civil_status'),
+        // The marriage record stores these fields as citizenship. CRF 3A's
+        // issuance schema historically calls the same values nationality.
+        'husband_nationality' => $pickOrRecord('husband_nationality', ['husband_citizenship', 'husband_nationality']),
+        'husband_civil_status' => $pickOrRecord('husband_civil_status', ['husband_civil_status']),
         'husband_mother_name' => $pick('husband_mother_name') !== '' ? $pick('husband_mother_name') : trim((string)($record['husband_mother_name'] ?? '')),
-        'husband_mother_nationality' => $pick('husband_mother_nationality'),
+        'husband_mother_nationality' => $pickOrRecord('husband_mother_nationality', ['husband_mother_citizenship', 'husband_mother_nationality']),
         'husband_father_name' => $pick('husband_father_name') !== '' ? $pick('husband_father_name') : trim((string)($record['husband_father_name'] ?? '')),
-        'husband_father_nationality' => $pick('husband_father_nationality'),
+        'husband_father_nationality' => $pickOrRecord('husband_father_nationality', ['husband_father_citizenship', 'husband_father_nationality']),
         'wife_name' => crf_3a_full_name($record, 'wife'),
         'wife_date_of_birth' => $wifeDob,
         'wife_age' => $wifeAge,
         'wife_date_of_birth_age' => $wifeDob !== '' && $wifeAge !== '' ? $wifeDob . ' / ' . $wifeAge : $wifeDob,
-        'wife_nationality' => $pick('wife_nationality'),
-        'wife_civil_status' => $pick('wife_civil_status'),
+        'wife_nationality' => $pickOrRecord('wife_nationality', ['wife_citizenship', 'wife_nationality']),
+        'wife_civil_status' => $pickOrRecord('wife_civil_status', ['wife_civil_status']),
         'wife_mother_name' => $pick('wife_mother_name') !== '' ? $pick('wife_mother_name') : trim((string)($record['wife_mother_name'] ?? '')),
-        'wife_mother_nationality' => $pick('wife_mother_nationality'),
+        'wife_mother_nationality' => $pickOrRecord('wife_mother_nationality', ['wife_mother_citizenship', 'wife_mother_nationality']),
         'wife_father_name' => $pick('wife_father_name') !== '' ? $pick('wife_father_name') : trim((string)($record['wife_father_name'] ?? '')),
-        'wife_father_nationality' => $pick('wife_father_nationality'),
+        'wife_father_nationality' => $pickOrRecord('wife_father_nationality', ['wife_father_citizenship', 'wife_father_nationality']),
         'date_of_marriage' => crf_3a_date($record, 'date_of_marriage'),
         'place_of_marriage' => trim((string)($record['place_of_marriage'] ?? '')),
     ];
@@ -145,7 +158,7 @@ function crf_3a_preview_style(): string
 .crf1a-document .doc-logo-seal{width:27mm;height:27mm;flex:0 0 27mm;}
 .crf1a-document .doc-logo-baggao{width:27mm;height:27mm;flex:0 0 27mm;}
 .crf1a-document .doc-logo-pilipinas{width:34mm;height:28mm;flex:0 0 34mm;}
-.crf1a-document .doc-logo img{width:100%;height:100%;object-fit:contain;}
+.crf1a-document .doc-logo img{width:100%;height:100%;object-fit:contain;}.crf1a-document .doc-logo-baggao img{transform:scale(1.35);}.crf1a-document .doc-logo-pilipinas img{transform:scale(1.2);}
 .crf1a-document .doc-header-copy{flex:1;text-align:left;line-height:1.05;}
 .crf1a-document .doc-republic,.crf1a-document .doc-province{font-size:9pt;}
 .crf1a-document .doc-municipality{font-family:"Times New Roman",serif;font-size:13.5pt;font-weight:700;letter-spacing:.01em;}
@@ -176,6 +189,7 @@ function crf_3a_preview_style(): string
 .crf1a-document .crf3a-details-table .crf3a-label{width:43mm;text-align:left;}
 .crf1a-document .crf3a-details-table .crf3a-party{width:61mm;text-align:left;}
 .crf1a-document .crf3a-details-table .crf3a-party-line{display:inline-block;width:56mm;height:4.4mm;line-height:3.25mm;padding-top:.9mm;border-bottom:1px solid #222;overflow:hidden;white-space:nowrap;vertical-align:bottom;}
+.crf1a-document .crf3a-details-table .crf3a-shared-line{display:inline-block;width:117mm;height:4.4mm;line-height:3.25mm;padding-top:.9mm;border-bottom:1px solid #222;overflow:hidden;white-space:nowrap;vertical-align:bottom;text-align:center;}
 .crf1a-document .crf3a-details-table .crf3a-single-line{display:inline-block;width:45mm;height:4.4mm;line-height:3.25mm;padding-top:.9mm;border-bottom:1px solid #222;overflow:hidden;white-space:nowrap;vertical-align:bottom;}
 .crf1a-document .crf3a-certification{position:absolute;top:157mm;left:21mm;right:21mm;line-height:1.3;}
 .crf1a-document .crf3a-signature{position:absolute;top:177mm;right:30mm;width:62mm;text-align:center;font-size:9pt;}
@@ -222,12 +236,12 @@ function crf_3a_render_document_html(array $record, array $inputs, string $crfNu
         $value = trim((string)($value ?? ''));
         return '<span class="crf3a-party-line">' . ($value !== '' ? $e($value) : '&nbsp;') . '</span>';
     };
-    $singleLine = static function ($value) use ($e): string {
-        $value = trim((string)($value ?? ''));
-        return '<span class="crf3a-single-line">' . ($value !== '' ? $e($value) : '&nbsp;') . '</span>';
-    };
     $row = static function (string $label, $husband, $wife) use ($e, $line): string {
         return '<tr><td class="crf3a-label">' . $e($label) . '</td><td class="crf3a-party">' . $line($husband) . '</td><td class="crf3a-party">' . $line($wife) . '</td></tr>';
+    };
+    $sharedRow = static function (string $label, $value) use ($e): string {
+        $value = trim((string)($value ?? ''));
+        return '<tr><td class="crf3a-label">' . $e($label) . '</td><td colspan="2"><span class="crf3a-shared-line">' . ($value !== '' ? $e($value) : '&nbsp;') . '</span></td></tr>';
     };
     $date = strtotime((string)($inputs['issue_date'] ?? date('Y-m-d')));
     $issueDateText = $date === false ? $e($inputs['issue_date'] ?? '') : $e(date('F j, Y', $date));
@@ -248,16 +262,16 @@ function crf_3a_render_document_html(array $record, array $inputs, string $crfNu
         . '<div class="crf3a-details"><table class="crf3a-details-table"><thead><tr><th class="crf3a-label"></th><th class="crf3a-party">HUSBAND</th><th class="crf3a-party">WIFE</th></tr></thead><tbody>'
         . $row('Name', $values['husband_name'], $values['wife_name'])
         . $row('Date of Birth / Age', $values['husband_date_of_birth_age'], $values['wife_date_of_birth_age'])
-        . $row('Nationality', $values['husband_nationality'], $values['wife_nationality'])
+        . $row('Citizenship', $values['husband_nationality'], $values['wife_nationality'])
         . $row('Civil Status', $values['husband_civil_status'], $values['wife_civil_status'])
         . $row('Name of Mother', $values['husband_mother_name'], $values['wife_mother_name'])
         . $row('Nationality', $values['husband_mother_nationality'], $values['wife_mother_nationality'])
         . $row('Name of Father', $values['husband_father_name'], $values['wife_father_name'])
         . $row('Nationality', $values['husband_father_nationality'], $values['wife_father_nationality'])
-        . '<tr><td class="crf3a-label">Civil Registry Number</td><td class="crf3a-party">' . $singleLine($values['registry_no']) . '</td><td class="crf3a-party">&nbsp;</td></tr>'
-        . $row('Date of Marriage', $values['date_of_marriage'], $values['date_of_marriage'])
-        . $row('Place of Marriage', $values['place_of_marriage'], $values['place_of_marriage'])
-        . $row('Date of Registration', $values['date_of_registration'], $values['date_of_registration'])
+        . $sharedRow('Civil Registry Number', $values['registry_no'])
+        . $sharedRow('Date of Marriage', $values['date_of_marriage'])
+        . $sharedRow('Place of Marriage', $values['place_of_marriage'])
+        . $sharedRow('Date of Registration', $values['date_of_registration'])
         . '</tbody></table></div>'
         . '<div class="crf3a-certification">This certification is issued to ' . $requesterLine . ' upon his/her<br>request.</div>'
         . '<div class="crf3a-signature"><strong>' . $e($inputs['mcr_full_name'] ?? '') . '</strong><div>' . $e($inputs['mcr_title'] ?? '') . '</div></div>'

@@ -171,6 +171,23 @@ class CertificateFormHandler {
      * Setup form submission handlers
      */
     setupFormSubmission() {
+        // Native validation can prevent a missing file from reaching the submit event.
+        if (this.submitButtons.save) {
+            this.submitButtons.save.addEventListener('click', (e) => {
+                if (!this.isSubmitting && this.warnIfPDFMissing()) e.preventDefault();
+            });
+        }
+
+        // The toolbar's Ctrl/Cmd+S shortcut calls requestSubmit() directly.
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 's'
+                && !this.isSubmitting && this.pdfFileInput?.required && this.pdfFileInput.files.length === 0) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                this.warnIfPDFMissing();
+            }
+        }, true);
+
         // Standard submit
         this.form.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -187,6 +204,39 @@ class CertificateFormHandler {
     }
 
     /**
+     * Alert when a PDF is required and none is attached or selected.
+     */
+    warnIfPDFMissing() {
+        if (!this.pdfFileInput?.required || this.pdfFileInput.files.length > 0) return false;
+
+        const floatingBtn = document.getElementById('floatingToggleBtn');
+        const drawerBtn = document.getElementById('togglePdfBtn');
+        const target = this.pdfColumn?.classList.contains('drawer-open')
+            ? (drawerBtn || floatingBtn)
+            : (floatingBtn || drawerBtn);
+
+        clearTimeout(this.pdfAttentionTimer);
+        this.pdfAttentionTarget?.classList.remove('pdf-required-attention');
+        if (target) {
+            target.classList.remove('pdf-required-attention');
+            void target.offsetWidth;
+            target.classList.add('pdf-required-attention');
+            this.pdfAttentionTarget = target;
+            this.pdfAttentionTimer = setTimeout(() => {
+                target.classList.remove('pdf-required-attention');
+                if (this.pdfAttentionTarget === target) this.pdfAttentionTarget = null;
+            }, 900);
+        }
+
+        if (typeof Notiflix !== 'undefined' && Notiflix.Notify) {
+            Notiflix.Notify.warning('Upload a PDF to continue.');
+        } else {
+            this.showAlert('danger', 'Upload a PDF to continue.');
+        }
+        return true;
+    }
+
+    /**
      * Submit the form
      */
     async submitForm(addNew = false) {
@@ -194,6 +244,8 @@ class CertificateFormHandler {
         if (this.isSubmitting) {
             return;
         }
+
+        if (this.warnIfPDFMissing()) return;
 
         // Show confirmation dialog based on form type
         const formTypeNames = {
@@ -213,6 +265,8 @@ class CertificateFormHandler {
 
         // Function to actually submit the form
         const doSubmit = async () => {
+            if (this.warnIfPDFMissing()) return;
+
             // Validate all fields
             const isValid = this.form.checkValidity();
 

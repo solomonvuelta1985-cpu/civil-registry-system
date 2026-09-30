@@ -14,8 +14,9 @@ require_once '../includes/settings.php';
 http_response_code(503);
 header('Retry-After: 600');
 
-$maintenance_active = (bool) get_setting('maintenance_mode', false);
-$message = trim((string) get_setting('maintenance_message', 'The system is undergoing scheduled maintenance. Please try again shortly.'));
+$maintenance_active = maintenance_is_active();
+$maintenance_schedule = maintenance_get_public_schedule();
+$message = maintenance_get_message();
 if ($message === '') {
     $message = 'The system is undergoing scheduled maintenance. Please try again shortly.';
 }
@@ -159,6 +160,9 @@ if ($message === '') {
         <h1 class="title">We&rsquo;ll be right back</h1>
 
         <p class="message"><?= htmlspecialchars($message) ?></p>
+        <?php if ($maintenance_schedule && $maintenance_schedule['state'] === 'active'): ?>
+            <p class="meta">Scheduled maintenance window: <?= htmlspecialchars($maintenance_schedule['starts_at_display'], ENT_QUOTES, 'UTF-8') ?> to <?= htmlspecialchars($maintenance_schedule['ends_at_display'], ENT_QUOTES, 'UTF-8') ?></p>
+        <?php endif; ?>
 
         <p class="meta">This page checks for updates every 30 seconds.</p>
 
@@ -179,5 +183,6 @@ if ($message === '') {
             window.location.replace('login.php');
         </script>
     <?php endif; ?>
+<script src="<?= htmlspecialchars(BASE_URL, ENT_QUOTES, 'UTF-8') ?>assets/js/maintenance-notifications.js" data-status-url="<?= htmlspecialchars(BASE_URL, ENT_QUOTES, 'UTF-8') ?>api/maintenance_status.php" data-maintenance-url="<?= htmlspecialchars(BASE_URL, ENT_QUOTES, 'UTF-8') ?>public/maintenance.php"></script>
 </body>
 </html>

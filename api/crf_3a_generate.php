@@ -56,14 +56,14 @@ $inputs = [
     'husband_father_name' => crf_3a_post_string('husband_father_name', 255),
     'wife_mother_name' => crf_3a_post_string('wife_mother_name', 255),
     'wife_father_name' => crf_3a_post_string('wife_father_name', 255),
-    'husband_nationality' => crf_3a_required('husband_nationality', 'Husband Nationality', 100),
-    'husband_civil_status' => crf_3a_required('husband_civil_status', 'Husband Civil Status', 50),
-    'husband_mother_nationality' => crf_3a_required('husband_mother_nationality', 'Husband Mother Nationality', 100),
-    'husband_father_nationality' => crf_3a_required('husband_father_nationality', 'Husband Father Nationality', 100),
-    'wife_nationality' => crf_3a_required('wife_nationality', 'Wife Nationality', 100),
-    'wife_civil_status' => crf_3a_required('wife_civil_status', 'Wife Civil Status', 50),
-    'wife_mother_nationality' => crf_3a_required('wife_mother_nationality', 'Wife Mother Nationality', 100),
-    'wife_father_nationality' => crf_3a_required('wife_father_nationality', 'Wife Father Nationality', 100),
+    'husband_nationality' => crf_3a_post_string('husband_nationality', 100),
+    'husband_civil_status' => crf_3a_post_string('husband_civil_status', 50),
+    'husband_mother_nationality' => crf_3a_post_string('husband_mother_nationality', 100),
+    'husband_father_nationality' => crf_3a_post_string('husband_father_nationality', 100),
+    'wife_nationality' => crf_3a_post_string('wife_nationality', 100),
+    'wife_civil_status' => crf_3a_post_string('wife_civil_status', 50),
+    'wife_mother_nationality' => crf_3a_post_string('wife_mother_nationality', 100),
+    'wife_father_nationality' => crf_3a_post_string('wife_father_nationality', 100),
     'mcr_full_name' => crf_3a_required('mcr_full_name', 'Municipal Civil Registrar Name', 150),
     'mcr_title' => crf_3a_required('mcr_title', 'Municipal Civil Registrar Position', 100),
     'verified_by_name' => crf_3a_required('verified_by_name', 'Verified By Name', 150),
@@ -76,7 +76,7 @@ if ($inputs['amount_paid'] === '' || !preg_match('/^(?:0|[1-9]\d{0,9})(?:\.\d{1,
 $inputs['amount_paid'] = number_format((float)$inputs['amount_paid'], 2, '.', '');
 $allowedCivilStatus = ['Single', 'Married', 'Widowed', 'Divorced/Separated', 'Unknown/Not Stated'];
 foreach (['husband_civil_status' => 'Husband Civil Status', 'wife_civil_status' => 'Wife Civil Status'] as $key => $label) {
-    if (!in_array($inputs[$key], $allowedCivilStatus, true)) json_response(false, $label . ' is invalid.', null, 422);
+    if ($inputs[$key] !== '' && !in_array($inputs[$key], $allowedCivilStatus, true)) json_response(false, $label . ' is invalid.', null, 422);
 }
 
 $issuanceKind = crf_3a_post_string('issuance_kind', 20) ?: 'Original';
@@ -93,6 +93,26 @@ try {
     if (!$record) json_response(false, 'Marriage record not found or is no longer active.', null, 404);
 
     $values = crf_3a_record_values($record, $inputs);
+    // Use the source marriage record for fields that are already captured
+    // there, while preserving an explicit issuance-time override.
+    foreach (['husband_nationality', 'husband_civil_status', 'husband_mother_nationality', 'husband_father_nationality', 'wife_nationality', 'wife_civil_status', 'wife_mother_nationality', 'wife_father_nationality'] as $key) {
+        $inputs[$key] = trim((string)($values[$key] ?? ''));
+    }
+    foreach ([
+        'husband_nationality' => 'Husband Citizenship',
+        'husband_civil_status' => 'Husband Civil Status',
+        'husband_mother_nationality' => 'Husband Mother Nationality',
+        'husband_father_nationality' => 'Husband Father Nationality',
+        'wife_nationality' => 'Wife Citizenship',
+        'wife_civil_status' => 'Wife Civil Status',
+        'wife_mother_nationality' => 'Wife Mother Nationality',
+        'wife_father_nationality' => 'Wife Father Nationality',
+    ] as $key => $label) {
+        if ($inputs[$key] === '') json_response(false, $label . ' is required before generating CRF No. 3A.', null, 422);
+    }
+    foreach (['husband_civil_status' => 'Husband Civil Status', 'wife_civil_status' => 'Wife Civil Status'] as $key => $label) {
+        if (!in_array($inputs[$key], $allowedCivilStatus, true)) json_response(false, $label . ' is invalid.', null, 422);
+    }
     $requiredValues = [
         'husband_name' => 'Husband Name',
         'wife_name' => 'Wife Name',

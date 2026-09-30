@@ -313,11 +313,11 @@ if (!isset($record_configs[$record_type])) {
 
 $config = $record_configs[$record_type];
 $crf_1a_can_generate = $record_type === 'birth' && hasPermission(crf_1a_generate_permission());
-$crf_1a_defaults = crf_1a_config();
+$crf_1a_defaults = branding_crf_preview_config(crf_1a_config());
 $crf_2a_can_generate = $record_type === 'death' && hasPermission(crf_2a_generate_permission());
-$crf_2a_defaults = crf_2a_config();
+$crf_2a_defaults = branding_crf_preview_config(crf_2a_config());
 $crf_3a_can_generate = $record_type === 'marriage' && hasPermission(crf_3a_generate_permission());
-$crf_3a_defaults = crf_3a_config();
+$crf_3a_defaults = branding_crf_preview_config(crf_3a_config());
 
 // Pagination settings
 $records_per_page = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
@@ -722,11 +722,11 @@ function detect_late_registration($record, $record_type) {
     <script src="../assets/js/notiflix-config.js"></script>
 
     <!-- Shared Sidebar Styles -->
-    <link rel="stylesheet" href="../assets/css/sidebar.css">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
 
     <!-- Record Preview Modal Styles -->
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=10">
-    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=24">
+    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=27">
 
     <!-- PDF.js Library -->
     <script src="<?= asset_url('pdfjs') ?>"></script>
@@ -3890,9 +3890,9 @@ function detect_late_registration($record, $record_type) {
     <!-- Record Preview Modal Script -->
     <script src="../assets/js/family_relations_render.js?v=2"></script>
     <script src="../assets/js/record-preview-modal.js?v=13"></script>
-    <script src="../assets/js/crf-1a-generator.js?v=16"></script>
-    <script src="../assets/js/crf-2a-generator.js?v=3"></script>
-    <script src="../assets/js/crf-3a-generator.js?v=1"></script>
+    <script src="../assets/js/crf-1a-generator.js?v=17"></script>
+    <script src="../assets/js/crf-2a-generator.js?v=4"></script>
+    <script src="../assets/js/crf-3a-generator.js?v=4"></script>
 
     <!-- Double Registration Comparison Modal -->
     <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=7">

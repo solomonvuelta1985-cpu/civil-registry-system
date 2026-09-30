@@ -1,0 +1,49 @@
+<?php
+/** Read-only active-record-to-PDF reconciliation screen. */
+require_once '../includes/session_config.php';
+require_once '../includes/config.php';
+require_once '../includes/functions.php';
+require_once '../includes/auth.php';
+require_once '../includes/security.php';
+requireAuth();
+requireAdmin();
+setSecurityHeaders();
+?>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PDF Reconciliation - <?= htmlspecialchars(APP_SHORT_NAME) ?></title>
+    <?= google_fonts_tag('Inter:wght@400;500;600;700;800') ?>
+    <script src="<?= asset_url('lucide') ?>"></script>
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
+    <style>
+        :root{--ink:#172033;--muted:#64748b;--line:#e2e8f0;--bg:#f6f8fb;--primary:#6750a4;--good:#15803d;--warn:#b45309;--bad:#b91c1c;--info:#1d4ed8}
+        *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,"Segoe UI",sans-serif}.content{padding:30px 36px;max-width:1700px}.hero{background:linear-gradient(135deg,#1e293b,#0f172a);color:#fff;border-radius:16px;padding:28px 32px;margin-bottom:20px}.hero h1{margin:0 0 7px;font-size:27px;display:flex;gap:10px;align-items:center}.hero p{margin:0;opacity:.9;font-size:14px}.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 3px #0000000d;padding:20px;margin-bottom:18px}.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.btn{border:0;border-radius:8px;padding:10px 15px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}.btn-primary{background:var(--primary);color:#fff}.btn-outline{background:#fff;border:1px solid #cbd5e1;color:#334155}.btn:disabled{opacity:.5;cursor:not-allowed}.progress-wrap{margin-top:16px}.progress{height:12px;border-radius:999px;background:#e2e8f0;overflow:hidden}.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,#6750a4,#2563eb);transition:width .2s}.progress-text{color:var(--muted);font-size:12px;margin-top:7px}.stats{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}.stat{border:1px solid var(--line);border-radius:10px;padding:12px;background:#fff}.stat small{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;font-weight:800;letter-spacing:.04em}.stat strong{display:block;margin-top:4px;font-size:20px}.healthy{color:var(--good)}.missing,.corrupt,.invalid_record,.unreadable,.invalid_pdf{color:var(--bad)}.duplicate,.orphan{color:var(--warn)}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px}.table{width:100%;border-collapse:collapse;font-size:12px;min-width:900px}.table th,.table td{padding:10px 11px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.table th{background:#f8fafc;color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:.04em}.table tr:last-child td{border-bottom:0}.badge{display:inline-flex;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:800;background:#eef2f7}.hint{color:var(--muted);font-size:12px}.notice{padding:11px 13px;border-radius:9px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;font-size:13px;margin-bottom:15px}.empty{padding:30px;text-align:center;color:var(--muted)}select{border:1px solid #cbd5e1;border-radius:8px;padding:9px 11px;background:#fff;font:inherit;font-size:13px}@media(max-width:1100px){.stats{grid-template-columns:repeat(4,1fr)}}@media(max-width:650px){.content{padding:18px}.stats{grid-template-columns:repeat(2,1fr)}.hero h1{font-size:23px}}
+    </style>
+</head>
+<body>
+<?php require_once '../includes/sidebar_nav.php'; ?>
+<main class="content">
+    <section class="hero"><h1><i data-lucide="scan-search"></i> PDF Reconciliation</h1><p>Read-only verification of every active database record against the physical PDF files in the iSCAN uploads folder.</p></section>
+    <section class="card">
+        <div class="notice"><strong>Safe preview:</strong> this scan does not copy, delete, or update certificate records. It only calculates file hashes and reports differences.</div>
+        <div class="toolbar"><button class="btn btn-primary" id="run"><i data-lucide="play"></i> Run reconciliation</button><button class="btn btn-outline" id="stop" disabled>Stop</button><button class="btn btn-outline" id="csv" disabled>Download CSV</button><span class="hint" id="root">Root: loading...</span></div>
+        <div class="progress-wrap"><div class="progress"><i id="bar"></i></div><div class="progress-text" id="progress">Ready to scan.</div></div>
+    </section>
+    <section class="stats" id="stats"></section>
+    <section class="card"><div class="toolbar" style="justify-content:space-between;margin-bottom:14px"><div><strong>Findings</strong><div class="hint" id="finding-count">Run a scan to populate results.</div></div><select id="filter"><option value="all">All statuses</option><option value="healthy">Healthy</option><option value="missing">Missing</option><option value="corrupt">Corrupt / hash mismatch</option><option value="duplicate">Duplicate</option><option value="invalid_record">Invalid record</option><option value="unreadable">Unreadable</option><option value="orphan">Orphan PDF</option><option value="invalid_pdf">Invalid PDF</option></select></div><div class="table-wrap"><table class="table"><thead><tr><th>Status</th><th>Certificate</th><th>Record</th><th>Registry no.</th><th>Relative PDF path</th><th>Expected hash</th><th>Actual hash</th><th>Message</th></tr></thead><tbody id="rows"><tr><td colspan="8" class="empty">No scan results yet.</td></tr></tbody></table></div></section>
+</main>
+<script>
+const api='../api/pdf_reconciliation.php',runBtn=document.getElementById('run'),stopBtn=document.getElementById('stop'),csvBtn=document.getElementById('csv'),bar=document.getElementById('bar'),progress=document.getElementById('progress'),rootEl=document.getElementById('root'),rows=document.getElementById('rows'),filter=document.getElementById('filter'),findingCount=document.getElementById('finding-count');let stopped=false,results=[],total=0,counts={};
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+function renderStats(){const keys=['healthy','missing','corrupt','duplicate','invalid_record','unreadable','orphan'];document.getElementById('stats').innerHTML=keys.map(k=>`<div class="stat ${k}"><small>${k.replace('_',' ')}</small><strong>${Number(counts[k]||0).toLocaleString()}</strong></div>`).join('');}
+function renderRows(){const wanted=filter.value==='all'?results:results.filter(x=>x.status===filter.value);findingCount.textContent=`${wanted.length.toLocaleString()} displayed of ${results.length.toLocaleString()} findings`;const visible=wanted.slice(0,1000);rows.innerHTML=visible.length?visible.map(x=>`<tr><td><span class="badge ${esc(x.status)}">${esc(x.status)}</span></td><td>${esc(x.cert_type||'-')}</td><td>${esc(x.record_id||'-')}</td><td>${esc(x.registry_no||'-')}</td><td>${esc(x.relative_path||'-')}</td><td style="word-break:break-all">${esc(x.expected_hash||'-')}</td><td style="word-break:break-all">${esc(x.actual_hash||'-')}</td><td>${esc(x.message||'')}</td></tr>`).join(''):`<tr><td colspan="8" class="empty">No findings for this filter.</td></tr>`;}
+function mergeCounts(next){Object.entries(next||{}).forEach(([k,v])=>counts[k]=(counts[k]||0)+Number(v||0));renderStats();}
+async function get(url){const r=await fetch(url,{credentials:'same-origin'});const d=await r.json();if(!r.ok||!d.success)throw new Error(d.message||'Reconciliation request failed.');return d;}
+async function run(){stopped=false;results=[];counts={};renderStats();renderRows();runBtn.disabled=true;stopBtn.disabled=false;csvBtn.disabled=true;const started=performance.now();try{const summary=await get(`${api}?action=summary`);total=Number(summary.total_records||0);rootEl.textContent=`Root: ${summary.root}`;let offset=0;const limit=500;while(offset<total&&!stopped){const d=await get(`${api}?action=scan&offset=${offset}&limit=${limit}`);results.push(...(d.items||[]));mergeCounts(d.counts);offset=Number(d.processed||offset);const pct=total?Math.min(100,(offset/total)*100):100;bar.style.width=`${pct}%`;progress.textContent=`Database records: ${offset.toLocaleString()} / ${total.toLocaleString()} (${pct.toFixed(1)}%) · ${((performance.now()-started)/1000).toFixed(1)}s`;renderRows();if(!d.has_more)break;}if(!stopped){progress.textContent='Scanning orphan PDFs...';const o=await get(`${api}?action=orphans`);results.push(...(o.items||[]));mergeCounts({orphan:Number(o.counts?.orphan||0),invalid_pdf:Number(o.counts?.invalid_pdf||0)});bar.style.width='100%';progress.textContent=`Completed in ${((performance.now()-started)/1000).toFixed(1)}s. ${results.length.toLocaleString()} findings.`;renderRows();csvBtn.disabled=false;}else progress.textContent='Stopped by administrator.';}catch(e){progress.textContent=`Error: ${e.message}`;}finally{runBtn.disabled=false;stopBtn.disabled=true;}}
+function downloadCsv(){const headers=['status','cert_type','record_id','registry_no','relative_path','expected_hash','actual_hash','size','message'];const lines=[headers.join(',')].concat(results.map(x=>headers.map(h=>`"${String(x[h]??'').replace(/"/g,'""')}"`).join(',')));const blob=new Blob([lines.join('\r\n')],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`iscan-pdf-reconciliation-${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(a.href);}
+runBtn.addEventListener('click',run);stopBtn.addEventListener('click',()=>stopped=true);csvBtn.addEventListener('click',downloadCsv);filter.addEventListener('change',renderRows);if(window.lucide)lucide.createIcons();renderStats();
+</script>
+</body>
+</html>

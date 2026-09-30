@@ -265,7 +265,7 @@ function requireAuth() {
  */
 function enforceMaintenanceMode() {
     if (!function_exists('get_setting')) return;
-    if (!(bool) get_setting('maintenance_mode', false)) return;
+    if (!maintenance_is_active()) return;
 
     // Admins always pass through.
     if (isLoggedIn() && isAdmin()) return;
@@ -289,7 +289,7 @@ function enforceMaintenanceMode() {
         }
         echo json_encode([
             'success' => false,
-            'message' => (string) get_setting('maintenance_message', 'System under maintenance.'),
+            'message' => maintenance_get_message(),
             'data'    => null,
         ]);
         exit;

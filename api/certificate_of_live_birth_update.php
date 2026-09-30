@@ -225,16 +225,21 @@ try {
         json_response(false, implode(' ', $errors), null, 400);
     }
 
-    // Normalize child date of birth (supports partial formats)
-    $child_dob_norm = normalize_registration_date(
-        $child_dob_format,
-        $child_date_of_birth,
-        $child_dob_partial_month,
-        $child_dob_partial_year,
-        $child_dob_partial_day
-    );
+    // Normalize child date of birth (supports partial formats). The DOB field
+    // is optional, so an empty full-date value must remain NULL rather than
+    // being passed to the registration-date validator.
+    $child_dob_norm = ($child_dob_format === 'full' && trim($child_date_of_birth) === '')
+        ? ['date' => null, 'error' => null]
+        : normalize_registration_date(
+            $child_dob_format,
+            $child_date_of_birth,
+            $child_dob_partial_month,
+            $child_dob_partial_year,
+            $child_dob_partial_day
+        );
     if ($child_dob_norm['error'] !== null) {
-        json_response(false, 'Child date of birth: ' . $child_dob_norm['error'], null, 400);
+        $child_dob_error = str_replace('date of registration', 'date of birth', $child_dob_norm['error']);
+        json_response(false, 'Child date of birth: ' . $child_dob_error, null, 400);
     }
     $child_date_of_birth = $child_dob_norm['date'];
     $child_dob_stored_month = in_array($child_dob_format, ['month_only', 'month_year', 'month_day'])
@@ -271,6 +276,10 @@ try {
         ? ((int)$marriage_partial_year ?: null) : null;
     $marriage_stored_day   = ($date_of_marriage_format === 'month_day')
         ? ((int)$marriage_partial_day ?: null) : null;
+
+    if (empty($pdf_filename)) {
+        json_response(false, 'PDF file is required.', null, 400);
+    }
 
     // Reconcile PDF folder with (possibly renamed) last name / event date.
     // Only runs when no new PDF was uploaded — new uploads already land in the right folder.

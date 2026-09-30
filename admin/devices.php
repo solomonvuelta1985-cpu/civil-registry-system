@@ -44,7 +44,7 @@ $pendingCount   = count($pendingDevices);
     <link rel="stylesheet" href="<?= asset_url('notiflix_css') ?>">
     <script src="<?= asset_url('notiflix_js') ?>"></script>
 
-    <link rel="stylesheet" href="../assets/css/sidebar.css">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
     <script src="../assets/js/device-fingerprint.js"></script>
 
     <style>

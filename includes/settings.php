@@ -39,7 +39,13 @@ function __settings_bootstrap(PDO $pdo): bool {
             VALUES
                 ('ocr_enabled','true','boolean','OCR','Show the floating Scan Now badge and load OCR engine on certificate forms.',0),
                 ('maintenance_mode','false','boolean','System','When ON, only Admins can use the system. All other users are logged out and shown the maintenance page.',0),
-                ('maintenance_message','The system is undergoing scheduled maintenance. Please try again shortly.','string','System','Message shown to non-admin users while maintenance mode is active. Include ETA here if known.',1)
+                ('maintenance_message','The system is undergoing scheduled maintenance. Please try again shortly.','string','System','Message shown to non-admin users while maintenance mode is active. Include ETA here if known.',1),
+                ('maintenance_schedule','{}','json','System','Scheduled system maintenance window and notification details.',0),
+                ('maintenance_manual_event','{}','json','System','Latest emergency maintenance start notification.',0),
+                ('branding_app_logo','','string','Branding','Custom application logo used on the login page and shared page headers.',1),
+                ('branding_crf_logo_seal','','string','Branding','Custom CRF seal used on Civil Registry Form headers.',1),
+                ('branding_crf_logo_baggao','','string','Branding','Custom Baggao reference logo used on Civil Registry Form headers.',1),
+                ('branding_crf_logo_pilipinas','','string','Branding','Custom Bagong Pilipinas logo used on Civil Registry Form headers.',1)
         ");
         $initialized = true;
     } catch (PDOException $e) {
@@ -99,6 +105,147 @@ function get_setting(string $key, $default = null) {
         error_log("get_setting('$key') failed: " . $e->getMessage());
         return $default;
     }
+}
+
+/** Return the single scheduled maintenance window, if one has been saved. */
+function maintenance_get_schedule(): ?array {
+    $schedule = get_setting('maintenance_schedule', []);
+    if (!is_array($schedule) || !in_array((string)($schedule['status'] ?? ''), ['scheduled', 'cancelled'], true)) {
+        return null;
+    }
+    return $schedule;
+}
+
+function maintenance_parse_utc_datetime($value): ?DateTimeImmutable {
+    if (!is_string($value) || trim($value) === '') return null;
+    try {
+        return new DateTimeImmutable($value, new DateTimeZone('UTC'));
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
+/** Whether the current instant falls inside the saved start-inclusive/end-exclusive window. */
+function maintenance_schedule_is_active(?array $schedule = null): bool {
+    $schedule = $schedule ?? maintenance_get_schedule();
+    if (!$schedule || ($schedule['status'] ?? '') !== 'scheduled') return false;
+    $start = maintenance_parse_utc_datetime($schedule['starts_at'] ?? null);
+    $end = maintenance_parse_utc_datetime($schedule['ends_at'] ?? null);
+    if (!$start || !$end || $end <= $start) return false;
+    $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+    return $now >= $start && $now < $end;
+}
+
+/** Manual emergency ON takes effect immediately; otherwise the saved window controls access. */
+function maintenance_is_active(): bool {
+    return (bool)get_setting('maintenance_mode', false) || maintenance_schedule_is_active();
+}
+
+function maintenance_get_message(): string {
+    $default = 'The system is undergoing scheduled maintenance. Please try again shortly.';
+    $schedule = maintenance_get_schedule();
+    if ($schedule && maintenance_schedule_is_active($schedule)) {
+        $message = trim((string)($schedule['message'] ?? ''));
+        if ($message !== '') return $message;
+    }
+    $message = trim((string)get_setting('maintenance_message', $default));
+    return $message !== '' ? $message : $default;
+}
+
+/** Upcoming/active schedule details safe to show on public login and maintenance pages. */
+function maintenance_get_public_schedule(): ?array {
+    $schedule = maintenance_get_schedule();
+    if (!$schedule || ($schedule['status'] ?? '') !== 'scheduled') return null;
+    $start = maintenance_parse_utc_datetime($schedule['starts_at'] ?? null);
+    $end = maintenance_parse_utc_datetime($schedule['ends_at'] ?? null);
+    if (!$start || !$end || $end <= $start) return null;
+    $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+    if ($end <= $now) return null;
+    $localZone = new DateTimeZone(date_default_timezone_get());
+    return [
+        'id' => (string)($schedule['id'] ?? ''),
+        'state' => $now >= $start ? 'active' : 'scheduled',
+        'message' => trim((string)($schedule['message'] ?? '')),
+        'starts_at' => $start->format('Y-m-d\\TH:i:s\\Z'),
+        'ends_at' => $end->format('Y-m-d\\TH:i:s\\Z'),
+        'starts_at_display' => $start->setTimezone($localZone)->format('F j, Y g:i A T'),
+        'ends_at_display' => $end->setTimezone($localZone)->format('F j, Y g:i A T'),
+    ];
+}
+
+/** Convert a stored UTC timestamp for a datetime-local admin input. */
+function maintenance_datetime_local_input($value): string {
+    $date = maintenance_parse_utc_datetime($value);
+    if (!$date) return '';
+    return $date->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d\\TH:i');
+}
+
+/** Parse a local datetime-local value and normalize it to an ISO-8601 UTC timestamp. */
+function maintenance_local_datetime_to_utc(string $value): ?string {
+    $value = trim($value);
+    if ($value === '') return null;
+    $zone = new DateTimeZone(date_default_timezone_get());
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d\\TH:i', $value, $zone);
+    $errors = DateTimeImmutable::getLastErrors();
+    if (!$date || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) || $date->format('Y-m-d\\TH:i') !== $value) {
+        return null;
+    }
+    return $date->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\\TH:i:s\\Z');
+}
+
+/** Notification events are stable IDs so each browser shows each event once. */
+function maintenance_get_notification_events(): array {
+    $events = [];
+    $schedule = maintenance_get_schedule();
+    $publicSchedule = maintenance_get_public_schedule();
+    if ($publicSchedule) {
+        $base = [
+            'message' => $publicSchedule['message'],
+            'starts_at' => $publicSchedule['starts_at_display'],
+            'ends_at' => $publicSchedule['ends_at_display'],
+        ];
+        if ($publicSchedule['state'] === 'active') {
+            $events[] = $base + [
+                'id' => $publicSchedule['id'] . ':started',
+                'type' => 'started',
+                'title' => 'System maintenance has started',
+            ];
+        } else {
+            $events[] = $base + [
+                'id' => $publicSchedule['id'] . ':scheduled',
+                'type' => 'scheduled',
+                'title' => 'Scheduled system maintenance',
+            ];
+        }
+    } elseif ($schedule && ($schedule['status'] ?? '') === 'cancelled') {
+        $cancelledAt = maintenance_parse_utc_datetime($schedule['cancelled_at'] ?? null);
+        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        if ($cancelledAt && $cancelledAt <= $now && ($now->getTimestamp() - $cancelledAt->getTimestamp()) <= 1800) {
+            $events[] = [
+                'id' => (string)($schedule['id'] ?? '') . ':cancelled',
+                'type' => 'cancelled',
+                'title' => 'Maintenance schedule cancelled',
+                'message' => 'The scheduled maintenance has been cancelled.',
+                'starts_at' => '',
+                'ends_at' => '',
+            ];
+        }
+    }
+
+    if ((bool)get_setting('maintenance_mode', false) && !maintenance_schedule_is_active()) {
+        $manualEvent = get_setting('maintenance_manual_event', []);
+        if (is_array($manualEvent) && !empty($manualEvent['id'])) {
+            $events[] = [
+                'id' => (string)$manualEvent['id'],
+                'type' => 'started',
+                'title' => 'Emergency maintenance is active',
+                'message' => (string)($manualEvent['message'] ?? maintenance_get_message()),
+                'starts_at' => '',
+                'ends_at' => '',
+            ];
+        }
+    }
+    return $events;
 }
 
 /**

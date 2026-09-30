@@ -7,6 +7,7 @@ require_once '../includes/security.php';
 require_once '../includes/security_headers.php';
 require_once '../includes/device_auth.php';
 require_once '../includes/settings.php';
+require_once '../includes/branding.php';
 
 // Set security headers
 setSecurityHeaders();
@@ -136,7 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         clearRateLimit($rate_limit_identifier);
 
                         // Maintenance Mode — only Admins can log in while ON.
-                        if ((bool) get_setting('maintenance_mode', false) && ($user['role'] ?? '') !== 'Admin') {
+                        if (maintenance_is_active() && ($user['role'] ?? '') !== 'Admin') {
                             logSecurityEvent('LOGIN_BLOCKED_MAINTENANCE', 'LOW', "Non-admin login blocked during maintenance: {$username}", $user['id']);
                             header('Location: maintenance.php');
                             exit;
@@ -165,7 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $user = authenticateUser($username, $password);
 
                 if ($user) {
-                    if ((bool) get_setting('maintenance_mode', false) && ($user['role'] ?? '') !== 'Admin') {
+                    if (maintenance_is_active() && ($user['role'] ?? '') !== 'Admin') {
                         logSecurityEvent('LOGIN_BLOCKED_MAINTENANCE', 'LOW', "Non-admin login blocked during maintenance: {$username}", $user['id']);
                         header('Location: maintenance.php');
                         exit;
@@ -651,7 +652,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="logo-circle" id="logoCircle">
-                    <img src="../assets/img/LOGO1.png" alt="Baggao Logo">
+                    <img src="<?= htmlspecialchars(branding_logo_url('app'), ENT_QUOTES, 'UTF-8') ?>" alt="Baggao Logo">
                 </div>
                 <h1 class="brand-name">Civil Registry Documents<br>Management System (CRDMS)</h1>
                 <p class="tagline">Lalawigan ng Cagayan - Bayan ng Baggao</p>
@@ -691,7 +692,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 <?php endif; ?>
 
-                <?php if ((bool) get_setting('maintenance_mode', false)): ?>
+                <?php if (maintenance_is_active()): ?>
                     <div class="alert" style="background: #fff3cd; color: #856404; border-left-color: #ffc107;">
                         <strong>Maintenance Mode is active.</strong><br>
                         Only administrators can sign in right now.
@@ -792,5 +793,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             logoCircle.style.transform = 'translate(0, 0)';
         });
     </script>
+<script src="<?= htmlspecialchars(BASE_URL, ENT_QUOTES, 'UTF-8') ?>assets/js/maintenance-notifications.js" data-status-url="<?= htmlspecialchars(BASE_URL, ENT_QUOTES, 'UTF-8') ?>api/maintenance_status.php" data-maintenance-url="<?= htmlspecialchars(BASE_URL, ENT_QUOTES, 'UTF-8') ?>public/maintenance.php"></script>
 </body>
 </html>

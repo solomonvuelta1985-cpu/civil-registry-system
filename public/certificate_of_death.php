@@ -10,6 +10,7 @@ require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
 require_once '../includes/settings.php';
+require_once '../includes/branding.php';
 
 // Check authentication
 if (!isLoggedIn()) {
@@ -126,10 +127,10 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
     <script src="../assets/js/notiflix-config.js"></script>
 
     <!-- Shared Sidebar Styles -->
-    <link rel="stylesheet" href="../assets/css/sidebar.css">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
 
     <!-- Shared Certificate Form Styles -->
-    <link rel="stylesheet" href="../assets/css/certificate-forms-shared.css?v=2.1">
+    <link rel="stylesheet" href="../assets/css/certificate-forms-shared.css?v=2.2">
 
 </head>
 <body>
@@ -147,7 +148,7 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
                 <!-- System Header with Logo -->
                 <div class="system-header">
                     <div class="system-logo">
-                        <img src="../assets/img/LOGO1.png" alt="Bayan ng Baggao Logo">
+                        <img src="<?= htmlspecialchars(branding_logo_url('app'), ENT_QUOTES, 'UTF-8') ?>" alt="Bayan ng Baggao Logo">
                     </div>
                     <div class="system-title-container">
                         <h1 class="system-title">Civil Registry Document Management System (CRDMS)</h1>
@@ -779,8 +780,9 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
                     </div>
 
                     <div class="form-group">
+                        <?php $pdf_required = !$edit_mode || empty($record['pdf_filename']); ?>
                         <label for="pdf_file">
-                            Upload PDF Certificate <?php echo !$edit_mode ? '<span class="required">*</span>' : ''; ?>
+                            Upload PDF Certificate <?php echo $pdf_required ? '<span class="required">*</span>' : ''; ?>
                         </label>
 
                         <div class="upload-scanner-container">
@@ -789,7 +791,7 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
                                 id="pdf_file"
                                 name="pdf_file"
                                 accept=".pdf"
-                                <?php echo !$edit_mode ? 'required' : ''; ?>
+                                <?php echo $pdf_required ? 'required' : ''; ?>
                             >
 
                             <button type="button" id="scanDocumentBtn" class="btn-scan" title="Scan using DS-530 II">
@@ -847,7 +849,7 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
 
     <!-- Shared Certificate Form Handler -->
     <script>window.APP_BASE = '<?= rtrim(BASE_URL, '/') ?>';</script>
-    <script src="../assets/js/certificate-form-handler.js?v=2.2"></script>
+    <script src="../assets/js/certificate-form-handler.js?v=2.3"></script>
 
     <!-- Death Certificate Specific Logic -->
     <script>
