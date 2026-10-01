@@ -25,7 +25,7 @@
                         <div class="crf1a-section-title" style="margin-top:20px;"><i data-lucide="heart-handshake"></i><span>Marriage Details</span></div>
                         <div class="crf1a-two-col"><div class="crf1a-form-group"><label>Husband Citizenship <span class="required">*</span></label><input name="husband_nationality" class="crf1a-form-control" placeholder="Enter citizenship" maxlength="100" required></div><div class="crf1a-form-group"><label>Wife Citizenship <span class="required">*</span></label><input name="wife_nationality" class="crf1a-form-control" placeholder="Enter citizenship" maxlength="100" required></div></div>
                         <div class="crf1a-two-col"><div class="crf1a-form-group"><label>Husband Civil Status <span class="required">*</span></label><select name="husband_civil_status" class="crf1a-form-control" required><option value="">-- Select --</option><option>Single</option><option>Married</option><option>Widowed</option><option>Divorced/Separated</option><option>Unknown/Not Stated</option></select></div><div class="crf1a-form-group"><label>Wife Civil Status <span class="required">*</span></label><select name="wife_civil_status" class="crf1a-form-control" required><option value="">-- Select --</option><option>Single</option><option>Married</option><option>Widowed</option><option>Divorced/Separated</option><option>Unknown/Not Stated</option></select></div></div>
-                        <div class="crf1a-form-help">Citizenship and parent nationalities are copied from the marriage record and remain editable for this issuance. Civil status is issuance-only and does not modify the source marriage record.</div>
+                        <div class="crf1a-form-help">Citizenship, civil status, and parent nationalities are copied from the marriage record when available and remain editable for this issuance. Changes here do not modify the source marriage record.</div>
                         <div class="crf1a-two-col"><div class="crf1a-form-group"><label>Husband Mother Name <span class="required">*</span></label><input name="husband_mother_name" class="crf1a-form-control" placeholder="Enter mother name" maxlength="255" required></div><div class="crf1a-form-group"><label>Wife Mother Name <span class="required">*</span></label><input name="wife_mother_name" class="crf1a-form-control" placeholder="Enter mother name" maxlength="255" required></div></div>
                         <div class="crf1a-two-col"><div class="crf1a-form-group"><label>Husband Mother Nationality <span class="required">*</span></label><input name="husband_mother_nationality" class="crf1a-form-control" placeholder="Enter nationality" maxlength="100" required></div><div class="crf1a-form-group"><label>Wife Mother Nationality <span class="required">*</span></label><input name="wife_mother_nationality" class="crf1a-form-control" placeholder="Enter nationality" maxlength="100" required></div></div>
                         <div class="crf1a-two-col"><div class="crf1a-form-group"><label>Husband Father Name <span class="required">*</span></label><input name="husband_father_name" class="crf1a-form-control" placeholder="Enter father name" maxlength="255" required></div><div class="crf1a-form-group"><label>Wife Father Name <span class="required">*</span></label><input name="wife_father_name" class="crf1a-form-control" placeholder="Enter father name" maxlength="255" required></div></div>
@@ -216,7 +216,34 @@
 
         values() { const values = {}; new FormData(this.form).forEach((value, key) => { values[key] = String(value || '').trim(); }); return values; }
 
+        registryNumber(record) {
+            const number = String(record?.registry_no || '').trim();
+            if (number) return number;
+            return ({ not_readable: 'Not Readable', no_entry: 'No Entry' })[record?.registry_no_status] || 'No Entry';
+        }
+
+        registrationDate(record) {
+            const format = record?.date_of_registration_format || 'full';
+            const date = String(record?.date_of_registration || '').trim();
+            if (format === 'not_readable') return 'Not Readable';
+            if (format === 'no_entry' || format === 'na' || (format === 'full' && !date)) return 'No Entry';
+            const month = Number(record?.date_of_registration_partial_month || 0);
+            const year = Number(record?.date_of_registration_partial_year || 0);
+            const day = Number(record?.date_of_registration_partial_day || 0);
+            const months = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            if (format === 'month_only') return months[month] || 'No Entry';
+            if (format === 'year_only') return year ? String(year) : 'No Entry';
+            if (format === 'month_year') {
+                if (date) { const d = new Date(date + 'T00:00:00'); return Number.isNaN(d.getTime()) ? date : `${months[d.getMonth() + 1]} ${d.getFullYear()}`; }
+                return month && year ? `${months[month]} ${year}` : 'No Entry';
+            }
+            if (format === 'month_day') return month && day ? `${months[month]} ${day}` : 'No Entry';
+            return date || 'No Entry';
+        }
+
         markup(record, inputs, crfNumber) {
+            const source = record || {};
+            record = { ...source, registry_no: this.registryNumber(source), date_of_registration: this.registrationDate(source) };
             const config = window.CRF3A_OFFICE_CONFIG || {};
             const draft = crfNumber === 'ID assigned on generate';
             const escape = value => this.escape(value);

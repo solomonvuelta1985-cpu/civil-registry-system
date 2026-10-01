@@ -111,7 +111,7 @@ function crf_3a_record_values(array $record, array $inputs = []): array
     $wifeAge = crf_3a_age_at_marriage($record, 'wife');
 
     return [
-        'registry_no' => trim((string)($record['registry_no'] ?? '')),
+        'registry_no' => format_registry_number($record, true),
         'date_of_registration' => crf_3a_date($record, 'date_of_registration'),
         'husband_name' => crf_3a_full_name($record, 'husband'),
         'husband_date_of_birth' => $husbandDob,

@@ -503,7 +503,7 @@ function safe_date_convert($date_string, $output_format = 'Y-m-d') {
 function normalize_registration_date(string $format, string $full_date = '',
     ?string $month = null, ?string $year = null, ?string $day = null): array
 {
-    $allowed = ['full', 'month_only', 'year_only', 'month_year', 'month_day', 'na', 'dont_know', 'forgotten', 'not_married'];
+    $allowed = ['full', 'month_only', 'year_only', 'month_year', 'month_day', 'na', 'dont_know', 'forgotten', 'not_married', 'not_readable', 'no_entry'];
     if (!in_array($format, $allowed, true)) {
         return ['date' => null, 'error' => 'Invalid date format type.'];
     }
@@ -557,6 +557,8 @@ function normalize_registration_date(string $format, string $full_date = '',
         case 'dont_know':
         case 'forgotten':
         case 'not_married':
+        case 'not_readable':
+        case 'no_entry':
             return ['date' => null, 'error' => null];
     }
 
@@ -616,9 +618,24 @@ function format_registration_date(?string $date, string $format = 'full',
             return 'Forgotten';
         case 'not_married':
             return 'Not Married';
+        case 'not_readable':
+            return 'Not Readable';
+        case 'no_entry':
+            return 'No Entry';
     }
 
     return 'N/A';
+}
+
+/** Return a display value for registry number fields without storing status text in the unique registry_no column. */
+function format_registry_number(array $record, bool $emptyAsNoEntry = false): string
+{
+    $number = trim((string)($record['registry_no'] ?? ''));
+    if ($number !== '') return $number;
+    $labels = ['not_readable' => 'Not Readable', 'no_entry' => 'No Entry'];
+    $status = (string)($record['registry_no_status'] ?? '');
+    if (isset($labels[$status])) return $labels[$status];
+    return $emptyAsNoEntry ? 'No Entry' : 'N/A';
 }
 
 /**

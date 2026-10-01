@@ -74,9 +74,10 @@ function crf_2a_date(array $record, string $field): string
             isset($record[$field . '_partial_year']) ? (int)$record[$field . '_partial_year'] : null,
             isset($record[$field . '_partial_day']) ? (int)$record[$field . '_partial_day'] : null
         );
+        if ($formatted === 'N/A' && $field === 'date_of_registration') return 'No Entry';
         return $formatted === 'N/A' ? '' : $formatted;
     }
-    if (!$date) return '';
+    if (!$date) return $field === 'date_of_registration' ? 'No Entry' : '';
     $timestamp = strtotime((string)$date);
     return $timestamp === false ? (string)$date : date('M d, Y', $timestamp);
 }
@@ -92,7 +93,7 @@ function crf_2a_record_values(array $record): array
     $ageUnit = trim((string)($record['age_unit'] ?? 'years'));
     $ageText = $age === '' ? '' : $age . ' ' . ($ageUnit === 'years' ? ((int)$age === 1 ? 'year' : 'years') : $ageUnit);
     return [
-        'registry_no' => trim((string)($record['registry_no'] ?? '')),
+        'registry_no' => format_registry_number($record, true),
         'date_of_registration' => crf_2a_date($record, 'date_of_registration'),
         'name_of_deceased' => crf_2a_full_name($record),
         'sex' => trim((string)($record['sex'] ?? '')),

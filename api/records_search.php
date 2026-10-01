@@ -23,7 +23,7 @@ $per_page = isset($_GET['per_page']) ? max(1, min(100, intval($_GET['per_page'])
 $include_archived = isset($_GET['include_archived']) && $_GET['include_archived'] === '1';
 
 // Validate record type
-$valid_types = ['marriage', 'birth', 'death'];
+$valid_types = ['marriage', 'birth', 'death', 'marriage_license'];
 if (!in_array($record_type, $valid_types)) {
     http_response_code(400);
     echo json_encode(['error' => 'Invalid record type']);
@@ -34,7 +34,8 @@ if (!in_array($record_type, $valid_types)) {
 $permission_map = [
     'marriage' => 'marriage_view',
     'birth' => 'birth_view',
-    'death' => 'death_view'
+    'death' => 'death_view',
+    'marriage_license' => 'marriage_license_view'
 ];
 
 if (!hasPermission($permission_map[$record_type])) {
@@ -49,11 +50,12 @@ $configs = [
         'table' => 'certificate_of_marriage',
         'search_fields' => [
             'registry_no',
+            'registry_no_status',
             'husband_first_name', 'husband_middle_name', 'husband_last_name',
             'wife_first_name', 'wife_middle_name', 'wife_last_name',
             'place_of_marriage'
         ],
-        'columns' => ['id', 'status', 'registry_no', 'husband_first_name', 'husband_middle_name', 'husband_last_name',
+        'columns' => ['id', 'status', 'registry_no', 'registry_no_status', 'date_of_registration_format', 'date_of_registration_partial_month', 'date_of_registration_partial_year', 'date_of_registration_partial_day', 'husband_first_name', 'husband_middle_name', 'husband_last_name',
                      'wife_first_name', 'wife_middle_name', 'wife_last_name', 'date_of_marriage',
                      'place_of_marriage', 'date_of_registration', 'pdf_filename']
     ],
@@ -61,12 +63,13 @@ $configs = [
         'table' => 'certificate_of_live_birth',
         'search_fields' => [
             'registry_no',
+            'registry_no_status',
             'child_first_name', 'child_middle_name', 'child_last_name',
             'father_first_name', 'father_middle_name', 'father_last_name',
             'mother_first_name', 'mother_middle_name', 'mother_last_name',
             'child_place_of_birth', 'barangay'
         ],
-        'columns' => ['id', 'status', 'registry_no', 'child_first_name', 'child_middle_name', 'child_last_name',
+        'columns' => ['id', 'status', 'registry_no', 'registry_no_status', 'date_of_registration_format', 'date_of_registration_partial_month', 'date_of_registration_partial_year', 'date_of_registration_partial_day', 'child_first_name', 'child_middle_name', 'child_last_name',
                      'child_date_of_birth', 'time_of_birth', 'child_sex', 'barangay',
                      'father_first_name', 'father_middle_name', 'father_last_name',
                      'father_citizenship', 'mother_first_name', 'mother_middle_name', 'mother_last_name',
@@ -76,16 +79,29 @@ $configs = [
         'table' => 'certificate_of_death',
         'search_fields' => [
             'registry_no',
+            'registry_no_status',
             'deceased_first_name', 'deceased_middle_name', 'deceased_last_name',
             'father_first_name', 'father_middle_name', 'father_last_name',
             'mother_first_name', 'mother_middle_name', 'mother_last_name',
             'place_of_death', 'occupation'
         ],
-        'columns' => ['id', 'status', 'registry_no', 'deceased_first_name', 'deceased_middle_name', 'deceased_last_name',
+        'columns' => ['id', 'status', 'registry_no', 'registry_no_status', 'date_of_registration_format', 'date_of_registration_partial_month', 'date_of_registration_partial_year', 'date_of_registration_partial_day', 'deceased_first_name', 'deceased_middle_name', 'deceased_last_name',
                      'date_of_birth', 'date_of_death', 'age', 'sex', 'occupation', 'place_of_death',
                      'father_first_name', 'father_middle_name', 'father_last_name',
                      'mother_first_name', 'mother_middle_name', 'mother_last_name',
                      'date_of_registration', 'pdf_filename']
+    ],
+    'marriage_license' => [
+        'table' => 'application_for_marriage_license',
+        'search_fields' => [
+            'registry_no', 'registry_no_status',
+            'groom_first_name', 'groom_middle_name', 'groom_last_name',
+            'bride_first_name', 'bride_middle_name', 'bride_last_name'
+        ],
+        'columns' => ['id', 'status', 'registry_no', 'registry_no_status',
+                     'groom_first_name', 'groom_middle_name', 'groom_last_name',
+                     'bride_first_name', 'bride_middle_name', 'bride_last_name',
+                     'date_of_application', 'pdf_filename']
     ]
 ];
 

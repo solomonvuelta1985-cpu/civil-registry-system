@@ -90,6 +90,37 @@ foreach ($__maintenance_groups as $__group_key => $__group) {
     const sidebarMenu = document.querySelector('#sidebar .sidebar-menu');
     if (!sidebarMenu) return;
 
+    const scrollStorageKey = 'crdmsSidebarMenuScrollTop';
+    try {
+        const savedScrollTop = sessionStorage.getItem(scrollStorageKey);
+        if (savedScrollTop !== null) {
+            const scrollTop = Math.max(0, Number(savedScrollTop) || 0);
+            sessionStorage.removeItem(scrollStorageKey);
+            const restoreScroll = () => { sidebarMenu.scrollTop = scrollTop; };
+            requestAnimationFrame(() => {
+                restoreScroll();
+                requestAnimationFrame(restoreScroll);
+            });
+        }
+    } catch (error) {
+        // Keep sidebar navigation working when browser storage is unavailable.
+    }
+
+    sidebarMenu.addEventListener('click', function (event) {
+        const link = event.target.closest('a');
+        if (!link || !sidebarMenu.contains(link) || event.defaultPrevented || event.button !== 0 ||
+            event.metaKey || event.ctrlKey || event.shiftKey || event.altKey ||
+            (link.target && link.target !== '_self')) {
+            return;
+        }
+
+        try {
+            sessionStorage.setItem(scrollStorageKey, String(sidebarMenu.scrollTop));
+        } catch (error) {
+            // Scroll restoration is optional; never block a menu link.
+        }
+    });
+
     const groupToggles = sidebarMenu.querySelectorAll('[data-sidebar-group-toggle]');
     groupToggles.forEach((toggle) => {
         toggle.addEventListener('click', function () {

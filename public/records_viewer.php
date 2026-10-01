@@ -54,6 +54,7 @@ $record_configs = [
         'delete_api' => '../api/certificate_of_marriage_delete.php',
         'search_fields' => [
             'registry_no',
+            'registry_no_status',
             'husband_first_name',
             'husband_middle_name',
             'husband_last_name',
@@ -102,6 +103,7 @@ $record_configs = [
         'delete_api' => '../api/certificate_of_live_birth_delete.php',
         'search_fields' => [
             'registry_no',
+            'registry_no_status',
             'child_first_name',
             'child_middle_name',
             'child_last_name',
@@ -201,6 +203,7 @@ $record_configs = [
         'delete_api' => '../api/certificate_of_death_delete.php',
         'search_fields' => [
             'registry_no',
+            'registry_no_status',
             'deceased_first_name',
             'deceased_middle_name',
             'deceased_last_name',
@@ -267,6 +270,7 @@ $record_configs = [
         'delete_api' => '../api/application_for_marriage_license_delete.php',
         'search_fields' => [
             'registry_no',
+            'registry_no_status',
             'groom_first_name',
             'groom_middle_name',
             'groom_last_name',
@@ -599,6 +603,8 @@ function get_field_value($record, $field, $type = 'text') {
         $last = $record['mother_last_name'] ?? '';
         $full_name = trim($first . ' ' . $middle . ' ' . $last);
         return htmlspecialchars($full_name) ?: 'N/A';
+    } elseif ($field === 'registry_no') {
+        return htmlspecialchars(format_registry_number($record, true));
     } elseif ($field === 'date_of_registration') {
         $fmt = $record['date_of_registration_format'] ?? 'full';
         return htmlspecialchars(format_registration_date(
@@ -3502,6 +3508,30 @@ function detect_late_registration($record, $record_type) {
         function getFieldValue(record, field, type) {
             const recordType = '<?php echo $record_type; ?>';
 
+            if (field === 'registry_no') {
+                const number = String(record.registry_no || '').trim();
+                const labels = { not_readable: 'Not Readable', no_entry: 'No Entry' };
+                return escapeHtml(number || labels[record.registry_no_status] || 'No Entry');
+            }
+            if (field === 'date_of_registration') {
+                const format = record.date_of_registration_format || 'full';
+                if (format === 'not_readable') return 'Not Readable';
+                if (format === 'no_entry') return 'No Entry';
+                if (format === 'na') return 'N/A';
+                const month = Number(record.date_of_registration_partial_month || 0);
+                const year = Number(record.date_of_registration_partial_year || 0);
+                const day = Number(record.date_of_registration_partial_day || 0);
+                const months = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                if (format === 'month_only') return escapeHtml(months[month] || 'N/A');
+                if (format === 'year_only') return year ? String(year) : 'N/A';
+                if (format === 'month_year') {
+                    if (record.date_of_registration) { const d = new Date(record.date_of_registration + 'T00:00:00'); return isNaN(d) ? escapeHtml(record.date_of_registration) : months[d.getMonth() + 1] + ' ' + d.getFullYear(); }
+                    return month && year ? months[month] + ' ' + year : 'N/A';
+                }
+                if (format === 'month_day') return month && day ? months[month] + ' ' + day : 'N/A';
+                return record.date_of_registration ? formatDate(record.date_of_registration) : 'N/A';
+            }
+
             // Handle composite name fields
             if (field === 'husband_name' && recordType === 'marriage') {
                 return buildFullName(record.husband_first_name, record.husband_middle_name, record.husband_last_name);
@@ -3890,9 +3920,9 @@ function detect_late_registration($record, $record_type) {
     <!-- Record Preview Modal Script -->
     <script src="../assets/js/family_relations_render.js?v=2"></script>
     <script src="../assets/js/record-preview-modal.js?v=13"></script>
-    <script src="../assets/js/crf-1a-generator.js?v=17"></script>
-    <script src="../assets/js/crf-2a-generator.js?v=4"></script>
-    <script src="../assets/js/crf-3a-generator.js?v=4"></script>
+    <script src="../assets/js/crf-1a-generator.js?v=20261001-registry"></script>
+    <script src="../assets/js/crf-2a-generator.js?v=20261001-registry"></script>
+    <script src="../assets/js/crf-3a-generator.js?v=20261001-registry"></script>
 
     <!-- Double Registration Comparison Modal -->
     <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=7">

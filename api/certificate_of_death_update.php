@@ -46,6 +46,11 @@ try {
     if (empty($registry_no)) {
         $registry_no = null;
     }
+    $registry_no_status = sanitize_input($_POST['registry_no_status'] ?? '');
+    if (!in_array($registry_no_status, ['', 'not_readable', 'no_entry'], true)) {
+        json_response(false, 'Invalid registry number status.', null, 400);
+    }
+    if ($registry_no_status !== '') $registry_no = null;
     $date_of_registration_format = sanitize_input($_POST['date_of_registration_format'] ?? 'full');
     $date_of_registration        = sanitize_input($_POST['date_of_registration'] ?? '');
     $partial_date_month          = sanitize_input($_POST['partial_date_month'] ?? null) ?: null;
@@ -91,7 +96,8 @@ try {
     $errors = [];
 
     $allowed_formats = ['full', 'month_only', 'year_only', 'month_year', 'month_day', 'na'];
-    if (!in_array($date_of_registration_format, $allowed_formats, true)) {
+    $registration_formats = array_merge($allowed_formats, ['not_readable', 'no_entry']);
+    if (!in_array($date_of_registration_format, $registration_formats, true)) {
         $errors[] = "Invalid date format type.";
     }
     if ($date_of_registration_format === 'full' && empty($date_of_registration)) {
@@ -245,6 +251,7 @@ try {
         // Update database
         $sql = "UPDATE certificate_of_death SET
                     registry_no = :registry_no,
+                    registry_no_status = :registry_no_status,
                     date_of_registration = :date_of_registration,
                     date_of_registration_format = :date_of_registration_format,
                     date_of_registration_partial_month = :date_of_registration_partial_month,
@@ -286,6 +293,7 @@ try {
 
         $stmt->execute([
             ':registry_no'                         => $registry_no,
+            ':registry_no_status'                  => $registry_no_status ?: null,
             ':date_of_registration'                => $date_of_registration,
             ':date_of_registration_format'         => $date_of_registration_format,
             ':date_of_registration_partial_month'  => $stored_partial_month,

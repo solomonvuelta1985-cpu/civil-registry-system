@@ -25,6 +25,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 try {
     // Sanitize and validate input
     $registry_no = sanitize_input($_POST['registry_no'] ?? '');
+    $registry_no_status = sanitize_input($_POST['registry_no_status'] ?? '');
+    if (!in_array($registry_no_status, ['', 'not_readable', 'no_entry'], true)) {
+        json_response(false, 'Invalid registry number status.', null, 400);
+    }
+    if ($registry_no_status !== '') $registry_no = null;
     $date_of_application = sanitize_input($_POST['date_of_application'] ?? '');
 
     // Groom's Information
@@ -184,7 +189,7 @@ try {
 
     // Insert into database
     $sql = "INSERT INTO application_for_marriage_license (
-        registry_no, date_of_application,
+        registry_no, registry_no_status, date_of_application,
         groom_first_name, groom_middle_name, groom_last_name,
         groom_date_of_birth, groom_place_of_birth, groom_citizenship, groom_residence,
         groom_father_first_name, groom_father_middle_name, groom_father_last_name,
@@ -200,7 +205,7 @@ try {
         pdf_filename, pdf_filepath, pdf_hash,
         status, created_by
     ) VALUES (
-        :registry_no, :date_of_application,
+        :registry_no, :registry_no_status, :date_of_application,
         :groom_first_name, :groom_middle_name, :groom_last_name,
         :groom_date_of_birth, :groom_place_of_birth, :groom_citizenship, :groom_residence,
         :groom_father_first_name, :groom_father_middle_name, :groom_father_last_name,
@@ -225,6 +230,7 @@ try {
 
     $params = [
         ':registry_no' => $registry_no ?: null,
+        ':registry_no_status' => $registry_no_status ?: null,
         ':date_of_application' => $date_of_application,
         ':groom_first_name' => $groom_first_name,
         ':groom_middle_name' => $groom_middle_name ?: null,

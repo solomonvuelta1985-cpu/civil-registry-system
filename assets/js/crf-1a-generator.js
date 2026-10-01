@@ -438,8 +438,8 @@
             const page = String(inputs?.page_number || '').trim();
             const book = String(inputs?.book_number || '').trim();
             const values = {
-                registry_no: r.registry_no || '',
-                date_of_registration: this.sourceDate(r, 'date_of_registration'),
+                registry_no: this.registryNumber(r),
+                date_of_registration: this.registrationDate(r),
                 population_reference_no: inputs?.population_reference_no || '',
                 name_of_child: this.fullName(r, 'child'),
                 sex: r.child_sex || '',
@@ -517,12 +517,27 @@
             }
             if (format === 'month_day') return month && day ? `${months[month]} ${day}` : '';
             if (format === 'na') return '';
+            if (format === 'not_readable') return 'Not Readable';
+            if (format === 'no_entry') return 'No Entry';
             if (format === 'dont_know') return "Don't Know";
             if (format === 'forgotten') return 'Forgotten';
             if (format === 'not_married') return 'Not Married';
             if (!date) return '';
             const d = new Date(date + 'T00:00:00');
             return isNaN(d) ? date : `${months[d.getMonth() + 1].slice(0, 3)} ${String(d.getDate()).padStart(2, '0')}, ${d.getFullYear()}`;
+        }
+
+        registryNumber(record) {
+            const number = String(record?.registry_no || '').trim();
+            if (number) return number;
+            return ({ not_readable: 'Not Readable', no_entry: 'No Entry' })[record?.registry_no_status] || 'No Entry';
+        }
+
+        registrationDate(record) {
+            const format = record?.date_of_registration_format || 'full';
+            const date = String(record?.date_of_registration || '').trim();
+            if (format === 'na' || (format === 'full' && !date)) return 'No Entry';
+            return this.sourceDate(record || {}, 'date_of_registration') || 'No Entry';
         }
 
         marriageDate(record) {

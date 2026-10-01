@@ -58,6 +58,7 @@ $partial_date_format = 'full';
 $partial_date_month  = '';
 $partial_date_year   = '';
 $partial_date_day    = '';
+$civil_status_options = ['Single', 'Married', 'Widowed', 'Divorced/Separated', 'Unknown/Not Stated'];
 if ($edit_mode && $record) {
     $fmt = $record['date_of_registration_format'] ?? 'full';
     if ($fmt !== 'full') {
@@ -122,6 +123,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
 
     <!-- Shared Certificate Form Styles -->
     <link rel="stylesheet" href="../assets/css/certificate-forms-shared.css?v=2.2">
+    <link rel="stylesheet" href="../assets/css/certificate-entry-spacing.css?v=20261001-1">
     <style>
         /* Keep each residence group full width, with its three locality fields aligned. */
         .residence-form-group {
@@ -330,8 +332,14 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                             </h2>
                         </div>
 
+                        <div style="margin-bottom:0.75rem; padding:0.75rem 1rem; background:var(--bg-secondary, #f8f9fa); border-radius:6px; border:1px solid var(--border-color, #e0e0e0);">
+                            <label style="display:flex; align-items:center; gap:0.625rem; cursor:pointer; font-weight:500; font-size:0.9rem;">
+                                <input type="checkbox" id="registry_no_status_toggle" style="width:1rem; height:1rem; cursor:pointer;" <?php echo $edit_mode && !empty($record['registry_no_status']) ? 'checked' : ''; ?>>
+                                Registry number is unavailable
+                            </label>
+                        </div>
                         <div class="form-group">
-                            <label for="registry_no">
+                            <label id="registry_no_label" for="registry_no">
                                 Registry Number
                             </label>
                             <input
@@ -339,21 +347,22 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 id="registry_no"
                                 name="registry_no"
                                 placeholder="Enter registry number (e.g., REG-2025-00001)"
-                                value="<?php echo $edit_mode ? htmlspecialchars($record['registry_no']) : ''; ?>"
+                                value="<?php echo $edit_mode ? htmlspecialchars($record['registry_no'] ?? '') : ''; ?>"
+                                style="<?php echo $edit_mode && !empty($record['registry_no_status']) ? 'display:none;' : ''; ?>"
+                                <?php echo $edit_mode && !empty($record['registry_no_status']) ? 'disabled' : ''; ?>
                             >
-                            <span class="help-text">Optional - Can be any format including single digit numbers</span>
+                            <select id="registry_no_status" name="registry_no_status" style="<?php echo $edit_mode && !empty($record['registry_no_status']) ? '' : 'display:none;'; ?>" <?php echo $edit_mode && !empty($record['registry_no_status']) ? '' : 'disabled'; ?>>
+                                <option value="">-- Select status --</option>
+                                <option value="not_readable" <?= ($record['registry_no_status'] ?? '') === 'not_readable' ? 'selected' : '' ?>>Not Readable</option>
+                                <option value="no_entry" <?= ($record['registry_no_status'] ?? '') === 'no_entry' ? 'selected' : '' ?>>No Entry</option>
+                            </select>
                         </div>
 
                         <!-- Partial date toggle for Date of Registration -->
                         <div style="margin-bottom:0.75rem; padding:0.75rem 1rem; background:var(--bg-secondary, #f8f9fa); border-radius:6px; border:1px solid var(--border-color, #e0e0e0);">
                             <label style="display:flex; align-items:center; gap:0.625rem; cursor:pointer; font-weight:500; font-size:0.9rem;">
-                                <input
-                                    type="checkbox"
-                                    id="partial_date_toggle"
-                                    style="width:1rem; height:1rem; cursor:pointer;"
-                                    <?php echo $partial_date_mode ? 'checked' : ''; ?>
-                                >
-                                Date of registration is incomplete (partial date)
+                                <input type="checkbox" id="partial_date_toggle" style="width:1rem; height:1rem; cursor:pointer;" <?php echo $partial_date_mode ? 'checked' : ''; ?>>
+                                Date of registration is partial or unavailable
                             </label>
                         </div>
 
@@ -382,6 +391,8 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                     <option value="month_year"  <?= $partial_date_format === 'month_year'  ? 'selected' : '' ?>>Month and Year Only</option>
                                     <option value="month_day"   <?= $partial_date_format === 'month_day'   ? 'selected' : '' ?>>Month and Date Only</option>
                                     <option value="na"          <?= $partial_date_format === 'na'          ? 'selected' : '' ?>>N/A (no date)</option>
+                                    <option value="not_readable" <?= $partial_date_format === 'not_readable' ? 'selected' : '' ?>>Not Readable</option>
+                                    <option value="no_entry" <?= $partial_date_format === 'no_entry' ? 'selected' : '' ?>>No Entry</option>
                                 </select>
                             </div>
                             <div class="form-group" id="partial_month_group" style="<?php echo in_array($partial_date_format, ['month_only','month_year','month_day']) ? '' : 'display:none;'; ?>">
@@ -589,14 +600,25 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
                                     <div class="form-group">
                                         <label for="husband_residence_municipality">Municipality <span class="required">*</span></label>
-                                        <input type="text" id="husband_residence_municipality" name="husband_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_residence_municipality'] ?? '') : '') ?: ($hr_outside ? '' : 'Baggao')); ?>" required>
+                                        <input type="text" id="husband_residence_municipality" name="husband_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_residence_municipality'] ?? '') : '') ?: ($hr_outside ? '' : 'Baggao')); ?>" data-progress-default="<?php echo empty($record['husband_residence_municipality'] ?? '') && !$hr_outside ? 'Baggao' : ''; ?>" required>
                                     </div>
                                     <div class="form-group">
                                         <label for="husband_residence_province">Province <span class="required">*</span></label>
-                                        <input type="text" id="husband_residence_province" name="husband_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_residence_province'] ?? '') : '') ?: ($hr_outside ? '' : 'Cagayan')); ?>" required>
+                                        <input type="text" id="husband_residence_province" name="husband_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_residence_province'] ?? '') : '') ?: ($hr_outside ? '' : 'Cagayan')); ?>" data-progress-default="<?php echo empty($record['husband_residence_province'] ?? '') && !$hr_outside ? 'Cagayan' : ''; ?>" required>
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="husband_civil_status">Civil Status</label>
+                            <?php $husband_civil_status_value = $edit_mode ? (string)($record['husband_civil_status'] ?? '') : ''; ?>
+                            <select id="husband_civil_status" name="husband_civil_status">
+                                <option value="">-- Select Civil Status --</option>
+                                <?php foreach ($civil_status_options as $civil_status): ?>
+                                <option value="<?php echo htmlspecialchars($civil_status, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $husband_civil_status_value === $civil_status ? 'selected' : ''; ?>><?php echo htmlspecialchars($civil_status, ENT_QUOTES, 'UTF-8'); ?></option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
 
                         <div class="form-group">
@@ -974,14 +996,25 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
                                     <div class="form-group">
                                         <label for="wife_residence_municipality">Municipality <span class="required">*</span></label>
-                                        <input type="text" id="wife_residence_municipality" name="wife_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_residence_municipality'] ?? '') : '') ?: ($wr_outside ? '' : 'Baggao')); ?>" required>
+                                        <input type="text" id="wife_residence_municipality" name="wife_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_residence_municipality'] ?? '') : '') ?: ($wr_outside ? '' : 'Baggao')); ?>" data-progress-default="<?php echo empty($record['wife_residence_municipality'] ?? '') && !$wr_outside ? 'Baggao' : ''; ?>" required>
                                     </div>
                                     <div class="form-group">
                                         <label for="wife_residence_province">Province <span class="required">*</span></label>
-                                        <input type="text" id="wife_residence_province" name="wife_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_residence_province'] ?? '') : '') ?: ($wr_outside ? '' : 'Cagayan')); ?>" required>
+                                        <input type="text" id="wife_residence_province" name="wife_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_residence_province'] ?? '') : '') ?: ($wr_outside ? '' : 'Cagayan')); ?>" data-progress-default="<?php echo empty($record['wife_residence_province'] ?? '') && !$wr_outside ? 'Cagayan' : ''; ?>" required>
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="wife_civil_status">Civil Status</label>
+                            <?php $wife_civil_status_value = $edit_mode ? (string)($record['wife_civil_status'] ?? '') : ''; ?>
+                            <select id="wife_civil_status" name="wife_civil_status">
+                                <option value="">-- Select Civil Status --</option>
+                                <?php foreach ($civil_status_options as $civil_status): ?>
+                                <option value="<?php echo htmlspecialchars($civil_status, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $wife_civil_status_value === $civil_status ? 'selected' : ''; ?>><?php echo htmlspecialchars($civil_status, ENT_QUOTES, 'UTF-8'); ?></option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
 
                         <div class="form-group">
@@ -1495,6 +1528,21 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
         })();
 
         // Form Progress Indicator Logic
+        function hasProgressValue(input, includeAutoDefault = false) {
+            if (input.disabled || input.type === 'hidden') return false;
+            if (input.type === 'checkbox' || input.type === 'radio') return input.checked;
+
+            const value = String(input.value || '').trim();
+            if (value === '') return false;
+
+            const progressDefault = String(input.dataset.progressDefault || '').trim();
+            if (!includeAutoDefault && progressDefault !== '' && value === progressDefault) {
+                return false;
+            }
+
+            return true;
+        }
+
         function updateFormProgress() {
             const sections = document.querySelectorAll('.form-section[id]');
             const steps = document.querySelectorAll('.progress-step');
@@ -1507,12 +1555,14 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                 if (section.style.display === 'none') return;
 
                 const step = steps[index];
-                const requiredInputs = section.querySelectorAll('input[required], select[required]');
+                const requiredInputs = Array.from(section.querySelectorAll('input[required], select[required]'))
+                    .filter(input => !input.disabled && input.type !== 'hidden');
                 let filledCount = 0;
                 let totalCount = requiredInputs.length;
+                const sectionHasUserEntry = requiredInputs.some(input => hasProgressValue(input));
 
                 requiredInputs.forEach(input => {
-                    if (input.value && input.value.trim() !== '') {
+                    if (hasProgressValue(input, sectionHasUserEntry)) {
                         filledCount++;
                     }
                 });
@@ -1525,7 +1575,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                 if (totalCount === 0) {
                     const allInputs = section.querySelectorAll('input, select, textarea');
                     allInputs.forEach(input => {
-                        if (input.value && input.value.trim() !== '' && input.type !== 'hidden') {
+                        if (hasProgressValue(input)) {
                             sectionHasData = true;
                         }
                     });
@@ -1925,6 +1975,28 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                 }
             }, 400);
         });
+    </script>
+    <script>
+        (() => {
+            const toggle = document.getElementById('registry_no_status_toggle');
+            const status = document.getElementById('registry_no_status');
+            const number = document.getElementById('registry_no');
+            const label = document.getElementById('registry_no_label');
+            if (!toggle || !status || !number || !label) return;
+            const sync = () => {
+                const useStatus = toggle.checked;
+                status.style.display = useStatus ? '' : 'none';
+                status.disabled = !useStatus;
+                status.required = useStatus;
+                number.style.display = useStatus ? 'none' : '';
+                number.disabled = useStatus;
+                label.htmlFor = useStatus ? 'registry_no_status' : 'registry_no';
+                if (!useStatus) status.value = '';
+            };
+            toggle.addEventListener('change', sync);
+            status.addEventListener('change', () => { if (status.value) number.value = ''; });
+            sync();
+        })();
     </script>
 </body>
 </html>

@@ -95,7 +95,7 @@ $crfDefaults = branding_crf_preview_config(crf_2a_config());
     window.CRF2A_DEFAULT_ISSUE_DATE = <?= json_encode(date('Y-m-d')) ?>;
 </script>
 <script src="../assets/js/record-preview-modal.js?v=13"></script>
-<script src="../assets/js/crf-2a-generator.js?v=4"></script>
+<script src="../assets/js/crf-2a-generator.js?v=20261001-registry"></script>
 <script src="../assets/js/crf-2a-records.js?v=4"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
 </body>

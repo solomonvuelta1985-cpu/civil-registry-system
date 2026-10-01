@@ -1,0 +1,29 @@
+/* Tighter vertical rhythm across certificate entry and edit forms. */
+.form-section {
+    margin-bottom: clamp(20px, 2.5vw, 28px);
+}
+
+.form-section .section-header {
+    margin-bottom: clamp(12px, 1.5vw, 16px);
+}
+
+.form-section .form-group {
+    margin-bottom: clamp(10px, 1.4vw, 14px);
+}
+
+.form-section .form-row {
+    column-gap: clamp(12px, 1.6vw, 16px);
+    row-gap: clamp(8px, 1.2vw, 12px);
+    margin-bottom: clamp(4px, 0.7vw, 8px);
+}
+
+@media (max-width: 600px) {
+    .form-section .form-group {
+        margin-bottom: 10px;
+    }
+
+    .form-section .form-row {
+        gap: 8px;
+        margin-bottom: 4px;
+    }
+}

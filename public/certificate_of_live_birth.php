@@ -143,6 +143,7 @@ if ($edit_mode && $record) {
 
     <!-- Shared Certificate Form Styles -->
     <link rel="stylesheet" href="../assets/css/certificate-forms-shared.css?v=2.2">
+    <link rel="stylesheet" href="../assets/css/certificate-entry-spacing.css?v=20261001-1">
 </head>
 <body>
     <?php include '../includes/preloader.php'; ?>
@@ -239,8 +240,14 @@ if ($edit_mode && $record) {
                             </h2>
                         </div>
 
+                        <div style="margin-bottom:0.75rem; padding:0.75rem 1rem; background:var(--bg-secondary, #f8f9fa); border-radius:6px; border:1px solid var(--border-color, #e0e0e0);">
+                            <label style="display:flex; align-items:center; gap:0.625rem; cursor:pointer; font-weight:500; font-size:0.9rem;">
+                                <input type="checkbox" id="registry_no_status_toggle" style="width:1rem; height:1rem; cursor:pointer;" <?php echo $edit_mode && !empty($record['registry_no_status']) ? 'checked' : ''; ?>>
+                                Registry number is unavailable
+                            </label>
+                        </div>
                         <div class="form-group">
-                            <label for="registry_no">
+                            <label id="registry_no_label" for="registry_no">
                                 Registry Number
                             </label>
                             <input
@@ -248,21 +255,22 @@ if ($edit_mode && $record) {
                                 id="registry_no"
                                 name="registry_no"
                                 placeholder="Enter registry number (e.g., 1, 12, 123, 2014-1423)"
-                                value="<?php echo $edit_mode ? htmlspecialchars($record['registry_no']) : ''; ?>"
+                                value="<?php echo $edit_mode ? htmlspecialchars($record['registry_no'] ?? '') : ''; ?>"
+                                style="<?php echo $edit_mode && !empty($record['registry_no_status']) ? 'display:none;' : ''; ?>"
+                                <?php echo $edit_mode && !empty($record['registry_no_status']) ? 'disabled' : ''; ?>
                             >
-                            <span class="help-text">Optional - Any format accepted (e.g., X, XX, XXX, XXXX, XXXX-XX). Leave blank if the registry number has not yet been assigned by the Civil Registrar.</span>
+                            <select id="registry_no_status" name="registry_no_status" style="<?php echo $edit_mode && !empty($record['registry_no_status']) ? '' : 'display:none;'; ?>" <?php echo $edit_mode && !empty($record['registry_no_status']) ? '' : 'disabled'; ?>>
+                                <option value="">-- Select status --</option>
+                                <option value="not_readable" <?= ($record['registry_no_status'] ?? '') === 'not_readable' ? 'selected' : '' ?>>Not Readable</option>
+                                <option value="no_entry" <?= ($record['registry_no_status'] ?? '') === 'no_entry' ? 'selected' : '' ?>>No Entry</option>
+                            </select>
                         </div>
 
                         <!-- Partial date toggle for Date of Registration -->
                         <div style="margin-bottom:0.75rem; padding:0.75rem 1rem; background:var(--bg-secondary, #f8f9fa); border-radius:6px; border:1px solid var(--border-color, #e0e0e0);">
                             <label style="display:flex; align-items:center; gap:0.625rem; cursor:pointer; font-weight:500; font-size:0.9rem;">
-                                <input
-                                    type="checkbox"
-                                    id="partial_date_toggle"
-                                    style="width:1rem; height:1rem; cursor:pointer;"
-                                    <?php echo $partial_date_mode ? 'checked' : ''; ?>
-                                >
-                                Date of registration is incomplete (partial date)
+                                <input type="checkbox" id="partial_date_toggle" style="width:1rem; height:1rem; cursor:pointer;" <?php echo $partial_date_mode ? 'checked' : ''; ?>>
+                                Date of registration is partial or unavailable
                             </label>
                         </div>
 
@@ -291,6 +299,8 @@ if ($edit_mode && $record) {
                                     <option value="month_year"  <?= $partial_date_format === 'month_year'  ? 'selected' : '' ?>>Month and Year Only</option>
                                     <option value="month_day"   <?= $partial_date_format === 'month_day'   ? 'selected' : '' ?>>Month and Date Only</option>
                                     <option value="na"          <?= $partial_date_format === 'na'          ? 'selected' : '' ?>>N/A (no date)</option>
+                                    <option value="not_readable" <?= $partial_date_format === 'not_readable' ? 'selected' : '' ?>>Not Readable</option>
+                                    <option value="no_entry" <?= $partial_date_format === 'no_entry' ? 'selected' : '' ?>>No Entry</option>
                                 </select>
                             </div>
                             <div class="form-group" id="partial_month_group" style="<?php echo in_array($partial_date_format, ['month_only','month_year','month_day']) ? '' : 'display:none;'; ?>">
@@ -1652,5 +1662,27 @@ if ($edit_mode && $record) {
         });
     </script>
     <?php endif; ?>
+    <script>
+        (() => {
+            const toggle = document.getElementById('registry_no_status_toggle');
+            const status = document.getElementById('registry_no_status');
+            const number = document.getElementById('registry_no');
+            const label = document.getElementById('registry_no_label');
+            if (!toggle || !status || !number || !label) return;
+            const sync = () => {
+                const useStatus = toggle.checked;
+                status.style.display = useStatus ? '' : 'none';
+                status.disabled = !useStatus;
+                status.required = useStatus;
+                number.style.display = useStatus ? 'none' : '';
+                number.disabled = useStatus;
+                label.htmlFor = useStatus ? 'registry_no_status' : 'registry_no';
+                if (!useStatus) status.value = '';
+            };
+            toggle.addEventListener('change', sync);
+            status.addEventListener('change', () => { if (status.value) number.value = ''; });
+            sync();
+        })();
+    </script>
 </body>
 </html>

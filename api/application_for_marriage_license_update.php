@@ -41,6 +41,11 @@ try {
 
     // Sanitize and validate input
     $registry_no = sanitize_input($_POST['registry_no'] ?? '');
+    $registry_no_status = sanitize_input($_POST['registry_no_status'] ?? '');
+    if (!in_array($registry_no_status, ['', 'not_readable', 'no_entry'], true)) {
+        json_response(false, 'Invalid registry number status.', null, 400);
+    }
+    if ($registry_no_status !== '') $registry_no = null;
     $date_of_application = sanitize_input($_POST['date_of_application'] ?? '');
 
     // Groom's Information
@@ -200,6 +205,7 @@ try {
     // Update database
     $sql = "UPDATE application_for_marriage_license SET
         registry_no = :registry_no,
+        registry_no_status = :registry_no_status,
         date_of_application = :date_of_application,
         groom_first_name = :groom_first_name,
         groom_middle_name = :groom_middle_name,
@@ -249,6 +255,7 @@ try {
 
     $params = [
         ':registry_no' => $registry_no ?: null,
+        ':registry_no_status' => $registry_no_status ?: null,
         ':date_of_application' => $date_of_application,
         ':groom_first_name' => $groom_first_name,
         ':groom_middle_name' => $groom_middle_name ?: null,

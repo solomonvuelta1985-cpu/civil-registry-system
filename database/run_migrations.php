@@ -45,7 +45,9 @@ $migrations = [
     '035_crf_1a_controls_history.sql',
     '036_crf_3a_marriage_issuance.sql',
     '037_marriage_parent_citizenship.sql',
-    '038_marriage_residence_locality.sql'
+    '038_marriage_residence_locality.sql',
+    '050_marriage_civil_status.sql',
+    '051_registry_no_status_and_registration_date_status.sql'
 ];
 
 $results = [];

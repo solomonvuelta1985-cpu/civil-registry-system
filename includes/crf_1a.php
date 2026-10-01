@@ -85,11 +85,12 @@ function crf_1a_date_value(array $record, string $field): string
             isset($record[$field . '_partial_year']) ? (int)$record[$field . '_partial_year'] : null,
             isset($record[$field . '_partial_day']) ? (int)$record[$field . '_partial_day'] : null
         );
+        if ($formatted === 'N/A' && $field === 'date_of_registration') return 'No Entry';
         return $formatted === 'N/A' ? '' : $formatted;
     }
 
     if (!$date) {
-        return '';
+        return $field === 'date_of_registration' ? 'No Entry' : '';
     }
     $timestamp = strtotime((string)$date);
     return $timestamp === false ? (string)$date : date('F j, Y', $timestamp);
@@ -135,7 +136,7 @@ function crf_1a_place_of_birth(array $record): string
 function crf_1a_record_values(array $record): array
 {
     return [
-        'registry_no' => trim((string)($record['registry_no'] ?? '')),
+        'registry_no' => format_registry_number($record, true),
         'date_of_registration' => crf_1a_registration_date($record),
         'name_of_child' => crf_1a_full_name($record, 'child'),
         'sex' => trim((string)($record['child_sex'] ?? '')),
@@ -375,6 +376,20 @@ function crf_1a_render_table_pdf_html(
             : '';
     };
 
+    // Only reserve header space for left logos that are actually rendered.
+    $sealLogoHtml = $logo((string)($cfg['logo_seal'] ?? ''), 'Baggao seal', '27mm', '27mm');
+    $baggaoLogoHtml = $logo((string)($cfg['logo_baggao'] ?? ''), 'Baggao reference logo', '27mm', '27mm');
+    $leftLogoCount = (int)($sealLogoHtml !== '') + (int)($baggaoLogoHtml !== '');
+    $leftLogoWidth = $leftLogoCount === 2 ? 32 : ($leftLogoCount === 1 ? 18 : 0);
+    $copyWidth = 82 - $leftLogoWidth;
+    $leftLogoHtml = $sealLogoHtml . $baggaoLogoHtml;
+    if ($leftLogoCount === 2) {
+        $leftLogoHtml = '<table class="logo-pair" cellspacing="0" cellpadding="0" border="0"><tr><td class="pair-logo-cell" width="50%">' . $sealLogoHtml . '</td><td class="pair-logo-cell pair-logo-baggao" width="50%">' . $baggaoLogoHtml . '</td></tr></table>';
+    }
+    $leftHeaderHtml = $leftLogoCount > 0
+        ? '<td class="logo-group" width="' . $leftLogoWidth . '%">' . $leftLogoHtml . '</td>'
+        : '';
+
     $issueTimestamp = strtotime((string)($inputs['issue_date'] ?? date('Y-m-d')));
     $issueDateText = $issueTimestamp === false
         ? $e($inputs['issue_date'] ?? '')
@@ -389,11 +404,13 @@ function crf_1a_render_table_pdf_html(
 
     $fieldRows = '';
     foreach ($fields as $label => $value) {
-        $fieldRows .= '<tr style="height:4.6mm;">'
-            . '<td class="field-label">' . $e($label) . '</td>'
-            . '<td class="field-colon">:</td>'
-            . '<td class="field-value">' . $valueLine($value) . '</td>'
-            . '</tr>';
+        $fieldValue = trim((string)($value ?? ''));
+        $fieldRows .= '<div style="height:4.6mm;line-height:4.6mm;white-space:nowrap;font-size:9pt;overflow:hidden">'
+            . '<span style="display:inline-block;width:78mm;vertical-align:bottom">' . $e($label) . '</span>'
+            . '<span style="display:inline-block;width:4mm;vertical-align:bottom">:</span>'
+            . '<span style="display:inline-block;width:59mm;height:3.8mm;border-bottom:1px solid #222;white-space:nowrap;overflow:hidden;vertical-align:bottom">'
+            . ($fieldValue !== '' ? $e($fieldValue) : '&nbsp;') . '</span>'
+            . '</div>';
     }
 
     $introText = 'We certify that, among others, the following facts of ' . $e($subject)
@@ -411,11 +428,11 @@ function crf_1a_render_table_pdf_html(
         . '.top-spacer{height:5mm;line-height:0;font-size:0}'
         . '.header-table{width:100%;height:30mm;border-collapse:collapse;table-layout:fixed}'
         . '.header-table td{padding:0;vertical-align:middle}'
-        . '.header-table .logo-group{width:32%;padding:0}'
+        . '.header-table .logo-group{width:' . $leftLogoWidth . '%;padding:0}'
         . '.logo-pair{width:100%;border-collapse:collapse;table-layout:fixed}'
         . '.logo-pair td{padding:0;text-align:center;vertical-align:middle}'
         . '.logo-pair .pair-logo-cell{width:50%}'
-        . '.header-table .copy-cell{width:50%;text-align:left;line-height:1.05}'
+        . '.header-table .copy-cell{width:' . $copyWidth . '%;text-align:left;line-height:1.05}'
         . '.header-table .right-cell{width:18%;padding:0;vertical-align:top}'
         . '.logo-pair img{display:block;width:27mm;height:27mm;margin:0 auto}.logo-pair .pair-logo-baggao img{transform:scale(1.35)}'
         . '.copy-cell .small{font-size:9pt}'
@@ -442,11 +459,6 @@ function crf_1a_render_table_pdf_html(
         . '.intro-gap{height:7mm;font-size:0;line-height:0}'
         . '.intro-statement{text-align:center;vertical-align:top}'
         . '.pdf-short-line{display:inline-block;width:12mm;height:3.8mm;border-bottom:1px solid #222;text-align:center;vertical-align:bottom;white-space:nowrap;overflow:hidden}'
-        . '.field-table{width:141mm;margin-left:34mm;border-collapse:collapse;table-layout:fixed}'
-        . '.field-table td{padding:0;line-height:1.05;vertical-align:baseline;white-space:nowrap}'
-        . '.field-label{width:78mm}'
-        . '.field-colon{width:4mm}'
-        . '.field-value{width:59mm;overflow:hidden}'
         . '.pdf-line{display:inline-block;width:100%;height:3.8mm;border-bottom:1px solid #222;white-space:nowrap;overflow:hidden;vertical-align:bottom}'
         . '.grid-spacer{height:4.2mm;font-size:0;line-height:0}'
         . '.certification-row{height:24mm;padding:0 20mm 0 29mm!important;line-height:1.3}'
@@ -476,13 +488,14 @@ function crf_1a_render_table_pdf_html(
         . '.note{width:168mm;font-size:8pt;line-height:1.1}'
         . '</style></head><body><table class="pdf-page" cellspacing="0" cellpadding="0" border="0"><tr><td class="top-spacer">&nbsp;</td></tr>'
         . '<tr><td style="padding-left:14mm;padding-right:12mm;"><table class="header-table" cellspacing="0" cellpadding="0" border="0"><tr>'
-        . '<td class="logo-group" width="32%"><table class="logo-pair" cellspacing="0" cellpadding="0" border="0"><tr><td class="pair-logo-cell" width="50%">' . $logo((string)($cfg['logo_seal'] ?? ''), 'Baggao seal', '27mm', '27mm') . '</td><td class="pair-logo-cell pair-logo-baggao" width="50%">' . $logo((string)($cfg['logo_baggao'] ?? ''), 'Baggao reference logo', '27mm', '27mm') . '</td></tr></table></td>'
-        . '<td class="copy-cell" width="50%"><div class="small">Republic of the Philippines</div><div class="small">Province of ' . $e($cfg['province'] ?? '') . '</div><div class="municipality">MUNICIPALITY OF ' . $e($cfg['municipality'] ?? '') . '</div><div class="office">' . $officeHtml . '</div><div class="address">' . $e($cfg['address'] ?? '') . '</div></td>'
-        . '<td class="right-cell" width="18%"><table class="right-table" cellspacing="0" cellpadding="0" border="0"><tr><td class="right-logo">' . $logo((string)($cfg['logo_pilipinas'] ?? ''), 'Bagong Pilipinas', '34mm', '28mm') . '</td></tr><tr><td class="header-meta">CRF ID<strong>' . $e($crfNumber) . '</strong></td></tr></table></td>'
+        . $leftHeaderHtml
+        . '<td class="copy-cell" width="' . $copyWidth . '%"><div class="small">Republic of the Philippines</div><div class="small">Province of ' . $e($cfg['province'] ?? '') . '</div><div class="municipality">MUNICIPALITY OF ' . $e($cfg['municipality'] ?? '') . '</div><div class="office">' . $officeHtml . '</div><div class="address">' . $e($cfg['address'] ?? '') . '</div></td>'
+        // Keep this logo directly in its cell. Writer can move a nested table below the office text.
+        . '<td class="right-cell" width="18%" valign="top">' . $logo((string)($cfg['logo_pilipinas'] ?? ''), 'Bagong Pilipinas', '34mm', '28mm') . '<p class="header-meta" style="margin:0;font-size:5.5pt;text-align:right">CRF ID<strong>' . $e($crfNumber) . '</strong></p></td>'
         . '</tr></table></td></tr><tr><td class="header-gap">&nbsp;</td></tr><tr><td class="rule-row"><div class="red-rule">&nbsp;</div></td></tr><tr><td class="after-rule">&nbsp;</td></tr>'
         . '<tr><td class="title-row">' . $e($title) . '</td></tr><tr><td class="subtitle-row">' . $e($subtitle) . '</td></tr><tr><td class="date-row">Date: ' . $issueDateText . '</td></tr>'
         . '<tr><td class="intro-row"><table class="intro-table" cellspacing="0" cellpadding="0" border="0"><tr><td class="intro-heading"><strong>TO WHOM IT MAY CONCERN:</strong></td></tr><tr><td class="intro-gap">&nbsp;</td></tr><tr><td class="intro-statement">' . $introText . '</td></tr></table></td></tr>'
-        . '<tr><td><table class="field-table" cellspacing="0" cellpadding="0" border="0">' . $fieldRows . '</table></td></tr><tr><td class="grid-spacer">&nbsp;</td></tr>'
+        . '<tr><td><div style="width:141mm;margin-left:34mm">' . $fieldRows . '</div></td></tr><tr><td class="grid-spacer">&nbsp;</td></tr>'
         . '<tr><td class="certification-row">This certification is issued to ' . $requesterLine . ' upon his/her<br>request.</td></tr>'
         . '<tr><td class="signature-row"><table class="signature-table" cellspacing="0" cellpadding="0" border="0"><tr><td class="signature-spacer">&nbsp;</td><td class="signature-cell"><strong>' . $e($inputs['mcr_full_name'] ?? '') . '</strong><div>' . $e($inputs['mcr_title'] ?? '') . '</div></td><td class="signature-right-spacer">&nbsp;</td></tr></table></td></tr>'
         . '<tr><td class="certified-row"><table class="certified-table" cellspacing="0" cellpadding="0" border="0"><tr><td><table class="certified-heading" cellspacing="0" cellpadding="0" border="0"><tr><td class="certified-label">Certified by:</td><td class="certified-line">' . $e($inputs['certified_by_name'] ?? '') . '</td></tr></table><div class="certified-position">' . $e($inputs['certified_by_position'] ?? '') . '</div></td></tr></table></td></tr>'
@@ -544,8 +557,14 @@ function crf_1a_render_pdf_with_edge(string $html, string $outputPdf, string $ed
         if ($exitCode !== 0 || !is_file($generatedPdf) || filesize($generatedPdf) < 100) {
             throw new RuntimeException('Edge PDF conversion failed: ' . implode(' | ', $output));
         }
-        if (crf_1a_pdf_page_count($generatedPdf) !== 1) {
-            throw new RuntimeException('The generated CRF PDF is not a one-page document.');
+        $pagesBeforeNormalization = crf_1a_pdf_page_count($generatedPdf);
+        $normalized = crf_1a_remove_trailing_blank_pages($generatedPdf);
+        $pagesAfterNormalization = crf_1a_pdf_page_count($generatedPdf);
+        if (!$normalized) {
+            throw new RuntimeException('Unable to normalize the generated CRF PDF to one page (pages before=' . $pagesBeforeNormalization . ', after=' . $pagesAfterNormalization . ').');
+        }
+        if ($pagesAfterNormalization !== 1) {
+            throw new RuntimeException('The generated CRF PDF is not a one-page document (pages before=' . $pagesBeforeNormalization . ', after=' . $pagesAfterNormalization . ').');
         }
         $targetDir = dirname($outputPdf);
         if (!is_dir($targetDir) && !mkdir($targetDir, 0755, true) && !is_dir($targetDir)) {
@@ -622,11 +641,14 @@ function crf_1a_render_pdf(string $html, string $outputPdf, ?string &$error = nu
         if ($exitCode !== 0 || !is_file($generatedPdf) || filesize($generatedPdf) < 100) {
             throw new RuntimeException('LibreOffice PDF conversion failed: ' . implode(' | ', $output));
         }
-        if (!crf_1a_remove_trailing_blank_pages($generatedPdf)) {
-            throw new RuntimeException('Unable to normalize the generated CRF PDF to one page.');
+        $pagesBeforeNormalization = crf_1a_pdf_page_count($generatedPdf);
+        $normalized = crf_1a_remove_trailing_blank_pages($generatedPdf);
+        $pagesAfterNormalization = crf_1a_pdf_page_count($generatedPdf);
+        if (!$normalized) {
+            throw new RuntimeException('Unable to normalize the generated CRF PDF to one page (pages before=' . $pagesBeforeNormalization . ', after=' . $pagesAfterNormalization . ').');
         }
-        if (crf_1a_pdf_page_count($generatedPdf) !== 1) {
-            throw new RuntimeException('The generated CRF PDF is not a one-page document.');
+        if ($pagesAfterNormalization !== 1) {
+            throw new RuntimeException('The generated CRF PDF is not a one-page document (pages before=' . $pagesBeforeNormalization . ', after=' . $pagesAfterNormalization . ').');
         }
 
         $targetDir = dirname($outputPdf);
@@ -654,8 +676,14 @@ function crf_1a_remove_trailing_blank_pages(string $pdfPath): bool
 {
     $pdf = @file_get_contents($pdfPath);
     if ($pdf === false || $pdf === '') return false;
+    $pageDiag = crf_1a_pdf_page_count($pdfPath) > 1;
+    if ($pageDiag) {
+        preg_match_all('~/Type\\s*/Pages\\b|/Kids\\b|/Count\\s+\\d+\\b~', $pdf, $pageShape);
+        error_log('CRF_PAGE_DIAG structure=' . json_encode(array_slice($pageShape[0], 0, 20)));
+    }
 
-    if (!preg_match('~/Type/Pages.*?/Kids\\[(.*?)\\].*?/Count\\s+(\\d+)~s', $pdf, $treeMatch, PREG_OFFSET_CAPTURE)) {
+    if (!preg_match('~/Type\\s*/Pages.*?/Kids\\s*\\[(.*?)\\].*?/Count\\s+(\\d+)~s', $pdf, $treeMatch, PREG_OFFSET_CAPTURE)) {
+        if ($pageDiag) error_log('CRF_PAGE_DIAG tree=unmatched');
         return true;
     }
     $count = (int)$treeMatch[2][0];
@@ -663,6 +691,7 @@ function crf_1a_remove_trailing_blank_pages(string $pdfPath): bool
     $refs = [];
     preg_match_all('~(\\d+)\\s+0\\s+R~', $kidsText, $refMatches);
     foreach ($refMatches[1] as $ref) $refs[] = (int)$ref;
+    if ($pageDiag) error_log('CRF_PAGE_DIAG tree_count=' . $count . ' kids=' . count($refs));
     if ($count <= 1 || count($refs) <= 1) return true;
 
     $lastRef = end($refs);
@@ -679,14 +708,38 @@ function crf_1a_remove_trailing_blank_pages(string $pdfPath): bool
     if ($decoded === false && function_exists('zlib_decode')) {
         $decoded = @zlib_decode($contentsStream[1]);
     }
-    // Text, image, and paint operators mean the page is not merely the
-    // unpainted trailing page produced by the HTML importer.
-    if ($decoded !== false && (strlen(trim($decoded)) > 128
-        || preg_match('~(?:^|[\\s>\\)\\]])(?:Tj|TJ|Do|S|s|f|F|B|b)(?:\\s|$)~', $decoded))) return true;
+    if ($pageDiag) error_log('CRF_PAGE_DIAG decoded_bytes=' . ($decoded === false ? 'FAILED' : strlen($decoded)));
+    // An undecodable stream is not evidence that its page is blank.
+    if ($decoded === false) return true;
+    if ($decoded !== false) {
+        // LibreOffice paints a white page background inside an Artifact block
+        // even when its final page is otherwise empty. Ignore only that known
+        // background rectangle before checking for actual page content.
+        $inspected = preg_replace(
+            '~/?Artifact\\s+BMC\\s+q\\s+[-+0-9.]+\\s+[-+0-9.]+\\s+[-+0-9.]+\\s+[-+0-9.]+\\s+re\\s+W\\*\\s+n\\s+1(?:\\.0*)?\\s+1(?:\\.0*)?\\s+1(?:\\.0*)?\\s+rg\\s+'
+            . '[-+0-9.]+\\s+[-+0-9.]+\\s+m\\s+[-+0-9.]+\\s+[-+0-9.]+\\s+l\\s+'
+            . '[-+0-9.]+\\s+[-+0-9.]+\\s+l\\s+[-+0-9.]+\\s+[-+0-9.]+\\s+l\\s+'
+            . '[-+0-9.]+\\s+[-+0-9.]+\\s+l\\s+h\\s+f\\*\\s+EMC~s',
+            '',
+            $decoded,
+            1
+        );
+        if (!is_string($inspected)) $inspected = $decoded;
+        $inspected = trim($inspected);
+        if ($inspected === 'Q') $inspected = '';
+        if ($pageDiag) error_log('CRF_PAGE_DIAG remaining_bytes=' . strlen($inspected));
 
+        // Text, image, and paint operators mean the page has visible content.
+        if (preg_match('~(?:^|[\\s>\\)\\]])(?:Tj|TJ|Do|S|s|f|F|B|b)(?:\\s|$)~', $inspected, $pagePaint)) {
+            if ($pageDiag) error_log('CRF_PAGE_DIAG keep_operator=' . trim($pagePaint[0]));
+            return true;
+        }
+    }
+
+    if ($pageDiag) error_log('CRF_PAGE_DIAG rewrite=attempted');
     $oldTree = $treeMatch[0][0];
     $newKids = '[ ' . implode(' ', array_map(static fn($ref) => $ref . ' 0 R', array_slice($refs, 0, -1))) . ' ]';
-    $newTree = preg_replace('~/Kids\\[.*?\\].*?/Count\\s+\\d+~s', '/Kids' . $newKids . ' /Count ' . ($count - 1), $oldTree, 1);
+    $newTree = preg_replace('~/Kids\\s*\\[.*?\\].*?/Count\\s+\\d+~s', '/Kids' . $newKids . ' /Count ' . ($count - 1), $oldTree, 1);
     if (!is_string($newTree) || strlen($newTree) > strlen($oldTree)) return false;
     $newTree = str_pad($newTree, strlen($oldTree), ' ');
     $offset = $treeMatch[0][1];

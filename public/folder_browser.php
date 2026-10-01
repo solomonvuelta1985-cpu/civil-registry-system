@@ -646,6 +646,11 @@ function getColumnsForType(type) {
         if (isNaN(d)) return esc(v);
         return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
     };
+    const fmtRegistry = r => {
+        const number = String(r.registry_no || '').trim();
+        const labels = { not_readable: 'Not Readable', no_entry: 'No Entry' };
+        return esc(number || labels[r.registry_no_status] || 'No Entry');
+    };
     const fmtDeathAge = (age, unit) => {
         if (age === null || age === undefined || age === '') return '';
         unit = unit || 'years';
@@ -685,7 +690,7 @@ function getColumnsForType(type) {
             { label: 'Issue Date', cls: 'col-date', render: r => fmtDate(r.issue_date) },
         ];
         case 'birth': return [
-            { label: 'Registry No.', cls: 'col-registry', render: r => esc(r.registry_no || '') },
+            { label: 'Registry No.', cls: 'col-registry', render: r => fmtRegistry(r) },
             { label: 'Child', cls: 'col-name', render: r => nameLink(r, r.id, type, 'child_first_name', 'child_middle_name', 'child_last_name') },
             { label: 'Sex', cls: '', render: r => esc(r.child_sex || '') },
             { label: 'Birth Date', cls: 'col-date', render: r => fmtDate(r.child_date_of_birth) },
@@ -693,7 +698,7 @@ function getColumnsForType(type) {
             { label: 'Mother', cls: '', render: r => esc(name(r, 'mother_first_name', 'mother_middle_name', 'mother_last_name')) },
         ];
         case 'death': return [
-            { label: 'Registry No.', cls: 'col-registry', render: r => esc(r.registry_no || '') },
+            { label: 'Registry No.', cls: 'col-registry', render: r => fmtRegistry(r) },
             { label: 'Deceased', cls: 'col-name', render: r => nameLink(r, r.id, type, 'deceased_first_name', 'deceased_middle_name', 'deceased_last_name') },
             { label: 'Sex', cls: '', render: r => esc(r.sex || '') },
             { label: 'Date of Death', cls: 'col-date', render: r => fmtDate(r.date_of_death) },
@@ -701,14 +706,14 @@ function getColumnsForType(type) {
             { label: 'Place', cls: 'col-place', render: r => esc(r.place_of_death || '') },
         ];
         case 'marriage': return [
-            { label: 'Registry No.', cls: 'col-registry', render: r => esc(r.registry_no || '') },
+            { label: 'Registry No.', cls: 'col-registry', render: r => fmtRegistry(r) },
             { label: 'Husband', cls: 'col-name', render: r => nameLink(r, r.id, type, 'husband_first_name', 'husband_middle_name', 'husband_last_name') },
             { label: 'Wife', cls: '', render: r => esc(name(r, 'wife_first_name', 'wife_middle_name', 'wife_last_name')) },
             { label: 'Marriage Date', cls: 'col-date', render: r => fmtDate(r.date_of_marriage) },
             { label: 'Place', cls: 'col-place', render: r => esc(r.place_of_marriage || '') },
         ];
         case 'marriage_license': return [
-            { label: 'Registry No.', cls: 'col-registry', render: r => esc(r.registry_no || '') },
+            { label: 'Registry No.', cls: 'col-registry', render: r => fmtRegistry(r) },
             { label: 'Groom', cls: 'col-name', render: r => nameLink(r, r.id, type, 'groom_first_name', 'groom_middle_name', 'groom_last_name') },
             { label: 'Bride', cls: '', render: r => esc(name(r, 'bride_first_name', 'bride_middle_name', 'bride_last_name')) },
             { label: 'Application Date', cls: 'col-date', render: r => fmtDate(r.date_of_application) },
@@ -865,10 +870,10 @@ function openPreview(id, type) {
 </script>
 <script src="../assets/js/family_relations_render.js?v=2"></script>
 <script src="../assets/js/record-preview-modal.js?v=13"></script>
-<script src="../assets/js/crf-1a-generator.js?v=17"></script>
-<script src="../assets/js/crf-2a-generator.js?v=4"></script>
+<script src="../assets/js/crf-1a-generator.js?v=20261001-registry"></script>
+<script src="../assets/js/crf-2a-generator.js?v=20261001-registry"></script>
 <script src="../assets/js/crf-2a-records.js?v=4"></script>
-<script src="../assets/js/crf-3a-generator.js?v=4"></script>
+<script src="../assets/js/crf-3a-generator.js?v=20261001-registry"></script>
 <script src="../assets/js/crf-3a-records.js?v=2"></script>
 <script src="../assets/js/crf-1a-records.js?v=20"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>

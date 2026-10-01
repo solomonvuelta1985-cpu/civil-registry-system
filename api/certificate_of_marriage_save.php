@@ -25,6 +25,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 try {
     // Sanitize and validate input
     $registry_no = sanitize_input($_POST['registry_no'] ?? '');
+    $registry_no_status = sanitize_input($_POST['registry_no_status'] ?? '');
+    if (!in_array($registry_no_status, ['', 'not_readable', 'no_entry'], true)) {
+        json_response(false, 'Invalid registry number status.', null, 400);
+    }
+    if ($registry_no_status !== '') $registry_no = null;
     $date_of_registration_format = sanitize_input($_POST['date_of_registration_format'] ?? 'full');
     $date_of_registration        = sanitize_input($_POST['date_of_registration'] ?? '');
     $partial_date_month          = sanitize_input($_POST['partial_date_month'] ?? null) ?: null;
@@ -44,6 +49,7 @@ try {
     $husband_residence = sanitize_input($_POST['husband_residence'] ?? '');
     $husband_residence_municipality = sanitize_input($_POST['husband_residence_municipality'] ?? '');
     $husband_residence_province = sanitize_input($_POST['husband_residence_province'] ?? '');
+    $husband_civil_status = sanitize_input($_POST['husband_civil_status'] ?? '');
     $husband_citizenship = sanitize_input($_POST['husband_citizenship'] ?? null);
     if ($husband_citizenship === 'Other') {
         $husband_citizenship = sanitize_input($_POST['husband_citizenship_other'] ?? null);
@@ -78,6 +84,7 @@ try {
     $wife_residence = sanitize_input($_POST['wife_residence'] ?? '');
     $wife_residence_municipality = sanitize_input($_POST['wife_residence_municipality'] ?? '');
     $wife_residence_province = sanitize_input($_POST['wife_residence_province'] ?? '');
+    $wife_civil_status = sanitize_input($_POST['wife_civil_status'] ?? '');
     $wife_citizenship = sanitize_input($_POST['wife_citizenship'] ?? null);
     if ($wife_citizenship === 'Other') {
         $wife_citizenship = sanitize_input($_POST['wife_citizenship_other'] ?? null);
@@ -108,7 +115,9 @@ try {
 
     // Validation: Required fields
     $allowed_formats = ['full', 'month_only', 'year_only', 'month_year', 'month_day', 'na'];
-    if (!in_array($date_of_registration_format, $allowed_formats, true)) {
+    $registration_formats = array_merge($allowed_formats, ['not_readable', 'no_entry']);
+    $allowed_civil_statuses = ['Single', 'Married', 'Widowed', 'Divorced/Separated', 'Unknown/Not Stated'];
+    if (!in_array($date_of_registration_format, $registration_formats, true)) {
         json_response(false, 'Invalid date format type.', null, 400);
     }
     if (!in_array($husband_dob_format, $allowed_formats, true)) {
@@ -116,6 +125,10 @@ try {
     }
     if (!in_array($wife_dob_format, $allowed_formats, true)) {
         json_response(false, 'Invalid wife date of birth format type.', null, 400);
+    }
+    if (($husband_civil_status !== '' && !in_array($husband_civil_status, $allowed_civil_statuses, true)) ||
+        ($wife_civil_status !== '' && !in_array($wife_civil_status, $allowed_civil_statuses, true))) {
+        json_response(false, 'Invalid civil status.', null, 400);
     }
     if (empty($husband_first_name) || empty($husband_last_name) ||
         empty($husband_place_of_birth) || empty($husband_residence) ||
@@ -191,13 +204,15 @@ try {
         ? ((int)$partial_date_day ?: null) : null;
 
     // Normalize husband date of birth (supports partial formats)
-    $h_dob_norm = normalize_registration_date(
-        $husband_dob_format,
-        $husband_date_of_birth,
-        $husband_dob_partial_month,
-        $husband_dob_partial_year,
-        $husband_dob_partial_day
-    );
+    $h_dob_norm = $husband_dob_format === 'full' && trim($husband_date_of_birth) === ''
+        ? ['date' => null, 'error' => null]
+        : normalize_registration_date(
+            $husband_dob_format,
+            $husband_date_of_birth,
+            $husband_dob_partial_month,
+            $husband_dob_partial_year,
+            $husband_dob_partial_day
+        );
     if ($h_dob_norm['error'] !== null) {
         json_response(false, 'Husband date of birth: ' . $h_dob_norm['error'], null, 400);
     }
@@ -210,13 +225,15 @@ try {
         ? ((int)$husband_dob_partial_day ?: null) : null;
 
     // Normalize wife date of birth (supports partial formats)
-    $w_dob_norm = normalize_registration_date(
-        $wife_dob_format,
-        $wife_date_of_birth,
-        $wife_dob_partial_month,
-        $wife_dob_partial_year,
-        $wife_dob_partial_day
-    );
+    $w_dob_norm = $wife_dob_format === 'full' && trim($wife_date_of_birth) === ''
+        ? ['date' => null, 'error' => null]
+        : normalize_registration_date(
+            $wife_dob_format,
+            $wife_date_of_birth,
+            $wife_dob_partial_month,
+            $wife_dob_partial_year,
+            $wife_dob_partial_day
+        );
     if ($w_dob_norm['error'] !== null) {
         json_response(false, 'Wife date of birth: ' . $w_dob_norm['error'], null, 400);
     }
@@ -267,36 +284,36 @@ try {
     try {
         // Insert into database
         $sql = "INSERT INTO certificate_of_marriage (
-            registry_no, date_of_registration,
+            registry_no, registry_no_status, date_of_registration,
             date_of_registration_format, date_of_registration_partial_month, date_of_registration_partial_year, date_of_registration_partial_day,
             husband_first_name, husband_middle_name, husband_last_name,
             husband_date_of_birth, husband_date_of_birth_format,
             husband_date_of_birth_partial_month, husband_date_of_birth_partial_year, husband_date_of_birth_partial_day,
-            husband_place_of_birth, husband_residence, husband_residence_municipality, husband_residence_province, husband_citizenship,
+            husband_place_of_birth, husband_residence, husband_residence_municipality, husband_residence_province, husband_citizenship, husband_civil_status,
             husband_father_name, husband_father_residence, husband_father_residence_municipality, husband_father_residence_province, husband_father_citizenship,
             husband_mother_name, husband_mother_residence, husband_mother_residence_municipality, husband_mother_residence_province, husband_mother_citizenship,
             wife_first_name, wife_middle_name, wife_last_name,
             wife_date_of_birth, wife_date_of_birth_format,
             wife_date_of_birth_partial_month, wife_date_of_birth_partial_year, wife_date_of_birth_partial_day,
-            wife_place_of_birth, wife_residence, wife_residence_municipality, wife_residence_province, wife_citizenship,
+            wife_place_of_birth, wife_residence, wife_residence_municipality, wife_residence_province, wife_citizenship, wife_civil_status,
             wife_father_name, wife_father_residence, wife_father_residence_municipality, wife_father_residence_province, wife_father_citizenship,
             wife_mother_name, wife_mother_residence, wife_mother_residence_municipality, wife_mother_residence_province, wife_mother_citizenship,
             date_of_marriage, place_of_marriage, nature_of_solemnization,
             pdf_filename, pdf_filepath, pdf_hash,
             status, created_by
         ) VALUES (
-            :registry_no, :date_of_registration,
+            :registry_no, :registry_no_status, :date_of_registration,
             :date_of_registration_format, :date_of_registration_partial_month, :date_of_registration_partial_year, :date_of_registration_partial_day,
             :husband_first_name, :husband_middle_name, :husband_last_name,
             :husband_date_of_birth, :husband_date_of_birth_format,
             :husband_date_of_birth_partial_month, :husband_date_of_birth_partial_year, :husband_date_of_birth_partial_day,
-            :husband_place_of_birth, :husband_residence, :husband_residence_municipality, :husband_residence_province, :husband_citizenship,
+            :husband_place_of_birth, :husband_residence, :husband_residence_municipality, :husband_residence_province, :husband_citizenship, :husband_civil_status,
             :husband_father_name, :husband_father_residence, :husband_father_residence_municipality, :husband_father_residence_province, :husband_father_citizenship,
             :husband_mother_name, :husband_mother_residence, :husband_mother_residence_municipality, :husband_mother_residence_province, :husband_mother_citizenship,
             :wife_first_name, :wife_middle_name, :wife_last_name,
             :wife_date_of_birth, :wife_date_of_birth_format,
             :wife_date_of_birth_partial_month, :wife_date_of_birth_partial_year, :wife_date_of_birth_partial_day,
-            :wife_place_of_birth, :wife_residence, :wife_residence_municipality, :wife_residence_province, :wife_citizenship,
+            :wife_place_of_birth, :wife_residence, :wife_residence_municipality, :wife_residence_province, :wife_citizenship, :wife_civil_status,
             :wife_father_name, :wife_father_residence, :wife_father_residence_municipality, :wife_father_residence_province, :wife_father_citizenship,
             :wife_mother_name, :wife_mother_residence, :wife_mother_residence_municipality, :wife_mother_residence_province, :wife_mother_citizenship,
             :date_of_marriage, :place_of_marriage, :nature_of_solemnization,
@@ -310,6 +327,7 @@ try {
 
         $params = [
             ':registry_no'                         => $registry_no ?: null,
+            ':registry_no_status'                  => $registry_no_status ?: null,
             ':date_of_registration'                => $date_of_registration,
             ':date_of_registration_format'         => $date_of_registration_format,
             ':date_of_registration_partial_month'  => $stored_partial_month,
@@ -328,6 +346,7 @@ try {
             ':husband_residence_municipality' => $husband_residence_municipality ?: null,
             ':husband_residence_province' => $husband_residence_province ?: null,
             ':husband_citizenship' => $husband_citizenship ?: null,
+            ':husband_civil_status' => $husband_civil_status !== '' ? $husband_civil_status : null,
             ':husband_father_name' => $husband_father_name ?: null,
             ':husband_father_residence' => $husband_father_residence ?: null,
             ':husband_father_residence_municipality' => $husband_father_residence_municipality ?: null,
@@ -351,6 +370,7 @@ try {
             ':wife_residence_municipality' => $wife_residence_municipality ?: null,
             ':wife_residence_province' => $wife_residence_province ?: null,
             ':wife_citizenship' => $wife_citizenship ?: null,
+            ':wife_civil_status' => $wife_civil_status !== '' ? $wife_civil_status : null,
             ':wife_father_name' => $wife_father_name ?: null,
             ':wife_father_residence' => $wife_father_residence ?: null,
             ':wife_father_residence_municipality' => $wife_father_residence_municipality ?: null,

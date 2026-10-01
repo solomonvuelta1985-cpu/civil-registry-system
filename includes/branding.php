@@ -63,11 +63,27 @@ function branding_resolve_absolute_logo_path(string $path): ?string
         return null;
     }
 
-    $prefix = rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
-    $isInsideBase = DIRECTORY_SEPARATOR === '\\'
-        ? strncasecmp($absolutePath, $prefix, strlen($prefix)) === 0
-        : strncmp($absolutePath, $prefix, strlen($prefix)) === 0;
-    return $isInsideBase ? $absolutePath : null;
+    $allowedRoots = [$basePath];
+    if (branding_is_uploaded_logo_path($path)) {
+        // Blue/green deployments may share uploads through a symlink to a
+        // separate release directory. Allow only the resolved branding folder.
+        $brandingRoot = realpath($basePath . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'branding');
+        if ($brandingRoot !== false) {
+            $allowedRoots[] = $brandingRoot;
+        }
+    }
+
+    foreach ($allowedRoots as $root) {
+        $prefix = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        $isInsideRoot = DIRECTORY_SEPARATOR === '\\'
+            ? strncasecmp($absolutePath, $prefix, strlen($prefix)) === 0
+            : strncmp($absolutePath, $prefix, strlen($prefix)) === 0;
+        if ($isInsideRoot) {
+            return $absolutePath;
+        }
+    }
+
+    return null;
 }
 
 function branding_resolve_relative_logo_path(string $path): ?string
