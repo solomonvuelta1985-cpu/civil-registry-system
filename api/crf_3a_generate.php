@@ -87,10 +87,12 @@ if ($issuanceKind !== 'Corrected' && $replacesId) json_response(false, 'Only a C
 
 $pdfAbsolutePath = null;
 try {
-    $stmt = $pdo->prepare("SELECT * FROM certificate_of_marriage WHERE id = :id AND status = 'Active' LIMIT 1");
+    $pdo->beginTransaction();
+    $stmt = $pdo->prepare("SELECT * FROM certificate_of_marriage WHERE id = :id AND status = 'Active' LIMIT 1 FOR UPDATE");
     $stmt->execute([':id' => (int)$marriageRecordId]);
     $record = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$record) json_response(false, 'Marriage record not found or is no longer active.', null, 404);
+    reject_active_duplicate_registration_issuance($pdo, 'marriage', (int)$marriageRecordId, 'CRF No. 3A');
 
     $values = crf_3a_record_values($record, $inputs);
     // Use the source marriage record for fields that are already captured
@@ -178,7 +180,6 @@ try {
 
     $lastName = trim((string)($record['husband_last_name'] ?? '')) ?: trim((string)($record['wife_last_name'] ?? '')) ?: 'UNKNOWN';
     $year = (int)substr($inputs['issue_date'], 0, 4);
-    $pdo->beginTransaction();
     $pdo->prepare('INSERT INTO crf_3a_sequences (issue_year, last_sequence) VALUES (:year, 0) ON DUPLICATE KEY UPDATE issue_year = VALUES(issue_year)')->execute([':year' => $year]);
     $seqStmt = $pdo->prepare('SELECT last_sequence FROM crf_3a_sequences WHERE issue_year = :year FOR UPDATE');
     $seqStmt->execute([':year' => $year]);

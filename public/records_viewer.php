@@ -3926,7 +3926,7 @@ function detect_late_registration($record, $record_type) {
 
     <!-- Double Registration Comparison Modal -->
     <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=7">
-    <script src="../assets/js/double-reg-comparison-modal.js?v=9"></script>
+    <script src="../assets/js/double-reg-comparison-modal.js?v=12"></script>
 
     <!-- Manual Compare Picker -->
     <link rel="stylesheet" href="../assets/css/manual-compare-picker.css?v=1">
@@ -3949,12 +3949,12 @@ function detect_late_registration($record, $record_type) {
                     const extra = data.count > 1 ? ` (+${data.count - 1} more)` : '';
                     Notiflix.Confirm.show(
                         'Potential Duplicate Found',
-                        `Reg# ${top.registry_no || 'N/A'} (${top.child_name || 'Unknown'}) — ${top.match_score}% match${extra}. Compare now?`,
+                        `Reg# ${top.registry_no || 'N/A'} (${top.child_name || 'Unknown'}) - field evidence score ${Math.round(top.match_score)}/100 (not probability)${extra}. Compare now?`,
                         'Compare',
                         'Cancel',
                         () => {
                             const modal = new DoubleRegComparisonModal();
-                            modal.open(recordId, top.id, recordType);
+                            modal.open(recordId, top.id, recordType, top.match_score);
                         },
                         () => {},
                         { width: '420px', borderRadius: '12px', okButtonBackground: '#DC2626', titleColor: '#991B1B' }

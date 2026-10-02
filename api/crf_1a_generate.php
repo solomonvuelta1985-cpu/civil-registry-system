@@ -107,14 +107,16 @@ $inputs = [
 ];
 
 try {
+    $pdo->beginTransaction();
     $recordStmt = $pdo->prepare(
-        "SELECT * FROM certificate_of_live_birth WHERE id = :id AND status = 'Active' LIMIT 1"
+        "SELECT * FROM certificate_of_live_birth WHERE id = :id AND status = 'Active' LIMIT 1 FOR UPDATE"
     );
     $recordStmt->execute([':id' => (int)$birthRecordId]);
     $record = $recordStmt->fetch(PDO::FETCH_ASSOC);
     if (!$record) {
         json_response(false, 'Birth record not found or is no longer active.', null, 404);
     }
+    reject_active_duplicate_registration_issuance($pdo, 'birth', (int)$birthRecordId, 'CRF No. 1A');
 
     $values = crf_1a_record_values($record);
     if ($replacesId) {
@@ -168,8 +170,6 @@ try {
     $year = (int)substr($issueDate, 0, 4);
     $pdfRelativePath = null;
     $pdfAbsolutePath = null;
-    $pdo->beginTransaction();
-
     // The row lock serializes sequence allocation for the same issue year.
     $sequenceUpsert = $pdo->prepare(
         'INSERT INTO crf_1a_sequences (issue_year, last_sequence) VALUES (:year, 0)

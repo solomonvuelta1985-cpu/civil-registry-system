@@ -47,7 +47,8 @@ $migrations = [
     '037_marriage_parent_citizenship.sql',
     '038_marriage_residence_locality.sql',
     '050_marriage_civil_status.sql',
-    '051_registry_no_status_and_registration_date_status.sql'
+    '051_registry_no_status_and_registration_date_status.sql',
+    '052_duplicate_match_dismissals.sql'
 ];
 
 $results = [];

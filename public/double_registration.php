@@ -419,7 +419,7 @@ $sort_icon = static function (string $column) use ($sort_by, $sort_order): strin
                     <tr>
                         <th class="sortable <?= $sort_by === 'primary_registry' ? 'active' : '' ?>"><a href="<?= htmlspecialchars($sort_url('primary_registry'), ENT_QUOTES, 'UTF-8') ?>">1st Registration <i data-lucide="<?= $sort_icon('primary_registry') ?>" class="sort-icon" aria-hidden="true"></i></a></th>
                         <th class="sortable <?= $sort_by === 'duplicate_registry' ? 'active' : '' ?>"><a href="<?= htmlspecialchars($sort_url('duplicate_registry'), ENT_QUOTES, 'UTF-8') ?>">2nd Registration <i data-lucide="<?= $sort_icon('duplicate_registry') ?>" class="sort-icon" aria-hidden="true"></i></a></th>
-                        <th class="sortable <?= $sort_by === 'match_score' ? 'active' : '' ?>"><a href="<?= htmlspecialchars($sort_url('match_score'), ENT_QUOTES, 'UTF-8') ?>">Score <i data-lucide="<?= $sort_icon('match_score') ?>" class="sort-icon" aria-hidden="true"></i></a></th>
+                        <th class="sortable <?= $sort_by === 'match_score' ? 'active' : '' ?>"><a href="<?= htmlspecialchars($sort_url('match_score'), ENT_QUOTES, 'UTF-8') ?>">Field Score <i data-lucide="<?= $sort_icon('match_score') ?>" class="sort-icon" aria-hidden="true"></i></a></th>
                         <th>Discrepancies</th>
                         <th class="sortable <?= $sort_by === 'correction_status' ? 'active' : '' ?>"><a href="<?= htmlspecialchars($sort_url('correction_status'), ENT_QUOTES, 'UTF-8') ?>">Correction <i data-lucide="<?= $sort_icon('correction_status') ?>" class="sort-icon" aria-hidden="true"></i></a></th>
                         <th class="sortable <?= $sort_by === 'linked_at' ? 'active' : '' ?>"><a href="<?= htmlspecialchars($sort_url('linked_at'), ENT_QUOTES, 'UTF-8') ?>">Linked <i data-lucide="<?= $sort_icon('linked_at') ?>" class="sort-icon" aria-hidden="true"></i></a></th>
@@ -445,7 +445,7 @@ $sort_icon = static function (string $column) use ($sort_by, $sort_order): strin
                         <td>
                             <?php if ($lnk['match_score']): ?>
                                 <span class="badge <?= $lnk['match_score'] >= 80 ? 'badge-red' : ($lnk['match_score'] >= 50 ? 'badge-amber' : 'badge-gray') ?>">
-                                    <?= number_format($lnk['match_score'], 1) ?>%
+                                    <?= number_format($lnk['match_score'], 1) ?>/100
                                 </span>
                             <?php else: ?>
                                 <span class="badge badge-gray">Manual</span>
@@ -519,7 +519,7 @@ $sort_icon = static function (string $column) use ($sort_by, $sort_order): strin
 
     <script src="../assets/js/family_relations_render.js?v=2"></script>
     <script src="../assets/js/record-preview-modal.js?v=10"></script>
-    <script src="../assets/js/double-reg-comparison-modal.js?v=9"></script>
+    <script src="../assets/js/double-reg-comparison-modal.js?v=12"></script>
 
     <script>
         function openComparison(primaryId, duplicateId, certType, matchScore) {
@@ -585,7 +585,7 @@ $sort_icon = static function (string $column) use ($sort_by, $sort_order): strin
                                 <thead><tr>
                                     <th>Source Record</th>
                                     <th>Potential Duplicate</th>
-                                    <th>Score</th>
+                                    <th>Field Score</th>
                                     <th>Actions</th>
                                 </tr></thead>
                                 <tbody id="bulkResultsBody"></tbody>
@@ -607,7 +607,7 @@ $sort_icon = static function (string $column) use ($sort_by, $sort_order): strin
                                         <strong>${escHtml(m.registry_no || 'N/A')}</strong>
                                         <br><span style="font-size:11px;color:#64748B;">${escHtml(m.child_name || '')}</span>
                                     </td>
-                                    <td><span class="badge ${scoreClass}">${Number(m.match_score).toFixed(1)}%</span></td>
+                                    <td><span class="badge ${scoreClass}">${Number(m.match_score).toFixed(1)}/100</span></td>
                                     <td><a href="javascript:void(0)" class="action-link" onclick="openComparison(${Number(r.source_id) || 0}, ${Number(m.id) || 0}, 'birth', ${Number(m.match_score) || 'null'})">Compare</a></td>
                                 `;
                                 tbody.appendChild(row);

@@ -1227,24 +1227,46 @@ class CertificateFormHandler {
         this.clearAutoSave();
 
         const topMatch = duplicates[0];
-        const scoreLabel = topMatch.match_score >= 80 ? 'High confidence'
-                         : topMatch.match_score >= 50 ? 'Moderate match'
-                         : 'Weak match';
+        const fieldLabels = {
+            child_date_of_birth: 'birth date',
+            child_first_name: 'child first name',
+            child_middle_name: 'child middle name',
+            child_last_name: 'child last name',
+            date_of_registration: 'registration date',
+            mother_last_name: 'mother surname',
+            mother_first_name: 'mother first name',
+            mother_middle_name: 'mother middle name',
+            father_last_name: 'father surname',
+            father_first_name: 'father first name',
+            father_middle_name: 'father middle name',
+            birth_order: 'birth order',
+            birth_order_other: 'birth order details',
+            child_sex: 'child sex',
+            time_of_birth: 'birth time',
+            type_of_birth: 'type of birth',
+            type_of_birth_other: 'type of birth details'
+        };
+        const describeFields = fields => (fields || []).map(field => fieldLabels[field] || field.replace(/_/g, ' ')).join(', ');
+        const matchedDetails = describeFields(topMatch.match_fields);
+        const conflictingDetails = describeFields(topMatch.conflicting_fields);
+        const otherCandidates = duplicates.slice(1, 4).map(candidate =>
+            `${candidate.registry_no || 'N/A'} (${candidate.child_name || 'Unknown'}, ${Math.round(candidate.match_score)}/100)`
+        );
+        const matchInfo = `Possible record match: Registry No. ${topMatch.registry_no || 'N/A'} (${topMatch.child_name || 'Unknown'}). ` +
+            `Field evidence score: ${Math.round(topMatch.match_score)}/100; this is not a probability.` +
+            (matchedDetails ? ` Matching details: ${matchedDetails}.` : '') +
+            (conflictingDetails ? ` Conflicting details: ${conflictingDetails}.` : '') +
+            (duplicates.length > 1 ? `\nOther candidates: ${otherCandidates.join('; ')}${duplicates.length > 4 ? '; more candidates available in Records' : ''}.` : '');
+        const message = `${successMessage}\n\n${matchInfo}`;
 
-        const matchInfo = `Possible double registration with Registry No. ${topMatch.registry_no || 'N/A'} ` +
-            `(${topMatch.child_name || 'Unknown'}) — ${topMatch.match_score}% match (${scoreLabel}).` +
-            (duplicates.length > 1 ? ` +${duplicates.length - 1} more potential match(es).` : '');
-
-        const message = `${successMessage}\n\n⚠️ ${matchInfo}`;
-
-        // Determine the secondary action based on addNew
-        const secondaryLabel = addNew ? 'Save Another' : 'Go to Records';
+        // Let staff dismiss the top suggestion directly; the remaining candidates stay available in Records.
+        const secondaryLabel = 'Dismiss Top Suggestion';
 
         if (typeof Notiflix !== 'undefined' && Notiflix.Confirm) {
             Notiflix.Confirm.show(
-                'Saved — Possible Double Registration',
+                'Saved - Possible Record Match',
                 message,
-                'Compare Now',
+                'Compare Records',
                 secondaryLabel,
                 () => {
                     // Compare Now — open the comparison modal
@@ -1254,15 +1276,47 @@ class CertificateFormHandler {
                         if (addNew) {
                             modal.onClose = () => this._resetFormForNewEntry();
                         }
-                        modal.open(savedRecordId, topMatch.id, 'birth');
+                        modal.open(savedRecordId, topMatch.id, 'birth', topMatch.match_score);
                     } else {
                         if (typeof Notiflix !== 'undefined' && Notiflix.Notify) {
                             Notiflix.Notify.info('Comparison modal not available. You can review from the Records page.', { timeout: 5000 });
                         }
                     }
                 },
-                () => {
-                    // Secondary action: Save Another or Go to Records
+                async () => {
+                    try {
+                        const base = window.APP_BASE || '';
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+                        const response = await fetch(`${base}/api/duplicate_dismiss.php`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({
+                                record_a_id: savedRecordId,
+                                record_b_id: topMatch.id,
+                                reason: 'Marked not a match from the saved-record suggestion.',
+                                csrf_token: csrfToken
+                            })
+                        });
+                        const result = await response.json();
+                        if (!response.ok || !result.success) throw new Error(result.message || 'Could not save this decision.');
+                        if (typeof Notiflix !== 'undefined' && Notiflix.Notify) {
+                            const remaining = duplicates.length - 1;
+                            const message = remaining > 0
+                                ? `Top suggestion dismissed. ${remaining} other candidate${remaining === 1 ? '' : 's'} remain available in Records.`
+                                : 'Suggestion dismissed. It will not be repeated unless identifying details change.';
+                            Notiflix.Notify.success(message, { timeout: 4500 });
+                        }
+                    } catch (error) {
+                        if (typeof Notiflix !== 'undefined' && Notiflix.Notify) {
+                            Notiflix.Notify.failure(error.message || 'Could not save this decision.', { timeout: 5000 });
+                        } else {
+                            alert(error.message || 'Could not save this decision.');
+                        }
+                        return;
+                    }
+
+                    // Continue the normal save flow after dismissing the top candidate.
                     if (addNew) {
                         this._resetFormForNewEntry();
                         if (typeof Notiflix !== 'undefined' && Notiflix.Notify) {
@@ -1291,18 +1345,18 @@ class CertificateFormHandler {
                     cancelButtonBackground: '#2563EB',
                     titleFontSize: '16px',
                     messageFontSize: '14px',
-                    plainText: false,
+                    plainText: true,
                 }
             );
         } else {
             // Fallback: native confirm
-            if (confirm('SAVED — POSSIBLE DOUBLE REGISTRATION\n\n' + matchInfo + '\n\nClick OK to compare records.')) {
+            if (confirm('SAVED — POSSIBLE RECORD MATCH\n\n' + matchInfo + '\n\nClick OK to compare records.')) {
                 if (typeof DoubleRegComparisonModal !== 'undefined') {
                     const modal = new DoubleRegComparisonModal();
                     if (addNew) {
                         modal.onClose = () => this._resetFormForNewEntry();
                     }
-                    modal.open(savedRecordId, topMatch.id, 'birth');
+                    modal.open(savedRecordId, topMatch.id, 'birth', topMatch.match_score);
                 }
             } else if (addNew) {
                 this._resetFormForNewEntry();

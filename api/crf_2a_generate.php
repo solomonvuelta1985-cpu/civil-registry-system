@@ -61,10 +61,12 @@ if ($issuanceKind !== 'Corrected' && $replacesId) json_response(false, 'Only a C
 
 $pdfAbsolutePath = null;
 try {
-    $stmt = $pdo->prepare("SELECT * FROM certificate_of_death WHERE id = :id AND status = 'Active' LIMIT 1");
+    $pdo->beginTransaction();
+    $stmt = $pdo->prepare("SELECT * FROM certificate_of_death WHERE id = :id AND status = 'Active' LIMIT 1 FOR UPDATE");
     $stmt->execute([':id' => (int)$deathRecordId]);
     $record = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$record) json_response(false, 'Death record not found or is no longer active.', null, 404);
+    reject_active_duplicate_registration_issuance($pdo, 'death', (int)$deathRecordId, 'CRF No. 2A');
 
     $recordForIssuance = $record;
     foreach (['civil_status' => 50, 'citizenship' => 100, 'cause_of_death' => 500] as $key => $maxLength) {
@@ -127,7 +129,6 @@ try {
 
     $lastName = trim((string)($record['deceased_last_name'] ?? '')) ?: 'UNKNOWN';
     $year = (int)substr($inputs['issue_date'], 0, 4);
-    $pdo->beginTransaction();
     $upsert = $pdo->prepare('INSERT INTO crf_2a_sequences (issue_year, last_sequence) VALUES (:year, 0) ON DUPLICATE KEY UPDATE issue_year = VALUES(issue_year)');
     $upsert->execute([':year' => $year]);
     $seqStmt = $pdo->prepare('SELECT last_sequence FROM crf_2a_sequences WHERE issue_year = :year FOR UPDATE');

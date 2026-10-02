@@ -859,7 +859,7 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
 
     <!-- Shared Certificate Form Handler -->
     <script>window.APP_BASE = '<?= rtrim(BASE_URL, '/') ?>';</script>
-    <script src="../assets/js/certificate-form-handler.js?v=2.3"></script>
+    <script src="../assets/js/certificate-form-handler.js?v=2.6"></script>
 
     <!-- Death Certificate Specific Logic -->
     <script>

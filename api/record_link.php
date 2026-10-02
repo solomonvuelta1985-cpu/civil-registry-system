@@ -72,13 +72,6 @@ if (!hasPermission($primary_type . '_link') || !hasPermission($dup_type . '_link
     exit;
 }
 
-// Check neither record is already actively linked
-if (is_record_linked($pdo, $primary_id, $primary_type) || is_record_linked($pdo, $dup_id, $dup_type)) {
-    http_response_code(409);
-    echo json_encode(['success' => false, 'message' => 'One or both records are already linked to another record. Unlink first.']);
-    exit;
-}
-
 // Fetch both records for discrepancy detection
 $table_map = [
     'birth' => 'certificate_of_live_birth',
@@ -95,18 +88,51 @@ if (!$primary_table || !$dup_table) {
 }
 
 try {
-    $stmt = $pdo->prepare("SELECT * FROM {$primary_table} WHERE id = ? AND status = 'Active' LIMIT 1");
+    $pdo->beginTransaction();
+    if ($primary_type === $dup_type) {
+        $lockIds = [min($primary_id, $dup_id), max($primary_id, $dup_id)];
+        $lockStmt = $pdo->prepare("SELECT id FROM {$primary_table} WHERE id IN (?, ?) ORDER BY id FOR UPDATE");
+        $lockStmt->execute($lockIds);
+        $lockStmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+    $stmt = $pdo->prepare("SELECT * FROM {$primary_table} WHERE id = ? AND status = 'Active' LIMIT 1 FOR UPDATE");
     $stmt->execute([$primary_id]);
     $primary_record = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    $stmt2 = $pdo->prepare("SELECT * FROM {$dup_table} WHERE id = ? AND status = 'Active' LIMIT 1");
+    $stmt2 = $pdo->prepare("SELECT * FROM {$dup_table} WHERE id = ? AND status = 'Active' LIMIT 1 FOR UPDATE");
     $stmt2->execute([$dup_id]);
     $dup_record = $stmt2->fetch(PDO::FETCH_ASSOC);
 
     if (!$primary_record || !$dup_record) {
+        $pdo->rollBack();
         http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'One or both records not found or not active']);
         exit;
+    }
+
+    // Check active links only after acquiring record locks so concurrent issuance/link requests serialize.
+    if (is_record_linked($pdo, $primary_id, $primary_type) || is_record_linked($pdo, $dup_id, $dup_type)) {
+        $pdo->rollBack();
+        http_response_code(409);
+        echo json_encode(['success' => false, 'message' => 'One or both records are already linked to another record. Unlink first.']);
+        exit;
+    }
+
+    if ($primary_type === 'birth' && $dup_type === 'birth') {
+        $primaryRegistrationDate = (string)($primary_record['date_of_registration'] ?? '');
+        $duplicateRegistrationDate = (string)($dup_record['date_of_registration'] ?? '');
+        $primaryShouldBeEarlier = $primaryRegistrationDate < $duplicateRegistrationDate
+            || ($primaryRegistrationDate === $duplicateRegistrationDate && $primary_id < $dup_id);
+        if (!$primaryShouldBeEarlier) {
+            $pdo->rollBack();
+            http_response_code(422);
+            echo json_encode([
+                'success' => false,
+                'message' => 'The first-registration record must have the earlier registration date. If both dates match, use the record with the lower ID as the first registration.',
+            ]);
+            exit;
+        }
     }
 
     // Auto-detect discrepancies
@@ -131,13 +157,13 @@ try {
 
     $user_id = $_SESSION['user_id'] ?? null;
     if (!$user_id) {
+        $pdo->rollBack();
         http_response_code(401);
         echo json_encode(['success' => false, 'message' => 'Session expired']);
         exit;
     }
 
     // Insert the link
-    $pdo->beginTransaction();
 
     $sql = "INSERT INTO record_links (
                 primary_certificate_type, primary_certificate_id,
@@ -169,13 +195,30 @@ try {
 
     $link_id = $pdo->lastInsertId();
 
+    if ($primary_type === 'birth' && $dup_type === 'birth') {
+        $lowId = min($primary_id, $dup_id);
+        $highId = max($primary_id, $dup_id);
+        try {
+            $clearDismissal = $pdo->prepare(
+                "DELETE FROM duplicate_match_dismissals
+                 WHERE certificate_type = 'birth' AND record_id_low = :low_id AND record_id_high = :high_id"
+            );
+            $clearDismissal->execute([':low_id' => $lowId, ':high_id' => $highId]);
+        } catch (PDOException $e) {
+            $errorInfo = $e->errorInfo ?? [];
+            $missingDismissalTable = (string)$e->getCode() === '42S02' || (int)($errorInfo[1] ?? 0) === 1146;
+            if (!$missingDismissalTable) throw $e;
+            error_log('Duplicate dismissal cleanup skipped because migration 052 is not applied.');
+        }
+    }
+
     // Log activity
     $p_reg = $primary_record['registry_no'] ?? 'N/A';
     $d_reg = $dup_record['registry_no'] ?? 'N/A';
     log_activity(
         $pdo,
         'LINK_DOUBLE_REGISTRATION',
-        "Linked double registration: 1st Reg #{$p_reg} (ID:{$primary_id}) ↔ 2nd Reg #{$d_reg} (ID:{$dup_id}). Score: {$match_score}%. link_id:{$link_id}",
+        "Linked double registration: 1st Reg #{$p_reg} (ID:{$primary_id}) ↔ 2nd Reg #{$d_reg} (ID:{$dup_id}). Field score: {$match_score}/100. link_id:{$link_id}",
         $user_id
     );
 

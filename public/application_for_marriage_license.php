@@ -1048,7 +1048,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 
     <!-- Shared Certificate Form Handler -->
     <script>window.APP_BASE = '<?= rtrim(BASE_URL, '/') ?>';</script>
-    <script src="../assets/js/certificate-form-handler.js?v=2.3"></script>
+    <script src="../assets/js/certificate-form-handler.js?v=2.6"></script>
 
     <!-- Marriage License Specific Logic -->
     <script>

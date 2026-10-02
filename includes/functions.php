@@ -718,151 +718,352 @@ function normalize_registry_no($registry_no) {
     return preg_replace('/[\s\-]/', '', strtoupper(trim($registry_no)));
 }
 
+/** Normalize names for duplicate matching while tolerating punctuation and accents. */
+function normalize_duplicate_match_text($value): string {
+    $value = mb_strtoupper(trim((string)($value ?? '')), 'UTF-8');
+    if ($value === '') return '';
+    if (function_exists('iconv')) {
+        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
+        if ($ascii !== false) $value = $ascii;
+    }
+    $value = preg_replace('/[^A-Z0-9]+/', ' ', $value) ?? '';
+    return trim(preg_replace('/\s+/', ' ', $value) ?? '');
+}
+
+/** SQL-side name normalization for candidate retrieval; PHP scoring still does the final comparison. */
+function duplicate_match_text_sql(string $column): string {
+    return "REPLACE(REPLACE(REPLACE(REPLACE(LOWER(TRIM({$column})), '-', ''), ' ', ''), '.', ''), CHAR(39), '')";
+}
+
+/** Return the known year/month/day components of a full or partial birth date. */
+function duplicate_birth_date_components(array $record): array {
+    $format = strtolower(trim((string)($record['child_date_of_birth_format'] ?? 'full')));
+    $date = trim((string)($record['child_date_of_birth'] ?? ''));
+    $year = null;
+    $month = null;
+    $day = null;
+
+    if (in_array($format, ['full', 'month_year'], true) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date, $parts)) {
+        $year = (int)$parts[1];
+        $month = (int)$parts[2];
+        if ($format === 'full') $day = (int)$parts[3];
+    }
+    if (in_array($format, ['year_only', 'month_year'], true) && !empty($record['child_date_of_birth_partial_year'])) {
+        $year = (int)$record['child_date_of_birth_partial_year'];
+    }
+    if (in_array($format, ['month_only', 'month_year', 'month_day'], true) && !empty($record['child_date_of_birth_partial_month'])) {
+        $month = (int)$record['child_date_of_birth_partial_month'];
+    }
+    if ($format === 'month_day' && !empty($record['child_date_of_birth_partial_day'])) {
+        $day = (int)$record['child_date_of_birth_partial_day'];
+    }
+
+    $components = [];
+    if ($year !== null && $year > 0) $components['year'] = $year;
+    if ($month !== null && $month >= 1 && $month <= 12) $components['month'] = $month;
+    if ($day !== null && $day >= 1 && $day <= 31) $components['day'] = $day;
+    return $components;
+}
+
+/** Fingerprint the identifying birth fields used by the matcher. */
+function duplicate_record_fingerprint(array $record): string {
+    $fields = [
+        'child_date_of_birth_format', 'child_date_of_birth',
+        'child_date_of_birth_partial_year', 'child_date_of_birth_partial_month', 'child_date_of_birth_partial_day',
+        'child_first_name', 'child_middle_name', 'child_last_name', 'child_sex', 'time_of_birth',
+        'type_of_birth', 'type_of_birth_other', 'birth_order', 'birth_order_other',
+        'mother_first_name', 'mother_middle_name', 'mother_last_name',
+        'father_first_name', 'father_middle_name', 'father_last_name',
+    ];
+    $snapshot = [];
+    foreach ($fields as $field) {
+        $value = $record[$field] ?? '';
+        $snapshot[$field] = in_array($field, ['child_date_of_birth', 'child_date_of_birth_partial_year', 'child_date_of_birth_partial_month', 'child_date_of_birth_partial_day'], true)
+            ? trim((string)$value)
+            : normalize_duplicate_match_text($value);
+    }
+    return hash('sha256', serialize($snapshot));
+}
+
+/** SQL expression for a candidate birth-date component, including partial-date rows. */
+function duplicate_birth_component_sql(string $component): string {
+    $format = "COALESCE(child_date_of_birth_format, 'full')";
+    if ($component === 'year') {
+        return "CASE WHEN {$format} = 'full' OR ({$format} = 'month_year' AND (child_date_of_birth_partial_year IS NULL OR child_date_of_birth_partial_year = 0)) THEN YEAR(child_date_of_birth) WHEN {$format} IN ('year_only','month_year') THEN child_date_of_birth_partial_year ELSE NULL END";
+    }
+    if ($component === 'month') {
+        return "CASE WHEN {$format} = 'full' OR ({$format} = 'month_year' AND (child_date_of_birth_partial_month IS NULL OR child_date_of_birth_partial_month = 0)) THEN MONTH(child_date_of_birth) WHEN {$format} IN ('month_only','month_year','month_day') THEN child_date_of_birth_partial_month ELSE NULL END";
+    }
+    return "CASE WHEN {$format} = 'full' THEN DAY(child_date_of_birth) WHEN {$format} = 'month_day' THEN child_date_of_birth_partial_day ELSE NULL END";
+}
+
 /**
- * Find potential duplicate records for a given birth certificate.
- *
- * Phase 1: SQL pre-filter on high-weight field combinations (fast).
- * Phase 2: PHP scoring with weighted fuzzy matching (accurate).
- *
- * @param PDO    $pdo              Database connection
- * @param int    $source_id        ID of the record to check
- * @param string $certificate_type 'birth' (marriage/death reserved for future)
- * @return array Candidates with scores >= 40, sorted by score descending
+ * Find likely duplicate birth records using normalized names, partial DOBs,
+ * and explicit contradiction penalties. The score ranks field evidence; it
+ * is not a probability that the records belong to the same person.
  */
 function find_potential_duplicates($pdo, $source_id, $certificate_type = 'birth') {
-    if ($certificate_type !== 'birth') {
-        return []; // Only birth supported for now
-    }
+    if ($certificate_type !== 'birth') return [];
 
-    // Fetch the source record
-    $stmt = $pdo->prepare("SELECT * FROM certificate_of_live_birth WHERE id = :id LIMIT 1");
-    $stmt->execute([':id' => $source_id]);
-    $source = $stmt->fetch(PDO::FETCH_ASSOC);
+    $sourceStmt = $pdo->prepare('SELECT * FROM certificate_of_live_birth WHERE id = :id LIMIT 1');
+    $sourceStmt->execute([':id' => (int)$source_id]);
+    $source = $sourceStmt->fetch(PDO::FETCH_ASSOC);
     if (!$source) return [];
 
-    // Normalize source fields for comparison
-    $dob = $source['child_date_of_birth'] ?: null;
-    $dor = $source['date_of_registration'] ?: null;
-    $m_ln = mb_strtolower(trim($source['mother_last_name'] ?? ''));
-    $f_ln = mb_strtolower(trim($source['father_last_name'] ?? ''));
-    $birth_order = trim($source['birth_order'] ?? '');
-    $norm_reg = normalize_registry_no($source['registry_no'] ?? '');
+    $dobComponents = duplicate_birth_date_components($source);
+    $motherLast = str_replace(' ', '', normalize_duplicate_match_text($source['mother_last_name'] ?? ''));
+    $fatherLast = str_replace(' ', '', normalize_duplicate_match_text($source['father_last_name'] ?? ''));
+    $childFirst = str_replace(' ', '', normalize_duplicate_match_text($source['child_first_name'] ?? ''));
+    $childLast = str_replace(' ', '', normalize_duplicate_match_text($source['child_last_name'] ?? ''));
+    $normalizedRegistry = normalize_registry_no($source['registry_no'] ?? '');
 
-    // Phase 1: SQL pre-filter — must match at least 2 high-weight fields
-    $sql = "SELECT * FROM certificate_of_live_birth
-            WHERE id != :source_id AND status = 'Active' AND (";
     $conditions = [];
-    $params = [':source_id' => $source_id];
-
-    if ($dob) {
-        $conditions[] = "(child_date_of_birth = :dob AND LOWER(TRIM(mother_last_name)) = :m_ln1)";
-        $conditions[] = "(child_date_of_birth = :dob2 AND LOWER(TRIM(father_last_name)) = :f_ln1)";
-        $params[':dob'] = $dob;
-        $params[':dob2'] = $dob;
-        $params[':m_ln1'] = $m_ln;
-        $params[':f_ln1'] = $f_ln;
-
-        if (!empty($birth_order)) {
-            $conditions[] = "(child_date_of_birth = :dob3 AND birth_order = :bo1)";
-            $params[':dob3'] = $dob;
-            $params[':bo1'] = $birth_order;
+    $params = [':source_id' => (int)$source_id];
+    $addDateAnchor = static function (string $anchorSql, array $anchorParams, string $prefix) use (&$conditions, &$params, $dobComponents): void {
+        if (!$dobComponents) return;
+        $dateParts = [];
+        foreach ($dobComponents as $component => $value) {
+            $placeholder = ':dob_' . $prefix . '_' . $component;
+            $dateParts[] = duplicate_birth_component_sql($component) . ' = ' . $placeholder;
+            $params[$placeholder] = $value;
         }
+        foreach ($anchorParams as $placeholder => $value) $params[$placeholder] = $value;
+        $conditions[] = '((' . implode(' OR ', $dateParts) . ') AND (' . $anchorSql . '))';
+    };
+
+    if ($motherLast !== '') {
+        $addDateAnchor(duplicate_match_text_sql('mother_last_name') . ' = :m_last_dob', [':m_last_dob' => $motherLast], 'mother');
+    }
+    if ($fatherLast !== '') {
+        $addDateAnchor(duplicate_match_text_sql('father_last_name') . ' = :f_last_dob', [':f_last_dob' => $fatherLast], 'father');
+    }
+    if ($childFirst !== '' && $childLast !== '') {
+        $addDateAnchor(
+            duplicate_match_text_sql('child_first_name') . ' = :child_first_dob AND ' . duplicate_match_text_sql('child_last_name') . ' = :child_last_dob',
+            [':child_first_dob' => $childFirst, ':child_last_dob' => $childLast],
+            'child'
+        );
     }
 
-    if (!empty($m_ln) && !empty($f_ln)) {
-        $conditions[] = "(LOWER(TRIM(mother_last_name)) = :m_ln2 AND LOWER(TRIM(father_last_name)) = :f_ln2)";
-        $params[':m_ln2'] = $m_ln;
-        $params[':f_ln2'] = $f_ln;
+    if ($motherLast !== '' && $fatherLast !== '') {
+        $conditions[] = '(' . duplicate_match_text_sql('mother_last_name') . ' = :m_last_pair AND ' . duplicate_match_text_sql('father_last_name') . ' = :f_last_pair)';
+        $params[':m_last_pair'] = $motherLast;
+        $params[':f_last_pair'] = $fatherLast;
+    }
+    if ($childFirst !== '' && $childLast !== '' && ($motherLast !== '' || $fatherLast !== '')) {
+        $parentAnchors = [];
+        if ($motherLast !== '') {
+            $parentAnchors[] = duplicate_match_text_sql('mother_last_name') . ' = :m_last_child';
+            $params[':m_last_child'] = $motherLast;
+        }
+        if ($fatherLast !== '') {
+            $parentAnchors[] = duplicate_match_text_sql('father_last_name') . ' = :f_last_child';
+            $params[':f_last_child'] = $fatherLast;
+        }
+        $conditions[] = '(' . duplicate_match_text_sql('child_first_name') . ' = :child_first_pair AND ' . duplicate_match_text_sql('child_last_name') . ' = :child_last_pair AND (' . implode(' OR ', $parentAnchors) . '))';
+        $params[':child_first_pair'] = $childFirst;
+        $params[':child_last_pair'] = $childLast;
+    }
+    if ($normalizedRegistry !== '') {
+        $conditions[] = "(UPPER(REPLACE(REPLACE(TRIM(registry_no), '-', ''), ' ', '')) = :normalized_registry)";
+        $params[':normalized_registry'] = $normalizedRegistry;
+    }
+    if (!$conditions) return [];
+
+    $params[':linked_source_primary'] = (int)$source_id;
+    $params[':linked_source_duplicate'] = (int)$source_id;
+    $candidateSql = "SELECT * FROM certificate_of_live_birth
+        WHERE id != :source_id AND status = 'Active'
+          AND NOT EXISTS (
+              SELECT 1 FROM record_links rl
+              WHERE rl.status = 'active' AND (
+                  (rl.primary_certificate_type = 'birth' AND rl.primary_certificate_id = :linked_source_primary
+                   AND rl.duplicate_certificate_type = 'birth' AND rl.duplicate_certificate_id = certificate_of_live_birth.id)
+                  OR
+                  (rl.duplicate_certificate_type = 'birth' AND rl.duplicate_certificate_id = :linked_source_duplicate
+                   AND rl.primary_certificate_type = 'birth' AND rl.primary_certificate_id = certificate_of_live_birth.id)
+              )
+          )
+          AND (" . implode(' OR ', $conditions) . ')
+        ORDER BY id DESC';
+    $candidateStmt = $pdo->prepare($candidateSql);
+    $candidateStmt->execute($params);
+    $candidates = $candidateStmt->fetchAll(PDO::FETCH_ASSOC);
+    if (!$candidates) return [];
+
+    $dismissals = [];
+    try {
+        $dismissalStmt = $pdo->prepare(
+            "SELECT record_id_low, record_id_high, fingerprint_low, fingerprint_high
+             FROM duplicate_match_dismissals
+             WHERE certificate_type = 'birth' AND (record_id_low = :low_id OR record_id_high = :high_id)"
+        );
+        $dismissalStmt->execute([':low_id' => (int)$source_id, ':high_id' => (int)$source_id]);
+        foreach ($dismissalStmt->fetchAll(PDO::FETCH_ASSOC) as $dismissal) {
+            $otherId = (int)$dismissal['record_id_low'] === (int)$source_id
+                ? (int)$dismissal['record_id_high']
+                : (int)$dismissal['record_id_low'];
+            $dismissals[$otherId] = $dismissal;
+        }
+    } catch (PDOException $e) {
+        $errorInfo = $e->errorInfo ?? [];
+        $missingDismissalTable = (string)$e->getCode() === '42S02' || (int)($errorInfo[1] ?? 0) === 1146;
+        if (!$missingDismissalTable) throw $e;
+        // Duplicate matching remains available before migration 052 is applied.
+        error_log('Duplicate dismissal table unavailable: ' . $e->getMessage());
     }
 
-    if (!empty($norm_reg)) {
-        $conditions[] = "(REPLACE(REPLACE(registry_no, '-', ''), ' ', '') = :norm_reg)";
-        $params[':norm_reg'] = $norm_reg;
-    }
-
-    // If no usable fields for pre-filter, return empty
-    if (empty($conditions)) return [];
-
-    $sql .= implode(' OR ', $conditions) . ") LIMIT 50";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    $candidates = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    if (empty($candidates)) return [];
-
-    // Phase 2: PHP scoring with weighted fields
+    $sourceFingerprint = duplicate_record_fingerprint($source);
     $weights = [
-        'child_date_of_birth' => 18,
-        'child_first_name'    => 7,
-        'child_last_name'     => 5,
-        'date_of_registration'=> 8,
-        'mother_last_name'    => 14,
-        'mother_first_name'   => 9,
-        'mother_middle_name'  => 4,
-        'father_last_name'    => 14,
-        'father_first_name'   => 9,
-        'father_middle_name'  => 4,
-        'birth_order'         => 8,
-    ];
+        'child_first_name' => 7,
+        'child_last_name' => 5,
+        'child_middle_name' => 4,
+        'date_of_registration' => 2,
+        'mother_last_name' => 14,
+        'mother_first_name' => 9,
+        'mother_middle_name' => 2,
+        'father_last_name' => 14,
+        'father_first_name' => 9,
+        'father_middle_name' => 2,
+        'birth_order' => 8,
+        'child_sex' => 3,
+        'time_of_birth' => 2,
+        'type_of_birth' => 1,
+    ]; // 82 points; DOB contributes up to 18 more.
 
     $results = [];
     foreach ($candidates as $candidate) {
-        $score = 0;
-        $matched_fields = [];
+        $candidateId = (int)$candidate['id'];
+        if (isset($dismissals[$candidateId])) {
+            $dismissal = $dismissals[$candidateId];
+            $candidateFingerprint = duplicate_record_fingerprint($candidate);
+            $sameSnapshot = (int)$dismissal['record_id_low'] === (int)$source_id
+                ? hash_equals((string)$dismissal['fingerprint_low'], $sourceFingerprint)
+                    && hash_equals((string)$dismissal['fingerprint_high'], $candidateFingerprint)
+                : hash_equals((string)$dismissal['fingerprint_low'], $candidateFingerprint)
+                    && hash_equals((string)$dismissal['fingerprint_high'], $sourceFingerprint);
+            if ($sameSnapshot) continue;
+        }
+
+        $score = 0.0;
+        $matchedFields = [];
+        $conflictingFields = [];
+        $penalties = [];
+
+        $candidateDob = duplicate_birth_date_components($candidate);
+        $sharedDobParts = 0;
+        foreach ($dobComponents as $component => $value) {
+            if (!array_key_exists($component, $candidateDob)) continue;
+            $sharedDobParts++;
+            if ((int)$candidateDob[$component] === (int)$value) {
+                $score += 6;
+            } else {
+                $conflictingFields[] = 'child_date_of_birth';
+                $penalties[] = 6;
+            }
+        }
+        if ($sharedDobParts > 0 && !in_array('child_date_of_birth', $conflictingFields, true)) {
+            $matchedFields[] = 'child_date_of_birth';
+        }
 
         foreach ($weights as $field => $weight) {
-            $src_val = trim($source[$field] ?? '');
-            $cand_val = trim($candidate[$field] ?? '');
+            $sourceValue = trim((string)($source[$field] ?? ''));
+            $candidateValue = trim((string)($candidate[$field] ?? ''));
+            if ($sourceValue === '' || $candidateValue === '') continue;
 
-            // Skip if both empty
-            if ($src_val === '' && $cand_val === '') continue;
+            if ($field === 'date_of_registration' || $field === 'time_of_birth') {
+                if ($sourceValue === $candidateValue) {
+                    $score += $weight;
+                    $matchedFields[] = $field;
+                } elseif ($field === 'time_of_birth') {
+                    $conflictingFields[] = $field;
+                    $penalties[] = $weight;
+                }
+                continue;
+            }
 
-            if ($field === 'child_date_of_birth' || $field === 'date_of_registration') {
-                // Exact date comparison
-                if (!empty($src_val) && !empty($cand_val) && $src_val === $cand_val) {
+            if (in_array($field, ['birth_order', 'child_sex', 'type_of_birth'], true)) {
+                $sourceNormalized = normalize_duplicate_match_text($sourceValue);
+                $candidateNormalized = normalize_duplicate_match_text($candidateValue);
+                if ($sourceNormalized === $candidateNormalized) {
                     $score += $weight;
-                    $matched_fields[] = $field;
+                    $matchedFields[] = $field;
+                } else {
+                    $conflictingFields[] = $field;
+                    $penalties[] = $field === 'birth_order' ? 14 : ($field === 'child_sex' ? 8 : 4);
                 }
-            } elseif ($field === 'birth_order') {
-                // Exact match
-                if (!empty($src_val) && !empty($cand_val) && mb_strtolower($src_val) === mb_strtolower($cand_val)) {
-                    $score += $weight;
-                    $matched_fields[] = $field;
-                }
-            } else {
-                // Fuzzy name matching using similar_text
-                if (!empty($src_val) && !empty($cand_val)) {
-                    $s = mb_strtoupper($src_val);
-                    $c = mb_strtoupper($cand_val);
-                    similar_text($s, $c, $percent);
-                    if ($percent >= 85) {
-                        // Scale weight by similarity percentage
-                        $score += $weight * ($percent / 100);
-                        $matched_fields[] = $field;
-                    }
+                continue;
+            }
+
+            $sourceNormalized = normalize_duplicate_match_text($sourceValue);
+            $candidateNormalized = normalize_duplicate_match_text($candidateValue);
+            if ($sourceNormalized === '' || $candidateNormalized === '') continue;
+            similar_text($sourceNormalized, $candidateNormalized, $percent);
+            if ($percent >= 85) {
+                $score += $weight * ($percent / 100);
+                $matchedFields[] = $field;
+            } elseif ($percent < 70) {
+                $nameMismatchPenalties = [
+                    'child_first_name' => 5,
+                    'child_middle_name' => 2,
+                    'child_last_name' => 7,
+                    'mother_last_name' => 8,
+                    'mother_first_name' => 4,
+                    'mother_middle_name' => 2,
+                    'father_last_name' => 8,
+                    'father_first_name' => 4,
+                    'father_middle_name' => 2,
+                ];
+                if (isset($nameMismatchPenalties[$field])) {
+                    $conflictingFields[] = $field;
+                    $penalties[] = $nameMismatchPenalties[$field];
                 }
             }
         }
 
-        $score = round($score, 2);
-        if ($score >= 40) {
-            $child_name = trim(($candidate['child_first_name'] ?? '') . ' ' . ($candidate['child_last_name'] ?? ''));
-            $results[] = [
-                'id'            => (int)$candidate['id'],
-                'registry_no'   => $candidate['registry_no'] ?? '',
-                'child_name'    => $child_name,
-                'match_score'   => $score,
-                'match_fields'  => $matched_fields,
-                'date_of_registration' => $candidate['date_of_registration'] ?? null,
-            ];
+        foreach ([
+            ['birth_order', 'birth_order_other', 8],
+            ['type_of_birth', 'type_of_birth_other', 4],
+        ] as [$categoryField, $detailField, $penalty]) {
+            if (normalize_duplicate_match_text($source[$categoryField] ?? '') !== 'OTHER'
+                || normalize_duplicate_match_text($candidate[$categoryField] ?? '') !== 'OTHER') {
+                continue;
+            }
+            $sourceDetail = normalize_duplicate_match_text($source[$detailField] ?? '');
+            $candidateDetail = normalize_duplicate_match_text($candidate[$detailField] ?? '');
+            if ($sourceDetail === '' || $candidateDetail === '') continue;
+            if ($sourceDetail === $candidateDetail) {
+                $matchedFields[] = $detailField;
+            } else {
+                $conflictingFields[] = $detailField;
+                $penalties[] = $penalty;
+            }
         }
+
+        $score = round(max(0, $score - array_sum($penalties)), 2);
+        $criticalIdentityFields = [
+            'child_first_name', 'child_middle_name', 'child_last_name', 'child_date_of_birth', 'child_sex',
+            'mother_first_name', 'mother_middle_name', 'mother_last_name',
+            'father_first_name', 'father_middle_name', 'father_last_name',
+        ];
+        $criticalConflictCount = count(array_intersect(array_unique($conflictingFields), $criticalIdentityFields));
+        if ($score < 55 || $criticalConflictCount >= 3) continue;
+
+        $results[] = [
+            'id' => $candidateId,
+            'registry_no' => $candidate['registry_no'] ?? '',
+            'child_name' => trim(($candidate['child_first_name'] ?? '') . ' ' . ($candidate['child_last_name'] ?? '')),
+            'match_score' => $score,
+            'match_fields' => array_values(array_unique($matchedFields)),
+            'conflicting_fields' => array_values(array_unique($conflictingFields)),
+            'date_of_registration' => $candidate['date_of_registration'] ?? null,
+        ];
     }
 
-    // Sort by score descending
-    usort($results, function($a, $b) {
-        return $b['match_score'] <=> $a['match_score'];
+    usort($results, static function ($a, $b) {
+        $scoreOrder = $b['match_score'] <=> $a['match_score'];
+        return $scoreOrder !== 0 ? $scoreOrder : ($b['id'] <=> $a['id']);
     });
-
     return $results;
 }
 
@@ -1043,6 +1244,30 @@ function is_record_linked($pdo, $certificate_id, $certificate_type = 'birth') {
         ':type2' => $certificate_type, ':id2' => $certificate_id,
     ]);
     return (int)$stmt->fetchColumn() > 0;
+}
+
+/** Stop issuance from a record actively marked as the second registration. */
+function reject_active_duplicate_registration_issuance(PDO $pdo, string $certificate_type, int $certificate_id, string $document_label): void {
+    $stmt = $pdo->prepare(
+        "SELECT id
+         FROM record_links
+         WHERE status = 'active'
+           AND duplicate_certificate_type = :type
+           AND duplicate_certificate_id = :id
+         ORDER BY linked_at DESC, id DESC
+         LIMIT 1"
+    );
+    $stmt->execute([':type' => $certificate_type, ':id' => $certificate_id]);
+    $linkId = $stmt->fetchColumn();
+    if ($linkId !== false) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        json_response(
+            false,
+            $document_label . ' cannot be generated from a record marked as the 2nd registration. Use the 1st Registration record.',
+            ['link_id' => (int)$linkId],
+            409
+        );
+    }
 }
 
 /**

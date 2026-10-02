@@ -1068,11 +1068,11 @@ if ($edit_mode && $record) {
 
     <!-- Shared Certificate Form Handler -->
     <script>window.APP_BASE = '<?= rtrim(BASE_URL, '/') ?>';</script>
-    <script src="../assets/js/certificate-form-handler.js?v=2.3"></script>
+    <script src="../assets/js/certificate-form-handler.js?v=2.6"></script>
 
     <!-- Double Registration Comparison Modal (loads when duplicate detected on save) -->
     <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=7">
-    <script src="../assets/js/double-reg-comparison-modal.js?v=9"></script>
+    <script src="../assets/js/double-reg-comparison-modal.js?v=12"></script>
 
     <!-- PDF.js (required by the comparison modal even when OCR is disabled) -->
     <script src="<?= asset_url('pdfjs') ?>"></script>

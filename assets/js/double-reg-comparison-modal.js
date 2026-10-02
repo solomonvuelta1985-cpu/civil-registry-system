@@ -262,8 +262,7 @@ class DoubleRegComparisonModal {
         this.recordAId = recordAId;
         this.recordBId = recordBId;
         this.certificateType = certificateType;
-        // Weighted similarity score (0-100) from find_potential_duplicates / record_links.match_score.
-        // Supplied by the caller so the modal headline matches the table headline.
+        // Weighted field-evidence score (0-100), not a probability.
         this.matchScore = (matchScore === null || matchScore === undefined || isNaN(matchScore))
             ? null
             : Number(matchScore);
@@ -522,39 +521,32 @@ class DoubleRegComparisonModal {
         document.getElementById('drMatchCount').textContent = matchCount;
         document.getElementById('drDifferCount').textContent = discrepancyCount;
 
-        // Verdict — use the weighted match_score from the DB so this matches the table headline.
-        // Fall back to a plain field-equality percentage only if the caller didn't supply one.
-        const score = (this.matchScore !== null)
+        const hasEvidenceScore = this.matchScore !== null;
+        const score = hasEvidenceScore
             ? this.matchScore
             : (totalFields > 0 ? (matchCount / totalFields) * 100 : 0);
         const pct = Math.round(score * 10) / 10; // one decimal
         const pctInt = Math.round(score);
 
-        // Verdict label is driven by critical discrepancies, not just the percentage.
-        // A 90% similarity score with a critical-field mismatch is NOT a confident match.
         let verdictText, fillClass;
         if (criticalDiscCount === 0 && score >= 75) {
-            verdictText = 'Likely the same person';
+            verdictText = 'Strong field agreement - confirm manually';
             fillClass = 'high';
         } else if (criticalDiscCount === 0 && score >= 50) {
-            verdictText = 'Probable match — review minor differences';
+            verdictText = 'Moderate field agreement - review details';
             fillClass = 'medium';
         } else if (criticalDiscCount >= 1 && criticalDiscCount <= 2) {
-            verdictText = `Inconclusive — ${criticalDiscCount} critical field differ${criticalDiscCount === 1 ? 's' : ''}`;
+            verdictText = 'Mixed evidence - critical fields differ';
             fillClass = 'medium';
         } else if (criticalDiscCount >= 3) {
-            verdictText = `Likely different people — ${criticalDiscCount} critical fields differ`;
+            verdictText = 'Several critical fields differ - verify independently';
             fillClass = 'low';
         } else {
-            verdictText = 'Low similarity';
+            verdictText = 'Limited matching evidence';
             fillClass = 'low';
         }
 
-        // Two readings, side by side:
-        //   1. Algorithm similarity = the weighted match_score from find_potential_duplicates
-        //      (why the system flagged the pair). Doesn't say "same person."
-        //   2. Critical-field agreement = how many of the identity-determining fields actually agree.
-        //      This is what answers "are these the same person?".
+        // The score ranks matching evidence; staff decide whether the records represent the same person.
         const totalCritical = criticalDiscCount + this._countCriticalMatches();
         const criticalAgreementPct = totalCritical > 0
             ? Math.round(((totalCritical - criticalDiscCount) / totalCritical) * 100)
@@ -567,9 +559,9 @@ class DoubleRegComparisonModal {
             <div class="dr-verdict-text ${fillClass}">${verdictText}</div>
             <div class="dr-verdict-readings">
                 <div class="dr-reading">
-                    <span class="dr-reading-label">Algorithm similarity</span>
+                    <span class="dr-reading-label">${hasEvidenceScore ? 'Field evidence score (not probability)' : 'Field agreement'}</span>
                     <div class="dr-verdict-bar"><div class="dr-verdict-bar-fill ${algoFill}" style="width:${pctInt}%"></div></div>
-                    <span class="dr-reading-value">${pct}%</span>
+                    <span class="dr-reading-value">${hasEvidenceScore ? `${pct}/100` : `${pct}%`}</span>
                 </div>
                 <div class="dr-reading">
                     <span class="dr-reading-label">Critical-field agreement</span>
@@ -608,7 +600,7 @@ class DoubleRegComparisonModal {
         const dateStr = this.primaryRecord.date_of_registration || 'unknown date';
         const box = document.getElementById('drDetermination');
         box.innerHTML = `
-            <strong>Auto-determined 1st Registration:</strong>
+            <strong>Suggested primary record:</strong>
             Reg# ${this.escapeHtml(regNo)} (registered ${this.escapeHtml(dateStr)}) is the
             <strong>1st Registration</strong> (earlier) and will remain <strong>For Issuance</strong>.
             The other record will be blocked from issuance.
@@ -752,11 +744,48 @@ class DoubleRegComparisonModal {
 
     // ── Actions ────────────────────────────────────────────
 
-    handleNotMatch() {
-        if (typeof Notiflix !== 'undefined' && Notiflix.Notify) {
-            Notiflix.Notify.info('Records dismissed as not a match.', { timeout: 3000 });
+    async handleNotMatch() {
+        const button = document.getElementById('drNotMatchBtn');
+        if (button) {
+            button.disabled = true;
+            button.textContent = 'Saving decision...';
         }
-        this.close();
+
+        try {
+            const base = window.APP_BASE || '';
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            const response = await fetch(`${base}/api/duplicate_dismiss.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    record_a_id: this.recordAId,
+                    record_b_id: this.recordBId,
+                    reason: 'Marked not a match from the comparison screen.',
+                    csrf_token: csrfToken
+                })
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Could not save this decision.');
+            }
+
+            if (typeof Notiflix !== 'undefined' && Notiflix.Notify) {
+                Notiflix.Notify.success('Dismissed. This pair will not be suggested again unless identifying details change.', { timeout: 4500 });
+            }
+            this.close();
+        } catch (error) {
+            if (typeof Notiflix !== 'undefined' && Notiflix.Notify) {
+                Notiflix.Notify.failure(error.message || 'Could not save this decision.', { timeout: 5000 });
+            } else {
+                alert(error.message || 'Could not save this decision.');
+            }
+        } finally {
+            if (button && this.modal && this.modal.classList.contains('show')) {
+                button.disabled = false;
+                button.textContent = 'Not a Match';
+            }
+        }
     }
 
     async handleConfirmLink() {
