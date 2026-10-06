@@ -218,6 +218,7 @@
             this.closeDetail();
             const snapshot = record.record_snapshot?.display || {};
             const sourceRecord = record.record_snapshot?.raw || {};
+            const manual = record.record_snapshot?.manual_overrides || {};
             const previewInputs = {
                 issue_date: record.issue_date || '',
                 page_number: record.page_number || '',
@@ -230,14 +231,15 @@
                 mcr_full_name: record.mcr_full_name || window.CRF1A_OFFICE_CONFIG?.mcr_full_name || '',
                 mcr_title: record.mcr_title || window.CRF1A_OFFICE_CONFIG?.mcr_title || '',
                 certified_by_name: record.certified_by_name || window.CRF1A_DEFAULT_CERTIFIED_BY?.name || '',
-                certified_by_position: record.certified_by_position || window.CRF1A_DEFAULT_CERTIFIED_BY?.position || ''
+                certified_by_position: record.certified_by_position || window.CRF1A_DEFAULT_CERTIFIED_BY?.position || '',
+                remarks_html: manual.remarks_html || ''
             };
             const hasHtmlPreview = window.crf1aGenerator && typeof window.crf1aGenerator.buildDocumentMarkup === 'function';
             const previewMarkup = hasHtmlPreview
                 ? window.crf1aGenerator.buildDocumentMarkup(sourceRecord, previewInputs, record.crf_number)
                 : '';
             const previewPanel = hasHtmlPreview
-                ? `<div class="crf1a-record-preview"><div class="crf1a-preview-toolbar"><div class="crf1a-preview-title"><span>Issued A4 preview</span><strong>${esc(record.crf_number)}</strong></div><div class="crf1a-preview-controls" aria-label="Preview controls"><button type="button" class="crf1a-preview-control-btn" data-record-preview-zoom-out title="Zoom out" aria-label="Zoom out"><i data-lucide="zoom-out"></i></button><span class="crf1a-preview-zoom-display" data-record-preview-zoom>100%</span><button type="button" class="crf1a-preview-control-btn" data-record-preview-zoom-in title="Zoom in" aria-label="Zoom in"><i data-lucide="zoom-in"></i></button><span class="crf1a-preview-divider" aria-hidden="true"></span><button type="button" class="crf1a-preview-control-btn" data-record-preview-prev title="Previous page" aria-label="Previous page" disabled><i data-lucide="chevron-left"></i></button><span class="crf1a-preview-page-info"><span data-record-preview-current>1</span> of <span data-record-preview-total>1</span></span><button type="button" class="crf1a-preview-control-btn" data-record-preview-next title="Next page" aria-label="Next page" disabled><i data-lucide="chevron-right"></i></button><span class="crf1a-preview-divider" aria-hidden="true"></span><button type="button" class="crf1a-preview-control-btn" data-record-preview-rotate-left title="Rotate left" aria-label="Rotate left"><i data-lucide="rotate-ccw"></i></button><button type="button" class="crf1a-preview-control-btn" data-record-preview-rotate-right title="Rotate right" aria-label="Rotate right"><i data-lucide="rotate-cw"></i></button></div></div><div class="crf1a-document-wrap">${previewMarkup}</div></div>`
+                ? `<div class="crf1a-record-preview"><div class="crf1a-preview-toolbar"><div class="crf1a-preview-title"><span>Issued legal-size preview</span><strong>${esc(record.crf_number)}</strong></div><div class="crf1a-preview-controls" aria-label="Preview controls"><button type="button" class="crf1a-preview-control-btn" data-record-preview-zoom-out title="Zoom out" aria-label="Zoom out"><i data-lucide="zoom-out"></i></button><span class="crf1a-preview-zoom-display" data-record-preview-zoom>100%</span><button type="button" class="crf1a-preview-control-btn" data-record-preview-zoom-in title="Zoom in" aria-label="Zoom in"><i data-lucide="zoom-in"></i></button><span class="crf1a-preview-divider" aria-hidden="true"></span><button type="button" class="crf1a-preview-control-btn" data-record-preview-prev title="Previous page" aria-label="Previous page" disabled><i data-lucide="chevron-left"></i></button><span class="crf1a-preview-page-info"><span data-record-preview-current>1</span> of <span data-record-preview-total>1</span></span><button type="button" class="crf1a-preview-control-btn" data-record-preview-next title="Next page" aria-label="Next page" disabled><i data-lucide="chevron-right"></i></button><span class="crf1a-preview-divider" aria-hidden="true"></span><button type="button" class="crf1a-preview-control-btn" data-record-preview-rotate-left title="Rotate left" aria-label="Rotate left"><i data-lucide="rotate-ccw"></i></button><button type="button" class="crf1a-preview-control-btn" data-record-preview-rotate-right title="Rotate right" aria-label="Rotate right"><i data-lucide="rotate-cw"></i></button></div></div><div class="crf1a-document-wrap">${previewMarkup}</div></div>`
                 : `<div class="crf1a-record-pdf"><iframe class="crf1a-pdf-frame" src="${esc(record.pdf_url)}" title="${esc(record.crf_number)} PDF"></iframe></div>`;
             const detailRows = rows => rows.map(([label, value]) => `<div class="crf1a-detail-row"><span class="crf1a-detail-label">${esc(label)}</span><span class="crf1a-detail-value">${esc(value || '—')}</span></div>`).join('');
             const detailSection = (title, icon, rows) => `<section class="crf1a-detail-section"><div class="crf1a-detail-section-title"><i data-lucide="${icon}"></i><span>${esc(title)}</span></div>${detailRows(rows)}</section>`;
@@ -270,7 +272,7 @@
             const downloadAction = `<a class="modal-btn modal-btn-info" href="${esc(record.download_url)}"><i data-lucide="file-down"></i><span>Download</span></a>`;
             this.detailBackdrop = document.createElement('div');
             this.detailBackdrop.className = 'crf1a-record-backdrop is-open';
-            this.detailBackdrop.innerHTML = `<div class="crf1a-record-modal" role="dialog" aria-modal="true" aria-labelledby="crf1aDetailTitle"><div class="crf1a-record-header"><div><h2 id="crf1aDetailTitle">${esc(record.crf_number)}</h2><p>Immutable issuance detail and A4 preview</p></div><button type="button" class="crf1a-close" data-detail-close aria-label="Close"><i data-lucide="x"></i></button></div><div class="crf1a-record-modal-body"><div class="crf1a-record-details">${detailHtml}</div>${previewPanel}</div><div class="crf1a-record-modal-footer"><div class="crf1a-record-modal-footer-left"><button type="button" class="modal-btn modal-btn-outline" data-detail-close><i data-lucide="x"></i><span>Close</span></button></div><div class="crf1a-record-modal-footer-right">${correctedAction}${sourceAction}${printAction}${downloadAction}</div></div></div>`;
+            this.detailBackdrop.innerHTML = `<div class="crf1a-record-modal" role="dialog" aria-modal="true" aria-labelledby="crf1aDetailTitle"><div class="crf1a-record-header"><div><h2 id="crf1aDetailTitle">${esc(record.crf_number)}</h2><p>Immutable issuance detail and legal-size preview</p></div><button type="button" class="crf1a-close" data-detail-close aria-label="Close"><i data-lucide="x"></i></button></div><div class="crf1a-record-modal-body"><div class="crf1a-record-details">${detailHtml}</div>${previewPanel}</div><div class="crf1a-record-modal-footer"><div class="crf1a-record-modal-footer-left"><button type="button" class="modal-btn modal-btn-outline" data-detail-close><i data-lucide="x"></i><span>Close</span></button></div><div class="crf1a-record-modal-footer-right">${correctedAction}${sourceAction}${printAction}${downloadAction}</div></div></div>`;
             document.body.appendChild(this.detailBackdrop);
             this.bindDetailPreviewControls();
             this.detailBackdrop.querySelector('[data-corrected-copy]')?.addEventListener('click', () => {
@@ -293,9 +295,9 @@
         }
 
         printIssuance(record) {
-            const documentNode = this.detailBackdrop?.querySelector('.crf1a-record-preview .crf1a-document');
-            if (!documentNode) {
-                if (typeof Notiflix !== 'undefined') Notiflix.Notify.warning('The A4 preview is not ready yet.');
+            const documentWrap = this.detailBackdrop?.querySelector('.crf1a-record-preview .crf1a-document-wrap');
+            if (!documentWrap) {
+                if (typeof Notiflix !== 'undefined') Notiflix.Notify.warning('The legal-size preview is not ready yet.');
                 return;
             }
 
@@ -305,27 +307,30 @@
                 return;
             }
 
-            const printableDocument = documentNode.cloneNode(true);
+            const printableDocument = documentWrap.cloneNode(true);
             // Preview zoom/rotation are for on-screen inspection only.
-            printableDocument.style.transform = 'none';
-            printableDocument.style.transformOrigin = '';
+            printableDocument.querySelectorAll('.crf1a-document').forEach(page => {
+                page.style.display = 'block';
+                page.style.transform = 'none';
+                page.style.transformOrigin = '';
+            });
             printableDocument.querySelectorAll('img').forEach(image => {
                 // The preview uses relative asset paths. Resolve them before moving the
                 // document into the new print window so all logos are retained.
                 image.src = image.currentSrc || image.src;
             });
-            const cssUrl = new URL('../assets/css/crf-1a.css?v=24', window.location.href).href;
+            const cssUrl = new URL('../assets/css/crf-1a.css?v=30', window.location.href).href;
             printWindow.document.open();
             printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(record?.crf_number || 'CRF No. 1A')}</title><link rel="stylesheet" href="${cssUrl}"><style>
-                @page { size: A4 portrait; margin: 0; }
-                html, body { width: 210mm; min-height: 297mm; margin: 0; padding: 0; background: #fff; }
-                body { overflow: hidden; }
-                .crf1a-print-page { width: 210mm; height: 297mm; margin: 0; overflow: hidden; page-break-after: avoid; break-after: avoid; }
-                .crf1a-document-wrap { min-width: 0 !important; width: 210mm !important; margin: 0 !important; }
-                .crf1a-document { width: 210mm !important; height: 297mm !important; min-height: 297mm !important; margin: 0 !important; box-shadow: none !important; }
-                @media screen { body { background: #e2e8f0; padding: 12px; } .crf1a-print-page { box-shadow: 0 5px 18px rgba(15, 23, 42, .15); } }
-                @media print { .crf1a-print-page, .crf1a-document { page-break-after: avoid !important; break-after: avoid !important; } }
-            </style></head><body><main class="crf1a-print-page"><div class="crf1a-document-wrap">${printableDocument.outerHTML}</div></main></body></html>`);
+                @page { size: 215.9mm 330.2mm; margin: 0; }
+                html, body { width: 215.9mm; min-height: 330.2mm; margin: 0; padding: 0; background: #fff; }
+                body { overflow: visible; }
+                .crf1a-print-page { width: 215.9mm; margin: 0; padding: 0; overflow: visible; }
+                .crf1a-document-wrap { display: block; min-width: 0 !important; width: 215.9mm !important; margin: 0 !important; }
+                .crf1a-document { display: block; width: 215.9mm !important; height: 330.2mm !important; min-height: 330.2mm !important; margin: 0 !important; box-shadow: none !important; }
+                @media screen { body { background: #e2e8f0; padding: 12px; } }
+                @media print { .crf1a-document { page-break-after: always !important; break-after: page !important; } .crf1a-document:last-child { page-break-after: auto !important; break-after: auto !important; } }
+            </style></head><body><main class="crf1a-print-page">${printableDocument.outerHTML}</main></body></html>`);
             printWindow.document.close();
 
             const images = Array.from(printWindow.document.images);
@@ -349,13 +354,13 @@
 
         bindDetailPreviewControls() {
             const root = this.detailBackdrop?.querySelector('.crf1a-record-preview');
-            const documentNode = root?.querySelector('.crf1a-document');
-            if (!root || !documentNode) return;
+            const pages = Array.from(root?.querySelectorAll('.crf1a-document') || []);
+            if (!root || !pages.length) return;
 
             let scale = 1;
             let rotation = 0;
             let currentPage = 1;
-            const totalPages = 1;
+            const totalPages = pages.length;
             const zoom = root.querySelector('[data-record-preview-zoom]');
             const current = root.querySelector('[data-record-preview-current]');
             const total = root.querySelector('[data-record-preview-total]');
@@ -368,8 +373,10 @@
                 if (total) total.textContent = String(totalPages);
                 if (previous) previous.disabled = currentPage <= 1;
                 if (next) next.disabled = currentPage >= totalPages;
+                pages.forEach((page, index) => { page.style.display = index === currentPage - 1 ? 'block' : 'none'; });
             };
             const apply = () => {
+                const documentNode = pages[currentPage - 1];
                 documentNode.style.transformOrigin = 'top center';
                 documentNode.style.transform = `scale(${scale}) rotate(${rotation}deg)`;
             };

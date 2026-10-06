@@ -151,8 +151,9 @@ function crf_3a_output_relative_path(string $year, string $lastName, string $crf
 function crf_3a_preview_style(): string
 {
     return <<<'CSS'
-.crf1a-document{width:210mm;height:297mm;min-height:297mm;margin:0 auto;padding:0;position:relative;overflow:hidden;background:#fff;color:#111;font-family:"Courier New",Courier,monospace;font-size:9.5pt;}
+.crf1a-document{width:215.9mm;height:330.2mm;min-height:330.2mm;margin:0 auto;padding:0;position:relative;overflow:hidden;background:#fff;color:#111;font-family:"Courier New",Courier,monospace;font-size:9.5pt;}
 .crf1a-document *{box-sizing:border-box;}
+.crf1a-document .crf-manual-entry{font-weight:700;text-transform:uppercase;}
 .crf1a-document .doc-header{position:absolute;top:5mm;left:14mm;right:12mm;height:30mm;display:flex;align-items:center;gap:4mm;}
 .crf1a-document .doc-logo{display:flex;align-items:center;justify-content:center;}
 .crf1a-document .doc-logo-seal{width:27mm;height:27mm;flex:0 0 27mm;}
@@ -199,11 +200,19 @@ function crf_3a_preview_style(): string
 .crf1a-document .crf3a-verified-heading>span:first-child{width:32mm;flex:0 0 32mm;}
 .crf1a-document .crf3a-verified-line{display:inline-block;width:62mm;height:5mm;border-bottom:1px solid #222;overflow:hidden;white-space:nowrap;}
 .crf1a-document .crf3a-verified-position{margin-left:32mm;width:62mm;min-height:4mm;text-align:left;}
+.crf1a-document .doc-remarks{position:absolute;left:21mm;right:21mm;margin:0;color:#111;font:10.5pt/1.25 Arial,sans-serif;overflow-wrap:anywhere;word-break:break-word;}
+.crf1a-document .doc-remarks-heading{margin:0 0 2mm;font:700 9.5pt "Courier New",monospace;text-transform:uppercase;}
+.crf1a-document .doc-remarks-content{white-space:normal;overflow-wrap:anywhere;word-break:break-word;}
+.crf1a-document .doc-remarks-content p{margin:0 0 1.5mm;}.crf1a-document .doc-remarks-content p:last-child{margin-bottom:0;}
+.crf1a-document .doc-continuation-heading{position:absolute;top:10mm;left:21mm;right:21mm;font-size:11pt;}
+.crf1a-document .doc-continuation-id{float:right;font-size:8pt;}
 CSS;
 }
 
 function crf_3a_render_document_html(array $record, array $inputs, string $crfNumber): string
 {
+    $inputs['remarks_html'] = crf_1a_sanitize_remarks_html($inputs['remarks_html'] ?? '');
+    $remarksPages = crf_1a_remarks_page_plan($inputs['remarks_html']);
     $values = crf_3a_record_values($record, $inputs);
     if (crf_1a_edge_path() === null) {
         $fallbackInputs = $inputs;
@@ -232,56 +241,81 @@ function crf_3a_render_document_html(array $record, array $inputs, string $crfNu
 
     $cfg = crf_3a_config();
     $e = static fn($value): string => htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
-    $line = static function ($value) use ($e): string {
+    $line = static function ($value, bool $manual = true) use ($e): string {
         $value = trim((string)($value ?? ''));
-        return '<span class="crf3a-party-line">' . ($value !== '' ? $e($value) : '&nbsp;') . '</span>';
+        $display = $manual ? crf_1a_manual_entry_html($value) : ($value !== '' ? $e($value) : '&nbsp;');
+        return '<span class="crf3a-party-line">' . $display . '</span>';
     };
-    $row = static function (string $label, $husband, $wife) use ($e, $line): string {
-        return '<tr><td class="crf3a-label">' . $e($label) . '</td><td class="crf3a-party">' . $line($husband) . '</td><td class="crf3a-party">' . $line($wife) . '</td></tr>';
+    $row = static function (string $label, $husband, $wife, bool $manualHusband = true, bool $manualWife = true) use ($e, $line): string {
+        return '<tr><td class="crf3a-label">' . $e($label) . '</td><td class="crf3a-party">' . $line($husband, $manualHusband) . '</td><td class="crf3a-party">' . $line($wife, $manualWife) . '</td></tr>';
     };
     $sharedRow = static function (string $label, $value) use ($e): string {
         $value = trim((string)($value ?? ''));
-        return '<tr><td class="crf3a-label">' . $e($label) . '</td><td colspan="2"><span class="crf3a-shared-line">' . ($value !== '' ? $e($value) : '&nbsp;') . '</span></td></tr>';
+        return '<tr><td class="crf3a-label">' . $e($label) . '</td><td colspan="2"><span class="crf3a-shared-line">' . ($value !== '' ? crf_1a_manual_entry_html($value) : '&nbsp;') . '</span></td></tr>';
     };
     $date = strtotime((string)($inputs['issue_date'] ?? date('Y-m-d')));
-    $issueDateText = $date === false ? $e($inputs['issue_date'] ?? '') : $e(date('F j, Y', $date));
+    $issueDateText = $date === false ? crf_1a_manual_entry_html($inputs['issue_date'] ?? '') : crf_1a_manual_entry_html(date('F j, Y', $date));
     $requester = trim((string)($inputs['requester_name'] ?? ''));
-    $requesterLine = '<span class="doc-requester-line">' . ($requester !== '' ? $e($requester) : '&nbsp;') . '</span>';
+    $requesterLine = '<span class="doc-requester-line">' . crf_1a_manual_entry_html($requester) . '</span>';
     $amount = number_format((float)($inputs['amount_paid'] ?? 0), 2);
+    $remarksTop = 173;
+    $remarksHeight = count($remarksPages) === 1 ? crf_1a_remarks_height_mm($remarksPages[0]) : 0;
+    $signatureTop = count($remarksPages) === 1 ? max(177, $remarksTop + $remarksHeight + 10) : 177;
+    $remarksBlock = static function (string $html, float $top, bool $continued = false): string {
+        if ($html === '') return '';
+        return '<div class="doc-remarks" style="top:' . $top . 'mm"><div class="doc-remarks-heading">'
+            . ($continued ? 'REMARKS (CONTINUED)' : 'REMARKS') . '</div><div class="doc-remarks-content">' . $html . '</div></div>';
+    };
+    $closing = static function (array $positions) use ($inputs, $e, $amount, $crfNumber): string {
+        return '<div class="crf3a-signature" style="top:' . $positions['signature'] . 'mm"><strong>' . crf_1a_manual_entry_html($inputs['mcr_full_name'] ?? '') . '</strong><div>' . crf_1a_manual_entry_html($inputs['mcr_title'] ?? '') . '</div></div>'
+            . '<div class="crf3a-verified" style="top:' . $positions['verified'] . 'mm"><div class="crf3a-verified-heading"><span>VERIFIED BY:</span><span class="crf3a-verified-line">' . crf_1a_manual_entry_html($inputs['verified_by_name'] ?? '') . '</span></div><div class="crf3a-verified-position">' . crf_1a_manual_entry_html($inputs['verified_by_position'] ?? '') . '</div></div>'
+            . '<div class="doc-payment" style="top:' . $positions['payment'] . 'mm"><div class="doc-payment-row"><span class="doc-payment-label">Amount paid</span><span class="doc-payment-colon">:</span><span class="doc-payment-value"><span class="doc-line">' . crf_1a_manual_entry_html($amount) . '</span></span></div><div class="doc-payment-row"><span class="doc-payment-label">O.R. Number</span><span class="doc-payment-colon">:</span><span class="doc-payment-value"><span class="doc-line">' . crf_1a_manual_entry_html($inputs['or_number'] ?? '') . '</span></span></div><div class="doc-payment-row"><span class="doc-payment-label">Date paid</span><span class="doc-payment-colon">:</span><span class="doc-payment-value"><span class="doc-line">' . crf_1a_manual_entry_html($inputs['date_paid'] ?? '') . '</span></span></div></div>'
+            . '<div class="doc-note" style="top:' . $positions['note'] . 'mm"><strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>System ID: ' . $e($crfNumber) . '</small></div>';
+    };
+    $mainClosing = count($remarksPages) > 1 ? '' : $closing(['signature' => $signatureTop, 'verified' => $signatureTop + 22, 'payment' => $signatureTop + 42, 'note' => $signatureTop + 66]);
     $logo = static function (string $path, string $alt, string $size) use ($e): string {
         $uri = crf_1a_asset_data_uri($path);
         return $uri !== '' ? '<img src="' . $uri . '" alt="' . $e($alt) . '" style="display:block;width:' . $size . ';height:' . $size . ';object-fit:contain;">' : '';
     };
     $officeName = trim((string)$cfg['office_name']);
     $officeHtml = $officeName === 'OFFICE OF THE MUNICIPAL CIVIL REGISTRAR' ? 'OFFICE OF THE MUNICIPAL CIVIL<br>REGISTRAR' : $e($officeName);
-    $css = '<style>@page{size:A4 portrait;margin:0}html,body{width:210mm;height:297mm;margin:0;padding:0;background:#fff}body{overflow:hidden}' . crf_3a_preview_style() . '</style>';
-    return '<!doctype html><html><head><meta charset="utf-8">' . $css . '</head><body><div class="crf1a-document">'
+    $css = '<style>@page{size:215.9mm 330.2mm;margin:0}html,body{width:215.9mm;min-height:330.2mm;margin:0;padding:0;background:#fff}body{overflow:visible}.crf1a-document{page-break-after:always;break-after:page}.crf1a-document:last-child{page-break-after:auto;break-after:auto}' . crf_3a_preview_style() . '</style>';
+    $html = '<!doctype html><html><head><meta charset="utf-8">' . $css . '</head><body><div class="crf1a-document">'
         . '<div class="doc-header"><div class="doc-logo doc-logo-seal">' . $logo($cfg['logo_seal'], 'Baggao seal', '27mm') . '</div><div class="doc-logo doc-logo-baggao">' . $logo($cfg['logo_baggao'], 'Baggao reference logo', '27mm') . '</div><div class="doc-header-copy"><div class="doc-republic">Republic of the Philippines</div><div class="doc-province">Province of ' . $e($cfg['province']) . '</div><div class="doc-municipality">MUNICIPALITY OF ' . $e($cfg['municipality']) . '</div><div class="doc-office">' . $officeHtml . '</div><div class="doc-address">' . $e($cfg['address']) . '</div></div><div class="doc-header-right"><div class="doc-logo doc-logo-pilipinas">' . $logo($cfg['logo_pilipinas'], 'Bagong Pilipinas', '28mm') . '</div><div class="doc-meta">CRF ID<strong>' . $e($crfNumber) . '</strong></div></div></div>'
         . '<div class="doc-rule"></div><div class="doc-title">Civil Registry Form No. 3A</div><div class="doc-subtitle">(Marriage-Available)</div><div class="doc-date">Date: ' . $issueDateText . '</div>'
-        . '<div class="doc-intro"><strong>TO WHOM IT MAY CONCERN:</strong><div class="doc-intro-statement">We certify that, among others, the following facts of Marriage<br>appear in our Register of Marriages on page <span class="doc-short-line">' . $e($inputs['page_number'] ?? '') . '</span> Book number <span class="doc-short-line">' . $e($inputs['book_number'] ?? '') . '.</span></div></div>'
+        . '<div class="doc-intro"><strong>TO WHOM IT MAY CONCERN:</strong><div class="doc-intro-statement">We certify that, among others, the following facts of Marriage<br>appear in our Register of Marriages on page <span class="doc-short-line">' . crf_1a_manual_entry_html($inputs['page_number'] ?? '') . '</span> Book number <span class="doc-short-line">' . crf_1a_manual_entry_html($inputs['book_number'] ?? '') . '.</span></div></div>'
         . '<div class="crf3a-details"><table class="crf3a-details-table"><thead><tr><th class="crf3a-label"></th><th class="crf3a-party">HUSBAND</th><th class="crf3a-party">WIFE</th></tr></thead><tbody>'
         . $row('Name', $values['husband_name'], $values['wife_name'])
         . $row('Date of Birth / Age', $values['husband_date_of_birth_age'], $values['wife_date_of_birth_age'])
-        . $row('Citizenship', $values['husband_nationality'], $values['wife_nationality'])
-        . $row('Civil Status', $values['husband_civil_status'], $values['wife_civil_status'])
-        . $row('Name of Mother', $values['husband_mother_name'], $values['wife_mother_name'])
-        . $row('Nationality', $values['husband_mother_nationality'], $values['wife_mother_nationality'])
-        . $row('Name of Father', $values['husband_father_name'], $values['wife_father_name'])
-        . $row('Nationality', $values['husband_father_nationality'], $values['wife_father_nationality'])
+        . $row('Citizenship', $values['husband_nationality'], $values['wife_nationality'], true, true)
+        . $row('Civil Status', $values['husband_civil_status'], $values['wife_civil_status'], true, true)
+        . $row('Name of Mother', $values['husband_mother_name'], $values['wife_mother_name'], true, true)
+        . $row('Nationality', $values['husband_mother_nationality'], $values['wife_mother_nationality'], true, true)
+        . $row('Name of Father', $values['husband_father_name'], $values['wife_father_name'], true, true)
+        . $row('Nationality', $values['husband_father_nationality'], $values['wife_father_nationality'], true, true)
         . $sharedRow('Civil Registry Number', $values['registry_no'])
         . $sharedRow('Date of Marriage', $values['date_of_marriage'])
         . $sharedRow('Place of Marriage', $values['place_of_marriage'])
         . $sharedRow('Date of Registration', $values['date_of_registration'])
         . '</tbody></table></div>'
         . '<div class="crf3a-certification">This certification is issued to ' . $requesterLine . ' upon his/her<br>request.</div>'
-        . '<div class="crf3a-signature"><strong>' . $e($inputs['mcr_full_name'] ?? '') . '</strong><div>' . $e($inputs['mcr_title'] ?? '') . '</div></div>'
-        . '<div class="crf3a-verified"><div class="crf3a-verified-heading"><span>VERIFIED BY:</span><span class="crf3a-verified-line">' . $e($inputs['verified_by_name'] ?? '') . '</span></div><div class="crf3a-verified-position">' . $e($inputs['verified_by_position'] ?? '') . '</div></div>'
-        . '<div class="doc-payment"><div class="doc-payment-row"><span class="doc-payment-label">Amount paid</span><span class="doc-payment-colon">:</span><span class="doc-payment-value"><span class="doc-line">' . $e($amount) . '</span></span></div><div class="doc-payment-row"><span class="doc-payment-label">O.R. Number</span><span class="doc-payment-colon">:</span><span class="doc-payment-value"><span class="doc-line">' . $e($inputs['or_number'] ?? '') . '</span></span></div><div class="doc-payment-row"><span class="doc-payment-label">Date paid</span><span class="doc-payment-colon">:</span><span class="doc-payment-value"><span class="doc-line">' . $e($inputs['date_paid'] ?? '') . '</span></span></div></div>'
-        . '<div class="doc-note"><strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>System ID: ' . $e($crfNumber) . '</small></div>'
-        . '</div></body></html>';
+        . $remarksBlock($remarksPages[0] ?? '', $remarksTop) . $mainClosing
+        . '</div>';
+    if (count($remarksPages) > 1) {
+        foreach (array_slice($remarksPages, 1) as $index => $chunk) {
+            $height = crf_1a_remarks_height_mm($chunk);
+            $finalPage = $index === count($remarksPages) - 2;
+            $footerTop = 35 + $height + 12;
+            $html .= '<div class="crf1a-document doc-continuation"><div class="doc-continuation-heading">Civil Registry Form No. 3A - continuation<span class="doc-continuation-id">CRF ID ' . $e($crfNumber) . '</span></div>'
+                . $remarksBlock($chunk, 35, true)
+                . ($finalPage ? $closing(['signature' => $footerTop, 'verified' => $footerTop + 22, 'payment' => $footerTop + 42, 'note' => $footerTop + 66]) : '')
+                . '</div>';
+        }
+    }
+    return $html . '</body></html>';
 }
 
 function crf_3a_render_pdf(string $html, string $outputPdf, ?string &$error = null): bool
 {
-    return crf_1a_render_pdf($html, $outputPdf, $error);
+    return crf_1a_render_pdf($html, $outputPdf, $error, true);
 }

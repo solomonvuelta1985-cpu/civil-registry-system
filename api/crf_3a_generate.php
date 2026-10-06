@@ -68,6 +68,7 @@ $inputs = [
     'mcr_title' => crf_3a_required('mcr_title', 'Municipal Civil Registrar Position', 100),
     'verified_by_name' => crf_3a_required('verified_by_name', 'Verified By Name', 150),
     'verified_by_position' => crf_3a_required('verified_by_position', 'Verified By Position', 100),
+    'remarks_html' => crf_1a_sanitize_remarks_html($_POST['remarks_html'] ?? ''),
 ];
 
 if ($inputs['amount_paid'] === '' || !preg_match('/^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/', $inputs['amount_paid'])) {

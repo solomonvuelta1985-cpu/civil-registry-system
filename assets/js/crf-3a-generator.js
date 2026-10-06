@@ -1,4 +1,4 @@
-/* CRF No. 3A generator: marriage source record, live A4 preview, and immutable issuance. */
+/* CRF No. 3A generator: marriage source record, live legal-size preview, and immutable issuance. */
 (function () {
     'use strict';
 
@@ -38,13 +38,16 @@
                         <div class="crf1a-form-help">Required fields are validated before generation. The source marriage record will not be changed.</div>
                         <div class="crf1a-form-actions"><button type="button" class="crf1a-btn crf1a-btn-secondary" data-close>Cancel</button><button type="submit" class="crf1a-btn crf1a-btn-primary"><i data-lucide="file-output"></i> Generate PDF</button></div><div class="crf1a-status" role="status" aria-live="polite"></div>
                     </form>
-                </div><div class="crf1a-generator-preview-panel"><div class="crf1a-preview-toolbar"><div class="crf1a-preview-title"><span>Live A4 preview</span><strong data-crf-id>ID assigned on generate</strong></div><div class="crf1a-preview-controls"><button type="button" class="crf1a-preview-control-btn" data-zoom-out title="Zoom out"><i data-lucide="zoom-out"></i></button><span class="crf1a-preview-zoom-display" data-zoom>100%</span><button type="button" class="crf1a-preview-control-btn" data-zoom-in title="Zoom in"><i data-lucide="zoom-in"></i></button><span class="crf1a-preview-divider"></span><button type="button" class="crf1a-preview-control-btn" data-rotate-left title="Rotate left"><i data-lucide="rotate-ccw"></i></button><button type="button" class="crf1a-preview-control-btn" data-rotate-right title="Rotate right"><i data-lucide="rotate-cw"></i></button></div></div><div class="crf1a-document-wrap" data-preview></div></div></div></div>
+                </div><div class="crf1a-generator-preview-panel"><div class="crf1a-preview-toolbar"><div class="crf1a-preview-title"><span>Live legal-size preview</span><strong data-crf-id>ID assigned on generate</strong></div><div class="crf1a-preview-controls"><button type="button" class="crf1a-preview-control-btn" data-zoom-out title="Zoom out"><i data-lucide="zoom-out"></i></button><span class="crf1a-preview-zoom-display" data-zoom>100%</span><button type="button" class="crf1a-preview-control-btn" data-zoom-in title="Zoom in"><i data-lucide="zoom-in"></i></button><span class="crf1a-preview-divider"></span><button type="button" class="crf1a-preview-control-btn" data-rotate-left title="Rotate left"><i data-lucide="rotate-ccw"></i></button><button type="button" class="crf1a-preview-control-btn" data-rotate-right title="Rotate right"><i data-lucide="rotate-cw"></i></button></div></div><div class="crf1a-document-wrap" data-preview></div></div></div></div>
                 <div class="crf1a-generation-overlay" aria-hidden="true"><div class="crf1a-generation-card"><span class="crf1a-generation-spinner"></span><strong>Generating PDF...</strong><span>Please wait while the immutable issuance is created.</span></div></div>`;
             document.body.appendChild(this.backdrop);
             this.form = this.backdrop.querySelector('form');
             this.preview = this.backdrop.querySelector('[data-preview]');
+            const previewLabel = this.backdrop.querySelector('.crf1a-preview-title span');
+            if (previewLabel) previewLabel.textContent = 'Live legal-size preview';
             this.status = this.backdrop.querySelector('.crf1a-status');
             this.button = this.form.querySelector('button[type="submit"]');
+            this.remarksEditor = window.CrfRemarksEditor?.attach(this.backdrop, this.form, () => this.render());
             this.addIssuanceKindField();
             this.backdrop.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => this.close()));
             this.backdrop.addEventListener('click', event => { if (event.target === this.backdrop) this.close(); });
@@ -98,6 +101,7 @@
             const display = item?.record_snapshot?.display || {};
             const manual = item?.record_snapshot?.manual_overrides || {};
             ['page_number', 'book_number', 'requester_name', 'amount_paid', 'or_number', 'date_paid', 'mcr_full_name', 'mcr_title', 'verified_by_name', 'verified_by_position', 'husband_mother_name', 'husband_father_name', 'wife_mother_name', 'wife_father_name', 'husband_nationality', 'husband_civil_status', 'husband_mother_nationality', 'husband_father_nationality', 'wife_nationality', 'wife_civil_status', 'wife_mother_nationality', 'wife_father_nationality'].forEach(key => this.set(key, item[key] ?? manual[key] ?? display[key] ?? ''));
+            this.set('remarks_html', manual.remarks_html || '');
             this.set('issuance_kind', 'Corrected');
             this.issuanceKind?.dispatchEvent(new Event('change', { bubbles: true }));
             this.render();
@@ -209,12 +213,66 @@
         render() {
             if (!this.record) return;
             const inputs = this.values();
-            this.preview.innerHTML = this.markup(this.record, inputs, this.backdrop.querySelector('[data-crf-id]').textContent);
-            const documentNode = this.preview.querySelector('.crf1a-document');
-            if (documentNode) documentNode.style.transform = `scale(${this.scale}) rotate(${this.rotation}deg)`;
+            this.preview.innerHTML = this.withRemarks(this.markup(this.record, inputs, this.backdrop.querySelector('[data-crf-id]').textContent), inputs, this.backdrop.querySelector('[data-crf-id]').textContent);
+            this.preview.querySelectorAll('.crf1a-document').forEach(documentNode => { documentNode.style.transformOrigin = 'top center'; documentNode.style.transform = `scale(${this.scale}) rotate(${this.rotation}deg)`; });
         }
 
-        values() { const values = {}; new FormData(this.form).forEach((value, key) => { values[key] = String(value || '').trim(); }); return values; }
+        values() { const values = {}; new FormData(this.form).forEach((value, key) => { values[key] = key === 'remarks_html' ? String(value || '') : String(value || '').trim(); }); return values; }
+
+        withRemarks(markup, inputs, crfNumber) {
+            const helper = window.CrfRemarksEditor;
+            const chunks = helper?.plan(inputs.remarks_html || '') || [];
+            if (!chunks.length) return markup;
+            const host = document.createElement('div');
+            host.innerHTML = markup;
+            const firstPage = host.querySelector('.crf1a-document');
+            if (!firstPage) return markup;
+            const certification = firstPage.querySelector('.crf3a-certification');
+            if (!certification) return markup;
+            const createRemarks = (html, top, continued) => {
+                const block = document.createElement('div');
+                block.className = 'doc-remarks';
+                block.style.top = `${top}mm`;
+                block.innerHTML = `<div class="doc-remarks-heading">${continued ? 'REMARKS (CONTINUED)' : 'REMARKS'}</div><div class="doc-remarks-content">${html}</div>`;
+                return block;
+            };
+            const closingSelectors = ['.crf3a-signature', '.crf3a-verified', '.doc-payment', '.doc-note'];
+            const originalClosings = closingSelectors.map(selector => firstPage.querySelector(selector)).filter(Boolean);
+            const closings = originalClosings.map(node => node.cloneNode(true));
+            const setClosingPositions = (nodes, base) => {
+                nodes.forEach(node => {
+                    if (node.classList.contains('crf3a-signature')) node.style.top = `${base}mm`;
+                    else if (node.classList.contains('crf3a-verified')) node.style.top = `${base + 22}mm`;
+                    else if (node.classList.contains('doc-payment')) node.style.top = `${base + 42}mm`;
+                    else if (node.classList.contains('doc-note')) node.style.top = `${base + 66}mm`;
+                });
+            };
+            const remarksTop = 173;
+            firstPage.appendChild(createRemarks(chunks[0], remarksTop, false));
+            const remarksHeight = helper.heightMm(chunks[0]);
+            if (chunks.length === 1) {
+                setClosingPositions(originalClosings, Math.max(177, remarksTop + remarksHeight + 10));
+                return host.innerHTML;
+            }
+            closingSelectors.forEach(selector => firstPage.querySelector(selector)?.remove());
+            chunks.slice(1).forEach((chunk, index, remaining) => {
+                const page = document.createElement('div');
+                page.className = 'crf1a-document doc-continuation';
+                const heading = document.createElement('div');
+                heading.className = 'doc-continuation-heading';
+                heading.innerHTML = `Civil Registry Form No. 3A - continuation <span class="doc-continuation-id"></span>`;
+                heading.querySelector('span').textContent = `CRF ID ${crfNumber || ''}`;
+                page.appendChild(heading);
+                page.appendChild(createRemarks(chunk, 35, true));
+                if (index === remaining.length - 1) {
+                    const footerTop = 35 + helper.heightMm(chunk) + 12;
+                    setClosingPositions(closings, footerTop);
+                    closings.forEach(node => page.appendChild(node));
+                }
+                host.appendChild(page);
+            });
+            return host.innerHTML;
+        }
 
         registryNumber(record) {
             const number = String(record?.registry_no || '').trim();
@@ -247,10 +305,11 @@
             const config = window.CRF3A_OFFICE_CONFIG || {};
             const draft = crfNumber === 'ID assigned on generate';
             const escape = value => this.escape(value);
-            const placeholder = (value, text) => String(value || '').trim() ? escape(value) : (draft ? `<span class="doc-preview-placeholder">${escape(text)}</span>` : '&nbsp;');
-            const line = value => `<span class="crf3a-party-line">${String(value || '').trim() ? escape(value) : '&nbsp;'}</span>`;
-            const row = (label, husband, wife) => `<tr><td class="crf3a-label">${escape(label)}</td><td class="crf3a-party">${line(husband)}</td><td class="crf3a-party">${line(wife)}</td></tr>`;
-            const sharedRow = (label, value) => `<tr><td class="crf3a-label">${escape(label)}</td><td colspan="2"><span class="crf3a-shared-line">${String(value || '').trim() ? escape(value) : '&nbsp;'}</span></td></tr>`;
+            const manualEntry = value => { const text = String(value ?? ''); return text.trim() ? `<span class="crf-manual-entry">${escape(text.toUpperCase())}</span>` : '&nbsp;'; };
+            const placeholder = (value, text) => String(value || '').trim() ? manualEntry(value) : (draft ? `<span class="doc-preview-placeholder">${escape(text)}</span>` : '&nbsp;');
+            const line = (value, isManual = false) => `<span class="crf3a-party-line">${String(value || '').trim() ? (isManual ? manualEntry(value) : escape(value)) : '&nbsp;'}</span>`;
+            const row = (label, husband, wife, manualHusband = true, manualWife = manualHusband) => `<tr><td class="crf3a-label">${escape(label)}</td><td class="crf3a-party">${line(husband, manualHusband)}</td><td class="crf3a-party">${line(wife, manualWife)}</td></tr>`;
+            const sharedRow = (label, value) => `<tr><td class="crf3a-label">${escape(label)}</td><td colspan="2"><span class="crf3a-shared-line">${String(value || '').trim() ? manualEntry(value) : '&nbsp;'}</span></td></tr>`;
             const date = value => { if (!value) return ''; const parsed = new Date(String(value) + 'T00:00:00'); return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }); };
             const ageAtMarriage = prefix => { const dob = record[`${prefix}_date_of_birth`]; const marriage = record.date_of_marriage; if (!dob || !marriage) return ''; const birth = new Date(String(dob) + 'T00:00:00'); const event = new Date(String(marriage) + 'T00:00:00'); let age = event.getFullYear() - birth.getFullYear(); const beforeBirthday = event.getMonth() < birth.getMonth() || (event.getMonth() === birth.getMonth() && event.getDate() < birth.getDate()); if (beforeBirthday) age--; return age >= 0 ? `${age} ${age === 1 ? 'year' : 'years'}` : ''; };
             const dobAge = prefix => { const dob = date(record[`${prefix}_date_of_birth`]); const age = ageAtMarriage(prefix); return dob && age ? `${dob} / ${age}` : dob; };
@@ -259,7 +318,7 @@
             const logo = (path, alt, size) => path === '__hidden__' ? '' : `<img src="../${escape(path || '')}" alt="${escape(alt)}" style="display:block;width:${size};height:${size};object-fit:contain">`;
             const office = String(config.office_name || 'OFFICE OF THE MUNICIPAL CIVIL REGISTRAR');
             const officeHtml = office === 'OFFICE OF THE MUNICIPAL CIVIL REGISTRAR' ? 'OFFICE OF THE MUNICIPAL CIVIL<br>REGISTRAR' : escape(office);
-            return `<div class="crf1a-document"><div class="doc-header"><div class="doc-logo doc-logo-seal">${logo(config.logo_seal || 'assets/img/LOGO1.png', 'Baggao seal', '27mm')}</div><div class="doc-logo doc-logo-baggao">${logo(config.logo_baggao || 'assets/img/CRF1A_BAGGAO_REFERENCE.png', 'Baggao logo', '27mm')}</div><div class="doc-header-copy"><div class="doc-republic">Republic of the Philippines</div><div class="doc-province">Province of ${escape(config.province || 'CAGAYAN')}</div><div class="doc-municipality">MUNICIPALITY OF ${escape(config.municipality || 'BAGGAO')}</div><div class="doc-office">${officeHtml}</div><div class="doc-address">${escape(config.address || '')}</div></div><div class="doc-header-right"><div class="doc-logo doc-logo-pilipinas">${logo(config.logo_pilipinas || 'assets/img/CRF1A_BAGONG_PILIPINAS.png', 'Bagong Pilipinas', '28mm')}</div><div class="doc-meta">CRF ID<strong>${escape(crfNumber)}</strong></div></div></div><div class="doc-rule"></div><div class="doc-title">Civil Registry Form No. 3A</div><div class="doc-subtitle">(Marriage-Available)</div><div class="doc-date">Date: ${escape(date(inputs.issue_date))}</div><div class="doc-intro"><strong>TO WHOM IT MAY CONCERN:</strong><div class="doc-intro-statement">We certify that, among others, the following facts of Marriage<br>appear in our Register of Marriages on page <span class="doc-short-line">${escape(inputs.page_number)}</span> Book number <span class="doc-short-line">${escape(inputs.book_number)}</span>.</div></div><div class="crf3a-details"><table class="crf3a-details-table"><thead><tr><th class="crf3a-label"></th><th class="crf3a-party">HUSBAND</th><th class="crf3a-party">WIFE</th></tr></thead><tbody>${row('Name', full('husband'), full('wife'))}${row('Date of Birth / Age', dobAge('husband'), dobAge('wife'))}${row('Citizenship', inputs.husband_nationality, inputs.wife_nationality)}${row('Civil Status', inputs.husband_civil_status, inputs.wife_civil_status)}${row('Name of Mother', parent('husband_mother_name', 'husband_mother_name'), parent('wife_mother_name', 'wife_mother_name'))}${row('Nationality', inputs.husband_mother_nationality, inputs.wife_mother_nationality)}${row('Name of Father', parent('husband_father_name', 'husband_father_name'), parent('wife_father_name', 'wife_father_name'))}${row('Nationality', inputs.husband_father_nationality, inputs.wife_father_nationality)}${sharedRow('Civil Registry Number', record.registry_no)}${sharedRow('Date of Marriage', date(record.date_of_marriage))}${sharedRow('Place of Marriage', record.place_of_marriage)}${sharedRow('Date of Registration', date(record.date_of_registration))}</tbody></table></div><div class="crf3a-certification">This certification is issued to <span class="doc-requester-line">${inputs.requester_name ? escape(inputs.requester_name) : '&nbsp;'}</span> upon his/her<br>request.</div><div class="crf3a-signature"><strong>${placeholder(inputs.mcr_full_name, 'Enter registrar name')}</strong><div>${placeholder(inputs.mcr_title, 'Enter registrar position')}</div></div><div class="crf3a-verified"><div class="crf3a-verified-heading"><span>VERIFIED BY:</span><span class="crf3a-verified-line">${placeholder(inputs.verified_by_name, 'Enter verifier name')}</span></div><div class="crf3a-verified-position">${placeholder(inputs.verified_by_position, 'Enter verifier position')}</div></div><div class="doc-payment"><div class="doc-payment-row"><span class="doc-payment-label">Amount paid</span><span class="doc-payment-colon">:</span><span class="doc-payment-value"><span class="doc-line">${escape(inputs.amount_paid)}</span></span></div><div class="doc-payment-row"><span class="doc-payment-label">O.R. Number</span><span class="doc-payment-colon">:</span><span class="doc-payment-value"><span class="doc-line">${escape(inputs.or_number)}</span></span></div><div class="doc-payment-row"><span class="doc-payment-label">Date paid</span><span class="doc-payment-colon">:</span><span class="doc-payment-value"><span class="doc-line">${escape(inputs.date_paid)}</span></span></div></div><div class="doc-note"><strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>System ID: ${escape(crfNumber)}</small></div></div>`;
+            return `<div class="crf1a-document"><div class="doc-header"><div class="doc-logo doc-logo-seal">${logo(config.logo_seal || 'assets/img/LOGO1.png', 'Baggao seal', '27mm')}</div><div class="doc-logo doc-logo-baggao">${logo(config.logo_baggao || 'assets/img/CRF1A_BAGGAO_REFERENCE.png', 'Baggao logo', '27mm')}</div><div class="doc-header-copy"><div class="doc-republic">Republic of the Philippines</div><div class="doc-province">Province of ${escape(config.province || 'CAGAYAN')}</div><div class="doc-municipality">MUNICIPALITY OF ${escape(config.municipality || 'BAGGAO')}</div><div class="doc-office">${officeHtml}</div><div class="doc-address">${escape(config.address || '')}</div></div><div class="doc-header-right"><div class="doc-logo doc-logo-pilipinas">${logo(config.logo_pilipinas || 'assets/img/CRF1A_BAGONG_PILIPINAS.png', 'Bagong Pilipinas', '28mm')}</div><div class="doc-meta">CRF ID<strong>${escape(crfNumber)}</strong></div></div></div><div class="doc-rule"></div><div class="doc-title">Civil Registry Form No. 3A</div><div class="doc-subtitle">(Marriage-Available)</div><div class="doc-date">Date: ${manualEntry(date(inputs.issue_date))}</div><div class="doc-intro"><strong>TO WHOM IT MAY CONCERN:</strong><div class="doc-intro-statement">We certify that, among others, the following facts of Marriage<br>appear in our Register of Marriages on page <span class="doc-short-line">${manualEntry(inputs.page_number)}</span> Book number <span class="doc-short-line">${manualEntry(inputs.book_number)}</span>.</div></div><div class="crf3a-details"><table class="crf3a-details-table"><thead><tr><th class="crf3a-label"></th><th class="crf3a-party">HUSBAND</th><th class="crf3a-party">WIFE</th></tr></thead><tbody>${row('Name', full('husband'), full('wife'))}${row('Date of Birth / Age', dobAge('husband'), dobAge('wife'))}${row('Citizenship', inputs.husband_nationality, inputs.wife_nationality, true, true)}${row('Civil Status', inputs.husband_civil_status, inputs.wife_civil_status, true, true)}${row('Name of Mother', parent('husband_mother_name', 'husband_mother_name'), parent('wife_mother_name', 'wife_mother_name'), true, true)}${row('Nationality', inputs.husband_mother_nationality, inputs.wife_mother_nationality, true, true)}${row('Name of Father', parent('husband_father_name', 'husband_father_name'), parent('wife_father_name', 'wife_father_name'), true, true)}${row('Nationality', inputs.husband_father_nationality, inputs.wife_father_nationality, true, true)}${sharedRow('Civil Registry Number', record.registry_no)}${sharedRow('Date of Marriage', date(record.date_of_marriage))}${sharedRow('Place of Marriage', record.place_of_marriage)}${sharedRow('Date of Registration', date(record.date_of_registration))}</tbody></table></div><div class="crf3a-certification">This certification is issued to <span class="doc-requester-line">${manualEntry(inputs.requester_name)}</span> upon his/her<br>request.</div><div class="crf3a-signature"><strong>${placeholder(inputs.mcr_full_name, 'Enter registrar name')}</strong><div>${placeholder(inputs.mcr_title, 'Enter registrar position')}</div></div><div class="crf3a-verified"><div class="crf3a-verified-heading"><span>VERIFIED BY:</span><span class="crf3a-verified-line">${placeholder(inputs.verified_by_name, 'Enter verifier name')}</span></div><div class="crf3a-verified-position">${placeholder(inputs.verified_by_position, 'Enter verifier position')}</div></div><div class="doc-payment"><div class="doc-payment-row"><span class="doc-payment-label">Amount paid</span><span class="doc-payment-colon">:</span><span class="doc-payment-value"><span class="doc-line">${manualEntry(inputs.amount_paid)}</span></span></div><div class="doc-payment-row"><span class="doc-payment-label">O.R. Number</span><span class="doc-payment-colon">:</span><span class="doc-payment-value"><span class="doc-line">${manualEntry(inputs.or_number)}</span></span></div><div class="doc-payment-row"><span class="doc-payment-label">Date paid</span><span class="doc-payment-colon">:</span><span class="doc-payment-value"><span class="doc-line">${manualEntry(inputs.date_paid)}</span></span></div></div><div class="doc-note"><strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>System ID: ${escape(crfNumber)}</small></div></div>`;
         }
 
         buildDocumentMarkup(record, inputs, crfNumber) { return this.markup(record, inputs, crfNumber); }

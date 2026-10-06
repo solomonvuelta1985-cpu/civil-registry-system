@@ -40,7 +40,7 @@ $crf3aDefaults = branding_crf_preview_config(crf_3a_config());
 
     <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=12">
-    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=27">
+    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=30">
 
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>
@@ -870,10 +870,11 @@ function openPreview(id, type) {
 </script>
 <script src="../assets/js/family_relations_render.js?v=2"></script>
 <script src="../assets/js/record-preview-modal.js?v=13"></script>
-<script src="../assets/js/crf-1a-generator.js?v=20261001-registry"></script>
-<script src="../assets/js/crf-2a-generator.js?v=20261001-registry"></script>
+<script src="../assets/js/crf-remarks-editor.js?v=20261005-legal-remarks-1"></script>
+<script src="../assets/js/crf-1a-generator.js?v=20261005-legal-remarks-1"></script>
+<script src="../assets/js/crf-2a-generator.js?v=20261005-legal-remarks-1"></script>
 <script src="../assets/js/crf-2a-records.js?v=4"></script>
-<script src="../assets/js/crf-3a-generator.js?v=20261001-registry"></script>
+<script src="../assets/js/crf-3a-generator.js?v=20261005-legal-remarks-1"></script>
 <script src="../assets/js/crf-3a-records.js?v=2"></script>
 <script src="../assets/js/crf-1a-records.js?v=20"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>

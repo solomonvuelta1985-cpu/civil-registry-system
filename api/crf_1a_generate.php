@@ -104,6 +104,7 @@ $inputs = [
     'mcr_title' => crf_1a_required_string('mcr_title', 'Municipal Civil Registrar Position', 100),
     'certified_by_name' => crf_1a_required_string('certified_by_name', 'Certified By Name', 150),
     'certified_by_position' => crf_1a_required_string('certified_by_position', 'Certified By Position', 100),
+    'remarks_html' => crf_1a_sanitize_remarks_html($_POST['remarks_html'] ?? ''),
 ];
 
 try {
@@ -196,13 +197,14 @@ try {
     $pdfAbsolutePath = UPLOAD_PATH . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $pdfRelativePath);
     $html = crf_1a_render_document_html($record, $inputs, $crfNumber);
     $renderError = null;
-    if (!crf_1a_render_pdf($html, $pdfAbsolutePath, $renderError)) {
+    if (!crf_1a_render_pdf($html, $pdfAbsolutePath, $renderError, true)) {
         throw new RuntimeException($renderError ?: 'Unable to generate the CRF PDF.');
     }
 
     $snapshot = json_encode([
         'raw' => $record,
         'display' => $values,
+        'manual_overrides' => ['remarks_html' => $inputs['remarks_html']],
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
     $pdfHash = hash_file('sha256', $pdfAbsolutePath);
     if ($pdfHash === false) {

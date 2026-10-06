@@ -22,6 +22,192 @@ function crf_1a_issuance_kinds(): array
     return ['Original', 'Corrected', 'Reprint'];
 }
 
+/** Format a displayed CRF entry without changing stored values. */
+function crf_1a_manual_entry_html($value): string
+{
+    $text = (string)($value ?? '');
+    if (trim($text) === '') return '&nbsp;';
+    $uppercase = function_exists('mb_strtoupper') ? mb_strtoupper($text, 'UTF-8') : strtoupper($text);
+    return '<span class="crf-manual-entry" style="font-weight:700;text-transform:uppercase">' . htmlspecialchars($uppercase, ENT_QUOTES, 'UTF-8') . '</span>';
+}
+
+/** Keep only the formatting supported by the remarks editor. */
+function crf_1a_sanitize_remarks_html($html): string
+{
+    if (!is_string($html) || trim($html) === '') return '';
+    if (!class_exists(DOMDocument::class)) {
+        $plain = trim(strip_tags(html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+        return $plain === '' ? '' : nl2br(htmlspecialchars($plain, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'), false);
+    }
+
+    $dom = new DOMDocument('1.0', 'UTF-8');
+    $previous = libxml_use_internal_errors(true);
+    $dom->loadHTML('<?xml encoding="UTF-8"><!doctype html><html><body><div id="remarks-root">' . $html . '</div></body></html>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+    libxml_clear_errors();
+    libxml_use_internal_errors($previous);
+    $xpath = new DOMXPath($dom);
+    $root = $xpath->query('//*[@id="remarks-root"]')?->item(0);
+    if (!$root) return '';
+
+    $allowed = ['p', 'div', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'sub', 'sup', 'span', 'ol', 'ul', 'li', 'blockquote'];
+    $discarded = ['script', 'style', 'iframe', 'object', 'embed', 'svg', 'math', 'video', 'audio', 'form', 'input', 'button'];
+    $cleanStyle = static function (string $style): string {
+        $fonts = ['Arial', 'Calibri', 'Cambria', 'Georgia', 'Times New Roman', 'Courier New', 'Verdana', 'Tahoma'];
+        $safe = [];
+        foreach (explode(';', $style) as $declaration) {
+            $colon = strpos($declaration, ':');
+            if ($colon === false) continue;
+            $property = strtolower(trim(substr($declaration, 0, $colon)));
+            $value = trim(substr($declaration, $colon + 1));
+            if (in_array($property, ['color', 'background-color'], true) && preg_match('/^#[0-9a-f]{3}(?:[0-9a-f]{3})?(?:[0-9a-f]{2})?$/i', $value)) {
+                $safe[] = $property . ':' . strtolower($value);
+            } elseif ($property === 'font-size' && preg_match('/^(\d+(?:\.\d+)?)pt$/i', $value, $match) && (float)$match[1] >= 6 && (float)$match[1] <= 48) {
+                $safe[] = 'font-size:' . (float)$match[1] . 'pt';
+            } elseif ($property === 'font-family') {
+                $family = trim($value, " \t\n\r\0\x0B\"'");
+                foreach ($fonts as $font) {
+                    if (strcasecmp($family, $font) === 0) {
+                        $safe[] = 'font-family:"' . $font . '"';
+                        break;
+                    }
+                }
+            }
+        }
+        return implode(';', $safe);
+    };
+    $copyChildren = static function (DOMNode $source, DOMNode $destination) use (&$copyChildren, $dom, $allowed, $discarded, $cleanStyle): void {
+        foreach ($source->childNodes as $child) {
+            if ($child instanceof DOMText) {
+                $destination->appendChild($dom->createTextNode($child->nodeValue ?? ''));
+                continue;
+            }
+            if (!$child instanceof DOMElement) continue;
+            $tag = strtolower($child->tagName);
+            if (in_array($tag, $discarded, true)) continue;
+            if (!in_array($tag, $allowed, true)) {
+                $copyChildren($child, $destination);
+                continue;
+            }
+            $outputTag = $tag === 'div' ? 'p' : $tag;
+            $element = $dom->createElement($outputTag);
+            if ($child->hasAttribute('style')) {
+                $style = $cleanStyle($child->getAttribute('style'));
+                if ($style !== '') $element->setAttribute('style', $style);
+            }
+            $destination->appendChild($element);
+            $copyChildren($child, $element);
+        }
+    };
+
+    $cleanRoot = $dom->createElement('div');
+    $copyChildren($root, $cleanRoot);
+    $result = '';
+    foreach ($cleanRoot->childNodes as $child) $result .= $dom->saveHTML($child);
+    $plain = preg_replace('/[\s\x{00a0}\x{200b}]+/u', '', strip_tags($result)) ?? '';
+    return $plain === '' ? '' : $result;
+}
+
+/** Estimate remarks page space in base-font character units. */
+function crf_1a_remarks_weight(string $html): float
+{
+    $tokens = preg_split('~(<[^>]+>|[^<]+)~u', $html, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY) ?: [];
+    $stack = [];
+    $weight = 0.0;
+    foreach ($tokens as $token) {
+        if ($token[0] === '<') {
+            $closing = preg_match('~^<\s*/~', $token) === 1;
+            preg_match('~^<\s*/?\s*([a-z0-9]+)~i', $token, $match);
+            $tag = strtolower($match[1] ?? '');
+            if ($tag === 'br') { $weight += 82; continue; }
+            if (in_array($tag, ['p', 'div', 'li', 'blockquote'], true)) $weight += 28;
+            if ($closing) {
+                for ($i = count($stack) - 1; $i >= 0; $i--) {
+                    if ($stack[$i]['tag'] === $tag) { array_splice($stack, $i, 1); break; }
+                }
+            } elseif (!preg_match('~/>$~', $token)) {
+                $size = preg_match('~font-size\s*:\s*(\d+(?:\.\d+)?)pt~i', $token, $sizeMatch) ? (float)$sizeMatch[1] : null;
+                $stack[] = ['tag' => $tag, 'size' => $size];
+            }
+            continue;
+        }
+        $text = html_entity_decode($token, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $fontScale = 1.0;
+        for ($i = count($stack) - 1; $i >= 0; $i--) {
+            if ($stack[$i]['size'] !== null) { $fontScale = max(0.6, $stack[$i]['size'] / 10.5); break; }
+        }
+        $characters = preg_split('//u', $text, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        foreach ($characters as $character) $weight += ($character === "\n" || $character === "\r") ? 82 : $fontScale;
+    }
+    return $weight;
+}
+
+/** Split a safe remarks fragment while carrying inline formatting across page breaks. */
+function crf_1a_split_remarks_html(string $html, int $firstLimit, int $continuationLimit = 3600): array
+{
+    $tokens = preg_split('~(<[^>]+>|[^<]+)~u', $html, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY) ?: [];
+    $pages = [];
+    $output = '';
+    $units = 0.0;
+    $limit = max(1, $firstLimit);
+    $stack = [];
+    $plainInPage = false;
+    $closeStack = static function (array $stack): string { return implode('', array_map(static fn($item) => '</' . $item['tag'] . '>', array_reverse($stack))); };
+    foreach ($tokens as $token) {
+        if ($token[0] === '<') {
+            $closing = preg_match('~^<\s*/~', $token) === 1;
+            preg_match('~^<\s*/?\s*([a-z0-9]+)~i', $token, $match);
+            $tag = strtolower($match[1] ?? '');
+            $output .= $token;
+            if ($tag === 'br') $units += 82;
+            elseif (in_array($tag, ['p', 'div', 'li', 'blockquote'], true)) $units += 28;
+            if ($closing) {
+                for ($i = count($stack) - 1; $i >= 0; $i--) {
+                    if ($stack[$i]['tag'] === $tag) { array_splice($stack, $i, 1); break; }
+                }
+            } elseif (!preg_match('~/>$~', $token)) {
+                $size = preg_match('~font-size\s*:\s*(\d+(?:\.\d+)?)pt~i', $token, $sizeMatch) ? (float)$sizeMatch[1] : null;
+                $stack[] = ['tag' => $tag, 'open' => $token, 'size' => $size];
+            }
+            continue;
+        }
+        $text = html_entity_decode($token, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $fontScale = 1.0;
+        for ($i = count($stack) - 1; $i >= 0; $i--) {
+            if ($stack[$i]['size'] !== null) { $fontScale = max(0.6, $stack[$i]['size'] / 10.5); break; }
+        }
+        $characters = preg_split('//u', $text, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        foreach ($characters as $character) {
+            if ($units >= $limit && $plainInPage) {
+                $pages[] = $output . $closeStack($stack);
+                $output = implode('', array_map(static fn($item) => $item['open'], $stack));
+                $units = 0.0;
+                $limit = max(1, $continuationLimit);
+                $plainInPage = false;
+            }
+            $output .= htmlspecialchars($character, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
+            $units += ($character === "\n" || $character === "\r") ? 82 : $fontScale;
+            if (!preg_match('/[\s\x{00a0}]/u', $character)) $plainInPage = true;
+        }
+    }
+    $last = $output . $closeStack($stack);
+    if (trim(strip_tags($last)) !== '') $pages[] = $last;
+    return $pages;
+}
+
+function crf_1a_remarks_page_plan($html, int $singleLimit = 1200, int $firstLimit = 2300, int $continuationLimit = 3600): array
+{
+    $safe = crf_1a_sanitize_remarks_html($html);
+    if ($safe === '') return [];
+    if (crf_1a_remarks_weight($safe) <= $singleLimit) return [$safe];
+    return crf_1a_split_remarks_html($safe, $firstLimit, $continuationLimit);
+}
+
+function crf_1a_remarks_height_mm(string $html): float
+{
+    $weight = crf_1a_remarks_weight($html);
+    return $weight > 0 ? max(4.5, ceil($weight / 82) * 4.5) : 0.0;
+}
+
 function crf_1a_duplicate_key(int $birthRecordId, string $amountPaid, string $orNumber, string $datePaid, string $issueDate): string
 {
     return hash('sha256', implode('|', [$birthRecordId, number_format((float)$amountPaid, 2, '.', ''), trim($orNumber), $datePaid, $issueDate]));
@@ -118,19 +304,17 @@ function crf_1a_marriage_date(array $record): string
 
 function crf_1a_place_of_birth(array $record): string
 {
-    $place = trim((string)($record['child_place_of_birth'] ?? ''));
-    $barangay = trim((string)($record['barangay'] ?? ''));
-    $placeType = trim((string)($record['place_type'] ?? ''));
+    $config = crf_1a_config();
+    $municipality = trim((string)($record['municipality'] ?? ''));
+    $province = trim((string)($record['province'] ?? ''));
+    if ($municipality === '') $municipality = trim((string)($config['municipality'] ?? ''));
+    if ($province === '') $province = trim((string)($config['province'] ?? ''));
+    $place = array_values(array_unique(array_filter(
+        [$municipality, $province],
+        static fn(string $value): bool => $value !== ''
+    )));
 
-    if ($place !== '') {
-        return $barangay !== '' && stripos($place, $barangay) === false
-            ? $place . ', ' . $barangay
-            : $place;
-    }
-    if ($placeType !== '' && in_array($placeType, ['Home', 'Other'], true)) {
-        return $barangay !== '' ? $placeType . ', ' . $barangay : $placeType;
-    }
-    return $barangay;
+    return implode(', ', $place);
 }
 
 function crf_1a_record_values(array $record): array
@@ -189,6 +373,8 @@ function crf_1a_edge_path(): ?string
 
 function crf_1a_render_document_html(array $record, array $inputs, string $crfNumber): string
 {
+    $inputs['remarks_html'] = crf_1a_sanitize_remarks_html($inputs['remarks_html'] ?? '');
+    $remarksPages = crf_1a_remarks_page_plan($inputs['remarks_html']);
     if (crf_1a_edge_path() === null) return crf_1a_render_table_pdf_html(
         crf_1a_config(),
         'Civil Registry Form No. 1A',
@@ -219,21 +405,21 @@ function crf_1a_render_document_html(array $record, array $inputs, string $crfNu
     $e = static function ($value): string {
         return htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
     };
-    $line = static function ($value) use ($e): string {
+    $line = static function ($value, bool $manual = false) use ($e): string {
         $value = trim((string)($value ?? ''));
-        return '<span class="filled-line">' . ($value !== '' ? $e($value) : '&nbsp;') . '</span>';
+        return '<span class="filled-line">' . ($manual ? crf_1a_manual_entry_html($value) : ($value !== '' ? $e($value) : '&nbsp;')) . '</span>';
     };
-    $shortLine = static function ($value) use ($e): string {
+    $shortLine = static function ($value, bool $manual = false) use ($e): string {
         $value = trim((string)($value ?? ''));
-        return '<span class="short-line">' . ($value !== '' ? $e($value) : '&nbsp;') . '</span>';
+        return '<span class="short-line">' . ($manual ? crf_1a_manual_entry_html($value) : ($value !== '' ? $e($value) : '&nbsp;')) . '</span>';
     };
-    $field = static function (string $label, $value) use ($line, $e): string {
+    $field = static function (string $label, $value, bool $manual = true) use ($line, $e): string {
         return '<div class="data-row"><span class="data-label">' . $e($label)
             . '</span><span class="data-colon">:</span><span class="data-value">'
-            . $line($value) . '</span></div>';
+            . $line($value, $manual) . '</span></div>';
     };
     $requester = trim((string)($inputs['requester_name'] ?? ''));
-    $requesterLine = '<span class="requester-line">' . ($requester !== '' ? $e($requester) : '&nbsp;') . '</span>';
+    $requesterLine = '<span class="requester-line">' . crf_1a_manual_entry_html($requester) . '</span>';
 
     $logoSeal = crf_1a_asset_data_uri($cfg['logo_seal']);
     $logoBaggao = crf_1a_asset_data_uri($cfg['logo_baggao']);
@@ -250,14 +436,32 @@ function crf_1a_render_document_html(array $record, array $inputs, string $crfNu
     $issueTimestamp = strtotime($issueDate);
     $issueDateText = $issueTimestamp === false ? $e($issueDate) : $e(date('F j, Y', $issueTimestamp));
     $amount = number_format((float)($inputs['amount_paid'] ?? 0), 2);
+    $remarksTop = 170;
+    $singleRemarksHeight = count($remarksPages) === 1 ? crf_1a_remarks_height_mm($remarksPages[0]) : 0;
+    $signatureTop = count($remarksPages) === 1 ? max(178, $remarksTop + $singleRemarksHeight + 10) : 178;
+    $remarksBlock = static function (string $html, float $top, bool $continued = false): string {
+        if ($html === '') return '';
+        return '<div class="doc-remarks" style="top:' . $top . 'mm"><div class="doc-remarks-heading">'
+            . ($continued ? 'REMARKS (CONTINUED)' : 'REMARKS') . '</div><div class="doc-remarks-content">' . $html . '</div></div>';
+    };
+    $closing = static function (array $positions) use ($inputs, $cfg, $crfNumber, $e, $line, $amount): string {
+        $registrarName = array_key_exists('mcr_full_name', $inputs) ? $inputs['mcr_full_name'] : $cfg['mcr_full_name'];
+        $registrarTitle = array_key_exists('mcr_title', $inputs) ? $inputs['mcr_title'] : $cfg['mcr_title'];
+        return '<div class="signature-block" style="top:' . $positions['signature'] . 'mm"><strong>' . crf_1a_manual_entry_html($registrarName) . '</strong><div>' . crf_1a_manual_entry_html($registrarTitle) . '</div></div>'
+            . '<div class="certified-block" style="top:' . $positions['certified'] . 'mm"><div class="certified-heading"><span>Certified by:</span><span class="certified-line">' . crf_1a_manual_entry_html($inputs['certified_by_name'] ?? '') . '</span></div><div class="certified-position">' . crf_1a_manual_entry_html($inputs['certified_by_position'] ?? '') . '</div></div>'
+            . '<div class="payment-block" style="top:' . $positions['payment'] . 'mm"><div class="payment-row"><span class="payment-label">Amount paid</span><span class="payment-colon">:</span><span class="payment-value">' . $line($amount, true) . '</span></div><div class="payment-row"><span class="payment-label">O.R. Number</span><span class="payment-colon">:</span><span class="payment-value">' . $line($inputs['or_number'] ?? '', true) . '</span></div><div class="payment-row"><span class="payment-label">Date paid</span><span class="payment-colon">:</span><span class="payment-value">' . $line($inputs['date_paid'] ?? '', true) . '</span></div></div>'
+            . '<div class="note" style="top:' . $positions['note'] . 'mm"><strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>System ID: ' . $e($crfNumber) . '</small></div>';
+    };
+    $mainClosing = count($remarksPages) > 1 ? '' : $closing(['signature' => $signatureTop, 'certified' => $signatureTop + 21, 'payment' => $signatureTop + 41, 'note' => $signatureTop + 65]);
 
-    return '<!doctype html>
+    $html = '<!doctype html>
 <html><head><meta charset="utf-8"><style>
-@page { size: A4 portrait; margin: 0; }
+@page { size: 215.9mm 330.2mm; margin: 0; }
 * { box-sizing: border-box; }
-html, body { width: 210mm; min-height: 297mm; margin: 0; padding: 0; background: #fff; }
+html, body { width: 215.9mm; min-height: 330.2mm; margin: 0; padding: 0; background: #fff; }
 body { font-family: "Courier New", Courier, monospace; color: #111; font-size: 9.5pt; }
- .sheet { width: 210mm; height: 297mm; max-height: 297mm; padding: 0; position: relative; overflow: hidden; page-break-after: avoid; break-after: avoid; }
+ .sheet { width: 215.9mm; height: 330.2mm; max-height: 330.2mm; padding: 0; position: relative; overflow: hidden; page-break-after: avoid; break-after: avoid; }
+.sheet-continuation { page-break-before: always; break-before: page; }
  .header { position: absolute; top: 5mm; left: 14mm; right: 12mm; height: 30mm; }
  .header-logo { position: absolute; display: block; }
  .header-logo-seal { left: 0; top: 1.5mm; width: 27mm; height: 27mm; }
@@ -288,6 +492,7 @@ body { font-family: "Courier New", Courier, monospace; color: #111; font-size: 9
 .data-colon { display: table-cell; width: 4mm; vertical-align: baseline; }
 .data-value { display: table-cell; width: auto; vertical-align: baseline; }
  .filled-line { display: inline-block; width: 100%; min-height: 3.8mm; border-bottom: 1px solid #222; white-space: nowrap !important; overflow: hidden !important; text-overflow: clip; vertical-align: bottom; }
+ .crf-manual-entry { font-weight: 700; text-transform: uppercase; }
  .requester-line { display: inline-block; width: 62mm; min-height: 3.8mm; border-bottom: 1px solid #222; white-space: nowrap !important; overflow: hidden !important; text-overflow: clip; vertical-align: bottom; }
  .certification { position: absolute; top: 154mm; left: 29mm; right: 20mm; margin: 0; line-height: 1.3; }
  .signature-block { position: absolute; top: 178mm; right: 30mm; margin: 0; width: 62mm; text-align: center; font-size: 9pt; }
@@ -306,6 +511,12 @@ body { font-family: "Courier New", Courier, monospace; color: #111; font-size: 9
 .payment-row .payment-value { display: table-cell; width: auto; vertical-align: baseline; }
 .payment-row .filled-line { width: 38mm; }
  .note { position: absolute; left: 21mm; top: 243mm; width: 168mm; margin: 0; font-size: 8pt; line-height: 1.1; }
+.doc-remarks { position:absolute; left:21mm; right:21mm; margin:0; color:#111; font-family:Arial,sans-serif; font-size:10.5pt; line-height:1.25; overflow-wrap:anywhere; word-break:break-word; }
+.doc-remarks-heading { margin:0 0 2mm; font-family:"Courier New",monospace; font-size:9.5pt; font-weight:700; text-transform:uppercase; }
+.doc-remarks-content { white-space:normal; overflow-wrap:anywhere; word-break:break-word; }
+.doc-remarks-content p { margin:0 0 1.5mm; }.doc-remarks-content p:last-child { margin-bottom:0; }
+.doc-continuation-heading { position:absolute; top:10mm; left:21mm; right:21mm; font-size:11pt; }
+.doc-continuation-id { float:right; font-size:8pt; }
 </style></head><body><div class="sheet">
  <div class="header"><div class="header-logo header-logo-seal">' . $logoSealHtml . '</div><div class="header-logo header-logo-baggao">' . $logoBaggaoHtml . '</div><div class="header-copy">
  <div class="republic">Republic of the Philippines</div>
@@ -316,14 +527,14 @@ body { font-family: "Courier New", Courier, monospace; color: #111; font-size: 9
  </div><div class="header-right"><div class="header-logo header-logo-pilipinas">' . $logoPilipinasHtml . '</div><div class="header-meta">CRF ID<strong>' . $e($crfNumber) . '</strong></div></div></div>
 <div class="red-rule"></div>
 <div class="form-title">Civil Registry Form No. 1A</div><div class="form-subtitle">(Birth-Available)</div>
- <div class="date-line">Date: ' . $e($issueDateText) . '</div>
+ <div class="date-line">Date: ' . crf_1a_manual_entry_html($issueDateText) . '</div>
  <div class="intro"><strong>TO WHOM IT MAY CONCERN:</strong><div class="intro-statement">
  We certify that, among others, the following facts of birth<br>appear in our Register of Births on page '
-     . $shortLine($inputs['page_number'] ?? '') . ' Book number ' . $shortLine($inputs['book_number'] ?? '') . '.</div></div>
+     . $shortLine($inputs['page_number'] ?? '', true) . ' Book number ' . $shortLine($inputs['book_number'] ?? '', true) . '.</div></div>
 <div class="data-grid">'
     . $field('Registry Number', $values['registry_no'])
     . $field('Date of Registration', $values['date_of_registration'])
-    . $field('Population Reference No.', $inputs['population_reference_no'] ?? '')
+    . $field('Population Reference No.', $inputs['population_reference_no'] ?? '', true)
     . $field('Name of Child', $values['name_of_child'])
     . $field('Sex', $values['sex'])
     . $field('Date of Birth', $values['date_of_birth'])
@@ -335,20 +546,27 @@ body { font-family: "Courier New", Courier, monospace; color: #111; font-size: 9
     . $field('Date of marriage of parents', $values['parents_marriage_date'])
     . $field('Place of Marriage of parents', $values['parents_marriage_place'])
     . '</div>
- <div class="certification">This certification is issued to ' . $requesterLine . ' upon his/her<br>request.</div>
-<div class="signature-block"><strong>' . $e(array_key_exists('mcr_full_name', $inputs) ? $inputs['mcr_full_name'] : $cfg['mcr_full_name']) . '</strong><div>' . $e(array_key_exists('mcr_title', $inputs) ? $inputs['mcr_title'] : $cfg['mcr_title']) . '</div></div>
- <div class="certified-block"><div class="certified-heading"><span>Certified by:</span><span class="certified-line">' . $e($inputs['certified_by_name'] ?? '') . '</span></div><div class="certified-position">' . $e($inputs['certified_by_position'] ?? '') . '</div></div>
-<div class="payment-block"><div class="payment-row"><span class="payment-label">Amount paid</span><span class="payment-colon">:</span><span class="payment-value">' . $line($amount) . '</span></div>
-<div class="payment-row"><span class="payment-label">O.R. Number</span><span class="payment-colon">:</span><span class="payment-value">' . $line($inputs['or_number'] ?? '') . '</span></div>
- <div class="payment-row"><span class="payment-label">Date paid</span><span class="payment-colon">:</span><span class="payment-value">' . $line($inputs['date_paid'] ?? '') . '</span></div></div>
- <div class="note"><strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>System ID: ' . $e($crfNumber) . '</small></div>
-</div></body></html>';
+ <div class="certification">This certification is issued to ' . $requesterLine . ' upon his/her<br>request.</div>'
+    . $remarksBlock($remarksPages[0] ?? '', $remarksTop) . $mainClosing . '
+</div>';
+    if (count($remarksPages) > 1) {
+        foreach (array_slice($remarksPages, 1) as $index => $chunk) {
+            $height = crf_1a_remarks_height_mm($chunk);
+            $last = $index === count($remarksPages) - 2;
+            $footerTop = 35 + $height + 12;
+            $html .= '<div class="sheet sheet-continuation"><div class="doc-continuation-heading">Civil Registry Form No. 1A - continuation<span class="doc-continuation-id">CRF ID ' . $e($crfNumber) . '</span></div>'
+                . $remarksBlock($chunk, 35, true)
+                . ($last ? $closing(['signature' => $footerTop, 'certified' => $footerTop + 21, 'payment' => $footerTop + 41, 'note' => $footerTop + 65]) : '')
+                . '</div>';
+        }
+    }
+    return $html . '</body></html>';
 }
 
 /**
  * Render a LibreOffice-safe PDF document. LibreOffice's HTML importer does
  * not reliably support flexbox or positioned elements, so this template uses
- * fixed-width tables and flow rows for the same A4 geometry as the browser preview.
+ * fixed-width tables and flow rows for the same legal-size geometry as the browser preview.
  */
 function crf_1a_render_table_pdf_html(
     array $cfg,
@@ -358,16 +576,19 @@ function crf_1a_render_table_pdf_html(
     string $registerNoun,
     array $fields,
     array $inputs,
-    string $crfNumber
+    string $crfNumber,
+    array $multilineFieldLines = []
 ): string {
+    $inputs['remarks_html'] = crf_1a_sanitize_remarks_html($inputs['remarks_html'] ?? '');
+    $remarksPages = crf_1a_remarks_page_plan($inputs['remarks_html']);
     $e = static fn($value): string => htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
-    $valueLine = static function ($value) use ($e): string {
+    $valueLine = static function ($value, bool $manual = false) use ($e): string {
         $value = trim((string)($value ?? ''));
-        return '<span class="pdf-line">' . ($value !== '' ? $e($value) : '&nbsp;') . '</span>';
+        return '<span class="pdf-line">' . ($manual ? crf_1a_manual_entry_html($value) : ($value !== '' ? $e($value) : '&nbsp;')) . '</span>';
     };
-    $shortLine = static function ($value) use ($e): string {
+    $shortLine = static function ($value, bool $manual = false) use ($e): string {
         $value = trim((string)($value ?? ''));
-        return '<span class="pdf-short-line">' . ($value !== '' ? $e($value) : '&nbsp;') . '</span>';
+        return '<span class="pdf-short-line">' . ($manual ? crf_1a_manual_entry_html($value) : ($value !== '' ? $e($value) : '&nbsp;')) . '</span>';
     };
     $logo = static function (string $path, string $alt, string $width, string $height) use ($e): string {
         $uri = crf_1a_asset_data_uri($path);
@@ -392,38 +613,54 @@ function crf_1a_render_table_pdf_html(
 
     $issueTimestamp = strtotime((string)($inputs['issue_date'] ?? date('Y-m-d')));
     $issueDateText = $issueTimestamp === false
-        ? $e($inputs['issue_date'] ?? '')
-        : $e(date('F j, Y', $issueTimestamp));
+        ? crf_1a_manual_entry_html($inputs['issue_date'] ?? '')
+        : crf_1a_manual_entry_html(date('F j, Y', $issueTimestamp));
     $amount = number_format((float)($inputs['amount_paid'] ?? 0), 2);
     $requester = trim((string)($inputs['requester_name'] ?? ''));
-    $requesterLine = '<span class="pdf-requester-line">' . ($requester !== '' ? $e($requester) : '&nbsp;') . '</span>';
+    $requesterLine = '<span class="pdf-requester-line">' . crf_1a_manual_entry_html($requester) . '</span>';
     $officeName = trim((string)($cfg['office_name'] ?? 'OFFICE OF THE MUNICIPAL CIVIL REGISTRAR'));
     $officeHtml = $officeName === 'OFFICE OF THE MUNICIPAL CIVIL REGISTRAR'
         ? 'OFFICE OF THE MUNICIPAL CIVIL<br>REGISTRAR'
         : $e($officeName);
 
+    $causePlan = isset($multilineFieldLines['Cause of Death']) && function_exists('crf_2a_cause_page_plan')
+        ? crf_2a_cause_page_plan($multilineFieldLines['Cause of Death'])
+        : null;
+    $causeField = static function (array $lines, string $label = 'Cause of Death') use ($e): string {
+        $lineHtml = implode('', array_map(static function ($line): string {
+            return '<div class="pdf-cause-line">' . crf_1a_manual_entry_html($line) . '</div>';
+        }, $lines));
+        return '<table class="pdf-cause-block" cellspacing="0" cellpadding="0" border="0"><tr>'
+            . '<td class="pdf-cause-label">' . $e($label) . '</td><td class="pdf-cause-colon">:</td>'
+            . '<td class="pdf-cause-lines">' . $lineHtml . '</td></tr></table>';
+    };
     $fieldRows = '';
     foreach ($fields as $label => $value) {
+        if ($causePlan !== null && $label === 'Cause of Death') {
+            $fieldRows .= $causeField($causePlan['first_page_lines']);
+            continue;
+        }
         $fieldValue = trim((string)($value ?? ''));
+        $fieldDisplay = crf_1a_manual_entry_html($fieldValue);
         $fieldRows .= '<div style="height:4.6mm;line-height:4.6mm;white-space:nowrap;font-size:9pt;overflow:hidden">'
             . '<span style="display:inline-block;width:78mm;vertical-align:bottom">' . $e($label) . '</span>'
             . '<span style="display:inline-block;width:4mm;vertical-align:bottom">:</span>'
             . '<span style="display:inline-block;width:59mm;height:3.8mm;border-bottom:1px solid #222;white-space:nowrap;overflow:hidden;vertical-align:bottom">'
-            . ($fieldValue !== '' ? $e($fieldValue) : '&nbsp;') . '</span>'
+            . $fieldDisplay . '</span>'
             . '</div>';
     }
 
     $introText = 'We certify that, among others, the following facts of ' . $e($subject)
         . '<br>appear in our Register of ' . $e($registerNoun) . ' on page '
-        . $shortLine($inputs['page_number'] ?? '') . ' Book number '
-        . $shortLine($inputs['book_number'] ?? '') . '.';
+        . $shortLine($inputs['page_number'] ?? '', true) . ' Book number '
+        . $shortLine($inputs['book_number'] ?? '', true) . '.';
 
-    return '<!doctype html><html><head><meta charset="utf-8"><style>'
-        . '@page{size:A4 portrait;margin:0}'
+    $html = '<!doctype html><html><head><meta charset="utf-8"><style>'
+        . '@page{size:215.9mm 330.2mm;margin:0}'
         . '*{box-sizing:border-box}'
-        . 'html,body{width:210mm;height:297mm;margin:0;padding:0;background:#fff}'
+        . 'html,body{width:215.9mm;height:330.2mm;margin:0;padding:0;background:#fff}'
         . 'body{font-family:"Courier New",monospace;color:#111;font-size:9.5pt}'
-        . '.pdf-page{width:210mm;height:294mm;border-collapse:collapse;table-layout:fixed}'
+        . '.pdf-page{width:215.9mm;height:327mm;border-collapse:collapse;table-layout:fixed}'
         . '.pdf-page>tbody>tr>td{padding:0;vertical-align:top}'
         . '.top-spacer{height:5mm;line-height:0;font-size:0}'
         . '.header-table{width:100%;height:30mm;border-collapse:collapse;table-layout:fixed}'
@@ -458,13 +695,19 @@ function crf_1a_render_table_pdf_html(
         . '.intro-heading{height:4mm}'
         . '.intro-gap{height:7mm;font-size:0;line-height:0}'
         . '.intro-statement{text-align:center;vertical-align:top}'
+        . '.crf-manual-entry{font-weight:700;text-transform:uppercase}'
         . '.pdf-short-line{display:inline-block;width:12mm;height:3.8mm;border-bottom:1px solid #222;text-align:center;vertical-align:bottom;white-space:nowrap;overflow:hidden}'
         . '.pdf-line{display:inline-block;width:100%;height:3.8mm;border-bottom:1px solid #222;white-space:nowrap;overflow:hidden;vertical-align:bottom}'
+        . '.pdf-cause-block{width:141mm;border-collapse:collapse;table-layout:fixed;font-size:9pt;line-height:1.05}.pdf-cont-page .pdf-cause-block{margin-left:34mm}'
+        . '.pdf-cause-block td{padding:0;vertical-align:top}.pdf-cause-label{width:78mm;height:4.6mm;line-height:4.6mm;white-space:nowrap}'
+        . '.pdf-cause-colon{width:4mm;height:4.6mm;line-height:4.6mm}.pdf-cause-lines{width:59mm;vertical-align:top}'
+        . '.pdf-cause-line{display:block;width:100%;height:4.6mm;line-height:4.6mm;border-bottom:1px solid #222;white-space:pre;overflow:hidden}'
+        . '.pdf-cont-page{page-break-before:always;break-before:page}.pdf-cont-title{height:16mm;padding-left:21mm!important;padding-right:21mm!important;font-size:11pt;line-height:1.2}'
         . '.grid-spacer{height:4.2mm;font-size:0;line-height:0}'
         . '.certification-row{height:24mm;padding:0 20mm 0 29mm!important;line-height:1.3}'
         . '.pdf-requester-line{display:inline-block;width:62mm;height:3.8mm;border-bottom:1px solid #222;white-space:nowrap;overflow:hidden;vertical-align:bottom}'
         . '.signature-row{height:21mm}'
-        . '.signature-table{width:210mm;height:21mm;border-collapse:collapse;table-layout:fixed}'
+        . '.signature-table{width:215.9mm;height:21mm;border-collapse:collapse;table-layout:fixed}'
         . '.signature-table td{padding:0;vertical-align:top}'
         . '.signature-spacer{width:118mm}'
         . '.signature-cell{width:62mm;text-align:center;font-size:9pt}'
@@ -486,6 +729,10 @@ function crf_1a_render_table_pdf_html(
         . '.payment-value .pdf-line{width:38mm}'
         . '.note-row{padding-left:21mm!important;padding-top:0!important}'
         . '.note{width:168mm;font-size:8pt;line-height:1.1}'
+        . '.remarks-row{padding:0 21mm 0 29mm!important;font:10.5pt/1.25 Arial,sans-serif;overflow-wrap:anywhere;word-break:break-word}'
+        . '.remarks-heading{margin:0 0 2mm;font:700 9.5pt "Courier New",monospace;text-transform:uppercase}'
+        . '.remarks-content p{margin:0 0 1.5mm}.remarks-content p:last-child{margin-bottom:0}'
+        . '.remarks-page{page-break-before:always;break-before:page}.remarks-cont-title{height:16mm;padding:0 21mm!important;font:11pt/1.2 "Courier New",monospace}'
         . '</style></head><body><table class="pdf-page" cellspacing="0" cellpadding="0" border="0"><tr><td class="top-spacer">&nbsp;</td></tr>'
         . '<tr><td style="padding-left:14mm;padding-right:12mm;"><table class="header-table" cellspacing="0" cellpadding="0" border="0"><tr>'
         . $leftHeaderHtml
@@ -495,13 +742,56 @@ function crf_1a_render_table_pdf_html(
         . '</tr></table></td></tr><tr><td class="header-gap">&nbsp;</td></tr><tr><td class="rule-row"><div class="red-rule">&nbsp;</div></td></tr><tr><td class="after-rule">&nbsp;</td></tr>'
         . '<tr><td class="title-row">' . $e($title) . '</td></tr><tr><td class="subtitle-row">' . $e($subtitle) . '</td></tr><tr><td class="date-row">Date: ' . $issueDateText . '</td></tr>'
         . '<tr><td class="intro-row"><table class="intro-table" cellspacing="0" cellpadding="0" border="0"><tr><td class="intro-heading"><strong>TO WHOM IT MAY CONCERN:</strong></td></tr><tr><td class="intro-gap">&nbsp;</td></tr><tr><td class="intro-statement">' . $introText . '</td></tr></table></td></tr>'
-        . '<tr><td><div style="width:141mm;margin-left:34mm">' . $fieldRows . '</div></td></tr><tr><td class="grid-spacer">&nbsp;</td></tr>'
-        . '<tr><td class="certification-row">This certification is issued to ' . $requesterLine . ' upon his/her<br>request.</td></tr>'
-        . '<tr><td class="signature-row"><table class="signature-table" cellspacing="0" cellpadding="0" border="0"><tr><td class="signature-spacer">&nbsp;</td><td class="signature-cell"><strong>' . $e($inputs['mcr_full_name'] ?? '') . '</strong><div>' . $e($inputs['mcr_title'] ?? '') . '</div></td><td class="signature-right-spacer">&nbsp;</td></tr></table></td></tr>'
-        . '<tr><td class="certified-row"><table class="certified-table" cellspacing="0" cellpadding="0" border="0"><tr><td><table class="certified-heading" cellspacing="0" cellpadding="0" border="0"><tr><td class="certified-label">Certified by:</td><td class="certified-line">' . $e($inputs['certified_by_name'] ?? '') . '</td></tr></table><div class="certified-position">' . $e($inputs['certified_by_position'] ?? '') . '</div></td></tr></table></td></tr>'
-        . '<tr><td class="payment-row"><table class="payment-table" cellspacing="0" cellpadding="0" border="0"><tr><td class="payment-label">Amount paid</td><td class="payment-colon">:</td><td class="payment-value">' . $valueLine($amount) . '</td></tr><tr><td class="payment-label">O.R. Number</td><td class="payment-colon">:</td><td class="payment-value">' . $valueLine($inputs['or_number'] ?? '') . '</td></tr><tr><td class="payment-label">Date paid</td><td class="payment-colon">:</td><td class="payment-value">' . $valueLine($inputs['date_paid'] ?? '') . '</td></tr></table></td></tr>'
-        . '<tr><td class="note-row"><div class="note"><strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>System ID: ' . $e($crfNumber) . '</small></div></td></tr>'
-        . '</table></body></html>';
+        . '<tr><td><div style="width:141mm;margin-left:34mm">' . $fieldRows . '</div></td></tr>';
+
+    $certificationRow = '<tr><td class="grid-spacer">&nbsp;</td></tr>'
+        . '<tr><td class="certification-row">This certification is issued to ' . $requesterLine . ' upon his/her<br>request.</td></tr>';
+    $remarksRow = static function (string $html, bool $continued = false): string {
+        if ($html === '') return '';
+        return '<tr><td class="remarks-row"><div class="remarks-heading">' . ($continued ? 'REMARKS (CONTINUED)' : 'REMARKS') . '</div><div class="remarks-content">' . $html . '</div></td></tr>';
+    };
+    $closingRows = '<tr><td class="signature-row"><table class="signature-table" cellspacing="0" cellpadding="0" border="0"><tr><td class="signature-spacer">&nbsp;</td><td class="signature-cell"><strong>' . crf_1a_manual_entry_html($inputs['mcr_full_name'] ?? '') . '</strong><div>' . crf_1a_manual_entry_html($inputs['mcr_title'] ?? '') . '</div></td><td class="signature-right-spacer">&nbsp;</td></tr></table></td></tr>'
+        . '<tr><td class="certified-row"><table class="certified-table" cellspacing="0" cellpadding="0" border="0"><tr><td><table class="certified-heading" cellspacing="0" cellpadding="0" border="0"><tr><td class="certified-label">Certified by:</td><td class="certified-line">' . crf_1a_manual_entry_html($inputs['certified_by_name'] ?? '') . '</td></tr></table><div class="certified-position">' . crf_1a_manual_entry_html($inputs['certified_by_position'] ?? '') . '</div></td></tr></table></td></tr>'
+        . '<tr><td class="payment-row"><table class="payment-table" cellspacing="0" cellpadding="0" border="0"><tr><td class="payment-label">Amount paid</td><td class="payment-colon">:</td><td class="payment-value">' . $valueLine($amount, true) . '</td></tr><tr><td class="payment-label">O.R. Number</td><td class="payment-colon">:</td><td class="payment-value">' . $valueLine($inputs['or_number'] ?? '', true) . '</td></tr><tr><td class="payment-label">Date paid</td><td class="payment-colon">:</td><td class="payment-value">' . $valueLine($inputs['date_paid'] ?? '', true) . '</td></tr></table></td></tr>'
+        . '<tr><td class="note-row"><div class="note"><strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>System ID: ' . $e($crfNumber) . '</small></div></td></tr>';
+
+    if ($causePlan === null || $causePlan['continuation_pages'] === []) {
+        $firstRemarks = $remarksPages[0] ?? '';
+        if (count($remarksPages) > 1) {
+            $html .= $certificationRow . $remarksRow($firstRemarks);
+            $html .= '</table>';
+            foreach (array_slice($remarksPages, 1) as $index => $chunk) {
+                $finalPage = $index === count($remarksPages) - 2;
+                $html .= '<table class="pdf-page pdf-cont-page remarks-page" cellspacing="0" cellpadding="0" border="0"><tr><td class="top-spacer">&nbsp;</td></tr>'
+                    . '<tr><td class="remarks-cont-title">Civil Registry Form No. ' . $e(str_replace(['Civil Registry Form No. ', ' (Birth-Available)', ' (Death-Available)', ' (Marriage-Available)'], '', $title)) . ' - continuation <span style="float:right;font-size:8pt">CRF ID: ' . $e($crfNumber) . '</span></td></tr>'
+                    . $remarksRow($chunk, true) . ($finalPage ? $closingRows : '') . '</table>';
+            }
+            return $html . '</body></html>';
+        }
+        return $html . $certificationRow . $remarksRow($firstRemarks) . $closingRows . '</table></body></html>';
+    }
+
+    $html .= '</table>';
+    foreach ($causePlan['continuation_pages'] as $continuation) {
+        $continuationLines = $continuation['lines'];
+        $continuationCause = $continuationLines
+            ? '<tr><td>' . $causeField($continuationLines, 'Cause of Death (continued)') . '</td></tr>'
+            : '';
+        $html .= '<table class="pdf-page pdf-cont-page" cellspacing="0" cellpadding="0" border="0"><tr><td class="top-spacer">&nbsp;</td></tr>'
+            . '<tr><td class="pdf-cont-title">Civil Registry Form No. 2A — continuation <span style="float:right;font-size:8pt">CRF ID: ' . $e($crfNumber) . '</span></td></tr>'
+            . $continuationCause
+            . ($continuation['include_footer'] ? $certificationRow . $remarksRow($remarksPages[0] ?? '') . (count($remarksPages) > 1 ? '' : $closingRows) : '')
+            . '</table>';
+    }
+    if (count($remarksPages) > 1) {
+        foreach (array_slice($remarksPages, 1) as $index => $chunk) {
+            $finalPage = $index === count($remarksPages) - 2;
+            $html .= '<table class="pdf-page pdf-cont-page remarks-page" cellspacing="0" cellpadding="0" border="0"><tr><td class="top-spacer">&nbsp;</td></tr>'
+                . '<tr><td class="remarks-cont-title">' . $e($title) . ' - continuation <span style="float:right;font-size:8pt">CRF ID: ' . $e($crfNumber) . '</span></td></tr>'
+                . $remarksRow($chunk, true) . ($finalPage ? $closingRows : '') . '</table>';
+        }
+    }
+    return $html . '</body></html>';
 }
 
 function crf_1a_output_relative_path(string $year, string $lastName, string $crfNumber): string
@@ -528,7 +818,7 @@ function crf_1a_remove_directory(string $directory): void
     @rmdir($directory);
 }
 
-function crf_1a_render_pdf_with_edge(string $html, string $outputPdf, string $edgePath, ?string &$error = null): bool
+function crf_1a_render_pdf_with_edge(string $html, string $outputPdf, string $edgePath, ?string &$error = null, bool $allowMultiplePages = false): bool
 {
     $tempDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'crf_edge_' . bin2hex(random_bytes(6));
     if (!mkdir($tempDir, 0700, true) && !is_dir($tempDir)) {
@@ -563,7 +853,7 @@ function crf_1a_render_pdf_with_edge(string $html, string $outputPdf, string $ed
         if (!$normalized) {
             throw new RuntimeException('Unable to normalize the generated CRF PDF to one page (pages before=' . $pagesBeforeNormalization . ', after=' . $pagesAfterNormalization . ').');
         }
-        if ($pagesAfterNormalization !== 1) {
+        if ($pagesAfterNormalization < 1 || (!$allowMultiplePages && $pagesAfterNormalization !== 1)) {
             throw new RuntimeException('The generated CRF PDF is not a one-page document (pages before=' . $pagesBeforeNormalization . ', after=' . $pagesAfterNormalization . ').');
         }
         $targetDir = dirname($outputPdf);
@@ -582,11 +872,11 @@ function crf_1a_render_pdf_with_edge(string $html, string $outputPdf, string $ed
     }
 }
 
-function crf_1a_render_pdf(string $html, string $outputPdf, ?string &$error = null): bool
+function crf_1a_render_pdf(string $html, string $outputPdf, ?string &$error = null, bool $allowMultiplePages = false): bool
 {
     $edgePath = crf_1a_edge_path();
     if ($edgePath !== null) {
-        return crf_1a_render_pdf_with_edge($html, $outputPdf, $edgePath, $error);
+        return crf_1a_render_pdf_with_edge($html, $outputPdf, $edgePath, $error, $allowMultiplePages);
     }
 
     $soffice = trim((string)env('LIBREOFFICE_PATH', ''));
@@ -647,7 +937,7 @@ function crf_1a_render_pdf(string $html, string $outputPdf, ?string &$error = nu
         if (!$normalized) {
             throw new RuntimeException('Unable to normalize the generated CRF PDF to one page (pages before=' . $pagesBeforeNormalization . ', after=' . $pagesAfterNormalization . ').');
         }
-        if ($pagesAfterNormalization !== 1) {
+        if ($pagesAfterNormalization < 1 || (!$allowMultiplePages && $pagesAfterNormalization !== 1)) {
             throw new RuntimeException('The generated CRF PDF is not a one-page document (pages before=' . $pagesBeforeNormalization . ', after=' . $pagesAfterNormalization . ').');
         }
 

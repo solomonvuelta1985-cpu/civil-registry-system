@@ -50,6 +50,7 @@ $inputs = [
     'mcr_title' => crf_2a_required('mcr_title', 'Municipal Civil Registrar Position', 100),
     'certified_by_name' => crf_2a_required('certified_by_name', 'Certified By Name', 150),
     'certified_by_position' => crf_2a_required('certified_by_position', 'Certified By Position', 100),
+    'remarks_html' => crf_1a_sanitize_remarks_html($_POST['remarks_html'] ?? ''),
 ];
 if ($inputs['amount_paid'] === '' || !preg_match('/^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/', $inputs['amount_paid'])) json_response(false, 'Amount Paid must be a non-negative amount with up to two decimal places.', null, 422);
 $inputs['amount_paid'] = number_format((float)$inputs['amount_paid'], 2, '.', '');
@@ -144,7 +145,7 @@ try {
     $renderError = null;
     if (!crf_2a_render_pdf($html, $pdfAbsolutePath, $renderError)) throw new RuntimeException($renderError ?: 'Unable to generate the CRF PDF.');
 
-    $snapshot = json_encode(['raw' => $record, 'display' => $values, 'manual_overrides' => ['civil_status' => $values['civil_status'], 'citizenship' => $values['citizenship'], 'cause_of_death' => $values['cause_of_death']]], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+    $snapshot = json_encode(['raw' => $record, 'display' => $values, 'manual_overrides' => ['civil_status' => $values['civil_status'], 'citizenship' => $values['citizenship'], 'cause_of_death' => $values['cause_of_death'], 'remarks_html' => $inputs['remarks_html']]], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
     $hash = hash_file('sha256', $pdfAbsolutePath);
     if ($hash === false) throw new RuntimeException('Unable to checksum the generated CRF PDF.');
     $insert = $pdo->prepare("INSERT INTO crf_2a_issuances

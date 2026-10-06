@@ -1,4 +1,4 @@
-/* CRF No. 1A generator: source lookup, live A4 preview, and immutable issuance. */
+/* CRF No. 1A generator: source lookup, live legal-size preview, and immutable issuance. */
 (function () {
     'use strict';
 
@@ -70,7 +70,7 @@
                         </div>
                         <div class="crf1a-generator-preview-panel">
                             <div class="crf1a-preview-toolbar">
-                                <div class="crf1a-preview-title"><span>Live A4 preview</span><strong id="crf1aPreviewId">ID assigned on generate</strong></div>
+                                <div class="crf1a-preview-title"><span>Live legal-size preview</span><strong id="crf1aPreviewId">ID assigned on generate</strong></div>
                                 <div class="crf1a-preview-controls" aria-label="Preview controls">
                                     <button type="button" class="crf1a-preview-control-btn" data-crf1a-preview-zoom-out title="Zoom out" aria-label="Zoom out"><i data-lucide="zoom-out"></i></button>
                                     <span class="crf1a-preview-zoom-display" data-crf1a-preview-zoom>100%</span>
@@ -100,6 +100,7 @@
             this.modal = this.backdrop.querySelector('.crf1a-generator-modal');
             this.form = this.backdrop.querySelector('#crf1aGeneratorForm');
             this.previewHost = this.backdrop.querySelector('#crf1aPreviewHost');
+            this.remarksEditor = window.CrfRemarksEditor?.attach(this.backdrop, this.form, () => this.renderPreview());
             this.pdfFrame = this.backdrop.querySelector('.crf1a-pdf-frame');
             this.status = this.backdrop.querySelector('#crf1aStatus');
             this.generateButton = this.backdrop.querySelector('#crf1aGenerateButton');
@@ -160,7 +161,7 @@
         }
 
         async openFromIssuance(issuance) {
-            const sourceId = Number(issuance?.birth_record_id) || 0;
+                const sourceId = Number(issuance?.birth_record_id) || 0;
             if (sourceId <= 0) return this.notify('The source birth record is not available.', true);
             this.show();
             this.setStatus('Loading the source birth record for a corrected copy…');
@@ -181,6 +182,8 @@
                 this.setValue('crf1aMcrPosition', issuance.mcr_title || '');
                 this.setValue('crf1aCertifiedName', issuance.certified_by_name || '');
                 this.setValue('crf1aCertifiedPosition', issuance.certified_by_position || '');
+                const remarksField = this.form.elements.namedItem('remarks_html');
+                if (remarksField) remarksField.value = issuance.record_snapshot?.manual_overrides?.remarks_html || '';
                 this.setValue('crf1aIssuanceKind', 'Corrected');
                 this.renderPreview();
                 await this.loadExistingIssuances(sourceId);
@@ -237,6 +240,7 @@
             if (nextPage < 1 || nextPage > this.previewTotalPages) return;
             this.previewCurrentPage = nextPage;
             this.updatePreviewControls();
+            this.previewHost?.querySelectorAll('.crf1a-document')[nextPage - 1]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         updatePreviewControls() {
@@ -253,10 +257,12 @@
         }
 
         applyPreviewTransform() {
-            const documentNode = this.previewHost?.querySelector('.crf1a-document');
-            if (!documentNode) return;
-            documentNode.style.transformOrigin = 'top center';
-            documentNode.style.transform = `scale(${this.previewScale}) rotate(${this.previewRotation}deg)`;
+            const documentNodes = this.previewHost?.querySelectorAll('.crf1a-document');
+            if (!documentNodes?.length) return;
+            documentNodes.forEach(documentNode => {
+                documentNode.style.transformOrigin = 'top center';
+                documentNode.style.transform = `scale(${this.previewScale}) rotate(${this.previewRotation}deg)`;
+            });
         }
 
         async loadExistingIssuances(recordId) {
@@ -388,7 +394,7 @@
                 if (!response.ok || !data.success || !data.data) throw new Error(data.message || 'Generation failed.');
                 const result = data.data;
                 this.backdrop.querySelector('#crf1aPreviewId').textContent = result.crf_number;
-                // Keep the stable browser A4 preview visible after generation.
+                // Keep the stable browser legal-size preview visible after generation.
                 // The immutable PDF is saved and remains available from the records table.
                 this.previewHost.hidden = false;
                 this.backdrop.querySelector('#crf1aPdfViewer').hidden = true;
@@ -426,9 +432,13 @@
                 mcr_full_name: this.value('crf1aMcrName'),
                 mcr_title: this.value('crf1aMcrPosition'),
                 certified_by_name: this.value('crf1aCertifiedName'),
-                certified_by_position: this.value('crf1aCertifiedPosition')
+                certified_by_position: this.value('crf1aCertifiedPosition'),
+                remarks_html: this.form.elements.namedItem('remarks_html')?.value || ''
             };
             this.previewHost.innerHTML = this.buildDocumentMarkup(this.record, inputs, crfNumber || 'ID assigned on generate');
+            this.previewTotalPages = Math.max(1, this.previewHost.querySelectorAll('.crf1a-document').length);
+            this.previewCurrentPage = Math.min(this.previewCurrentPage, this.previewTotalPages);
+            this.updatePreviewControls();
             this.applyPreviewTransform();
         }
 
@@ -452,21 +462,25 @@
                 parents_marriage_date: this.marriageDate(r),
                 parents_marriage_place: r.place_of_marriage || ''
             };
-            const line = value => {
+            const manualEntry = value => {
+                const text = String(value ?? '');
+                return text.trim() ? `<span class="crf-manual-entry">${this.escape(text.toUpperCase())}</span>` : '&nbsp;';
+            };
+            const line = (value, isManual = false) => {
                 const text = String(value || '');
                 const fontSize = text.length > 68 ? '6.5pt' : (text.length > 48 ? '7.5pt' : '');
-                return `<span class="doc-line"${fontSize ? ` style="font-size:${fontSize}"` : ''}>${text ? this.escape(text) : '&nbsp;'}</span>`;
+                return `<span class="doc-line"${fontSize ? ` style="font-size:${fontSize}"` : ''}>${text ? (isManual ? manualEntry(text) : this.escape(text)) : '&nbsp;'}</span>`;
             };
-            const shortLine = value => `<span class="doc-short-line">${value ? this.escape(value) : '&nbsp;'}</span>`;
+            const shortLine = (value, isManual = false) => `<span class="doc-short-line">${value ? (isManual ? manualEntry(value) : this.escape(value)) : '&nbsp;'}</span>`;
             const requester = String(inputs?.requester_name || '').trim();
             const requesterSize = requester.length > 68 ? '6.5pt' : (requester.length > 48 ? '7.5pt' : '');
-            const requesterLine = `<span class="doc-requester-line"${requesterSize ? ` style="font-size:${requesterSize}"` : ''}>${requester ? this.escape(requester) : '&nbsp;'}</span>`;
-            const row = (label, value) => `<div class="doc-row"><span class="doc-label">${this.escape(label)}</span><span class="doc-colon">:</span><span class="doc-value">${line(value)}</span></div>`;
+            const requesterLine = `<span class="doc-requester-line"${requesterSize ? ` style="font-size:${requesterSize}"` : ''}>${requester ? manualEntry(requester) : '&nbsp;'}</span>`;
+            const row = (label, value, isManual = true) => `<div class="doc-row"><span class="doc-label">${this.escape(label)}</span><span class="doc-colon">:</span><span class="doc-value">${line(value, isManual)}</span></div>`;
              const config = window.CRF1A_OFFICE_CONFIG || {};
              const isDraftPreview = String(crfNumber || '').trim() === 'ID assigned on generate';
              const previewValue = (value, placeholder) => {
                  const text = String(value ?? '').trim();
-                 if (text) return this.escape(text);
+                 if (text) return manualEntry(text);
                  return isDraftPreview ? `<span class="doc-preview-placeholder">${this.escape(placeholder)}</span>` : '&nbsp;';
              };
              const registrarName = previewValue(inputs?.mcr_full_name, 'Enter registrar name');
@@ -483,7 +497,15 @@
             const issueDateText = this.displayDate(issueDate);
             const amount = String(inputs?.amount_paid ?? '').trim();
             const amountText = amount === '' ? '' : (Number(amount) >= 0 && Number.isFinite(Number(amount)) ? Number(amount).toFixed(2) : amount);
-            return `<div class="crf1a-document">
+            const remarks = window.CrfRemarksEditor?.plan(inputs?.remarks_html || '') || [];
+            const remarksTop = 170;
+            const remarksHeight = remarks.length === 1 ? (window.CrfRemarksEditor?.heightMm(remarks[0]) || 0) : 0;
+            const signatureTop = remarks.length === 1 ? Math.max(178, remarksTop + remarksHeight + 10) : 178;
+            const remarksBlock = (html, top, continued = false) => html ? `<div class="doc-remarks" style="top:${top}mm"><div class="doc-remarks-heading">${continued ? 'REMARKS (CONTINUED)' : 'REMARKS'}</div><div class="doc-remarks-content">${html}</div></div>` : '';
+            const closing = (positions) => `<div class="doc-signature" style="top:${positions.signature}mm"><strong>${registrarName}</strong><div>${registrarPosition}</div></div><div class="doc-certified" style="top:${positions.certified}mm"><div class="doc-certified-heading"><span>Certified by:</span><span class="doc-certified-line">${certifiedName}</span></div><div class="doc-certified-position">${certifiedPosition}</div></div><div class="doc-payment" style="top:${positions.payment}mm"><div class="doc-payment-row"><span class="doc-payment-label">Amount paid</span><span class="doc-payment-colon">:</span><span class="doc-payment-value">${line(amountText, true)}</span></div><div class="doc-payment-row"><span class="doc-payment-label">O.R. Number</span><span class="doc-payment-colon">:</span><span class="doc-payment-value">${line(inputs?.or_number || '', true)}</span></div><div class="doc-payment-row"><span class="doc-payment-label">Date paid</span><span class="doc-payment-colon">:</span><span class="doc-payment-value">${line(inputs?.date_paid || '', true)}</span></div></div><div class="doc-note" style="top:${positions.note}mm"><strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>System ID: ${this.escape(crfNumber || '')}</small></div>`;
+            const pages = [];
+            const mainClosing = remarks.length > 1 ? '' : closing({ signature: signatureTop, certified: signatureTop + 21, payment: signatureTop + 41, note: signatureTop + 65 });
+            pages.push(`<div class="crf1a-document">
                 <div class="doc-header"><div class="doc-logo doc-logo-seal">${logoSeal}</div><div class="doc-logo doc-logo-baggao">${logoBaggao}</div><div class="doc-header-copy">
                     <div class="doc-republic">Republic of the Philippines</div><div class="doc-province">Province of ${this.escape(config.province || 'CAGAYAN')}</div>
                     <div class="doc-municipality">MUNICIPALITY OF ${this.escape(config.municipality || 'BAGGAO')}</div>
@@ -491,15 +513,22 @@
                     <div class="doc-address">${this.escape(config.address || '')}</div>
                 </div><div class="doc-header-right"><div class="doc-logo doc-logo-pilipinas">${logoPilipinas}</div><div class="doc-meta">CRF ID<strong>${this.escape(crfNumber || '')}</strong></div></div></div>
                 <div class="doc-rule"></div><div class="doc-title">Civil Registry Form No. 1A</div><div class="doc-subtitle">(Birth-Available)</div>
-                <div class="doc-date">Date: ${this.escape(issueDateText)}</div>
-                <div class="doc-intro"><strong>TO WHOM IT MAY CONCERN:</strong><div class="doc-intro-statement">We certify that, among others, the following facts of birth<br>appear in our Register of Births on page ${shortLine(page)} Book number ${shortLine(book)}.</div></div>
-                <div class="doc-grid">${row('Registry Number', values.registry_no)}${row('Date of Registration', values.date_of_registration)}${row('Population Reference No.', values.population_reference_no)}${row('Name of Child', values.name_of_child)}${row('Sex', values.sex)}${row('Date of Birth', values.date_of_birth)}${row('Place of Birth', values.place_of_birth)}${row('Name of Mother', values.name_of_mother)}${row('Citizenship of Mother', values.mother_citizenship)}${row('Name of father', values.name_of_father)}${row('Citizenship of Father', values.father_citizenship)}${row('Date of marriage of parents', values.parents_marriage_date)}${row('Place of Marriage of parents', values.parents_marriage_place)}</div>
+                <div class="doc-date">Date: ${manualEntry(issueDateText)}</div>
+                <div class="doc-intro"><strong>TO WHOM IT MAY CONCERN:</strong><div class="doc-intro-statement">We certify that, among others, the following facts of birth<br>appear in our Register of Births on page ${shortLine(page, true)} Book number ${shortLine(book, true)}.</div></div>
+                <div class="doc-grid">${row('Registry Number', values.registry_no)}${row('Date of Registration', values.date_of_registration)}${row('Population Reference No.', values.population_reference_no, true)}${row('Name of Child', values.name_of_child)}${row('Sex', values.sex)}${row('Date of Birth', values.date_of_birth)}${row('Place of Birth', values.place_of_birth)}${row('Name of Mother', values.name_of_mother)}${row('Citizenship of Mother', values.mother_citizenship)}${row('Name of father', values.name_of_father)}${row('Citizenship of Father', values.father_citizenship)}${row('Date of marriage of parents', values.parents_marriage_date)}${row('Place of Marriage of parents', values.parents_marriage_place)}</div>
                 <div class="doc-certification">This certification is issued to ${requesterLine} upon his/her<br>request.</div>
-                <div class="doc-signature"><strong>${registrarName}</strong><div>${registrarPosition}</div></div>
-                <div class="doc-certified"><div class="doc-certified-heading"><span>Certified by:</span><span class="doc-certified-line">${certifiedName}</span></div><div class="doc-certified-position">${certifiedPosition}</div></div>
-                 <div class="doc-payment"><div class="doc-payment-row"><span class="doc-payment-label">Amount paid</span><span class="doc-payment-colon">:</span><span class="doc-payment-value">${line(amountText)}</span></div><div class="doc-payment-row"><span class="doc-payment-label">O.R. Number</span><span class="doc-payment-colon">:</span><span class="doc-payment-value">${line(inputs?.or_number || '')}</span></div><div class="doc-payment-row"><span class="doc-payment-label">Date paid</span><span class="doc-payment-colon">:</span><span class="doc-payment-value">${line(inputs?.date_paid || '')}</span></div></div>
-                 <div class="doc-note"><strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>System ID: ${this.escape(crfNumber || '')}</small></div>
-            </div>`;
+                ${remarksBlock(remarks[0] || '', remarksTop)}${mainClosing}
+            </div>`);
+            if (remarks.length > 1) {
+                remarks.slice(1).forEach((chunk, index, remaining) => {
+                    const height = window.CrfRemarksEditor?.heightMm(chunk) || 0;
+                    const finalPage = index === remaining.length - 1;
+                    const footerTop = 35 + height + 12;
+                    const pageTitle = `Civil Registry Form No. 1A - continuation<span class="doc-continuation-id">CRF ID ${this.escape(crfNumber || '')}</span>`;
+                    pages.push(`<div class="crf1a-document doc-continuation"><div class="doc-continuation-heading">${pageTitle}</div>${remarksBlock(chunk, 35, true)}${finalPage ? closing({ signature: footerTop, certified: footerTop + 21, payment: footerTop + 41, note: footerTop + 65 }) : ''}</div>`);
+                });
+            }
+            return pages.join('');
         }
 
         sourceDate(record, field) {
@@ -546,12 +575,10 @@
         }
 
         placeOfBirth(record) {
-            const place = String(record.child_place_of_birth || '').trim();
-            const barangay = String(record.barangay || '').trim();
-            const type = String(record.place_type || '').trim();
-            if (place) return barangay && !place.toLowerCase().includes(barangay.toLowerCase()) ? `${place}, ${barangay}` : place;
-            if ((type === 'Home' || type === 'Other') && barangay) return `${type}, ${barangay}`;
-            return barangay;
+            const config = window.CRF1A_OFFICE_CONFIG || {};
+            const municipality = String(record?.municipality || config.municipality || 'Baggao').trim();
+            const province = String(record?.province || config.province || 'Cagayan').trim();
+            return [...new Set([municipality, province].filter(Boolean))].join(', ');
         }
 
         fullName(record, prefix) { return [record[prefix + '_first_name'], record[prefix + '_middle_name'], record[prefix + '_last_name']].filter(v => String(v || '').trim()).join(' '); }
