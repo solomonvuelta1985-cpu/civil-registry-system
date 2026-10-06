@@ -40,7 +40,7 @@ $crf3aDefaults = branding_crf_preview_config(crf_3a_config());
 
     <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=12">
-    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=30">
+    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=31">
 
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>
@@ -872,7 +872,7 @@ function openPreview(id, type) {
 <script src="../assets/js/record-preview-modal.js?v=13"></script>
 <script src="../assets/js/crf-remarks-editor.js?v=20261006-full-month-dates-1"></script>
 <script src="../assets/js/crf-1a-generator.js?v=20261006-full-month-dates-1"></script>
-<script src="../assets/js/crf-2a-generator.js?v=20261006-full-month-dates-1"></script>
+<script src="../assets/js/crf-2a-generator.js?v=20261006-death-place-municipality-province-1"></script>
 <script src="../assets/js/crf-2a-records.js?v=4"></script>
 <script src="../assets/js/crf-3a-generator.js?v=20261006-full-month-dates-1"></script>
 <script src="../assets/js/crf-3a-records.js?v=2"></script>

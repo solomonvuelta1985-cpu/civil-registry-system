@@ -293,6 +293,7 @@ body.crf1a-open { overflow: hidden; }
 @media screen { .crf1a-document.doc-continuation { margin-top: 8mm; } }
 .crf1a-document .doc-remarks { position: absolute; left: 21mm; right: 21mm; margin: 0; color: #111; font-family: Arial,sans-serif; font-size: 10.5pt; line-height: 1.25; overflow-wrap: anywhere; word-break: break-word; }
 .crf1a-document .doc-remarks-heading { margin: 0 0 2mm; font-family: "Courier New",monospace; font-size: 9.5pt; font-weight: 700; text-transform: uppercase; }
+.crf1a-document .doc-remarks-content, .crf1a-document .doc-remarks-content * { text-align: justify !important; }
 .crf1a-document .doc-remarks-content { white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
 .crf1a-document .doc-remarks-content p { margin: 0 0 1.5mm; }
 .crf1a-document .doc-remarks-content p:last-child { margin-bottom: 0; }

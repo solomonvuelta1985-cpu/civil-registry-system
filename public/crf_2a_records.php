@@ -38,7 +38,7 @@ $crfDefaults = branding_crf_preview_config(crf_2a_config());
     <script src="<?= asset_url('notiflix_js') ?>"></script>
     <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=13">
-    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=30">
+    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=31">
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = '<?= asset_url("pdfjs_worker") ?>';</script>
     <style>
@@ -96,7 +96,7 @@ $crfDefaults = branding_crf_preview_config(crf_2a_config());
 </script>
 <script src="../assets/js/record-preview-modal.js?v=13"></script>
 <script src="../assets/js/crf-remarks-editor.js?v=20261006-full-month-dates-1"></script>
-<script src="../assets/js/crf-2a-generator.js?v=20261006-full-month-dates-1"></script>
+<script src="../assets/js/crf-2a-generator.js?v=20261006-death-place-municipality-province-1"></script>
 <script src="../assets/js/crf-2a-records.js?v=5"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
 </body>

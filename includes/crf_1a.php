@@ -525,6 +525,7 @@ body { font-family: "Courier New", Courier, monospace; color: #111; font-size: 9
  .note { position: absolute; left: 21mm; top: 243mm; width: 168mm; margin: 0; font-size: 8pt; line-height: 1.1; }
 .doc-remarks { position:absolute; left:21mm; right:21mm; margin:0; color:#111; font-family:Arial,sans-serif; font-size:10.5pt; line-height:1.25; overflow-wrap:anywhere; word-break:break-word; }
 .doc-remarks-heading { margin:0 0 2mm; font-family:"Courier New",monospace; font-size:9.5pt; font-weight:700; text-transform:uppercase; }
+.doc-remarks-content,.doc-remarks-content * { text-align:justify!important; }
 .doc-remarks-content { white-space:normal; overflow-wrap:anywhere; word-break:break-word; }
 .doc-remarks-content p { margin:0 0 1.5mm; }.doc-remarks-content p:last-child { margin-bottom:0; }
 .doc-continuation-heading { position:absolute; top:10mm; left:21mm; right:21mm; font-size:11pt; }
@@ -743,6 +744,7 @@ function crf_1a_render_table_pdf_html(
         . '.note{width:168mm;font-size:8pt;line-height:1.1}'
         . '.remarks-row{padding:0 21mm 0 29mm!important;font:10.5pt/1.25 Arial,sans-serif;overflow-wrap:anywhere;word-break:break-word}'
         . '.remarks-heading{margin:0 0 2mm;font:700 9.5pt "Courier New",monospace;text-transform:uppercase}'
+        . '.remarks-content,.remarks-content *{text-align:justify!important}'
         . '.remarks-content p{margin:0 0 1.5mm}.remarks-content p:last-child{margin-bottom:0}'
         . '.remarks-page{page-break-before:always;break-before:page}.remarks-cont-title{height:16mm;padding:0 21mm!important;font:11pt/1.2 "Courier New",monospace}'
         . '</style></head><body><table class="pdf-page" cellspacing="0" cellpadding="0" border="0"><tr><td class="top-spacer">&nbsp;</td></tr>'
