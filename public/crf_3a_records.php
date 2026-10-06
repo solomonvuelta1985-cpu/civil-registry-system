@@ -81,8 +81,8 @@ $crfDefaults = branding_crf_preview_config(crf_3a_config());
     window.CRF3A_CAN_DELETE = <?= isAdmin() ? 'true' : 'false' ?>;
     window.CRF3A_DEFAULT_ISSUE_DATE = <?= json_encode(date('Y-m-d')) ?>;
 </script>
-<script src="../assets/js/crf-remarks-editor.js?v=20261005-legal-remarks-1"></script>
-<script src="../assets/js/crf-3a-generator.js?v=20261005-legal-remarks-1"></script>
+<script src="../assets/js/crf-remarks-editor.js?v=20261006-full-month-dates-1"></script>
+<script src="../assets/js/crf-3a-generator.js?v=20261006-full-month-dates-1"></script>
 <script src="../assets/js/crf-3a-records.js?v=3"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
 </body>

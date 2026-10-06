@@ -502,7 +502,7 @@
             const remarksHeight = remarks.length === 1 ? (window.CrfRemarksEditor?.heightMm(remarks[0]) || 0) : 0;
             const signatureTop = remarks.length === 1 ? Math.max(178, remarksTop + remarksHeight + 10) : 178;
             const remarksBlock = (html, top, continued = false) => html ? `<div class="doc-remarks" style="top:${top}mm"><div class="doc-remarks-heading">${continued ? 'REMARKS (CONTINUED)' : 'REMARKS'}</div><div class="doc-remarks-content">${html}</div></div>` : '';
-            const closing = (positions) => `<div class="doc-signature" style="top:${positions.signature}mm"><strong>${registrarName}</strong><div>${registrarPosition}</div></div><div class="doc-certified" style="top:${positions.certified}mm"><div class="doc-certified-heading"><span>Certified by:</span><span class="doc-certified-line">${certifiedName}</span></div><div class="doc-certified-position">${certifiedPosition}</div></div><div class="doc-payment" style="top:${positions.payment}mm"><div class="doc-payment-row"><span class="doc-payment-label">Amount paid</span><span class="doc-payment-colon">:</span><span class="doc-payment-value">${line(amountText, true)}</span></div><div class="doc-payment-row"><span class="doc-payment-label">O.R. Number</span><span class="doc-payment-colon">:</span><span class="doc-payment-value">${line(inputs?.or_number || '', true)}</span></div><div class="doc-payment-row"><span class="doc-payment-label">Date paid</span><span class="doc-payment-colon">:</span><span class="doc-payment-value">${line(inputs?.date_paid || '', true)}</span></div></div><div class="doc-note" style="top:${positions.note}mm"><strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>System ID: ${this.escape(crfNumber || '')}</small></div>`;
+            const closing = (positions) => `<div class="doc-signature" style="top:${positions.signature}mm"><strong>${registrarName}</strong><div>${registrarPosition}</div></div><div class="doc-certified" style="top:${positions.certified}mm"><div class="doc-certified-heading"><span>Certified by:</span><span class="doc-certified-line">${certifiedName}</span></div><div class="doc-certified-position">${certifiedPosition}</div></div><div class="doc-payment" style="top:${positions.payment}mm"><div class="doc-payment-row"><span class="doc-payment-label">Amount paid</span><span class="doc-payment-colon">:</span><span class="doc-payment-value">${line(amountText, true)}</span></div><div class="doc-payment-row"><span class="doc-payment-label">O.R. Number</span><span class="doc-payment-colon">:</span><span class="doc-payment-value">${line(inputs?.or_number || '', true)}</span></div><div class="doc-payment-row"><span class="doc-payment-label">Date paid</span><span class="doc-payment-colon">:</span><span class="doc-payment-value">${line(this.displayDate(inputs?.date_paid), true)}</span></div></div><div class="doc-note" style="top:${positions.note}mm"><strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>System ID: ${this.escape(crfNumber || '')}</small></div>`;
             const pages = [];
             const mainClosing = remarks.length > 1 ? '' : closing({ signature: signatureTop, certified: signatureTop + 21, payment: signatureTop + 41, note: signatureTop + 65 });
             pages.push(`<div class="crf1a-document">
@@ -553,7 +553,7 @@
             if (format === 'not_married') return 'Not Married';
             if (!date) return '';
             const d = new Date(date + 'T00:00:00');
-            return isNaN(d) ? date : `${months[d.getMonth() + 1].slice(0, 3)} ${String(d.getDate()).padStart(2, '0')}, ${d.getFullYear()}`;
+            return isNaN(d) ? date : `${months[d.getMonth() + 1]} ${String(d.getDate()).padStart(2, '0')}, ${d.getFullYear()}`;
         }
 
         registryNumber(record) {
@@ -582,7 +582,7 @@
         }
 
         fullName(record, prefix) { return [record[prefix + '_first_name'], record[prefix + '_middle_name'], record[prefix + '_last_name']].filter(v => String(v || '').trim()).join(' '); }
-        displayDate(value) { const d = new Date(String(value || '') + 'T00:00:00'); return isNaN(d) ? value : d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }); }
+        displayDate(value) { const d = new Date(String(value || '') + 'T00:00:00'); return isNaN(d) ? value : d.toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' }); }
         today() {
             if (window.CRF1A_DEFAULT_ISSUE_DATE) return String(window.CRF1A_DEFAULT_ISSUE_DATE);
             const d = new Date();

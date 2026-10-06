@@ -258,10 +258,22 @@ function crf_1a_full_name(array $record, string $prefix): string
     })));
 }
 
+function crf_1a_full_date($value): string
+{
+    $date = trim((string)$value);
+    if ($date === '') return '';
+    $timestamp = strtotime($date);
+    return $timestamp === false ? $date : date('F d, Y', $timestamp);
+}
+
 function crf_1a_date_value(array $record, string $field): string
 {
     $format = (string)($record[$field . '_format'] ?? 'full');
     $date = $record[$field] ?? null;
+
+    if ($format === 'full' && $date) {
+        return crf_1a_full_date($date);
+    }
 
     if (function_exists('format_registration_date')) {
         $formatted = format_registration_date(
@@ -279,7 +291,7 @@ function crf_1a_date_value(array $record, string $field): string
         return $field === 'date_of_registration' ? 'No Entry' : '';
     }
     $timestamp = strtotime((string)$date);
-    return $timestamp === false ? (string)$date : date('F j, Y', $timestamp);
+    return $timestamp === false ? (string)$date : date('F d, Y', $timestamp);
 }
 
 function crf_1a_registration_date(array $record): string
@@ -434,7 +446,7 @@ function crf_1a_render_document_html(array $record, array $inputs, string $crfNu
         : $e($officeName);
     $issueDate = (string)($inputs['issue_date'] ?? date('Y-m-d'));
     $issueTimestamp = strtotime($issueDate);
-    $issueDateText = $issueTimestamp === false ? $e($issueDate) : $e(date('F j, Y', $issueTimestamp));
+    $issueDateText = $issueTimestamp === false ? $e($issueDate) : $e(date('F d, Y', $issueTimestamp));
     $amount = number_format((float)($inputs['amount_paid'] ?? 0), 2);
     $remarksTop = 170;
     $singleRemarksHeight = count($remarksPages) === 1 ? crf_1a_remarks_height_mm($remarksPages[0]) : 0;
@@ -449,7 +461,7 @@ function crf_1a_render_document_html(array $record, array $inputs, string $crfNu
         $registrarTitle = array_key_exists('mcr_title', $inputs) ? $inputs['mcr_title'] : $cfg['mcr_title'];
         return '<div class="signature-block" style="top:' . $positions['signature'] . 'mm"><strong>' . crf_1a_manual_entry_html($registrarName) . '</strong><div>' . crf_1a_manual_entry_html($registrarTitle) . '</div></div>'
             . '<div class="certified-block" style="top:' . $positions['certified'] . 'mm"><div class="certified-heading"><span>Certified by:</span><span class="certified-line">' . crf_1a_manual_entry_html($inputs['certified_by_name'] ?? '') . '</span></div><div class="certified-position">' . crf_1a_manual_entry_html($inputs['certified_by_position'] ?? '') . '</div></div>'
-            . '<div class="payment-block" style="top:' . $positions['payment'] . 'mm"><div class="payment-row"><span class="payment-label">Amount paid</span><span class="payment-colon">:</span><span class="payment-value">' . $line($amount, true) . '</span></div><div class="payment-row"><span class="payment-label">O.R. Number</span><span class="payment-colon">:</span><span class="payment-value">' . $line($inputs['or_number'] ?? '', true) . '</span></div><div class="payment-row"><span class="payment-label">Date paid</span><span class="payment-colon">:</span><span class="payment-value">' . $line($inputs['date_paid'] ?? '', true) . '</span></div></div>'
+            . '<div class="payment-block" style="top:' . $positions['payment'] . 'mm"><div class="payment-row"><span class="payment-label">Amount paid</span><span class="payment-colon">:</span><span class="payment-value">' . $line($amount, true) . '</span></div><div class="payment-row"><span class="payment-label">O.R. Number</span><span class="payment-colon">:</span><span class="payment-value">' . $line($inputs['or_number'] ?? '', true) . '</span></div><div class="payment-row"><span class="payment-label">Date paid</span><span class="payment-colon">:</span><span class="payment-value">' . $line(crf_1a_full_date($inputs['date_paid'] ?? ''), true) . '</span></div></div>'
             . '<div class="note" style="top:' . $positions['note'] . 'mm"><strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>System ID: ' . $e($crfNumber) . '</small></div>';
     };
     $mainClosing = count($remarksPages) > 1 ? '' : $closing(['signature' => $signatureTop, 'certified' => $signatureTop + 21, 'payment' => $signatureTop + 41, 'note' => $signatureTop + 65]);
@@ -614,7 +626,7 @@ function crf_1a_render_table_pdf_html(
     $issueTimestamp = strtotime((string)($inputs['issue_date'] ?? date('Y-m-d')));
     $issueDateText = $issueTimestamp === false
         ? crf_1a_manual_entry_html($inputs['issue_date'] ?? '')
-        : crf_1a_manual_entry_html(date('F j, Y', $issueTimestamp));
+        : crf_1a_manual_entry_html(date('F d, Y', $issueTimestamp));
     $amount = number_format((float)($inputs['amount_paid'] ?? 0), 2);
     $requester = trim((string)($inputs['requester_name'] ?? ''));
     $requesterLine = '<span class="pdf-requester-line">' . crf_1a_manual_entry_html($requester) . '</span>';
@@ -752,7 +764,7 @@ function crf_1a_render_table_pdf_html(
     };
     $closingRows = '<tr><td class="signature-row"><table class="signature-table" cellspacing="0" cellpadding="0" border="0"><tr><td class="signature-spacer">&nbsp;</td><td class="signature-cell"><strong>' . crf_1a_manual_entry_html($inputs['mcr_full_name'] ?? '') . '</strong><div>' . crf_1a_manual_entry_html($inputs['mcr_title'] ?? '') . '</div></td><td class="signature-right-spacer">&nbsp;</td></tr></table></td></tr>'
         . '<tr><td class="certified-row"><table class="certified-table" cellspacing="0" cellpadding="0" border="0"><tr><td><table class="certified-heading" cellspacing="0" cellpadding="0" border="0"><tr><td class="certified-label">Certified by:</td><td class="certified-line">' . crf_1a_manual_entry_html($inputs['certified_by_name'] ?? '') . '</td></tr></table><div class="certified-position">' . crf_1a_manual_entry_html($inputs['certified_by_position'] ?? '') . '</div></td></tr></table></td></tr>'
-        . '<tr><td class="payment-row"><table class="payment-table" cellspacing="0" cellpadding="0" border="0"><tr><td class="payment-label">Amount paid</td><td class="payment-colon">:</td><td class="payment-value">' . $valueLine($amount, true) . '</td></tr><tr><td class="payment-label">O.R. Number</td><td class="payment-colon">:</td><td class="payment-value">' . $valueLine($inputs['or_number'] ?? '', true) . '</td></tr><tr><td class="payment-label">Date paid</td><td class="payment-colon">:</td><td class="payment-value">' . $valueLine($inputs['date_paid'] ?? '', true) . '</td></tr></table></td></tr>'
+        . '<tr><td class="payment-row"><table class="payment-table" cellspacing="0" cellpadding="0" border="0"><tr><td class="payment-label">Amount paid</td><td class="payment-colon">:</td><td class="payment-value">' . $valueLine($amount, true) . '</td></tr><tr><td class="payment-label">O.R. Number</td><td class="payment-colon">:</td><td class="payment-value">' . $valueLine($inputs['or_number'] ?? '', true) . '</td></tr><tr><td class="payment-label">Date paid</td><td class="payment-colon">:</td><td class="payment-value">' . $valueLine(crf_1a_full_date($inputs['date_paid'] ?? ''), true) . '</td></tr></table></td></tr>'
         . '<tr><td class="note-row"><div class="note"><strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>System ID: ' . $e($crfNumber) . '</small></div></td></tr>';
 
     if ($causePlan === null || $causePlan['continuation_pages'] === []) {

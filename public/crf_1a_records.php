@@ -95,8 +95,8 @@ $crfDefaults = branding_crf_preview_config(crf_1a_config());
     window.CRF1A_DEFAULT_ISSUE_DATE = <?= json_encode(date('Y-m-d')) ?>;
 </script>
 <script src="../assets/js/record-preview-modal.js?v=13"></script>
-<script src="../assets/js/crf-remarks-editor.js?v=20261005-legal-remarks-1"></script>
-<script src="../assets/js/crf-1a-generator.js?v=20261005-legal-remarks-1"></script>
+<script src="../assets/js/crf-remarks-editor.js?v=20261006-full-month-dates-1"></script>
+<script src="../assets/js/crf-1a-generator.js?v=20261006-full-month-dates-1"></script>
 <script src="../assets/js/crf-1a-records.js?v=21"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
 </body>

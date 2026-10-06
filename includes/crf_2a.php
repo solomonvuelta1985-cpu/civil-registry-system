@@ -66,6 +66,7 @@ function crf_2a_date(array $record, string $field): string
 {
     $format = (string)($record[$field . '_format'] ?? 'full');
     $date = $record[$field] ?? null;
+    if ($format === 'full' && $date) return crf_1a_full_date($date);
     if (function_exists('format_registration_date')) {
         $formatted = format_registration_date(
             $date ? (string)$date : null,
@@ -79,7 +80,7 @@ function crf_2a_date(array $record, string $field): string
     }
     if (!$date) return $field === 'date_of_registration' ? 'No Entry' : '';
     $timestamp = strtotime((string)$date);
-    return $timestamp === false ? (string)$date : date('M d, Y', $timestamp);
+    return $timestamp === false ? (string)$date : date('F d, Y', $timestamp);
 }
 
 function crf_2a_place_of_death(array $record): string
@@ -239,7 +240,7 @@ function crf_2a_render_edge_document_html(array $record, array $inputs, string $
     $officeName = trim((string)$cfg['office_name']);
     $officeHtml = $officeName === 'OFFICE OF THE MUNICIPAL CIVIL REGISTRAR' ? 'OFFICE OF THE MUNICIPAL CIVIL<br>REGISTRAR' : $e($officeName);
     $issueTimestamp = strtotime((string)($inputs['issue_date'] ?? date('Y-m-d')));
-    $issueDateText = $issueTimestamp === false ? crf_1a_manual_entry_html($inputs['issue_date'] ?? '') : crf_1a_manual_entry_html(date('F j, Y', $issueTimestamp));
+    $issueDateText = $issueTimestamp === false ? crf_1a_manual_entry_html($inputs['issue_date'] ?? '') : crf_1a_manual_entry_html(date('F d, Y', $issueTimestamp));
     $amount = number_format((float)($inputs['amount_paid'] ?? 0), 2);
     $requester = trim((string)($inputs['requester_name'] ?? ''));
     $requesterLine = '<span class="requester-line">' . crf_1a_manual_entry_html($requester) . '</span>';
@@ -248,7 +249,7 @@ function crf_2a_render_edge_document_html(array $record, array $inputs, string $
     $closing = static function (array $positions) use ($inputs, $crfNumber, $e, $line, $amount): string {
         return '<div class="signature" style="top:' . $positions['signature'] . 'mm"><strong>' . crf_1a_manual_entry_html($inputs['mcr_full_name'] ?? '') . '</strong><div>' . crf_1a_manual_entry_html($inputs['mcr_title'] ?? '') . '</div></div>'
             . '<div class="certified" style="top:' . $positions['certified'] . 'mm"><div class="certified-heading"><span>Certified by:</span><span class="certified-line">' . crf_1a_manual_entry_html($inputs['certified_by_name'] ?? '') . '</span></div><div class="certified-position">' . crf_1a_manual_entry_html($inputs['certified_by_position'] ?? '') . '</div></div>'
-            . '<div class="payment" style="top:' . $positions['payment'] . 'mm"><div class="payment-row"><span class="payment-label">Amount paid</span><span class="payment-colon">:</span><span class="payment-value">' . $line($amount, true) . '</span></div><div class="payment-row"><span class="payment-label">O.R. Number</span><span class="payment-colon">:</span><span class="payment-value">' . $line($inputs['or_number'] ?? '', true) . '</span></div><div class="payment-row"><span class="payment-label">Date paid</span><span class="payment-colon">:</span><span class="payment-value">' . $line($inputs['date_paid'] ?? '', true) . '</span></div></div>'
+            . '<div class="payment" style="top:' . $positions['payment'] . 'mm"><div class="payment-row"><span class="payment-label">Amount paid</span><span class="payment-colon">:</span><span class="payment-value">' . $line($amount, true) . '</span></div><div class="payment-row"><span class="payment-label">O.R. Number</span><span class="payment-colon">:</span><span class="payment-value">' . $line($inputs['or_number'] ?? '', true) . '</span></div><div class="payment-row"><span class="payment-label">Date paid</span><span class="payment-colon">:</span><span class="payment-value">' . $line(crf_1a_full_date($inputs['date_paid'] ?? ''), true) . '</span></div></div>'
             . '<div class="note" style="top:' . $positions['note'] . 'mm"><strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>System ID: ' . $e($crfNumber) . '</small></div>';
     };
     $remarksBlock = static function (string $html, float $top, bool $continued = false): string {

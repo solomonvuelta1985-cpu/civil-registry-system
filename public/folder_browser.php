@@ -870,11 +870,11 @@ function openPreview(id, type) {
 </script>
 <script src="../assets/js/family_relations_render.js?v=2"></script>
 <script src="../assets/js/record-preview-modal.js?v=13"></script>
-<script src="../assets/js/crf-remarks-editor.js?v=20261005-legal-remarks-1"></script>
-<script src="../assets/js/crf-1a-generator.js?v=20261005-legal-remarks-1"></script>
-<script src="../assets/js/crf-2a-generator.js?v=20261005-legal-remarks-1"></script>
+<script src="../assets/js/crf-remarks-editor.js?v=20261006-full-month-dates-1"></script>
+<script src="../assets/js/crf-1a-generator.js?v=20261006-full-month-dates-1"></script>
+<script src="../assets/js/crf-2a-generator.js?v=20261006-full-month-dates-1"></script>
 <script src="../assets/js/crf-2a-records.js?v=4"></script>
-<script src="../assets/js/crf-3a-generator.js?v=20261005-legal-remarks-1"></script>
+<script src="../assets/js/crf-3a-generator.js?v=20261006-full-month-dates-1"></script>
 <script src="../assets/js/crf-3a-records.js?v=2"></script>
 <script src="../assets/js/crf-1a-records.js?v=20"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
