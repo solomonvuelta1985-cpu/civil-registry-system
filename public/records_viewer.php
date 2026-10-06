@@ -3922,7 +3922,7 @@ function detect_late_registration($record, $record_type) {
     <script src="../assets/js/record-preview-modal.js?v=13"></script>
     <script src="../assets/js/crf-remarks-editor.js?v=20261006-full-month-dates-1"></script>
     <script src="../assets/js/crf-1a-generator.js?v=20261006-full-month-dates-1"></script>
-    <script src="../assets/js/crf-2a-generator.js?v=20261006-death-place-municipality-province-1"></script>
+    <script src="../assets/js/crf-2a-generator.js?v=20261006-death-place-municipality-province-2"></script>
     <script src="../assets/js/crf-3a-generator.js?v=20261006-full-month-dates-1"></script>
 
     <!-- Double Registration Comparison Modal -->

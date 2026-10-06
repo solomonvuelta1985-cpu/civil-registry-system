@@ -96,7 +96,7 @@ $crfDefaults = branding_crf_preview_config(crf_2a_config());
 </script>
 <script src="../assets/js/record-preview-modal.js?v=13"></script>
 <script src="../assets/js/crf-remarks-editor.js?v=20261006-full-month-dates-1"></script>
-<script src="../assets/js/crf-2a-generator.js?v=20261006-death-place-municipality-province-1"></script>
+<script src="../assets/js/crf-2a-generator.js?v=20261006-death-place-municipality-province-2"></script>
 <script src="../assets/js/crf-2a-records.js?v=5"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
 </body>

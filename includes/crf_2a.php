@@ -83,11 +83,12 @@ function crf_2a_date(array $record, string $field): string
     return $timestamp === false ? (string)$date : date('F d, Y', $timestamp);
 }
 
-function crf_2a_place_of_death(array $record): string
+function crf_2a_place_of_death(): string
 {
+    $config = crf_2a_config();
     $parts = [];
     foreach (['municipality', 'province'] as $key) {
-        $value = trim((string)($record[$key] ?? ''));
+        $value = trim((string)($config[$key] ?? ''));
         if ($value !== '' && !in_array($value, $parts, true)) $parts[] = $value;
     }
     return implode(', ', $parts);
@@ -107,7 +108,7 @@ function crf_2a_record_values(array $record): array
         'civil_status' => trim((string)($record['civil_status'] ?? '')),
         'citizenship' => trim((string)($record['citizenship'] ?? '')),
         'date_of_death' => crf_2a_date($record, 'date_of_death'),
-        'place_of_death' => crf_2a_place_of_death($record),
+        'place_of_death' => crf_2a_place_of_death(),
         'cause_of_death' => trim((string)($record['cause_of_death'] ?? '')),
     ];
 }

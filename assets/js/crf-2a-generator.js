@@ -141,7 +141,7 @@
                 return isNaN(parsed) ? value : parsed.toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' });
             };
             const full = [r.deceased_first_name, r.deceased_middle_name, r.deceased_last_name].filter(Boolean).join(' ');
-            const place = [r.municipality, r.province].map(value => String(value || '').trim()).filter(Boolean).filter((value, index, all) => all.indexOf(value) === index).join(', ');
+            const place = [c.municipality, c.province].map(value => String(value || '').trim()).filter(Boolean).filter((value, index, all) => all.indexOf(value) === index).join(', ');
             const logo = (path, alt, size) => path === '__hidden__' ? '' : `<img src="../${this.escape(path || '')}" alt="${alt}" style="display:block;width:${size};height:${size};object-fit:contain">`;
             const office = String(c.office_name || 'OFFICE OF THE MUNICIPAL CIVIL REGISTRAR');
             const officeHtml = office === 'OFFICE OF THE MUNICIPAL CIVIL REGISTRAR' ? 'OFFICE OF THE MUNICIPAL CIVIL<br>REGISTRAR' : this.escape(office);
