@@ -130,12 +130,15 @@ try {
         ($wife_civil_status !== '' && !in_array($wife_civil_status, $allowed_civil_statuses, true))) {
         json_response(false, 'Invalid civil status.', null, 400);
     }
+    $baggao_barangays = get_baggao_barangays();
+    $husband_residence_locality_required = in_array($husband_residence, $baggao_barangays, true);
+    $wife_residence_locality_required = in_array($wife_residence, $baggao_barangays, true);
     if (empty($husband_first_name) || empty($husband_last_name) ||
         empty($husband_place_of_birth) || empty($husband_residence) ||
-        empty($husband_residence_municipality) || empty($husband_residence_province) ||
+        ($husband_residence_locality_required && (empty($husband_residence_municipality) || empty($husband_residence_province))) ||
         empty($wife_first_name) || empty($wife_last_name) ||
         empty($wife_place_of_birth) || empty($wife_residence) ||
-        empty($wife_residence_municipality) || empty($wife_residence_province) ||
+        ($wife_residence_locality_required && (empty($wife_residence_municipality) || empty($wife_residence_province))) ||
         empty($date_of_marriage) || empty($place_of_marriage) || empty($nature_of_solemnization)) {
         json_response(false, 'Please fill in all required fields.', null, 400);
     }

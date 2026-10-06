@@ -123,8 +123,31 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
 
     <!-- Shared Certificate Form Styles -->
     <link rel="stylesheet" href="../assets/css/certificate-forms-shared.css?v=2.2">
-    <link rel="stylesheet" href="../assets/css/certificate-entry-spacing.css?v=20261001-1">
     <style>
+        .form-section {
+            margin-bottom: clamp(20px, 2.5vw, 28px);
+        }
+        .form-section .section-header {
+            margin-bottom: clamp(12px, 1.5vw, 16px);
+        }
+        .form-section .form-group {
+            margin-bottom: clamp(10px, 1.4vw, 14px);
+        }
+        .form-section .form-row {
+            column-gap: clamp(12px, 1.6vw, 16px);
+            row-gap: clamp(8px, 1.2vw, 12px);
+            margin-bottom: clamp(4px, 0.7vw, 8px);
+        }
+        @media (max-width: 600px) {
+            .form-section .form-group {
+                margin-bottom: 10px;
+            }
+            .form-section .form-row {
+                gap: 8px;
+                margin-bottom: 4px;
+            }
+        }
+
         /* Keep each residence group full width, with its three locality fields aligned. */
         .residence-form-group {
             display: grid !important;
@@ -310,17 +333,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                 <div class="form-column">
 
                     <?php
-                    $baggao_barangays = [
-                        'Adaoag','Agaman (Proper)','Agaman Norte','Agaman Sur','Alba','Annayatan',
-                        'Asassi','Asinga-Via','Awallan','Bacagan','Bagunot','Barsat East',
-                        'Barsat West','Bitag Grande','Bitag Pequeño','Bunugan','C. Verzosa',
-                        'Canagatan','Carupian','Catugay','Dabbac Grande','Dalin','Dalla',
-                        'Hacienda Intal','Ibulo','Imurung','J. Pallagao','Lasilat','Mabini',
-                        'Masical','Mocag','Nangalinan','Poblacion (Centro)','Remus','San Antonio',
-                        'San Francisco','San Isidro','San Jose','San Miguel','San Vicente',
-                        'Santa Margarita','Santor','Taguing','Taguntungan','Tallang','Taytay',
-                        'Temblique','Tungel',
-                    ];
+                    $baggao_barangays = get_baggao_barangays();
                     ?>
 
                     <!-- Registry Information Section -->
@@ -1433,6 +1446,11 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                 if (!toggle || !select || !other) return;
 
                 const locality = document.getElementById(fieldId + '_locality');
+                const localityControlState = locality
+                    ? Array.from(locality.querySelectorAll('input, select, textarea')).map(function(control) {
+                        return { control: control, required: control.required, disabled: control.disabled };
+                    })
+                    : [];
 
                 const residenceRequired = select.hasAttribute('required') || other.hasAttribute('required');
                 const modeLabel = toggle.closest('label');
@@ -1441,7 +1459,14 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                     const outside = toggle.checked;
                     select.style.display = outside ? 'none'  : 'block';
                     other.style.display  = outside ? 'block' : 'none';
-                    if (locality) locality.classList.toggle('is-outside', outside);
+                    if (locality) {
+                        locality.classList.toggle('is-outside', outside);
+                        locality.setAttribute('aria-hidden', outside ? 'true' : 'false');
+                        localityControlState.forEach(function(state) {
+                            state.control.disabled = outside || state.disabled;
+                            state.control.required = !outside && state.required;
+                        });
+                    }
 
                     // Only the active address control should be submitted and validated.
                     select.name = outside ? '' : fieldId;

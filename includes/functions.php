@@ -3,6 +3,21 @@
  * Helper Functions for Certificate of Live Birth System
  */
 
+/** Return the Baggao barangay names used by marriage residence fields. */
+function get_baggao_barangays(): array {
+    return [
+        'Adaoag', 'Agaman (Proper)', 'Agaman Norte', 'Agaman Sur', 'Alba', 'Annayatan',
+        'Asassi', 'Asinga-Via', 'Awallan', 'Bacagan', 'Bagunot', 'Barsat East',
+        'Barsat West', 'Bitag Grande', 'Bitag Pequeño', 'Bunugan', 'C. Verzosa',
+        'Canagatan', 'Carupian', 'Catugay', 'Dabbac Grande', 'Dalin', 'Dalla',
+        'Hacienda Intal', 'Ibulo', 'Imurung', 'J. Pallagao', 'Lasilat', 'Mabini',
+        'Masical', 'Mocag', 'Nangalinan', 'Poblacion (Centro)', 'Remus', 'San Antonio',
+        'San Francisco', 'San Isidro', 'San Jose', 'San Miguel', 'San Vicente',
+        'Santa Margarita', 'Santor', 'Taguing', 'Taguntungan', 'Tallang', 'Taytay',
+        'Temblique', 'Tungel',
+    ];
+}
+
 /**
  * Sanitize input data for database storage.
  * NOTE: Does NOT apply htmlspecialchars — that belongs on OUTPUT (use escape_html).
