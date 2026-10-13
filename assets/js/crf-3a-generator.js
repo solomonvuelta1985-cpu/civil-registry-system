@@ -101,9 +101,13 @@
             const display = item?.record_snapshot?.display || {};
             const manual = item?.record_snapshot?.manual_overrides || {};
             ['page_number', 'book_number', 'requester_name', 'amount_paid', 'or_number', 'date_paid', 'mcr_full_name', 'mcr_title', 'verified_by_name', 'verified_by_position', 'husband_mother_name', 'husband_father_name', 'wife_mother_name', 'wife_father_name', 'husband_nationality', 'husband_civil_status', 'husband_mother_nationality', 'husband_father_nationality', 'wife_nationality', 'wife_civil_status', 'wife_mother_nationality', 'wife_father_nationality'].forEach(key => this.set(key, item[key] ?? manual[key] ?? display[key] ?? ''));
-            this.set('remarks_html', manual.remarks_html || '');
+            const savedRemarks = manual.remarks_html || '';
+            this.set('remarks_html', savedRemarks);
             this.set('issuance_kind', 'Corrected');
             this.issuanceKind?.dispatchEvent(new Event('change', { bubbles: true }));
+            if (!this.remarksEditor?.setSavedRemarks(savedRemarks)) {
+                await this.loadPreviousSavedRemarks(this.existingIssuances, this.replacesIssuanceId);
+            }
             this.render();
         }
 
@@ -111,6 +115,7 @@
             this.record = record || {};
             this.replacesIssuanceId = 0;
             this.form.reset();
+            this.remarksEditor?.setSavedRemarks('');
             this.set('issuance_kind', 'Original');
             this.set('issue_date', this.today());
             this.set('date_paid', this.today());
@@ -149,6 +154,7 @@
                 if (this.existingIssuances.length && !this.replacesIssuanceId) {
                     this.set('issuance_kind', 'Corrected');
                     this.replacesIssuanceId = Number(this.existingIssuances[0].id) || 0;
+                    await this.loadPreviousSavedRemarks(this.existingIssuances);
                 }
                 this.checkComplete = true;
                 this.render();
@@ -157,6 +163,25 @@
             } finally {
                 this.checkPending = false;
             }
+        }
+
+        async loadPreviousSavedRemarks(issuances, beforeIssuanceId = 0) {
+            const beforeId = Number(beforeIssuanceId) || 0;
+            for (const issuance of issuances || []) {
+                const id = Number(issuance?.id || issuance?.issuance_id) || 0;
+                if (!id || (beforeId && id >= beforeId)) continue;
+                try {
+                    const response = await fetch(`../api/crf_3a_records.php?action=detail&id=${id}`, { credentials: 'same-origin' });
+                    const data = await response.json();
+                    if (!response.ok || !data.success) continue;
+                    const html = data.data?.record_snapshot?.manual_overrides?.remarks_html || '';
+                    if (this.remarksEditor?.setSavedRemarks(html)) return true;
+                } catch (error) {
+                    console.warn('Unable to load a saved CRF No. 3A remarks copy.', error);
+                }
+            }
+            this.remarksEditor?.setSavedRemarks('');
+            return false;
         }
 
         confirmGeneration() {
@@ -326,7 +351,7 @@
         close() { this.backdrop.classList.remove('is-open'); this.backdrop.setAttribute('aria-hidden', 'true'); document.body.classList.remove('crf1a-open'); }
         zoom(step) { this.scale = Math.min(2.5, Math.max(.5, this.scale + step)); this.render(); this.backdrop.querySelector('[data-zoom]').textContent = Math.round(this.scale * 100) + '%'; }
         rotate(step) { this.rotation = (this.rotation + step + 360) % 360; this.render(); }
-        set(name, value) { const element = this.form.elements[name]; if (element) element.value = value || ''; }
+        set(name, value) { const element = this.form.elements[name]; if (element) element.value = value || ''; if (name === 'remarks_html') this.remarksEditor?.setSavedRemarks(value || ''); }
         setStatus(message, error = false, success = false) { this.status.textContent = message || ''; this.status.className = 'crf1a-status' + (error ? ' error' : '') + (success ? ' success' : ''); }
         today() { return window.CRF3A_DEFAULT_ISSUE_DATE || new Date().toISOString().slice(0, 10); }
         confirm(title, message, button, color, yes) { if (typeof Notiflix === 'undefined' || !Notiflix.Confirm) { if (window.confirm(message.replace(/<[^>]+>/g, ''))) yes(); return; } Notiflix.Confirm.show(title, message, 'Cancel', button, () => {}, yes, { width: '520px', borderRadius: '12px', plainText: false, messageMaxLength: 1000, okButtonColor: '#374151', okButtonBackground: '#F3F4F6', cancelButtonColor: '#fff', cancelButtonBackground: color, backOverlayColor: 'rgba(0,0,0,.6)' }); }

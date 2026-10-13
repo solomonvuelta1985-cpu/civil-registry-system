@@ -71,6 +71,10 @@ function crf_1a_sanitize_remarks_html($html): string
                         break;
                     }
                 }
+            } elseif ($property === 'line-height' && in_array($value, ['1', '1.0', '1.15', '1.5', '2', '2.0'], true)) {
+                $safe[] = 'line-height:' . (float)$value;
+            } elseif ($property === 'margin-bottom' && in_array(strtolower($value), ['0mm', '1.5mm'], true)) {
+                $safe[] = 'margin-bottom:' . strtolower($value);
             }
         }
         return implode(';', $safe);
@@ -88,8 +92,10 @@ function crf_1a_sanitize_remarks_html($html): string
                 $copyChildren($child, $destination);
                 continue;
             }
-            $outputTag = $tag === 'div' ? 'p' : $tag;
+            $isRemarksRoot = $tag === 'div' && $child->getAttribute('data-remarks-root') === '1';
+            $outputTag = $tag === 'div' && !$isRemarksRoot ? 'p' : $tag;
             $element = $dom->createElement($outputTag);
+            if ($isRemarksRoot) $element->setAttribute('data-remarks-root', '1');
             if ($child->hasAttribute('style')) {
                 $style = $cleanStyle($child->getAttribute('style'));
                 if ($style !== '') $element->setAttribute('style', $style);
@@ -107,36 +113,76 @@ function crf_1a_sanitize_remarks_html($html): string
     return $plain === '' ? '' : $result;
 }
 
-/** Estimate remarks page space in base-font character units. */
+function crf_1a_remarks_style_number(string $tag, string $property, string $unit = ''): ?float
+{
+    $style = preg_match('~\bstyle\s*=\s*(["\'])(.*?)\1~i', $tag, $styleMatch) ? $styleMatch[2] : '';
+    $unitPattern = $unit !== '' ? preg_quote($unit, '~') : '';
+    if (!preg_match('~(?:^|;)\s*' . preg_quote($property, '~') . '\s*:\s*(\d+(?:\.\d+)?)(?:' . $unitPattern . ')?~i', $style, $match)) return null;
+    return (float)$match[1];
+}
+
+function crf_1a_remarks_add_paragraph_weight(array &$stack, float $cost): void
+{
+    for ($i = count($stack) - 1; $i >= 0; $i--) {
+        if ($stack[$i]['paragraph_units'] !== null) {
+            $stack[$i]['paragraph_units'] += $cost;
+            return;
+        }
+    }
+}
+
+/** Estimate remarks page space in 8pt single-spaced character units. */
 function crf_1a_remarks_weight(string $html): float
 {
     $tokens = preg_split('~(<[^>]+>|[^<]+)~u', $html, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY) ?: [];
     $stack = [];
     $weight = 0.0;
+    $inherited = static function (array $stack, string $key, float $fallback): float {
+        for ($i = count($stack) - 1; $i >= 0; $i--) if ($stack[$i][$key] !== null) return $stack[$i][$key];
+        return $fallback;
+    };
     foreach ($tokens as $token) {
         if ($token[0] === '<') {
             $closing = preg_match('~^<\s*/~', $token) === 1;
             preg_match('~^<\s*/?\s*([a-z0-9]+)~i', $token, $match);
             $tag = strtolower($match[1] ?? '');
-            if ($tag === 'br') { $weight += 82; continue; }
-            if (in_array($tag, ['p', 'div', 'li', 'blockquote'], true)) $weight += 28;
+            if ($tag === 'br') {
+                $cost = 82 * $inherited($stack, 'line_height', 1.0);
+                $weight += $cost;
+                crf_1a_remarks_add_paragraph_weight($stack, $cost);
+                continue;
+            }
             if ($closing) {
                 for ($i = count($stack) - 1; $i >= 0; $i--) {
-                    if ($stack[$i]['tag'] === $tag) { array_splice($stack, $i, 1); break; }
+                    if ($stack[$i]['tag'] === $tag) {
+                        $closed = $stack[$i];
+                        array_splice($stack, $i, 1);
+                        if ($closed['paragraph_units'] !== null) $weight += max(0, 82 * $closed['paragraph_line_height'] - $closed['paragraph_units']);
+                        if ($closed['margin_bottom']) $weight += $closed['margin_bottom'] * 82 / 4.5;
+                        break;
+                    }
                 }
             } elseif (!preg_match('~/>$~', $token)) {
-                $size = preg_match('~font-size\s*:\s*(\d+(?:\.\d+)?)pt~i', $token, $sizeMatch) ? (float)$sizeMatch[1] : null;
-                $stack[] = ['tag' => $tag, 'size' => $size];
+                $stack[] = [
+                    'tag' => $tag,
+                    'size' => crf_1a_remarks_style_number($token, 'font-size', 'pt'),
+                    'line_height' => crf_1a_remarks_style_number($token, 'line-height'),
+                    'margin_bottom' => crf_1a_remarks_style_number($token, 'margin-bottom', 'mm') ?? 0.0,
+                    'paragraph_units' => in_array($tag, ['p', 'li'], true) ? 0.0 : null,
+                    'paragraph_line_height' => crf_1a_remarks_style_number($token, 'line-height') ?? $inherited($stack, 'line_height', 1.0),
+                ];
             }
             continue;
         }
         $text = html_entity_decode($token, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $fontScale = 1.0;
-        for ($i = count($stack) - 1; $i >= 0; $i--) {
-            if ($stack[$i]['size'] !== null) { $fontScale = max(0.6, $stack[$i]['size'] / 10.5); break; }
-        }
+        $fontScale = $inherited($stack, 'size', 9.5) / 8;
+        $lineScale = $inherited($stack, 'line_height', 1.0);
         $characters = preg_split('//u', $text, -1, PREG_SPLIT_NO_EMPTY) ?: [];
-        foreach ($characters as $character) $weight += ($character === "\n" || $character === "\r") ? 82 : $fontScale;
+        foreach ($characters as $character) {
+            $cost = (($character === "\n" || $character === "\r") ? 82 : $fontScale) * $lineScale;
+            $weight += $cost;
+            crf_1a_remarks_add_paragraph_weight($stack, $cost);
+        }
     }
     return $weight;
 }
@@ -152,29 +198,68 @@ function crf_1a_split_remarks_html(string $html, int $firstLimit, int $continuat
     $stack = [];
     $plainInPage = false;
     $closeStack = static function (array $stack): string { return implode('', array_map(static fn($item) => '</' . $item['tag'] . '>', array_reverse($stack))); };
+    $inherited = static function (array $stack, string $key, float $fallback): float {
+        for ($i = count($stack) - 1; $i >= 0; $i--) if ($stack[$i][$key] !== null) return $stack[$i][$key];
+        return $fallback;
+    };
     foreach ($tokens as $token) {
         if ($token[0] === '<') {
             $closing = preg_match('~^<\s*/~', $token) === 1;
             preg_match('~^<\s*/?\s*([a-z0-9]+)~i', $token, $match);
             $tag = strtolower($match[1] ?? '');
+            $paragraphStart = !$closing && in_array($tag, ['p', 'li'], true);
+            $paragraphLineHeight = crf_1a_remarks_style_number($token, 'line-height') ?? $inherited($stack, 'line_height', 1.0);
+            if ($paragraphStart && $units + 82 * $paragraphLineHeight > $limit && $plainInPage) {
+                $pages[] = $output . $closeStack($stack);
+                $output = implode('', array_map(static fn($item) => $item['open'], $stack));
+                $units = 0.0;
+                $limit = max(1, $continuationLimit);
+                $plainInPage = false;
+                foreach ($stack as &$frame) if ($frame['paragraph_units'] !== null) $frame['paragraph_units'] = 0.0;
+                unset($frame);
+            }
+            if (!$closing && $tag !== 'br' && $units >= $limit && $plainInPage) {
+                $pages[] = $output . $closeStack($stack);
+                $output = implode('', array_map(static fn($item) => $item['open'], $stack));
+                $units = 0.0;
+                $limit = max(1, $continuationLimit);
+                $plainInPage = false;
+                foreach ($stack as &$frame) if ($frame['paragraph_units'] !== null) $frame['paragraph_units'] = 0.0;
+                unset($frame);
+            }
             $output .= $token;
-            if ($tag === 'br') $units += 82;
-            elseif (in_array($tag, ['p', 'div', 'li', 'blockquote'], true)) $units += 28;
+            if ($tag === 'br') {
+                $cost = 82 * $inherited($stack, 'line_height', 1.0);
+                $units += $cost;
+                crf_1a_remarks_add_paragraph_weight($stack, $cost);
+                continue;
+            }
             if ($closing) {
                 for ($i = count($stack) - 1; $i >= 0; $i--) {
-                    if ($stack[$i]['tag'] === $tag) { array_splice($stack, $i, 1); break; }
+                    if ($stack[$i]['tag'] === $tag) {
+                        $closed = $stack[$i];
+                        array_splice($stack, $i, 1);
+                        if ($closed['paragraph_units'] !== null) $units += max(0, 82 * $closed['paragraph_line_height'] - $closed['paragraph_units']);
+                        if ($closed['margin_bottom']) $units += $closed['margin_bottom'] * 82 / 4.5;
+                        break;
+                    }
                 }
             } elseif (!preg_match('~/>$~', $token)) {
-                $size = preg_match('~font-size\s*:\s*(\d+(?:\.\d+)?)pt~i', $token, $sizeMatch) ? (float)$sizeMatch[1] : null;
-                $stack[] = ['tag' => $tag, 'open' => $token, 'size' => $size];
+                $stack[] = [
+                    'tag' => $tag,
+                    'open' => $token,
+                    'size' => crf_1a_remarks_style_number($token, 'font-size', 'pt'),
+                    'line_height' => crf_1a_remarks_style_number($token, 'line-height'),
+                    'margin_bottom' => crf_1a_remarks_style_number($token, 'margin-bottom', 'mm') ?? 0.0,
+                    'paragraph_units' => in_array($tag, ['p', 'li'], true) ? 0.0 : null,
+                    'paragraph_line_height' => $paragraphLineHeight,
+                ];
             }
             continue;
         }
         $text = html_entity_decode($token, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $fontScale = 1.0;
-        for ($i = count($stack) - 1; $i >= 0; $i--) {
-            if ($stack[$i]['size'] !== null) { $fontScale = max(0.6, $stack[$i]['size'] / 10.5); break; }
-        }
+        $fontScale = $inherited($stack, 'size', 9.5) / 8;
+        $lineScale = $inherited($stack, 'line_height', 1.0);
         $characters = preg_split('//u', $text, -1, PREG_SPLIT_NO_EMPTY) ?: [];
         foreach ($characters as $character) {
             if ($units >= $limit && $plainInPage) {
@@ -183,9 +268,12 @@ function crf_1a_split_remarks_html(string $html, int $firstLimit, int $continuat
                 $units = 0.0;
                 $limit = max(1, $continuationLimit);
                 $plainInPage = false;
+                foreach ($stack as &$frame) if ($frame['paragraph_units'] !== null) $frame['paragraph_units'] = 0.0;
+                unset($frame);
             }
             $output .= htmlspecialchars($character, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
-            $units += ($character === "\n" || $character === "\r") ? 82 : $fontScale;
+            $units += (($character === "\n" || $character === "\r") ? 82 : $fontScale) * $lineScale;
+            crf_1a_remarks_add_paragraph_weight($stack, (($character === "\n" || $character === "\r") ? 82 : $fontScale) * $lineScale);
             if (!preg_match('/[\s\x{00a0}]/u', $character)) $plainInPage = true;
         }
     }
@@ -523,11 +611,11 @@ body { font-family: "Courier New", Courier, monospace; color: #111; font-size: 9
 .payment-row .payment-value { display: table-cell; width: auto; vertical-align: baseline; }
 .payment-row .filled-line { width: 38mm; }
  .note { position: absolute; left: 21mm; top: 243mm; width: 168mm; margin: 0; font-size: 8pt; line-height: 1.1; }
-.doc-remarks { position:absolute; left:21mm; right:21mm; margin:0; color:#111; font-family:Arial,sans-serif; font-size:10.5pt; line-height:1.25; overflow-wrap:anywhere; word-break:break-word; }
+.doc-remarks { position:absolute; left:21mm; right:21mm; margin:0; color:#111; font-family:"Courier New",Courier,monospace; font-size:9.5pt; line-height:1; overflow-wrap:anywhere; word-break:break-word; }
 .doc-remarks-heading { margin:0 0 2mm; font-family:"Courier New",monospace; font-size:9.5pt; font-weight:700; text-transform:uppercase; }
 .doc-remarks-content,.doc-remarks-content * { text-align:justify!important; }
 .doc-remarks-content { white-space:normal; overflow-wrap:anywhere; word-break:break-word; }
-.doc-remarks-content p { margin:0 0 1.5mm; }.doc-remarks-content p:last-child { margin-bottom:0; }
+.doc-remarks-content p,.doc-remarks-content div { margin:0; }
 .doc-continuation-heading { position:absolute; top:10mm; left:21mm; right:21mm; font-size:11pt; }
 .doc-continuation-id { float:right; font-size:8pt; }
 </style></head><body><div class="sheet">
@@ -742,10 +830,10 @@ function crf_1a_render_table_pdf_html(
         . '.payment-value .pdf-line{width:38mm}'
         . '.note-row{padding-left:21mm!important;padding-top:0!important}'
         . '.note{width:168mm;font-size:8pt;line-height:1.1}'
-        . '.remarks-row{padding:0 21mm 0 29mm!important;font:10.5pt/1.25 Arial,sans-serif;overflow-wrap:anywhere;word-break:break-word}'
+        . '.remarks-row{padding:0 21mm 0 29mm!important;font:9.5pt/1 "Courier New",Courier,monospace;overflow-wrap:anywhere;word-break:break-word}'
         . '.remarks-heading{margin:0 0 2mm;font:700 9.5pt "Courier New",monospace;text-transform:uppercase}'
         . '.remarks-content,.remarks-content *{text-align:justify!important}'
-        . '.remarks-content p{margin:0 0 1.5mm}.remarks-content p:last-child{margin-bottom:0}'
+        . '.remarks-content p,.remarks-content div{margin:0}'
         . '.remarks-page{page-break-before:always;break-before:page}.remarks-cont-title{height:16mm;padding:0 21mm!important;font:11pt/1.2 "Courier New",monospace}'
         . '</style></head><body><table class="pdf-page" cellspacing="0" cellpadding="0" border="0"><tr><td class="top-spacer">&nbsp;</td></tr>'
         . '<tr><td style="padding-left:14mm;padding-right:12mm;"><table class="header-table" cellspacing="0" cellpadding="0" border="0"><tr>'

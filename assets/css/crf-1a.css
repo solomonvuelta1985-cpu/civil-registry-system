@@ -141,6 +141,33 @@ body.crf1a-open { overflow: hidden; }
     font-size: 12px;
     font-weight: 600;
 }
+.crf1a-requester-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 5px;
+}
+.crf1a-requester-label-row > label:first-child { margin: 0; }
+.crf1a-form-group label.crf1a-requester-auto {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.crf1a-requester-auto input {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    accent-color: #2563eb;
+    cursor: pointer;
+}
+.crf1a-requester-auto input:disabled { cursor: not-allowed; }
 .crf1a-form-group label .required { color: #dc2626; }
 .crf1a-form-control {
     width: 100%;
@@ -291,11 +318,11 @@ body.crf1a-open { overflow: hidden; }
 .crf1a-document.crf2a-document .doc-continuation-heading { position: absolute; top: 10mm; left: 21mm; right: 21mm; font-size: 11pt; }
 .crf1a-document .doc-continuation-heading { position: absolute; top: 10mm; left: 21mm; right: 21mm; font-size: 11pt; }
 @media screen { .crf1a-document.doc-continuation { margin-top: 8mm; } }
-.crf1a-document .doc-remarks { position: absolute; left: 21mm; right: 21mm; margin: 0; color: #111; font-family: Arial,sans-serif; font-size: 10.5pt; line-height: 1.25; overflow-wrap: anywhere; word-break: break-word; }
+.crf1a-document .doc-remarks { position: absolute; left: 21mm; right: 21mm; margin: 0; color: #111; font-family: "Courier New",Courier,monospace; font-size: 9.5pt; line-height: 1; overflow-wrap: anywhere; word-break: break-word; }
 .crf1a-document .doc-remarks-heading { margin: 0 0 2mm; font-family: "Courier New",monospace; font-size: 9.5pt; font-weight: 700; text-transform: uppercase; }
 .crf1a-document .doc-remarks-content, .crf1a-document .doc-remarks-content * { text-align: justify !important; }
 .crf1a-document .doc-remarks-content { white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
-.crf1a-document .doc-remarks-content p { margin: 0 0 1.5mm; }
+.crf1a-document .doc-remarks-content p, .crf1a-document .doc-remarks-content div { margin: 0; }
 .crf1a-document .doc-remarks-content p:last-child { margin-bottom: 0; }
 .crf1a-document.crf2a-document .doc-continuation-id { float: right; font-size: 8pt; }
 .crf1a-document.crf2a-document .doc-continuation-cause { position: absolute; top: 35mm; left: 34mm; right: 35mm; }
@@ -371,6 +398,14 @@ body.crf1a-open { overflow: hidden; }
 .crf-remarks-backdrop { position: fixed; inset: 0; z-index: 1600; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.62); }
 .crf-remarks-backdrop[hidden] { display: none !important; }
 .crf-remarks-modal { width: min(900px, 96vw); max-height: min(86vh, 900px); display: flex; flex-direction: column; overflow: hidden; border: 1px solid #cbd5e1; border-radius: 14px; background: #fff; box-shadow: 0 24px 70px rgba(15,23,42,.35); }
+.crf-remarks-saved-backdrop { position: fixed; inset: 0; z-index: 1610; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.38); }
+.crf-remarks-saved-backdrop[hidden] { display: none !important; }
+.crf-remarks-saved-modal { width: min(680px, 94vw); max-height: min(80vh, 760px); display: flex; flex-direction: column; overflow: hidden; border: 1px solid #cbd5e1; border-radius: 14px; background: #fff; box-shadow: 0 24px 70px rgba(15,23,42,.35); }
+.crf-remarks-saved-body { min-height: 110px; overflow: auto; padding: 18px; }
+.crf-remarks-saved-preview { min-height: 80px; max-height: 52vh; overflow: auto; padding: 16px; border: 1px solid #cbd5e1; border-radius: 8px; color: #111; background: #fff; font: 9.5pt/1 "Courier New",Courier,monospace; text-align: justify; overflow-wrap: anywhere; }
+.crf-remarks-saved-preview p { margin: 0 0 8px; }
+.crf-remarks-saved-preview p:last-child { margin-bottom: 0; }
+.crf-remarks-saved-empty { color: #64748b; font-style: italic; }
 .crf-remarks-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; }
 .crf-remarks-header h3 { margin: 0; color: #0f172a; font-size: 17px; }
 .crf-remarks-close { width: 34px; height: 34px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #475569; font-size: 22px; cursor: pointer; }
@@ -379,11 +414,13 @@ body.crf1a-open { overflow: hidden; }
 .crf-remarks-toolbar select { padding: 0 8px; }
 .crf-remarks-toolbar button { min-width: 34px; padding: 0 8px; cursor: pointer; }
 .crf-remarks-toolbar button:hover { background: #eff6ff; border-color: #93c5fd; }
+.crf-remarks-toolbar button:disabled { opacity: .48; cursor: not-allowed; }
+.crf-remarks-toolbar button:disabled:hover { background: #fff; border-color: #cbd5e1; }
 .crf-remarks-color { display: inline-flex; align-items: center; gap: 5px; padding: 0 6px; font-weight: 700; cursor: pointer; }
 .crf-remarks-color input { width: 22px; height: 24px; padding: 0; border: 0; background: transparent; cursor: pointer; }
-.crf-remarks-editable { min-height: 280px; flex: 1; overflow: auto; margin: 18px; padding: 16px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; color: #111; font: 10.5pt Arial,sans-serif; line-height: 1.35; overflow-wrap: anywhere; }
+.crf-remarks-editable { min-height: 280px; flex: 1; overflow: auto; margin: 18px; padding: 16px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; color: #111; font: 9.5pt "Courier New",Courier,monospace; line-height: 1; overflow-wrap: anywhere; }
 .crf-remarks-editable:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
-.crf-remarks-editable p { margin: 0 0 8px; }
+.crf-remarks-editable p, .crf-remarks-editable div { margin: 0; }
 .crf-remarks-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 18px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 12px; }
 .crf-remarks-footer > div { display: flex; gap: 8px; }
 .crf1a-form-group.crf-remarks-entry { padding: 12px; border: 1px solid #e2e8f0; border-radius: 9px; background: #f8fafc; }

@@ -200,11 +200,11 @@ function crf_3a_preview_style(): string
 .crf1a-document .crf3a-verified-heading>span:first-child{width:32mm;flex:0 0 32mm;}
 .crf1a-document .crf3a-verified-line{display:inline-block;width:62mm;height:5mm;border-bottom:1px solid #222;overflow:hidden;white-space:nowrap;}
 .crf1a-document .crf3a-verified-position{margin-left:32mm;width:62mm;min-height:4mm;text-align:left;}
-.crf1a-document .doc-remarks{position:absolute;left:21mm;right:21mm;margin:0;color:#111;font:10.5pt/1.25 Arial,sans-serif;overflow-wrap:anywhere;word-break:break-word;}
+.crf1a-document .doc-remarks{position:absolute;left:21mm;right:21mm;margin:0;color:#111;font:9.5pt/1 "Courier New",Courier,monospace;overflow-wrap:anywhere;word-break:break-word;}
 .crf1a-document .doc-remarks-heading{margin:0 0 2mm;font:700 9.5pt "Courier New",monospace;text-transform:uppercase;}
 .crf1a-document .doc-remarks-content,.crf1a-document .doc-remarks-content *{text-align:justify!important;}
 .crf1a-document .doc-remarks-content{white-space:normal;overflow-wrap:anywhere;word-break:break-word;}
-.crf1a-document .doc-remarks-content p{margin:0 0 1.5mm;}.crf1a-document .doc-remarks-content p:last-child{margin-bottom:0;}
+.crf1a-document .doc-remarks-content p,.crf1a-document .doc-remarks-content div{margin:0;}
 .crf1a-document .doc-continuation-heading{position:absolute;top:10mm;left:21mm;right:21mm;font-size:11pt;}
 .crf1a-document .doc-continuation-id{float:right;font-size:8pt;}
 CSS;

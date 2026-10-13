@@ -46,7 +46,16 @@
                                     <div class="crf1a-form-group"><label for="crf1aBookNumber">Book Number <span class="required">*</span></label><input id="crf1aBookNumber" name="book_number" class="crf1a-form-control" maxlength="50" required></div>
                                 </div>
                                 <div class="crf1a-form-group"><label for="crf1aPopulationReference">Population Reference No.</label><input id="crf1aPopulationReference" name="population_reference_no" class="crf1a-form-control" maxlength="100"></div>
-                                <div class="crf1a-form-group"><label for="crf1aRequester">Requester</label><input id="crf1aRequester" name="requester_name" class="crf1a-form-control" maxlength="150"></div>
+                                <div class="crf1a-form-group">
+                                    <div class="crf1a-requester-label-row">
+                                        <label for="crf1aRequester">Requester</label>
+                                        <label class="crf1a-requester-auto" for="crf1aRequesterUseChildName">
+                                            <input id="crf1aRequesterUseChildName" name="requester_use_child_name" type="checkbox" value="1">
+                                            <span>Use child’s name</span>
+                                        </label>
+                                    </div>
+                                    <input id="crf1aRequester" name="requester_name" class="crf1a-form-control" maxlength="150">
+                                </div>
                                 <div class="crf1a-two-col">
                                     <div class="crf1a-form-group"><label for="crf1aAmountPaid">Amount Paid <span class="required">*</span></label><input id="crf1aAmountPaid" name="amount_paid" class="crf1a-form-control" inputmode="decimal" placeholder="0.00" required></div>
                                     <div class="crf1a-form-group"><label for="crf1aOrNumber">O.R. Number <span class="required">*</span></label><input id="crf1aOrNumber" name="or_number" class="crf1a-form-control" maxlength="100" required></div>
@@ -100,6 +109,9 @@
             this.modal = this.backdrop.querySelector('.crf1a-generator-modal');
             this.form = this.backdrop.querySelector('#crf1aGeneratorForm');
             this.previewHost = this.backdrop.querySelector('#crf1aPreviewHost');
+            this.requesterInput = this.form.elements.namedItem('requester_name');
+            this.requesterUseChildName = this.form.elements.namedItem('requester_use_child_name');
+            this.lastAutoRequesterName = '';
             this.remarksEditor = window.CrfRemarksEditor?.attach(this.backdrop, this.form, () => this.renderPreview());
             this.pdfFrame = this.backdrop.querySelector('.crf1a-pdf-frame');
             this.status = this.backdrop.querySelector('#crf1aStatus');
@@ -115,7 +127,9 @@
             this.backdrop.querySelectorAll('[data-crf1a-close]').forEach(button => button.addEventListener('click', () => this.close()));
             this.backdrop.addEventListener('click', event => { if (event.target === this.backdrop) this.close(); });
             this.form.addEventListener('submit', event => { event.preventDefault(); this.confirmGeneration(); });
-            this.form.addEventListener('input', () => this.renderPreview());
+            this.form.addEventListener('input', event => { if (event.target !== this.requesterUseChildName) this.renderPreview(); });
+            this.requesterUseChildName.addEventListener('change', () => this.handleRequesterAutoChange());
+            this.requesterInput.addEventListener('input', () => this.handleRequesterManualEdit());
             document.addEventListener('keydown', event => { if (event.key === 'Escape' && this.backdrop.classList.contains('is-open')) this.close(); });
             this.refreshIcons();
         }
@@ -175,6 +189,8 @@
                 this.setValue('crf1aBookNumber', issuance.book_number);
                 this.setValue('crf1aPopulationReference', issuance.population_reference_no);
                 this.setValue('crf1aRequester', issuance.requester_name);
+                const requesterWasMapped = Boolean(issuance.record_snapshot?.manual_overrides?.requester_use_child_name);
+                this.setRequesterAutoState(requesterWasMapped);
                 this.setValue('crf1aAmountPaid', issuance.amount_paid);
                 this.setValue('crf1aOrNumber', issuance.or_number);
                 this.setValue('crf1aDatePaid', issuance.date_paid);
@@ -182,11 +198,14 @@
                 this.setValue('crf1aMcrPosition', issuance.mcr_title || '');
                 this.setValue('crf1aCertifiedName', issuance.certified_by_name || '');
                 this.setValue('crf1aCertifiedPosition', issuance.certified_by_position || '');
+                const savedRemarks = issuance.record_snapshot?.manual_overrides?.remarks_html || '';
                 const remarksField = this.form.elements.namedItem('remarks_html');
-                if (remarksField) remarksField.value = issuance.record_snapshot?.manual_overrides?.remarks_html || '';
+                if (remarksField) remarksField.value = savedRemarks;
+                const hasSavedRemarks = this.remarksEditor?.setSavedRemarks(savedRemarks) || false;
                 this.setValue('crf1aIssuanceKind', 'Corrected');
                 this.renderPreview();
                 await this.loadExistingIssuances(sourceId);
+                if (!hasSavedRemarks) await this.loadPreviousSavedRemarks(this.existingIssuances, this.replacesIssuanceId);
                 if (this.issuanceCheckComplete) {
                     this.setStatus(`Corrected copy of ${issuance.crf_number || 'the selected issuance'} loaded. Generate to create a new immutable CRF ID.`);
                 }
@@ -204,6 +223,9 @@
             this.show();
             const today = this.today();
             this.form.reset();
+            this.lastAutoRequesterName = '';
+            this.updateRequesterAutoAvailability();
+            this.remarksEditor?.setSavedRemarks('');
             this.setValue('crf1aIssuanceKind', 'Original');
             this.setValue('crf1aIssueDate', today);
             this.setValue('crf1aDatePaid', today);
@@ -284,6 +306,7 @@
                 if (this.existingIssuances.length && !this.replacesIssuanceId) {
                     this.setValue('crf1aIssuanceKind', 'Corrected');
                     this.replacesIssuanceId = Number(this.existingIssuances[0]?.id || this.existingIssuances[0]?.issuance_id) || 0;
+                    await this.loadPreviousSavedRemarks(this.existingIssuances);
                 }
                 this.issuanceCheckComplete = true;
             } catch (error) {
@@ -292,6 +315,25 @@
             } finally {
                 this.issuanceCheckPending = false;
             }
+        }
+
+        async loadPreviousSavedRemarks(issuances, beforeIssuanceId = 0) {
+            const beforeId = Number(beforeIssuanceId) || 0;
+            for (const issuance of issuances || []) {
+                const id = Number(issuance?.id || issuance?.issuance_id) || 0;
+                if (!id || (beforeId && id >= beforeId)) continue;
+                try {
+                    const response = await fetch(`../api/crf_1a_records.php?action=detail&id=${id}`, { credentials: 'same-origin' });
+                    const data = await response.json();
+                    if (!response.ok || !data.success) continue;
+                    const html = data.data?.record_snapshot?.manual_overrides?.remarks_html || '';
+                    if (this.remarksEditor?.setSavedRemarks(html)) return true;
+                } catch (error) {
+                    console.warn('Unable to load a saved CRF No. 1A remarks copy.', error);
+                }
+            }
+            this.remarksEditor?.setSavedRemarks('');
+            return false;
         }
 
         show() {
@@ -381,6 +423,7 @@
             const selectedKind = this.value('crf1aIssuanceKind') || 'Original';
             if (this.replacesIssuanceId && selectedKind !== 'Corrected') this.setValue('crf1aIssuanceKind', 'Corrected');
             const formData = new FormData(this.form);
+            formData.set('requester_use_child_name', this.requesterUseChildName.checked ? '1' : '0');
             formData.append('birth_record_id', String(this.record.id));
             if (this.replacesIssuanceId) formData.append('replaces_issuance_id', String(this.replacesIssuanceId));
             const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -440,6 +483,57 @@
             this.previewCurrentPage = Math.min(this.previewCurrentPage, this.previewTotalPages);
             this.updatePreviewControls();
             this.applyPreviewTransform();
+        }
+
+        requesterRecordName() {
+            return this.fullName(this.record || {}, 'child').trim();
+        }
+
+        updateRequesterAutoAvailability() {
+            const hasChildName = this.requesterRecordName() !== '';
+            this.requesterUseChildName.disabled = !hasChildName;
+            this.requesterUseChildName.title = hasChildName
+                ? 'Copy the child’s name from this birth record into Requester'
+                : 'A child’s name is not available in this birth record';
+            if (!hasChildName) this.requesterUseChildName.checked = false;
+            return hasChildName;
+        }
+
+        setRequesterAutoState(checked) {
+            const hasChildName = this.updateRequesterAutoAvailability();
+            const shouldMap = Boolean(checked) && hasChildName;
+            this.requesterUseChildName.checked = shouldMap;
+            if (shouldMap) {
+                this.lastAutoRequesterName = this.requesterRecordName();
+                this.requesterInput.value = this.lastAutoRequesterName;
+            } else {
+                this.lastAutoRequesterName = '';
+            }
+        }
+
+        handleRequesterAutoChange() {
+            if (this.requesterUseChildName.checked) {
+                const childName = this.requesterRecordName();
+                if (!childName) {
+                    this.requesterUseChildName.checked = false;
+                    this.updateRequesterAutoAvailability();
+                    return;
+                }
+                this.lastAutoRequesterName = childName;
+                this.requesterInput.value = childName;
+            } else {
+                if (this.lastAutoRequesterName && this.requesterInput.value === this.lastAutoRequesterName) {
+                    this.requesterInput.value = '';
+                }
+                this.lastAutoRequesterName = '';
+            }
+            this.renderPreview();
+        }
+
+        handleRequesterManualEdit() {
+            if (!this.requesterUseChildName.checked) return;
+            this.requesterUseChildName.checked = false;
+            this.lastAutoRequesterName = '';
         }
 
         buildDocumentMarkup(record, inputs, crfNumber) {

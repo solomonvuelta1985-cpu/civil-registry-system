@@ -29,7 +29,7 @@ $crfDefaults = branding_crf_preview_config(crf_3a_config());
     <script src="<?= asset_url('notiflix_js') ?>"></script>
     <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=13">
-    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=31">
+    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=37">
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = '<?= asset_url("pdfjs_worker") ?>';</script>
     <style>
@@ -81,8 +81,8 @@ $crfDefaults = branding_crf_preview_config(crf_3a_config());
     window.CRF3A_CAN_DELETE = <?= isAdmin() ? 'true' : 'false' ?>;
     window.CRF3A_DEFAULT_ISSUE_DATE = <?= json_encode(date('Y-m-d')) ?>;
 </script>
-<script src="../assets/js/crf-remarks-editor.js?v=20261006-full-month-dates-1"></script>
-<script src="../assets/js/crf-3a-generator.js?v=20261006-full-month-dates-1"></script>
+<script src="../assets/js/crf-remarks-editor.js?v=20261012-crf-font-default-1"></script>
+<script src="../assets/js/crf-3a-generator.js?v=20261012-remarks-formatting-3"></script>
 <script src="../assets/js/crf-3a-records.js?v=3"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
 </body>

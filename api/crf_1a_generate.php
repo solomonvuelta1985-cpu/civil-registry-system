@@ -97,6 +97,7 @@ $inputs = [
     'book_number' => $bookNumber,
     'population_reference_no' => crf_1a_post_string('population_reference_no', 100),
     'requester_name' => crf_1a_post_string('requester_name', 150),
+    'requester_use_child_name' => ($_POST['requester_use_child_name'] ?? '') === '1',
     'amount_paid' => $amountPaid,
     'or_number' => $orNumber,
     'date_paid' => $datePaid,
@@ -120,6 +121,16 @@ try {
     reject_active_duplicate_registration_issuance($pdo, 'birth', (int)$birthRecordId, 'CRF No. 1A');
 
     $values = crf_1a_record_values($record);
+    if ($inputs['requester_use_child_name']) {
+        $childName = trim((string)($values['name_of_child'] ?? ''));
+        if ($childName === '') {
+            json_response(false, 'Cannot use the child’s name because it is unavailable in this birth record.', null, 422);
+        }
+        if (mb_strlen($childName, 'UTF-8') > 150) {
+            json_response(false, 'The child’s name is too long to fit in the Requester field.', null, 422);
+        }
+        $inputs['requester_name'] = $childName;
+    }
     if ($replacesId) {
         $replaceStmt = $pdo->prepare("SELECT id, crf_number, birth_record_id, status FROM crf_1a_issuances WHERE id = :id LIMIT 1");
         $replaceStmt->execute([':id' => $replacesId]);
@@ -204,7 +215,10 @@ try {
     $snapshot = json_encode([
         'raw' => $record,
         'display' => $values,
-        'manual_overrides' => ['remarks_html' => $inputs['remarks_html']],
+        'manual_overrides' => [
+            'remarks_html' => $inputs['remarks_html'],
+            'requester_use_child_name' => $inputs['requester_use_child_name'],
+        ],
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
     $pdfHash = hash_file('sha256', $pdfAbsolutePath);
     if ($pdfHash === false) {
