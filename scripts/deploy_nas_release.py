@@ -34,10 +34,15 @@ REPO_ONLY_PATHS = {
     ".env.production",
     ".env.synology",
     "database/create_marriage_table.sql",
+    # Migration 050 was already applied in production. Keep that exact file
+    # immutable in the live release; later schema changes need a new migration.
+    "database/migrations/050_marriage_civil_status.sql",
     "database_schema.sql",
+    "docs/RA9048_MODULE.md",
     "NAS_DEPLOYMENT_GUIDE.md",
     "scripts/deploy_nas_release.py",
     "scripts/test_deploy_nas_release.py",
+    "scripts/test_template_files.php",
 }
 REPO_ONLY_PREFIXES = ("tests/", "docker/")
 SENSITIVE_SQL_DELETE_PATHS = {"public/iscan_db (1).sql"}
@@ -574,7 +579,9 @@ def run_deployment(repo: pathlib.Path, live: pathlib.Path, backups: pathlib.Path
     migrations = [
         operation.path
         for operation in operations
-        if operation.path.startswith("database/migrations/") and operation.path.lower().endswith(".sql")
+        if not is_repo_only(operation.path)
+        and operation.path.startswith("database/migrations/")
+        and operation.path.lower().endswith(".sql")
     ]
     moved_repo_only: List[Tuple[str, pathlib.Path]] = []
     saved_env_templates: List[Tuple[str, pathlib.Path]] = []
