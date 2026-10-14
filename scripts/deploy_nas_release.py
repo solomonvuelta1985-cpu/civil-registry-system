@@ -34,7 +34,7 @@ REPO_ONLY_PATHS = {
     "scripts/deploy_nas_release.py",
     "scripts/test_deploy_nas_release.py",
 }
-REPO_ONLY_PREFIXES = ("tests/",)
+REPO_ONLY_PREFIXES = ("tests/", "docker/")
 PROTECTED_SEGMENTS = {
     ".git",
     ".claude",
@@ -196,6 +196,103 @@ def local_path_conflicts(local_paths: Sequence[str], incoming_paths: Sequence[st
                 conflicts.add(path)
 
     return sorted(conflicts)
+
+
+def same_repo_only_text(left: bytes, right: bytes) -> bool:
+    """Allow only line-ending or one terminal-newline differences for repo-only text."""
+    if b"\x00" in left or b"\x00" in right:
+        return left == right
+    left = normalized(left)
+    right = normalized(right)
+    if left.endswith(b"\n"):
+        left = left[:-1]
+    if right.endswith(b"\n"):
+        right = right[:-1]
+    return left == right
+
+
+def matching_repo_only_untracked_paths(
+    repo: pathlib.Path,
+    target: str,
+    incoming_paths: Sequence[str],
+    untracked_paths: Sequence[str],
+) -> List[str]:
+    """Find untracked repo-only files that already match the incoming text."""
+    incoming = set(incoming_paths)
+    matches: List[str] = []
+    for relative in untracked_paths:
+        if relative not in incoming or not is_repo_only(relative):
+            continue
+        path = repo.joinpath(*safe_relative_path(relative))
+        try:
+            info = path.lstat()
+        except FileNotFoundError:
+            continue
+        if not stat.S_ISREG(info.st_mode):
+            continue
+        target_file = tree_file(repo, target, relative)
+        if target_file is None:
+            continue
+        if same_repo_only_text(path.read_bytes(), target_file.content):
+            matches.append(relative)
+    return matches
+
+
+def preserve_repo_only_untracked_files(
+    repo: pathlib.Path,
+    backups: pathlib.Path,
+    target: str,
+    relatives: Sequence[str],
+) -> List[Tuple[str, pathlib.Path]]:
+    """Move equivalent untracked files aside so Git can adopt their tracked versions."""
+    if not relatives:
+        return []
+    backups.mkdir(parents=True, exist_ok=True)
+    stamp = _datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    moved: List[Tuple[str, pathlib.Path]] = []
+    try:
+        for index, relative in enumerate(relatives, start=1):
+            source = repo.joinpath(*safe_relative_path(relative))
+            target_file = tree_file(repo, target, relative)
+            if target_file is None or not source.is_file() or source.is_symlink():
+                raise DeployError("Repo-only file changed during preflight: {}".format(relative))
+            if not same_repo_only_text(source.read_bytes(), target_file.content):
+                raise DeployError("Repo-only file no longer matches incoming version: {}".format(relative))
+            backup = backups / "iscan-checkout-before-{}-{}-{}.bak".format(
+                stamp, target[:12], index
+            )
+            suffix = 1
+            while backup.exists():
+                backup = backups / "iscan-checkout-before-{}-{}-{}-{}.bak".format(
+                    stamp, target[:12], index, suffix
+                )
+                suffix += 1
+            os.replace(str(source), str(backup))
+            moved.append((relative, backup))
+    except Exception:
+        for relative, backup in reversed(moved):
+            source = repo.joinpath(*safe_relative_path(relative))
+            if not source.exists() and backup.exists():
+                os.replace(str(backup), str(source))
+        raise
+    return moved
+
+
+def restore_repo_only_untracked_files(
+    repo: pathlib.Path,
+    target: str,
+    moved: Sequence[Tuple[str, pathlib.Path]],
+) -> None:
+    """Restore preserved files if the Git fast-forward cannot adopt them."""
+    for relative, backup in reversed(moved):
+        source = repo.joinpath(*safe_relative_path(relative))
+        if source.exists():
+            target_file = tree_file(repo, target, relative)
+            if target_file is None or not same_repo_only_text(source.read_bytes(), target_file.content):
+                raise DeployError("Cannot restore preserved repo-only file over a changed path: {}".format(relative))
+            source.unlink()
+        source.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(str(backup), str(source))
 
 
 def has_live_entrypoint(live: pathlib.Path) -> bool:
@@ -382,7 +479,14 @@ def run_deployment(repo: pathlib.Path, live: pathlib.Path, backups: pathlib.Path
         for value in run_git(repo, "diff", "--no-renames", "--name-only", "-z", base, target).split(b"\0")
         if value
     ]
-    collisions = local_path_conflicts(tracked_changes + untracked_paths, incoming_paths)
+    adoptable_untracked = matching_repo_only_untracked_paths(
+        repo, target, incoming_paths, untracked_paths
+    )
+    adoptable_set = set(adoptable_untracked)
+    collisions = local_path_conflicts(
+        tracked_changes + [path for path in untracked_paths if path not in adoptable_set],
+        incoming_paths,
+    )
     if collisions:
         raise DeployError(
             "Local NAS file(s) conflict with incoming Git paths; nothing deployed: {}".format(
@@ -400,6 +504,7 @@ def run_deployment(repo: pathlib.Path, live: pathlib.Path, backups: pathlib.Path
         for operation in operations
         if operation.path.startswith("database/migrations/") and operation.path.lower().endswith(".sql")
     ]
+    moved_repo_only: List[Tuple[str, pathlib.Path]] = []
     try:
         for operation in operations:
             if is_repo_only(operation.path) or operation.action == "already":
@@ -430,12 +535,25 @@ def run_deployment(repo: pathlib.Path, live: pathlib.Path, backups: pathlib.Path
             ):
                 raise DeployError("Post-deploy verification failed: {}".format(operation.path))
 
+        moved_repo_only = preserve_repo_only_untracked_files(
+            repo, backups, target, adoptable_untracked
+        )
         run_git(repo, "-c", "core.filemode=false", "merge", "--ff-only", REMOTE_REF)
     except Exception as exc:
+        restore_note = ""
+        if moved_repo_only:
+            try:
+                restore_repo_only_untracked_files(repo, target, moved_repo_only)
+            except Exception as restore_exc:
+                restore_note = " Preserved checkout-file restore needs review: {}.".format(restore_exc)
         backup_note = " Backup: {}.".format(backup) if backup is not None else ""
         raise ApplyError(
-            "Failure after deployment began; inspect live files before retrying.{} Cause: {}".format(backup_note, exc)
+            "Failure after deployment began; inspect live files before retrying.{}{} Cause: {}".format(
+                backup_note, restore_note, exc
+            )
         ) from exc
+    for relative, preserved_copy in moved_repo_only:
+        print("CHECKOUT_FILE_ADOPTED {} backup={}".format(relative, preserved_copy))
     print("SOURCE_CHECKOUT_UPDATED={}".format(target[:12]))
     if migrations:
         print("DATABASE_MIGRATIONS_REVIEW_REQUIRED=" + ",".join(migrations))

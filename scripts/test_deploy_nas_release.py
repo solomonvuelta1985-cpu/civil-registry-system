@@ -63,7 +63,10 @@ class DeployClassificationTests(unittest.TestCase):
         self.assertTrue(DEPLOY.is_repo_only("NAS_DEPLOYMENT_GUIDE.md"))
         self.assertTrue(DEPLOY.is_repo_only("scripts/deploy_nas_release.py"))
         self.assertTrue(DEPLOY.is_repo_only("scripts/test_deploy_nas_release.py"))
+        self.assertTrue(DEPLOY.is_repo_only("docker/iscan-libreoffice/Dockerfile"))
         self.assertTrue(DEPLOY.is_repo_only("tests/example.php"))
+        self.assertTrue(DEPLOY.same_repo_only_text(b"FROM debian\r\n", b"FROM debian"))
+        self.assertFalse(DEPLOY.same_repo_only_text(b"FROM ubuntu\n", b"FROM debian\n"))
 
     def test_unrelated_local_paths_are_allowed_unless_they_overlap_incoming_paths(self):
         local_paths = [
@@ -245,6 +248,81 @@ class DeployPlanIntegrationTests(unittest.TestCase):
                 DEPLOY.run_deployment(nas_repo, live, backups)
             self.assertEqual(git(nas_repo, "rev-parse", "HEAD"), old_checkout)
             self.assertFalse((live / "assets" / "new.js").exists())
+            self.assertFalse(backups.exists())
+
+    def test_repo_only_file_with_missing_final_newline_is_safely_adopted(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            source, nas_repo = self.make_nas_and_remote(root)
+            live = nas_repo / "release_blue_candidate_20260930"
+            backups = root / "backups"
+            (live / "includes").mkdir(parents=True)
+            (live / "public").mkdir()
+            (live / ".env").write_text("secret stays here", encoding="utf-8")
+            (live / "includes" / "feature.php").write_text("old\n", encoding="utf-8")
+            (live / "public" / "index.php").write_text("<?php echo 'ok';\n", encoding="utf-8")
+
+            dockerfile = (
+                b"FROM debian:bookworm-slim\n\n"
+                b"ENV HOME=/tmp\n\n"
+                b"RUN apt-get update \\\n"
+                b"    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \\\n"
+                b"        libreoffice-writer \\\n"
+                b"        fonts-dejavu \\\n"
+                b"        fonts-liberation \\\n"
+                b"        fontconfig \\\n"
+                b"    && rm -rf /var/lib/apt/lists/*\n\n"
+                b"ENTRYPOINT [\"soffice\"]\n"
+            )
+            dockerfile_path = source / "docker" / "iscan-libreoffice" / "Dockerfile"
+            dockerfile_path.parent.mkdir(parents=True)
+            dockerfile_path.write_bytes(dockerfile)
+            git(source, "add", "docker/iscan-libreoffice/Dockerfile")
+            git(source, "commit", "-m", "add LibreOffice image definition")
+            git(source, "push", "origin", "main")
+            expected_commit = git(source, "rev-parse", "HEAD")
+
+            local_dockerfile = nas_repo / "docker" / "iscan-libreoffice" / "Dockerfile"
+            local_dockerfile.parent.mkdir(parents=True)
+            local_dockerfile.write_bytes(dockerfile[:-1])
+
+            self.assertEqual(DEPLOY.run_deployment(nas_repo, live, backups), 0)
+            self.assertEqual(git(nas_repo, "rev-parse", "HEAD"), expected_commit)
+            self.assertEqual(DEPLOY.normalized(local_dockerfile.read_bytes()), DEPLOY.normalized(dockerfile))
+            self.assertFalse((live / "docker" / "iscan-libreoffice" / "Dockerfile").exists())
+            preserved = list(backups.glob("iscan-checkout-before-*.bak"))
+            self.assertEqual(len(preserved), 1)
+            self.assertEqual(preserved[0].read_bytes(), dockerfile[:-1])
+
+    def test_different_untracked_repo_only_file_still_stops(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            source, nas_repo = self.make_nas_and_remote(root)
+            live = nas_repo / "release_blue_candidate_20260930"
+            backups = root / "backups"
+            (live / "includes").mkdir(parents=True)
+            (live / "public").mkdir()
+            (live / ".env").write_text("secret", encoding="utf-8")
+            (live / "includes" / "feature.php").write_text("old\n", encoding="utf-8")
+            (live / "public" / "index.php").write_text("<?php echo 'ok';\n", encoding="utf-8")
+
+            remote_dockerfile = source / "docker" / "iscan-libreoffice" / "Dockerfile"
+            remote_dockerfile.parent.mkdir(parents=True)
+            remote_dockerfile.write_text("FROM debian:bookworm-slim\n", encoding="utf-8")
+            git(source, "add", "docker/iscan-libreoffice/Dockerfile")
+            git(source, "commit", "-m", "add LibreOffice image definition")
+            git(source, "push", "origin", "main")
+            old_checkout = git(nas_repo, "rev-parse", "HEAD")
+
+            local_dockerfile = nas_repo / "docker" / "iscan-libreoffice" / "Dockerfile"
+            local_dockerfile.parent.mkdir(parents=True)
+            local_dockerfile.write_text("FROM alpine:latest\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(DEPLOY.DeployError, "conflict with incoming"):
+                DEPLOY.run_deployment(nas_repo, live, backups)
+            self.assertEqual(git(nas_repo, "rev-parse", "HEAD"), old_checkout)
+            self.assertEqual(local_dockerfile.read_text(encoding="utf-8"), "FROM alpine:latest\n")
+            self.assertFalse((live / "docker" / "iscan-libreoffice" / "Dockerfile").exists())
             self.assertFalse(backups.exists())
 
     def test_full_deploy_stops_when_tracked_local_file_overlaps_incoming_file(self):

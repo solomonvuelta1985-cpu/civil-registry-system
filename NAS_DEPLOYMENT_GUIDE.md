@@ -12,7 +12,7 @@ The Git checkout and the website files are in different folders:
 
 Updating `/volume1/iscan` with `git pull` **does not by itself update the website**. The live folder is not a Git checkout and has had NAS-specific changes. Deployment must copy only reviewed files into the live folder, after checking that their current contents are understood.
 
-The NAS checkout may also contain NAS-specific file changes, untracked data such as Synology `#recycle` contents, old release folders, and backups. The helper leaves them alone when their paths do not overlap the incoming update. It stops before deployment if a local path conflicts with an incoming file. It ignores executable-bit drift caused by NAS-wide permission commands; it does not change permissions recursively.
+The NAS checkout may also contain NAS-specific file changes, untracked data such as Synology `#recycle` contents, old release folders, and backups. The helper leaves them alone when their paths do not overlap the incoming update. It stops before deployment if a local path conflicts with an incoming file. A matching untracked source file under `docker/` is saved in `/volume1/iscan/backups/` and adopted by Git; other differing collisions still stop. Files under `docker/`, `tests/`, and the helper/guide paths stay in the Git checkout and are not copied into the live website. The helper ignores executable-bit drift caused by NAS-wide permission commands; it does not change permissions recursively.
 
 The DSM task **iScan Auto Update** currently contains an old script (`git reset --hard`, recursive `chown`, recursive `chmod`). That script is unsafe and does not deploy to the live folder. Keep the task disabled until the new helper below is pushed, bootstrapped, and passes its first NAS run. Do not paste the `sudo sh -s <<'NAS_UPDATE'` example previously discussed; it is not the Task Scheduler command.
 
@@ -105,7 +105,7 @@ sudo git -c safe.directory="$REPO" -C "$REPO" show origin/main:scripts/deploy_na
 sudo python3 /tmp/iscan_deploy_nas_release.py
 ```
 
-Proceed only if the output ends with `ISCAN_NAS_DEPLOY_OK`. `STOP` means a preflight check failed before live files were changed; keep the task disabled and review the named file. `DEPLOYMENT_NEEDS_REVIEW` means the apply phase began: use the printed backup path and inspect the live files before retrying. The helper creates a timestamped code backup in `/volume1/iscan/backups/` before applying changes. It never changes `.env`, uploads, logs, storage, or temporary files. It does not run migrations.
+Proceed only if the output ends with `ISCAN_NAS_DEPLOY_OK`. `STOP` means a preflight check failed before live files were changed; keep the task disabled and review the named file. `DEPLOYMENT_NEEDS_REVIEW` means the apply phase began: use the printed backup path and inspect the live files before retrying. The helper creates a timestamped code backup in `/volume1/iscan/backups/` before applying live changes. If it adopts a matching untracked source file into Git, it also keeps that small file backup there. It never changes `.env`, uploads, logs, storage, or temporary files. It does not run migrations.
 
 After the first successful run, future updates use the installed helper. Do not use a full-directory `rsync`, `git reset --hard`, or recursive ownership/permission commands to get past a mismatch.
 
