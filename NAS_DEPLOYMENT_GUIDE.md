@@ -14,7 +14,7 @@ Updating `/volume1/iscan` with `git pull` **does not by itself update the websit
 
 The NAS checkout may also contain NAS-specific file changes, untracked data such as Synology `#recycle` contents, old release folders, and backups. The helper leaves them alone when their paths do not overlap the incoming update. It stops before deployment if a local path conflicts with an incoming file. A matching untracked source file under `docker/` is saved in `/volume1/iscan/backups/` and adopted by Git; other differing collisions still stop. `.env.example`, `.env.production`, `.env.synology`, `database_schema.sql`, `database/create_marriage_table.sql`, the already-applied `database/migrations/050_marriage_civil_status.sql`, `docs/RA9048_MODULE.md`, `scripts/test_template_files.php`, files under `docker/` and `tests/`, and the helper/guide paths stay in the Git checkout and are not copied into the live website. Keep applied migration files stable; create a new migration file for later schema changes. The helper can reconcile three specifically reviewed NAS variants (the branding comment/newline, the marriage civil-status options refactor, and formatting in the migration runner) only when the entire normalized result matches the pushed target; each replacement is backed up with the rest of the live files. Any other differences still stop preflight. When a commit deletes the tracked `.env.production` or `.env.synology` template, the helper saves a mode-600 copy under backups before updating the checkout. The actual `.env` and all other `.env.*` paths remain blocked. The single tracked dump `public/iscan_db (1).sql` may only be deleted, never added or updated; if the live copy matches the old Git version, the helper backs it up before deleting it. Other non-migration SQL files remain blocked. The helper ignores executable-bit drift caused by NAS-wide permission commands; it does not change permissions recursively.
 
-The DSM task **iScan Auto Update** currently contains an old script (`git reset --hard`, recursive `chown`, recursive `chmod`). That script is unsafe and does not deploy to the live folder. Keep the task disabled until the new helper below is pushed, bootstrapped, and passes its first NAS run. Do not paste the `sudo sh -s <<'NAS_UPDATE'` example previously discussed; it is not the Task Scheduler command.
+The DSM task **iScan Auto Update** currently contains an old script (`git reset --hard`, recursive `chown`, recursive `chmod`). That script is unsafe and does not deploy to the live folder. Keep the task disabled for the manual deployment workflow in this guide. Do not paste the `sudo sh -s <<'NAS_UPDATE'` example previously discussed; it is not the Task Scheduler command.
 
 ### One-time setup required before the first deployment
 
@@ -22,92 +22,71 @@ The live folder has NAS-specific files and has previously differed from the loca
 
 ## Routine update: local XAMPP to the NAS
 
-### 1. Finish and test the change locally
+### 1. Open a terminal on the PC and test locally
 
-In PowerShell, from the project folder:
+On the Windows PC, open **PowerShell** from the Start menu, or open **Terminal → New Terminal** in VS Code. These first commands run on the PC, not on the NAS. Paste this block and press Enter:
 
 ```powershell
-Set-Location C:\xampp\htdocs\iscan
+cd C:\xampp\htdocs\iscan
+git branch --show-current
 git status --short
 ```
 
-Test the changed feature in XAMPP. Review the files shown by `git status`. Stage **only** files that belong to this update, including any new files the feature needs. Git marks staged new files as `A` in the name-status list. Do not use `git add -A` when unrelated changes or `.claude` deletions are present.
+Confirm the branch command prints `main`. Test the changed feature in XAMPP (usually at `http://localhost/iscan`). Review the paths printed by `git status --short`. Stage **only** the files for this update, including any new files it needs. Do not stage unrelated changes such as `.claude` deletions. New files must be named explicitly. Do not use `git add -A`.
 
-For the first install of the NAS deploy helper, stage these files explicitly, plus any feature files you intentionally want in the same update:
+### 2. Stage, commit, and push from the PC
+
+Replace the example paths below with the exact paths from your `git status --short`, then paste the command and press Enter:
 
 ```powershell
-git add scripts/deploy_nas_release.py scripts/test_deploy_nas_release.py NAS_DEPLOYMENT_GUIDE.md
+git add public/certificate_of_live_birth.php assets/js/certificate-form-handler.js
 ```
 
-If this commit also includes a feature, add its exact paths with another `git add` command. Do not copy a placeholder path.
+The paths above are only an example—do not run them unless those are the files you changed. If you changed the deployment helper or this guide, include those exact paths too. Then inspect what is staged:
 
 ```powershell
 git diff --cached --name-status
 git diff --cached --check
 ```
 
-Review the staged diff. Confirm it contains no `.env`, uploads, logs, database dumps, temporary files, or unrelated deletions. Then commit and push:
+Confirm the staged list contains only this update. `A` means a new file, `M` means modified, and `D` means deleted. If an unrelated file was staged by mistake, unstage only that path with `git restore --staged path\to\file`; this keeps its local contents. When the staged list is correct and `git diff --cached --check` prints no errors, commit and push:
 
 ```powershell
 git commit -m "Describe the update"
 git push origin main
 ```
 
-If `git status --short` still shows unrelated work, leave it unstaged. Do not reset or discard it just to make the deployment proceed.
+Wait for `git push` to finish successfully before moving to the NAS. If `git status --short` still shows unrelated work, leave it unstaged. Do not reset or discard it just to make the deployment proceed.
 
-### 2. Connect to the NAS
+### 3. Open the NAS SSH terminal
 
-From the office network:
+From the PC, open PowerShell and connect to the NAS. Use the office address while on the office network:
 
 ```powershell
 ssh mcrobaggao@192.168.1.12
 ```
 
-From outside the office, if the configured Cloudflare SSH access is available:
+When outside the office, use the configured Cloudflare SSH address if it is available:
 
 ```powershell
 ssh mcrobaggao@ssh.cdrms.online
 ```
 
-### 3. Run the read-only NAS preflight
+Wait until the SSH login finishes and the prompt looks like `mcrobaggao@MCRO_NAS:~$`. The next command goes into this NAS SSH terminal, not the local XAMPP terminal.
 
-These commands inspect the Git checkout and fetch the latest branch reference. They do not change live website files:
-
-```sh
-REPO=/volume1/iscan
-LIVE=/volume1/iscan/release_blue_candidate_20260930
-
-sudo git -c safe.directory="$REPO" -C "$REPO" branch --show-current
-sudo test -f "$LIVE/.env" && echo "LIVE_ENV_OK"
-if sudo test -f "$LIVE/public/index.php" || sudo test -f "$LIVE/index.php"; then
-    echo "LIVE_APP_OK"
-else
-    echo "STOP: neither supported index.php entrypoint exists"
-    exit 1
-fi
-sudo git -c safe.directory="$REPO" -C "$REPO" fetch origin main
-sudo git -c safe.directory="$REPO" -C "$REPO" log -1 --oneline origin/main
-```
-
-Stop if the branch is not `main`, either live-path check fails, or `fetch` fails. The deployment helper checks all local paths against the incoming update and stops on collisions. Do not run `git reset --hard` to clear a stop condition.
-
-### 4. Deploy only the reviewed update
+### 4. Run the one-line NAS deployment command
 
 Use `scripts/deploy_nas_release.py`. It fetches `origin/main`, compares only changed tracked files with the live release, backs up affected files, applies safe changes, verifies them, then fast-forwards the NAS Git checkout. It supports new files and deletions. The helper and its test file stay in the NAS Git checkout; they are not copied into the live website.
 
-The first time, after the helper is committed and pushed, bootstrap it from the NAS SSH shell. There is no need to delete or clean NAS-specific checkout files; the helper checks whether their paths overlap the incoming update:
-
-Fetch the helper from GitHub into a temporary file and run it as root. It will deploy pending code changes as well as install the helper into the Git checkout only after deployment succeeds:
+After local testing, commit and push the intended files to `origin/main`. Then run this same one-line command from the NAS SSH shell for each update. It fetches the newest helper, runs its preflight, backs up affected live files, deploys changed and new files, verifies the result, and advances the NAS Git checkout only after success. There is no need to delete or clean NAS-specific checkout files:
 
 ```sh
-sudo git -c safe.directory="$REPO" -C "$REPO" fetch origin main
-sudo git -c safe.directory="$REPO" -C "$REPO" show origin/main:scripts/deploy_nas_release.py > /tmp/iscan_deploy_nas_release.py
-sudo python3 /tmp/iscan_deploy_nas_release.py
+sudo sh -c 'R=/volume1/iscan; git -c safe.directory="$R" -C "$R" fetch origin main && git -c safe.directory="$R" -C "$R" show origin/main:scripts/deploy_nas_release.py > /tmp/iscan_deploy_nas_release.py && python3 /tmp/iscan_deploy_nas_release.py'
 ```
 
-Proceed only if the output ends with `ISCAN_NAS_DEPLOY_OK`. `STOP` means a preflight check failed before live files were changed; it lists every conflicting path so they can be reviewed together. Keep the task disabled until all listed conflicts are resolved. `DEPLOYMENT_NEEDS_REVIEW` means the apply phase began: use the printed backup path and inspect the live files before retrying. The helper creates a timestamped code backup in `/volume1/iscan/backups/` before applying live changes. It also keeps small backups there when adopting matching untracked source files or removing the tracked environment templates listed above. A deleted public database dump is included in the protected code backup if it exists in the live release. The helper never copies environment files into the live release, changes uploads, logs, storage, or temporary files, or runs migrations.
+Paste that whole line at the NAS prompt and press Enter. When `sudo` asks for `Password:`, type the NAS sudo password and press Enter; the terminal will not display the password characters. Wait for the command to finish. Proceed only if the output ends with `ISCAN_NAS_DEPLOY_OK`. `STOP` means a preflight check failed before live website files were changed; send the complete stop output for review. Do not reset or overwrite conflicts. `DEPLOYMENT_NEEDS_REVIEW` means the apply phase began: use the printed backup path and inspect the live files before retrying. The helper creates a timestamped code backup in `/volume1/iscan/backups/` before applying live changes. It never copies environment files into the live release, changes uploads, logs, storage, or temporary files, or runs migrations.
 
-After the first successful run, future updates use the installed helper. Do not use a full-directory `rsync`, `git reset --hard`, or recursive ownership/permission commands to get past a mismatch.
+Use this same command for future updates; it fetches the latest helper before deploying. Do not use a full-directory `rsync`, `git reset --hard`, or recursive ownership/permission commands to get past a mismatch.
 
 **New files:** include them in the staged diff, commit, and push. During deployment, create only their required parent directories and copy the new file if that exact live path is absent. If a file with the same name already exists, deploy only if its contents already match the pushed version; otherwise stop and review it. The same rule applies to new assets, PHP files, and migration files. A new migration file is copied as code but is never executed automatically.
 
@@ -123,14 +102,14 @@ Open `https://iscan.cdrms.online` and test the changed feature. Check the browse
 
 ## DSM Task Scheduler
 
-After the first helper run succeeds, replace the old Task Settings script with this command (keep the task user as `root`):
+For the manual workflow, leave **iScan Auto Update** disabled; no Task Scheduler change is needed. If automatic deployment is intentionally configured later, first replace the old script with this command and keep the task user as `root`:
 
 ```sh
 cd /volume1/iscan
 python3 /volume1/iscan/scripts/deploy_nas_release.py
 ```
 
-The helper itself runs `git fetch`, deploys only the changed files, and backs them up. You may keep the existing hourly schedule if you want updates to deploy automatically after pushing tested code, or run the task manually after a push. Do not add `sudo` to the Task Settings script when the task user is already `root`. Do not put a large heredoc in the Task Settings box.
+The helper itself runs `git fetch`, deploys only the changed files, and backs them up. Keep the scheduler disabled for the manual workflow. If automatic deployment is chosen later, enable it only after replacing the old script and testing the new task. Do not add `sudo` to the Task Settings script when the task user is already `root`. Do not put a large heredoc in the Task Settings box.
 
 ## Backups
 
