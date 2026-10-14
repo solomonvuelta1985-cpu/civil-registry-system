@@ -41,6 +41,50 @@ class DeployClassificationTests(unittest.TestCase):
         with self.assertRaises(DEPLOY.DeployError):
             DEPLOY.classify(b"nas-only edit", old, new)
 
+    def test_only_reviewed_nas_variants_are_reconciled_to_the_target(self):
+        branding_target = DEPLOY.normalized((ROOT / "includes" / "branding.php").read_bytes())
+        branding_live = branding_target.replace(
+            b"// Blue/green deployments may share uploads through a symlink to a\n"
+            b"        // separate release directory. Allow only the resolved branding folder.",
+            b"// Allow uploaded logos in the shared branding folder, even through the uploads symlink.",
+        ).rstrip(b"\n")
+        self.assertTrue(
+            DEPLOY.is_known_live_equivalent("includes/branding.php", branding_live, branding_target)
+        )
+
+        marriage_target = DEPLOY.normalized((ROOT / "public" / "certificate_of_marriage.php").read_bytes())
+        marriage_live = marriage_target.replace(
+            b"$civil_status_options = ['Single', 'Married', 'Widowed', 'Divorced/Separated', 'Unknown/Not Stated'];\n",
+            b"",
+            1,
+        ).replace(
+            b"foreach ($civil_status_options as $civil_status)",
+            b"foreach (['Single', 'Married', 'Widowed', 'Divorced/Separated', 'Unknown/Not Stated'] as $civil_status)",
+        )
+        self.assertTrue(
+            DEPLOY.is_known_live_equivalent(
+                "public/certificate_of_marriage.php", marriage_live, marriage_target
+            )
+        )
+
+        migrations_target = DEPLOY.normalized(
+            (ROOT / "database" / "run_pdf_protection_migrations.php").read_bytes()
+        )
+        migrations_live = migrations_target.replace(
+            b"'050_marriage_civil_status.sql','051_registry_no_status_and_registration_date_status.sql'];",
+            b"'050_marriage_civil_status.sql',\n    '051_registry_no_status_and_registration_date_status.sql'\n];",
+        )
+        self.assertTrue(
+            DEPLOY.is_known_live_equivalent(
+                "database/run_pdf_protection_migrations.php", migrations_live, migrations_target
+            )
+        )
+        self.assertFalse(
+            DEPLOY.is_known_live_equivalent(
+                "includes/branding.php", branding_live + b"// extra code\n", branding_target
+            )
+        )
+
     def test_new_file_is_created_only_when_absent_or_identical(self):
         new = DEPLOY.GitFile("100644", "new", b"new")
         self.assertEqual(DEPLOY.classify(None, None, new), "write")

@@ -405,6 +405,60 @@ def classify(live_data: Optional[bytes], old: Optional[GitFile], new: Optional[G
     raise DeployError("Live file differs from both old and target versions")
 
 
+def is_known_live_equivalent(relative: str, live_data: bytes, target_data: bytes) -> bool:
+    """Recognize only the exact NAS variants reviewed for the current release."""
+    candidate = normalized(live_data)
+    target = normalized(target_data)
+
+    if relative == "includes/branding.php":
+        old_comment = (
+            b"// Allow uploaded logos in the shared branding folder, even through the uploads symlink."
+        )
+        new_comment = (
+            b"// Blue/green deployments may share uploads through a symlink to a\n"
+            b"        // separate release directory. Allow only the resolved branding folder."
+        )
+        if candidate.count(old_comment) != 1:
+            return False
+        candidate = candidate.replace(old_comment, new_comment, 1)
+        if not candidate.endswith(b"\n"):
+            candidate += b"\n"
+        return candidate == target
+
+    if relative == "public/certificate_of_marriage.php":
+        declaration = b"$civil_status_options = ['Single', 'Married', 'Widowed', 'Divorced/Separated', 'Unknown/Not Stated'];"
+        declaration_anchor = b"$partial_date_day    = '';\n"
+        legacy_loop = (
+            b"foreach (['Single', 'Married', 'Widowed', 'Divorced/Separated', 'Unknown/Not Stated'] "
+            b"as $civil_status)"
+        )
+        if candidate.count(declaration_anchor) != 1 or candidate.count(legacy_loop) != 2:
+            return False
+        candidate = candidate.replace(
+            declaration_anchor,
+            declaration_anchor + declaration + b"\n",
+            1,
+        )
+        candidate = candidate.replace(legacy_loop, b"foreach ($civil_status_options as $civil_status)")
+        return candidate == target
+
+    if relative == "database/run_pdf_protection_migrations.php":
+        old_tail = (
+            b"'050_marriage_civil_status.sql',\n"
+            b"    '051_registry_no_status_and_registration_date_status.sql'\n];"
+        )
+        new_tail = (
+            b"'050_marriage_civil_status.sql',"
+            b"'051_registry_no_status_and_registration_date_status.sql'];"
+        )
+        if candidate.count(old_tail) != 1:
+            return False
+        candidate = candidate.replace(old_tail, new_tail, 1)
+        return candidate == target
+
+    return False
+
+
 def plan_operations(repo: pathlib.Path, live: pathlib.Path, base: str, target: str) -> List[Operation]:
     raw_paths = run_git(repo, "diff", "--no-renames", "--name-only", "-z", base, target)
     relatives = [os.fsdecode(value) for value in raw_paths.split(b"\0") if value]
@@ -436,7 +490,14 @@ def plan_operations(repo: pathlib.Path, live: pathlib.Path, base: str, target: s
             else:
                 raise DeployError("Live target is not a regular file; refusing")
 
-            action = classify(live_data, old, new)
+            if (
+                live_data is not None
+                and new is not None
+                and is_known_live_equivalent(relative, live_data, new.content)
+            ):
+                action = "write"
+            else:
+                action = classify(live_data, old, new)
             if action == "already" and new is not None and info is not None and os.name == "posix":
                 desired_mode = int(new.mode, 8) & 0o777
                 if stat.S_IMODE(info.st_mode) != desired_mode:
