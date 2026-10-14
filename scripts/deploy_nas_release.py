@@ -404,40 +404,49 @@ def plan_operations(repo: pathlib.Path, live: pathlib.Path, base: str, target: s
     raw_paths = run_git(repo, "diff", "--no-renames", "--name-only", "-z", base, target)
     relatives = [os.fsdecode(value) for value in raw_paths.split(b"\0") if value]
     operations: List[Operation] = []
+    conflicts: List[str] = []
 
     for relative in relatives:
-        safe_relative_path(relative)
-        if is_repo_only(relative):
-            operations.append(Operation(relative, "already", None, None))
-            continue
-
-        old = tree_file(repo, base, relative)
-        new = tree_file(repo, target, relative)
-        if relative in SENSITIVE_SQL_DELETE_PATHS and new is not None:
-            raise DeployError("Sensitive database dump may only be deleted, never deployed: {}".format(relative))
-        path = target_path(live, relative)
         try:
-            info = path.lstat()
-        except FileNotFoundError:
-            info = None
+            safe_relative_path(relative)
+            if is_repo_only(relative):
+                operations.append(Operation(relative, "already", None, None))
+                continue
 
-        live_data: Optional[bytes]
-        if info is None:
-            live_data = None
-        elif stat.S_ISREG(info.st_mode):
-            live_data = path.read_bytes()
-        else:
-            raise DeployError("Live target is not a regular file; refusing: {}".format(relative))
+            old = tree_file(repo, base, relative)
+            new = tree_file(repo, target, relative)
+            if relative in SENSITIVE_SQL_DELETE_PATHS and new is not None:
+                raise DeployError("Sensitive database dump may only be deleted, never deployed")
+            path = target_path(live, relative)
+            try:
+                info = path.lstat()
+            except FileNotFoundError:
+                info = None
 
-        try:
+            live_data: Optional[bytes]
+            if info is None:
+                live_data = None
+            elif stat.S_ISREG(info.st_mode):
+                live_data = path.read_bytes()
+            else:
+                raise DeployError("Live target is not a regular file; refusing")
+
             action = classify(live_data, old, new)
+            if action == "already" and new is not None and info is not None and os.name == "posix":
+                desired_mode = int(new.mode, 8) & 0o777
+                if stat.S_IMODE(info.st_mode) != desired_mode:
+                    action = "write"
+            operations.append(Operation(relative, action, new, info))
         except DeployError as exc:
-            raise DeployError("{}: {}".format(relative, exc)) from exc
-        if action == "already" and new is not None and info is not None and os.name == "posix":
-            desired_mode = int(new.mode, 8) & 0o777
-            if stat.S_IMODE(info.st_mode) != desired_mode:
-                action = "write"
-        operations.append(Operation(relative, action, new, info))
+            conflicts.append("{}: {}".format(relative, exc))
+
+    if conflicts:
+        details = "\n".join("  - " + conflict for conflict in conflicts)
+        raise DeployError(
+            "Preflight found {} conflicting path(s); no live files were changed:\n{}".format(
+                len(conflicts), details
+            )
+        )
 
     return operations
 

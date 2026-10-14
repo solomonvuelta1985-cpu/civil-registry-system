@@ -162,8 +162,15 @@ class DeployPlanIntegrationTests(unittest.TestCase):
             })
 
             (live / "includes" / "feature.php").write_bytes(b"nas-only edit")
-            with self.assertRaises(DEPLOY.DeployError):
+            (live / "assets").mkdir()
+            (live / "assets" / "new.js").write_text("unexpected live file", encoding="utf-8")
+            with self.assertRaises(DEPLOY.DeployError) as caught:
                 DEPLOY.plan_operations(repo, live, base, target)
+            self.assertIn("2 conflicting path(s)", str(caught.exception))
+            self.assertIn("assets/new.js", str(caught.exception))
+            self.assertIn("includes/feature.php", str(caught.exception))
+            self.assertEqual((live / "includes" / "feature.php").read_bytes(), b"nas-only edit")
+            self.assertEqual((live / "assets" / "new.js").read_text(encoding="utf-8"), "unexpected live file")
 
             dump = repo / "public" / "iscan_db (1).sql"
             dump.parent.mkdir(parents=True, exist_ok=True)

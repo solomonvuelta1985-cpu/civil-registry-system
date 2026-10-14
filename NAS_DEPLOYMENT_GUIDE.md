@@ -105,7 +105,7 @@ sudo git -c safe.directory="$REPO" -C "$REPO" show origin/main:scripts/deploy_na
 sudo python3 /tmp/iscan_deploy_nas_release.py
 ```
 
-Proceed only if the output ends with `ISCAN_NAS_DEPLOY_OK`. `STOP` means a preflight check failed before live files were changed; keep the task disabled and review the named file. `DEPLOYMENT_NEEDS_REVIEW` means the apply phase began: use the printed backup path and inspect the live files before retrying. The helper creates a timestamped code backup in `/volume1/iscan/backups/` before applying live changes. It also keeps small backups there when adopting matching untracked source files or removing the tracked environment templates listed above. A deleted public database dump is included in the protected code backup if it exists in the live release. The helper never copies environment files into the live release, changes uploads, logs, storage, or temporary files, or runs migrations.
+Proceed only if the output ends with `ISCAN_NAS_DEPLOY_OK`. `STOP` means a preflight check failed before live files were changed; it lists every conflicting path so they can be reviewed together. Keep the task disabled until all listed conflicts are resolved. `DEPLOYMENT_NEEDS_REVIEW` means the apply phase began: use the printed backup path and inspect the live files before retrying. The helper creates a timestamped code backup in `/volume1/iscan/backups/` before applying live changes. It also keeps small backups there when adopting matching untracked source files or removing the tracked environment templates listed above. A deleted public database dump is included in the protected code backup if it exists in the live release. The helper never copies environment files into the live release, changes uploads, logs, storage, or temporary files, or runs migrations.
 
 After the first successful run, future updates use the installed helper. Do not use a full-directory `rsync`, `git reset --hard`, or recursive ownership/permission commands to get past a mismatch.
 
@@ -113,7 +113,7 @@ After the first successful run, future updates use the installed helper. Do not 
 
 ### 5. Handle database migrations separately
 
-Only run a migration when the update explicitly includes a new migration and its instructions have been reviewed. Before a production migration, take a database backup and verify the target database. Never run an old catch-up migration just because this guide mentions it, and never put a database password in a command, guide, or committed file.
+Only run a migration when the update explicitly includes a new migration and its instructions have been reviewed. Keep migration filenames stable after they have been applied; make a new migration for later schema changes instead of renaming an old one. Before a production migration, take a database backup and verify the target database. Never run an old catch-up migration just because this guide mentions it, and never put a database password in a command, guide, or committed file.
 
 After the migration (if one is required), verify the expected columns/tables and test the affected workflow using a non-production test record where possible.
 
@@ -139,7 +139,7 @@ Application-code backups belong under `/volume1/iscan/backups/`. The live `.env`
 ## Troubleshooting rules
 
 - **NAS Git checkout has changes:** stop and inspect them; do not reset them.
-- **Live file differs from expected baseline:** stop, save the diff/report, and reconcile that file before deployment.
+- **Live file differs from expected baseline:** stop, save the complete conflict report, and reconcile all listed files before deployment.
 - **Website still shows old code after `git pull`:** the Git checkout changed but the live release was not deployed; verify the deployed file and cache/versioned asset URLs.
 - **Permission error:** inspect the affected file's owner, group, and mode, then make a targeted correction. Do not run `chmod -R 755` or `chown -R` over `/volume1/iscan`.
 - **Migration error:** stop; do not repeatedly rerun it without checking the migration's transaction/idempotency behavior and database state.
