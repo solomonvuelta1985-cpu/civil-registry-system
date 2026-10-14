@@ -12,6 +12,8 @@ The Git checkout and the website files are in different folders:
 
 Updating `/volume1/iscan` with `git pull` **does not by itself update the website**. The live folder is not a Git checkout and has had NAS-specific changes. Deployment must copy only reviewed files into the live folder, after checking that their current contents are understood.
 
+The NAS checkout may also contain unrelated untracked data such as Synology `#recycle` contents, old release folders, and backups. The helper leaves those files alone. It still stops for tracked local edits and for any untracked path that conflicts with an incoming file.
+
 The DSM task **iScan Auto Update** currently contains an old script (`git reset --hard`, recursive `chown`, recursive `chmod`). That script is unsafe and does not deploy to the live folder. Keep the task disabled until the new helper below is pushed, bootstrapped, and passes its first NAS run. Do not paste the `sudo sh -s <<'NAS_UPDATE'` example previously discussed; it is not the Task Scheduler command.
 
 ### One-time setup required before the first deployment
@@ -76,7 +78,7 @@ REPO=/volume1/iscan
 LIVE=/volume1/iscan/release_blue_candidate_20260930
 
 sudo git -c safe.directory="$REPO" -C "$REPO" branch --show-current
-sudo git -c safe.directory="$REPO" -C "$REPO" status --short --untracked-files=all -- . ':(exclude)release_blue_candidate_20260930'
+sudo git -c safe.directory="$REPO" -C "$REPO" status --short --untracked-files=no -- . ':(exclude)release_blue_candidate_20260930'
 sudo test -f "$LIVE/.env" && echo "LIVE_ENV_OK"
 if sudo test -f "$LIVE/public/index.php" || sudo test -f "$LIVE/index.php"; then
     echo "LIVE_APP_OK"
@@ -88,17 +90,17 @@ sudo git -c safe.directory="$REPO" -C "$REPO" fetch origin main
 sudo git -c safe.directory="$REPO" -C "$REPO" log -1 --oneline origin/main
 ```
 
-Stop if the branch is not `main`, the Git checkout has local changes, either live-path check fails, or `fetch` fails. Do not run `git reset --hard` to clear a stop condition.
+Stop if the branch is not `main`, the status command shows tracked changes, either live-path check fails, or `fetch` fails. Do not run `git reset --hard` to clear a stop condition. The deployment helper separately checks that untracked files do not collide with incoming paths.
 
 ### 4. Deploy only the reviewed update
 
 Use `scripts/deploy_nas_release.py`. It fetches `origin/main`, compares only changed tracked files with the live release, backs up affected files, applies safe changes, verifies them, then fast-forwards the NAS Git checkout. It supports new files and deletions. The helper and its test file stay in the NAS Git checkout; they are not copied into the live website.
 
-The first time, after the helper is committed and pushed, bootstrap it from the NAS SSH shell. First confirm the NAS checkout is clean; if the command prints any changed or untracked files, stop and inspect them:
+The first time, after the helper is committed and pushed, bootstrap it from the NAS SSH shell. Check for tracked local changes (untracked NAS data is handled safely by the helper):
 
 ```sh
 REPO=/volume1/iscan
-sudo git -c safe.directory="$REPO" -C "$REPO" status --short --untracked-files=all -- . ':(exclude)release_blue_candidate_20260930'
+sudo git -c safe.directory="$REPO" -C "$REPO" status --short --untracked-files=no -- . ':(exclude)release_blue_candidate_20260930'
 ```
 
 If clean, fetch the helper from GitHub into a temporary file and run it as root. It will deploy pending code changes as well as install the helper into the Git checkout only after deployment succeeds:

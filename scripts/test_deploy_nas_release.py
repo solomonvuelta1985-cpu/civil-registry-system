@@ -56,7 +56,7 @@ class DeployClassificationTests(unittest.TestCase):
             DEPLOY.classify(b"nas-only edit", old, None)
 
     def test_production_data_paths_are_blocked_and_helper_files_stay_in_checkout(self):
-        for path in (".env", "uploads/birth/record.pdf", "logs/php_errors.log"):
+        for path in (".env", "uploads/birth/record.pdf", "logs/php_errors.log", "#recycle/file.pdf", "@eaDir/thumb.jpg"):
             with self.subTest(path=path):
                 with self.assertRaises(DEPLOY.DeployError):
                     DEPLOY.safe_relative_path(path)
@@ -64,6 +64,29 @@ class DeployClassificationTests(unittest.TestCase):
         self.assertTrue(DEPLOY.is_repo_only("scripts/deploy_nas_release.py"))
         self.assertTrue(DEPLOY.is_repo_only("scripts/test_deploy_nas_release.py"))
         self.assertTrue(DEPLOY.is_repo_only("tests/example.php"))
+
+    def test_untracked_nas_data_is_allowed_unless_it_overlaps_incoming_paths(self):
+        untracked = [
+            "#recycle/release_old/uploads/record.pdf",
+            "release_old/uploads/record.pdf",
+            "api/nas_only.php",
+        ]
+        self.assertEqual(
+            DEPLOY.untracked_path_conflicts(untracked, ["assets/new.js", "includes/feature.php"]),
+            [],
+        )
+        self.assertEqual(
+            DEPLOY.untracked_path_conflicts(["assets/new.js"], ["assets/new.js"]),
+            ["assets/new.js"],
+        )
+        self.assertEqual(
+            DEPLOY.untracked_path_conflicts(["assets"], ["assets/new.js"]),
+            ["assets"],
+        )
+        self.assertEqual(
+            DEPLOY.untracked_path_conflicts(["assets/new.js/child"], ["assets/new.js"]),
+            ["assets/new.js/child"],
+        )
 
 
 class LiveEntrypointTests(unittest.TestCase):
@@ -161,6 +184,18 @@ class DeployPlanIntegrationTests(unittest.TestCase):
             (live / "includes" / "feature.php").write_bytes(b"old\r\n")
             (live / "public" / "index.php").write_text("<?php echo 'ok';\n", encoding="utf-8")
 
+            # NAS recycle bins, old releases, backups, and unrelated source
+            # files remain untouched and must not block a safe update.
+            for relative in (
+                "#recycle/release_old/uploads/record.pdf",
+                "release_old/uploads/record.pdf",
+                "backups/older-backup.tgz",
+                "api/nas_only.php",
+            ):
+                extra = nas_repo / pathlib.PurePosixPath(relative)
+                extra.parent.mkdir(parents=True, exist_ok=True)
+                extra.write_bytes(b"NAS-only data")
+
             (source / "includes" / "feature.php").write_text("new\n", encoding="utf-8")
             (source / "assets").mkdir()
             (source / "assets" / "new.js").write_text("window.ready = true;\n", encoding="utf-8")
@@ -178,6 +213,37 @@ class DeployPlanIntegrationTests(unittest.TestCase):
             self.assertEqual(len(archives), 1)
             with DEPLOY.tarfile.open(str(archives[0]), "r:gz") as archive:
                 self.assertIn("includes/feature.php", archive.getnames())
+            self.assertEqual((nas_repo / "#recycle" / "release_old" / "uploads" / "record.pdf").read_bytes(), b"NAS-only data")
+            self.assertEqual((nas_repo / "api" / "nas_only.php").read_bytes(), b"NAS-only data")
+
+    def test_full_deploy_stops_when_untracked_file_collides_with_incoming_file(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            source, nas_repo = self.make_nas_and_remote(root)
+            live = nas_repo / "release_blue_candidate_20260930"
+            backups = root / "backups"
+            (live / "includes").mkdir(parents=True)
+            (live / "public").mkdir()
+            (live / ".env").write_text("secret", encoding="utf-8")
+            (live / "includes" / "feature.php").write_text("old\n", encoding="utf-8")
+            (live / "public" / "index.php").write_text("<?php echo 'ok';\n", encoding="utf-8")
+
+            (source / "assets").mkdir()
+            (source / "assets" / "new.js").write_text("window.ready = true;\n", encoding="utf-8")
+            git(source, "add", "assets/new.js")
+            git(source, "commit", "-m", "add asset")
+            git(source, "push", "origin", "main")
+            old_checkout = git(nas_repo, "rev-parse", "HEAD")
+
+            collision = nas_repo / "assets" / "new.js"
+            collision.parent.mkdir(parents=True)
+            collision.write_text("NAS-only file", encoding="utf-8")
+
+            with self.assertRaisesRegex(DEPLOY.DeployError, "conflict with incoming"):
+                DEPLOY.run_deployment(nas_repo, live, backups)
+            self.assertEqual(git(nas_repo, "rev-parse", "HEAD"), old_checkout)
+            self.assertFalse((live / "assets" / "new.js").exists())
+            self.assertFalse(backups.exists())
 
     def test_full_deploy_stops_on_live_only_change_without_writing(self):
         with tempfile.TemporaryDirectory() as temporary:

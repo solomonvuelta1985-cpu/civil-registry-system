@@ -40,6 +40,8 @@ PROTECTED_SEGMENTS = {
     ".claude",
     ".codex",
     ".agents",
+    "#recycle",
+    "@eaDir",
     "uploads",
     "logs",
     "storage",
@@ -138,22 +140,60 @@ def is_repo_only(relative: str) -> bool:
     return relative in REPO_ONLY_PATHS or any(relative.startswith(prefix) for prefix in REPO_ONLY_PREFIXES)
 
 
-def checkout_status(repo: pathlib.Path) -> bytes:
+def checkout_status(repo: pathlib.Path) -> Tuple[List[str], List[str]]:
     tracked_live_files = run_git(repo, "ls-files", "-z", "--", "release_blue_candidate_20260930")
     if tracked_live_files:
         raise DeployError("The live release folder is tracked inside the Git checkout; refusing deployment.")
-    # The live release is nested under the checkout but is intentionally not
-    # versioned there. Exclude only that untracked directory from the clean-tree
-    # check; all other tracked and untracked changes still stop deployment.
-    return run_git(
+    # The live release is nested under the checkout but intentionally not
+    # versioned there. Keep tracked edits fail-closed, but tolerate unrelated
+    # untracked NAS data after checking that it cannot collide with this update.
+    raw_status = run_git(
         repo,
         "status",
         "--porcelain",
+        "-z",
         "--untracked-files=all",
         "--",
         ".",
         ":(exclude)release_blue_candidate_20260930",
     )
+    tracked_changes: List[str] = []
+    untracked_paths: List[str] = []
+    for record in raw_status.split(b"\0"):
+        if not record:
+            continue
+        status_code = record[:2]
+        path = os.fsdecode(record[3:])
+        if status_code == b"??":
+            untracked_paths.append(path)
+        else:
+            tracked_changes.append(path)
+    return tracked_changes, untracked_paths
+
+
+def untracked_path_conflicts(untracked_paths: Sequence[str], incoming_paths: Sequence[str]) -> List[str]:
+    """Find untracked files that would block an incoming file or directory."""
+    untracked = set(untracked_paths)
+    incoming = set(incoming_paths)
+    conflicts = set()
+
+    for path in incoming:
+        if path in untracked:
+            conflicts.add(path)
+        parts = path.split("/")
+        for depth in range(1, len(parts)):
+            parent = "/".join(parts[:depth])
+            if parent in untracked:
+                conflicts.add(parent)
+
+    for path in untracked:
+        parts = path.split("/")
+        for depth in range(1, len(parts)):
+            parent = "/".join(parts[:depth])
+            if parent in incoming:
+                conflicts.add(path)
+
+    return sorted(conflicts)
 
 
 def has_live_entrypoint(live: pathlib.Path) -> bool:
@@ -318,9 +358,11 @@ def run_deployment(repo: pathlib.Path, live: pathlib.Path, backups: pathlib.Path
     if branch != "main":
         raise DeployError("Expected NAS Git branch main; found {!r}.".format(branch))
 
-    status = checkout_status(repo)
-    if status.strip():
-        raise DeployError("NAS Git checkout has local/untracked changes; nothing deployed.")
+    tracked_changes, untracked_paths = checkout_status(repo)
+    if tracked_changes:
+        raise DeployError(
+            "NAS Git checkout has {} tracked local change(s); nothing deployed.".format(len(tracked_changes))
+        )
 
     base = run_git(repo, "rev-parse", "HEAD").decode().strip()
     run_git(repo, "fetch", "origin", "main")
@@ -336,6 +378,19 @@ def run_deployment(repo: pathlib.Path, live: pathlib.Path, backups: pathlib.Path
     )
     if ancestor.returncode != 0:
         raise DeployError("origin/main is not a fast-forward from the NAS checkout; nothing deployed.")
+
+    incoming_paths = [
+        os.fsdecode(value)
+        for value in run_git(repo, "diff", "--no-renames", "--name-only", "-z", base, target).split(b"\0")
+        if value
+    ]
+    collisions = untracked_path_conflicts(untracked_paths, incoming_paths)
+    if collisions:
+        raise DeployError(
+            "Untracked NAS file(s) conflict with incoming Git paths; nothing deployed: {}".format(
+                ", ".join(collisions[:5])
+            )
+        )
 
     operations = plan_operations(repo, live, base, target)
     backup = create_backup(backups, live, operations, base, target)
