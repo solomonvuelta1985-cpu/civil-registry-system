@@ -1,185 +1,154 @@
 # iScan NAS Deployment & Update Guide
 
-## System Info
-| Item | Value |
+## Read this before updating
+
+The Git checkout and the website files are in different folders:
+
+| Purpose | NAS path |
 |---|---|
-| NAS Model | Synology DS925+ |
-| Local URL | http://192.168.1.12:8080 |
-| Public URL | https://iscan.cdrms.online |
-| NAS Username | mcrobaggao |
-| NAS IP | 192.168.1.12 (verify in DSM before use) |
-| DB Name | iscan_db |
-| DB User | root (prefer a dedicated least-privilege application user) |
-| DB Password | Never store in this guide; enter it only at the prompt |
+| Git checkout used to receive GitHub changes | `/volume1/iscan` |
+| Live Web Station application | `/volume1/iscan/release_blue_candidate_20260930` |
+| Backups | `/volume1/iscan/backups` |
 
----
+Updating `/volume1/iscan` with `git pull` **does not by itself update the website**. The live folder is not a Git checkout and has had NAS-specific changes. Deployment must copy only reviewed files into the live folder, after checking that their current contents are understood.
 
-## Updating iScan Code (From Your PC)
+The DSM task **iScan Auto Update** currently contains an old script (`git reset --hard`, recursive `chown`, recursive `chmod`). That script is unsafe and does not deploy to the live folder. Keep the task disabled until the new helper below is pushed, bootstrapped, and passes its first NAS run. Do not paste the `sudo sh -s <<'NAS_UPDATE'` example previously discussed; it is not the Task Scheduler command.
 
-### Step 1 — Push changes from PC
-Open terminal in `C:\xampp\htdocs\iscan` and run:
+### One-time setup required before the first deployment
+
+The live folder has NAS-specific files and has previously differed from the local/Git version. The helper handles this safely per changed file: it deploys a file only if the live version matches the previous Git version, or already matches the new Git version. If a changed live file matches neither, it stops before writing any live files. This avoids needing to overwrite or normalize unrelated NAS-only files.
+
+## Routine update: local XAMPP to the NAS
+
+### 1. Finish and test the change locally
+
+In PowerShell, from the project folder:
+
 ```powershell
+Set-Location C:\xampp\htdocs\iscan
 git status --short
-git add -A
+```
+
+Test the changed feature in XAMPP. Review the files shown by `git status`. Stage **only** files that belong to this update, including any new files the feature needs. Git marks staged new files as `A` in the name-status list. Do not use `git add -A` when unrelated changes or `.claude` deletions are present.
+
+For the first install of the NAS deploy helper, stage these files explicitly, plus any feature files you intentionally want in the same update:
+
+```powershell
+git add scripts/deploy_nas_release.py scripts/test_deploy_nas_release.py NAS_DEPLOYMENT_GUIDE.md
+```
+
+If this commit also includes a feature, add its exact paths with another `git add` command. Do not copy a placeholder path.
+
+```powershell
 git diff --cached --name-status
-# Confirm that .env, logs/, tmp/, uploads/, and database dumps are not staged.
-git commit -m "security: remediate audit findings and harden deployment"
+git diff --cached --check
+```
+
+Review the staged diff. Confirm it contains no `.env`, uploads, logs, database dumps, temporary files, or unrelated deletions. Then commit and push:
+
+```powershell
+git commit -m "Describe the update"
 git push origin main
 ```
 
----
+If `git status --short` still shows unrelated work, leave it unstaged. Do not reset or discard it just to make the deployment proceed.
 
-### Step 2 — Pull on NAS (immediate update)
+### 2. Connect to the NAS
 
-#### If you are IN the office (local network):
-Open PowerShell and run:
-```bash
+From the office network:
+
+```powershell
 ssh mcrobaggao@192.168.1.12
 ```
 
-#### If you are at HOME or REMOTE (via Cloudflare Tunnel):
+From outside the office, if the configured Cloudflare SSH access is available:
 
-> **One-time setup (already done):** `cloudflared` is installed and SSH config is set.
-> If on a new PC, install cloudflared first:
-> ```powershell
-> winget install Cloudflare.cloudflared
-> ```
-> Then add this to `C:\Users\<you>\.ssh\config`:
-> ```
-> Host ssh.cdrms.online
->     ProxyCommand C:\PROGRA~2\cloudflared\cloudflared.exe access ssh --hostname ssh.cdrms.online
-> ```
-
-Open PowerShell and run:
 ```powershell
 ssh mcrobaggao@ssh.cdrms.online
 ```
-Enter your NAS password when prompted.
 
----
+### 3. Run the read-only NAS preflight
 
-### Step 3 — Run update command on NAS
-Before updating, make a rollback archive and confirm that the NAS checkout has no local changes. Do not use `git reset --hard` unless you have deliberately backed up and approved the changes it would destroy.
+These commands inspect the Git checkout and fetch the latest branch reference. They do not change live website files:
 
-Once connected (either local or remote), run:
-```bash
-set -eu
+```sh
+REPO=/volume1/iscan
+LIVE=/volume1/iscan/release_blue_candidate_20260930
+
+sudo git -c safe.directory="$REPO" -C "$REPO" branch --show-current
+sudo git -c safe.directory="$REPO" -C "$REPO" status --short --untracked-files=all -- . ':(exclude)release_blue_candidate_20260930'
+sudo test -f "$LIVE/.env" && echo "LIVE_ENV_OK"
+sudo test -f "$LIVE/public/index.php" && echo "LIVE_APP_OK"
+sudo git -c safe.directory="$REPO" -C "$REPO" fetch origin main
+sudo git -c safe.directory="$REPO" -C "$REPO" log -1 --oneline origin/main
+```
+
+Stop if the branch is not `main`, the Git checkout has local changes, either live-path check fails, or `fetch` fails. Do not run `git reset --hard` to clear a stop condition.
+
+### 4. Deploy only the reviewed update
+
+Use `scripts/deploy_nas_release.py`. It fetches `origin/main`, compares only changed tracked files with the live release, backs up affected files, applies safe changes, verifies them, then fast-forwards the NAS Git checkout. It supports new files and deletions. The helper and its test file stay in the NAS Git checkout; they are not copied into the live website.
+
+The first time, after the helper is committed and pushed, bootstrap it from the NAS SSH shell. First confirm the NAS checkout is clean; if the command prints any changed or untracked files, stop and inspect them:
+
+```sh
+REPO=/volume1/iscan
+sudo git -c safe.directory="$REPO" -C "$REPO" status --short --untracked-files=all -- . ':(exclude)release_blue_candidate_20260930'
+```
+
+If clean, fetch the helper from GitHub into a temporary file and run it as root. It will deploy pending code changes as well as install the helper into the Git checkout only after deployment succeeds:
+
+```sh
+sudo git -c safe.directory="$REPO" -C "$REPO" fetch origin main
+sudo git -c safe.directory="$REPO" -C "$REPO" show origin/main:scripts/deploy_nas_release.py > /tmp/iscan_deploy_nas_release.py
+sudo python3 /tmp/iscan_deploy_nas_release.py
+```
+
+Proceed only if the output ends with `ISCAN_NAS_DEPLOY_OK`. `STOP` means a preflight check failed before live files were changed; keep the task disabled and review the named file. `DEPLOYMENT_NEEDS_REVIEW` means the apply phase began: use the printed backup path and inspect the live files before retrying. The helper creates a timestamped code backup in `/volume1/iscan/backups/` before applying changes. It never changes `.env`, uploads, logs, storage, or temporary files. It does not run migrations.
+
+After the first successful run, future updates use the installed helper. Do not use a full-directory `rsync`, `git reset --hard`, or recursive ownership/permission commands to get past a mismatch.
+
+**New files:** include them in the staged diff, commit, and push. During deployment, create only their required parent directories and copy the new file if that exact live path is absent. If a file with the same name already exists, deploy only if its contents already match the pushed version; otherwise stop and review it. The same rule applies to new assets, PHP files, and migration files. A new migration file is copied as code but is never executed automatically.
+
+### 5. Handle database migrations separately
+
+Only run a migration when the update explicitly includes a new migration and its instructions have been reviewed. Before a production migration, take a database backup and verify the target database. Never run an old catch-up migration just because this guide mentions it, and never put a database password in a command, guide, or committed file.
+
+After the migration (if one is required), verify the expected columns/tables and test the affected workflow using a non-production test record where possible.
+
+### 6. Verify the deployed feature
+
+Open `https://iscan.cdrms.online` and test the changed feature. Check the browser console and the relevant PHP error log. Confirm login, saving/editing, generated documents, and role restrictions that are affected by the change. Keep the backup until verification passes.
+
+## DSM Task Scheduler
+
+After the first helper run succeeds, replace the old Task Settings script with this command (keep the task user as `root`):
+
+```sh
 cd /volume1/iscan
-sudo mkdir -p /volume1/backups/iscan-pre-update
-sudo tar --exclude='.git' --exclude='uploads' -czf "/volume1/backups/iscan-pre-update/iscan_$(date +%Y%m%d_%H%M%S).tgz" .
-git status --short
-if [ -n "$(git status --porcelain)" ]; then
-  echo "NAS checkout has local changes; stop and review before pulling."
-  exit 1
-fi
-git pull --ff-only origin main
+python3 /volume1/iscan/scripts/deploy_nas_release.py
 ```
 
-Do not apply recursive ownership or `chmod -R 755` commands blindly. Preserve the Web Station owner/group required by this NAS, keep `.env` readable only by the service account, and verify permissions after the update.
+The helper itself runs `git fetch`, deploys only the changed files, and backs them up. You may keep the existing hourly schedule if you want updates to deploy automatically after pushing tested code, or run the task manually after a push. Do not add `sudo` to the Task Settings script when the task user is already `root`. Do not put a large heredoc in the Task Settings box.
 
-> **Note:** Pause the automatic update task while performing this controlled deployment. Do not rely on an unattended pull for this security release; re-enable it only after the post-deployment checks pass.
+## Backups
 
-### Step 4 — Run database migration (one-time catch-up)
-After pulling the latest code, run the catch-up migration to add all missing columns:
-```bash
-mysql -u root -p iscan_db < /volume1/iscan/database/migrations/019_nas_catchup_all_missing_columns.sql
-```
-Enter the DB password at the prompt. Never place it in this guide, shell history, or a committed file. This migration is safe to re-run (uses `IF NOT EXISTS`). Run any additional migrations listed in `docs/NAS_SECURITY_REMEDIATION.md`.
+Application-code backups belong under `/volume1/iscan/backups/`. The live `.env`, uploads, and logs contain installation-specific data and are handled separately from code deployment. Database backups are separate from application-file backups.
 
----
+## Troubleshooting rules
 
-## Manual Database Backup
+- **NAS Git checkout has changes:** stop and inspect them; do not reset them.
+- **Live file differs from expected baseline:** stop, save the diff/report, and reconcile that file before deployment.
+- **Website still shows old code after `git pull`:** the Git checkout changed but the live release was not deployed; verify the deployed file and cache/versioned asset URLs.
+- **Permission error:** inspect the affected file's owner, group, and mode, then make a targeted correction. Do not run `chmod -R 755` or `chown -R` over `/volume1/iscan`.
+- **Migration error:** stop; do not repeatedly rerun it without checking the migration's transaction/idempotency behavior and database state.
 
-SSH into NAS and run:
-```bash
-ssh mcrobaggao@192.168.1.12
-umask 077
-mysqldump -u root -p iscan_db > /volume1/backups/iscan_db_$(date +%Y%m%d_%H%M%S).sql
-```
-Enter the DB password when prompted. Do not record it in this guide or in shell history.
+## Connection details
 
----
+- Public website: `https://iscan.cdrms.online`
+- GitHub branch: `main`
+- NAS Git checkout: `/volume1/iscan`
+- Live Web Station release: `/volume1/iscan/release_blue_candidate_20260930`
+- Backups: `/volume1/iscan/backups`
 
-## Automated Tasks (Already Configured in DSM Task Scheduler)
-
-| Task | Schedule | What it does |
-|---|---|---|
-| iScan DB Backup | Daily 2:00 AM | Backs up database to /volume1/backups/ |
-| iScan Auto Update | Every 1 hour | Pulls latest code from GitHub; pause during controlled deployments and re-enable only after verification |
-
----
-
-## Cloudflare Tunnel
-- Tunnel name: **MCRO-NAS-iScan**
-- Route: `iscan.cdrms.online` → `http://localhost:8080`
-- Managed at: dash.cloudflare.com → Zero Trust → Networks → Tunnels
-
----
-
-## Mapped Network Drive
-- Drive: **Z:**
-- Path: `\\192.168.1.12\iscan`
-- Use for direct file access without SSH
-
----
-
-## GitHub Repository
-- URL: https://github.com/solomonvuelta1985-cpu/civil-registry-system
-- Branch: `main`
-
----
-
-## Troubleshooting
-
-### 403 Error on website
-```bash
-ssh mcrobaggao@192.168.1.12
-ls -ld /volume1/iscan /volume1/iscan/.env
-sudo -u http test -r /volume1/iscan/public/index.php
-```
-Do not fix a 403 with `chmod -R 755`. Check the Web Station document-root, virtual-host, owner/group, and Apache error log first. Apply only the minimum targeted permission change after confirming the required service account.
-
-### Git pull permission error
-```bash
-sudo chown -R mcrobaggao:users /volume1/iscan/.git
-git config --global --add safe.directory /volume1/iscan
-```
-
-### Check if Apache is running
-```bash
-synopkg status Apache2.4
-```
-
-### Restart Apache
-```bash
-synopkg stop Apache2.4
-synopkg start Apache2.4
-```
-
-### Check Apache error log
-```bash
-tail -30 /var/packages/WebStation/var/log/apache24_error_log
-```
-
-### Post-deployment security checks
-Run these checks before allowing real records to be used:
-
-```bash
-# The application must be reachable only over HTTPS in production.
-curl -I https://iscan.cdrms.online/
-
-# These paths must return 403 or 404, never application data.
-curl -I https://iscan.cdrms.online/.git/config
-curl -I https://iscan.cdrms.online/.env
-curl -I https://iscan.cdrms.online/public/iscan_db%20%281%29.sql
-curl -I https://iscan.cdrms.online/uploads/
-```
-
-Then test with a non-admin account: login, role restrictions, CSRF-protected save/update/delete actions, PDF authorization, session expiry, logout, backup restore/delete controls, and scanner access. Use synthetic records until these tests pass.
-
-
-
-In office → ssh mcrobaggao@192.168.1.12
-At home/remote → ssh mcrobaggao@ssh.cdrms.online (via Cloudflare tunnel)
-One-time setup instructions for new PCs
-Step 3 with the full update command to run after connecting
+Do not store database passwords or other secrets in this guide.
