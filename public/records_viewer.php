@@ -3327,10 +3327,11 @@ function detect_late_registration($record, $record_type) {
             if (!recordsTable) return;
 
             // Update table body
+            const tableColumnCount = recordsTable.closest('table')?.querySelectorAll('thead th').length || 1;
             if (records.length === 0) {
                 recordsTable.innerHTML = `
                     <tr>
-                        <td colspan="100%" style="text-align: center; padding: 60px;">
+                        <td colspan="${tableColumnCount}" style="text-align: center; padding: 60px;">
                             <div class="no-records">
                                 <i data-lucide="inbox" style="width: 48px; height: 48px; stroke: #adb5bd;"></i>
                                 <p>No records found.</p>
@@ -3344,7 +3345,7 @@ function detect_late_registration($record, $record_type) {
                 // Fuzzy notice row: shown when the strict search returned nothing and
                 // the API fell back to a partial-match ("any token in any field") search.
                 if (isFuzzy) {
-                    const colspan = (recordsTable.closest('table')?.querySelectorAll('thead th').length) || 100;
+                    const colspan = tableColumnCount;
                     html += `
                         <tr class="fuzzy-notice-row">
                             <td colspan="${colspan}" style="background:#fff8e1; border-left:4px solid #f5a623; padding:12px 16px; color:#8a6d3b;">
