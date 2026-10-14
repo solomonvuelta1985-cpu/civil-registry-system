@@ -60,9 +60,30 @@ class DeployClassificationTests(unittest.TestCase):
             with self.subTest(path=path):
                 with self.assertRaises(DEPLOY.DeployError):
                     DEPLOY.safe_relative_path(path)
+        self.assertTrue(DEPLOY.is_repo_only("NAS_DEPLOYMENT_GUIDE.md"))
         self.assertTrue(DEPLOY.is_repo_only("scripts/deploy_nas_release.py"))
         self.assertTrue(DEPLOY.is_repo_only("scripts/test_deploy_nas_release.py"))
         self.assertTrue(DEPLOY.is_repo_only("tests/example.php"))
+
+
+class LiveEntrypointTests(unittest.TestCase):
+    def test_accepts_public_document_root(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            live = pathlib.Path(temporary)
+            (live / "public").mkdir()
+            (live / "public" / "index.php").write_text("<?php", encoding="utf-8")
+            self.assertTrue(DEPLOY.has_live_entrypoint(live))
+
+    def test_accepts_root_document_root_used_by_nas_release(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            live = pathlib.Path(temporary)
+            (live / "index.php").write_text("<?php", encoding="utf-8")
+            self.assertTrue(DEPLOY.has_live_entrypoint(live))
+
+    def test_rejects_missing_entrypoint(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            live = pathlib.Path(temporary)
+            self.assertFalse(DEPLOY.has_live_entrypoint(live))
 
 
 class DeployPlanIntegrationTests(unittest.TestCase):

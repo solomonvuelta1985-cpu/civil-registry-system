@@ -78,7 +78,12 @@ LIVE=/volume1/iscan/release_blue_candidate_20260930
 sudo git -c safe.directory="$REPO" -C "$REPO" branch --show-current
 sudo git -c safe.directory="$REPO" -C "$REPO" status --short --untracked-files=all -- . ':(exclude)release_blue_candidate_20260930'
 sudo test -f "$LIVE/.env" && echo "LIVE_ENV_OK"
-sudo test -f "$LIVE/public/index.php" && echo "LIVE_APP_OK"
+if sudo test -f "$LIVE/public/index.php" || sudo test -f "$LIVE/index.php"; then
+    echo "LIVE_APP_OK"
+else
+    echo "STOP: neither supported index.php entrypoint exists"
+    exit 1
+fi
 sudo git -c safe.directory="$REPO" -C "$REPO" fetch origin main
 sudo git -c safe.directory="$REPO" -C "$REPO" log -1 --oneline origin/main
 ```

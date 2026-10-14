@@ -30,6 +30,7 @@ REMOTE_REF = "origin/main"
 
 # This script is an operations tool in the Git checkout, not a website file.
 REPO_ONLY_PATHS = {
+    "NAS_DEPLOYMENT_GUIDE.md",
     "scripts/deploy_nas_release.py",
     "scripts/test_deploy_nas_release.py",
 }
@@ -153,6 +154,12 @@ def checkout_status(repo: pathlib.Path) -> bytes:
         ".",
         ":(exclude)release_blue_candidate_20260930",
     )
+
+
+def has_live_entrypoint(live: pathlib.Path) -> bool:
+    """Accept either supported Web Station document-root layout."""
+    candidates = (live / "public" / "index.php", live / "index.php")
+    return any(path.is_file() and not path.is_symlink() for path in candidates)
 
 
 def target_path(live: pathlib.Path, relative: str) -> pathlib.Path:
@@ -302,8 +309,10 @@ def run_deployment(repo: pathlib.Path, live: pathlib.Path, backups: pathlib.Path
         raise DeployError("Git checkout not found: {}".format(repo))
     if live.is_symlink() or not live.is_dir():
         raise DeployError("Live release folder is missing or is a symlink: {}".format(live))
-    if not (live / ".env").is_file() or not (live / "public" / "index.php").is_file():
-        raise DeployError("Live release preflight failed (.env or public/index.php missing).")
+    if not (live / ".env").is_file() or not has_live_entrypoint(live):
+        raise DeployError(
+            "Live release preflight failed (.env or both supported index.php entrypoints are missing)."
+        )
 
     branch = run_git(repo, "branch", "--show-current").decode().strip()
     if branch != "main":
