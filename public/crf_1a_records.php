@@ -38,7 +38,7 @@ $crfDefaults = branding_crf_preview_config(crf_1a_config());
     <script src="<?= asset_url('notiflix_js') ?>"></script>
     <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=11">
-    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=37">
+    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=38">
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = '<?= asset_url("pdfjs_worker") ?>';</script>
     <style>
@@ -95,8 +95,8 @@ $crfDefaults = branding_crf_preview_config(crf_1a_config());
     window.CRF1A_DEFAULT_ISSUE_DATE = <?= json_encode(date('Y-m-d')) ?>;
 </script>
 <script src="../assets/js/record-preview-modal.js?v=13"></script>
-<script src="../assets/js/crf-remarks-editor.js?v=20261012-crf-font-default-1"></script>
-<script src="../assets/js/crf-1a-generator.js?v=20261012-requester-checkbox-1"></script>
+<script src="../assets/js/crf-remarks-editor.js?v=20261014-personal-templates-1"></script>
+<script src="../assets/js/crf-1a-generator.js?v=20261014-redirect-records-1"></script>
 <script src="../assets/js/crf-1a-records.js?v=21"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
 </body>

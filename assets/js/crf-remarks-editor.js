@@ -257,6 +257,13 @@
             this.form = form;
             this.onChange = onChange || function () {};
             this.savedRemarksHtml = '';
+            this.templates = [];
+            this.templatesLoaded = false;
+            this.templatesLoading = false;
+            this.templateLoadPromise = null;
+            this.pendingTemplateId = 0;
+            this.pendingTemplateName = '';
+            this.openingRemarksHtml = '';
             this.format = { fontFamily: 'Courier New', fontSize: 9.5, lineHeight: 1, paragraphSpace: 0 };
             this.contentRoot = null;
             this.field = form.elements.namedItem('remarks_html');
@@ -296,22 +303,27 @@
                     <select data-case aria-label="Change case"><option value="">Aa</option><option value="upper">UPPERCASE</option><option value="lower">lowercase</option><option value="title">Title Case</option></select><button type="button" data-command="removeFormat" title="Clear formatting">Tx</button><button type="button" data-remarks-saved title="View remarks from previous CRF issuances" aria-label="View previous remarks" disabled>History</button>
                 </div>
                 <div class="crf-remarks-editable" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Remarks text"></div>
-                <div class="crf-remarks-footer"><span>Text and formatting are preserved in the issuance copy.</span><div><button type="button" class="crf1a-btn crf1a-btn-secondary" data-remarks-clear>Clear</button><button type="button" class="crf1a-btn crf1a-btn-secondary" data-remarks-cancel>Cancel</button><button type="button" class="crf1a-btn crf1a-btn-primary" data-remarks-save>Save Remarks</button></div></div>
+                <div class="crf-remarks-footer"><span>Text and formatting are preserved in the issuance copy.</span><div><button type="button" class="crf1a-btn crf1a-btn-secondary" data-template-open>Save as Template</button><button type="button" class="crf1a-btn crf1a-btn-secondary" data-remarks-clear>Clear</button><button type="button" class="crf1a-btn crf1a-btn-secondary" data-remarks-cancel>Cancel</button><button type="button" class="crf1a-btn crf1a-btn-primary" data-remarks-save>Save Remarks</button></div></div>
             </div>`;
             document.body.appendChild(this.dialog);
             this.editable = this.dialog.querySelector('.crf-remarks-editable');
             this.savedDialog = document.createElement('div');
             this.savedDialog.className = 'crf-remarks-saved-backdrop';
             this.savedDialog.hidden = true;
-            this.savedDialog.innerHTML = `<div class="crf-remarks-saved-modal" role="dialog" aria-modal="true" aria-labelledby="crfSavedRemarksTitle"><div class="crf-remarks-header"><h3 id="crfSavedRemarksTitle">Previously Saved Remarks</h3><button type="button" class="crf-remarks-close" data-saved-remarks-close aria-label="Close">×</button></div><div class="crf-remarks-saved-body"><div class="crf-remarks-saved-preview" data-saved-remarks-preview></div></div><div class="crf-remarks-footer"><span>Showing the latest saved remarks from this CRF's issuance history.</span><div><button type="button" class="crf1a-btn crf1a-btn-secondary" data-saved-remarks-close>Close</button><button type="button" class="crf1a-btn crf1a-btn-primary" data-saved-remarks-restore>Restore to Editor</button></div></div></div>`;
+            this.savedDialog.innerHTML = `<div class="crf-remarks-saved-modal" role="dialog" aria-modal="true" aria-labelledby="crfSavedRemarksTitle"><div class="crf-remarks-header"><h3 id="crfSavedRemarksTitle">Remarks Library</h3><button type="button" class="crf-remarks-close" data-saved-remarks-close aria-label="Close">×</button></div><div class="crf-remarks-library-tabs" role="tablist" aria-label="Remarks library"><button type="button" class="crf-remarks-library-tab" data-library-tab="history" role="tab" aria-selected="true">Issuance History</button><button type="button" class="crf-remarks-library-tab" data-library-tab="templates" role="tab" aria-selected="false">My Templates</button></div><div class="crf-remarks-saved-body"><section class="crf-remarks-library-panel" data-library-panel="history" role="tabpanel"><div class="crf-remarks-saved-preview" data-saved-remarks-preview></div></section><section class="crf-remarks-library-panel" data-library-panel="templates" role="tabpanel" hidden><div class="crf-remarks-template-form"><label for="crfRemarksTemplateName">Template name</label><input id="crfRemarksTemplateName" type="text" maxlength="120" required data-template-name placeholder="Name this template"><div class="crf-remarks-template-draft" data-template-draft-preview></div><div class="crf-remarks-template-form-actions"><span data-template-status role="status" aria-live="polite"></span><button type="button" class="crf1a-btn crf1a-btn-primary" data-template-save-current>Save Current Remarks</button></div></div><div class="crf-remarks-template-list" data-template-list></div></section></div><div class="crf-remarks-footer"><span data-library-footer>Showing the latest saved remarks from this CRF's issuance history.</span><div><button type="button" class="crf1a-btn crf1a-btn-secondary" data-saved-remarks-close>Close</button><button type="button" class="crf1a-btn crf1a-btn-primary" data-saved-remarks-restore>Restore to Editor</button></div></div></div>`;
             document.body.appendChild(this.savedDialog);
             this.savedPreview = this.savedDialog.querySelector('[data-saved-remarks-preview]');
             this.savedRestoreButton = this.savedDialog.querySelector('[data-saved-remarks-restore]');
             this.savedRemarksButton = this.dialog.querySelector('[data-remarks-saved]');
+            this.savedRemarksButton.disabled = false;
             this.savedRemarksButton.addEventListener('click', () => this.openSavedRemarks());
+            this.savedDialog.querySelectorAll('[data-library-tab]').forEach(button => button.addEventListener('click', () => this.showLibraryTab(button.dataset.libraryTab)));
             this.savedDialog.querySelectorAll('[data-saved-remarks-close]').forEach(button => button.addEventListener('click', () => this.closeSavedRemarks()));
             this.savedDialog.querySelector('[data-saved-remarks-restore]').addEventListener('click', () => this.restoreSavedRemarks());
             this.savedDialog.addEventListener('click', event => { if (event.target === this.savedDialog) this.closeSavedRemarks(); });
+            this.savedDialog.querySelector('[data-template-save-current]').addEventListener('click', () => this.saveTemplateFromEditor());
+            this.savedDialog.querySelector('[data-template-list]').addEventListener('click', event => this.handleTemplateAction(event));
+            this.dialog.querySelector('[data-template-open]').addEventListener('click', () => this.openTemplateSave());
             this.editable.addEventListener('input', () => this.sync());
             this.editable.addEventListener('keyup', () => this.saveSelection());
             this.editable.addEventListener('mouseup', () => this.saveSelection());
@@ -532,6 +544,10 @@
         }
 
         open() {
+            this.pendingTemplateId = 0;
+            this.pendingTemplateName = '';
+            this.dialog.querySelector('[data-template-open]').textContent = 'Save as Template';
+            this.openingRemarksHtml = this.field.value;
             this.loadEditable(this.field.value);
             this.dialog.hidden = false;
             this.dialog.classList.add('is-open');
@@ -553,9 +569,233 @@
             this.savedPreview.innerHTML = isEmpty(this.savedRemarksHtml)
                 ? '<p class="crf-remarks-saved-empty">No saved remarks were found in this CRF\'s issuance history.</p>'
                 : this.savedRemarksHtml;
+            this.savedDialog.querySelector('[data-template-name]').value = '';
             this.savedDialog.hidden = false;
             this.savedDialog.classList.add('is-open');
+            this.showLibraryTab('history');
             this.savedDialog.querySelector('[data-saved-remarks-close]')?.focus();
+        }
+
+        showLibraryTab(tab) {
+            const activeTab = tab === 'templates' ? 'templates' : 'history';
+            this.savedDialog.querySelectorAll('[data-library-tab]').forEach(button => {
+                button.setAttribute('aria-selected', button.dataset.libraryTab === activeTab ? 'true' : 'false');
+            });
+            this.savedDialog.querySelectorAll('[data-library-panel]').forEach(panel => {
+                panel.hidden = panel.dataset.libraryPanel !== activeTab;
+            });
+            this.savedDialog.querySelector('[data-saved-remarks-restore]').hidden = activeTab !== 'history';
+            this.savedDialog.querySelector('[data-library-footer]').textContent = activeTab === 'history'
+                ? 'Showing the latest saved remarks from this CRF\'s issuance history.'
+                : 'Templates are private to your account and reusable across CRF forms.';
+            if (activeTab === 'templates') {
+                const currentHtml = sanitizeHtml(this.field.value);
+                const nameField = this.savedDialog.querySelector('[data-template-name]');
+                const draft = this.savedDialog.querySelector('[data-template-draft-preview]');
+                draft.innerHTML = currentHtml;
+                if (!nameField.value) nameField.value = this.pendingTemplateName || this.firstNonEmptyLine(currentHtml);
+                this.loadTemplates(true);
+            }
+        }
+
+        async loadTemplates(force = false) {
+            if (this.templatesLoading) return this.templateLoadPromise;
+            if (this.templatesLoaded && !force) return this.templates;
+            this.templatesLoading = true;
+            this.setTemplateStatus('Loading your templates...');
+            this.templateLoadPromise = (async () => {
+                try {
+                    const response = await fetch('../api/crf_remarks_templates.php', { credentials: 'same-origin' });
+                    const data = await response.json();
+                    if (!response.ok || !data.success) throw new Error(data.message || 'Unable to load your remarks templates.');
+                    this.templates = Array.isArray(data.data?.templates) ? data.data.templates : [];
+                    this.templatesLoaded = true;
+                    this.renderTemplates();
+                    this.setTemplateStatus('');
+                    return this.templates;
+                } catch (error) {
+                    this.setTemplateStatus(error.message || 'Unable to load your remarks templates.', true);
+                    return null;
+                } finally {
+                    this.templatesLoading = false;
+                    this.templateLoadPromise = null;
+                }
+            })();
+            return this.templateLoadPromise;
+        }
+
+        renderTemplates() {
+            const list = this.savedDialog.querySelector('[data-template-list]');
+            if (!this.templates.length) {
+                list.innerHTML = '<p class="crf-remarks-saved-empty">You have no saved templates yet. Enter remarks, then choose Save as Template.</p>';
+                return;
+            }
+            list.innerHTML = this.templates.map(template => `<article class="crf-remarks-template-card" data-template-id="${Number(template.id) || 0}"><div class="crf-remarks-template-card-header"><strong>${escapeText(template.name || '')}</strong><span>${escapeText(template.updated_at || '')}</span></div><div class="crf-remarks-template-card-preview">${sanitizeHtml(template.remarks_html || '')}</div><div class="crf-remarks-template-card-actions"><button type="button" class="crf1a-btn crf1a-btn-secondary" data-template-action="replace">Replace</button><button type="button" class="crf1a-btn crf1a-btn-secondary" data-template-action="append">Append</button><button type="button" class="crf1a-btn crf1a-btn-secondary" data-template-action="edit">Edit</button><button type="button" class="crf1a-btn crf1a-btn-secondary" data-template-action="delete">Delete</button></div></article>`).join('');
+        }
+
+        setTemplateStatus(message, error = false) {
+            const status = this.savedDialog.querySelector('[data-template-status]');
+            if (!status) return;
+            status.textContent = message || '';
+            status.classList.toggle('error', Boolean(error));
+        }
+
+        firstNonEmptyLine(html) {
+            const source = document.createElement('div');
+            source.innerHTML = sanitizeHtml(html);
+            const text = (source.innerText || source.textContent || '').replace(/\u00a0/g, ' ');
+            return text.split(/\r?\n/).map(line => line.trim()).find(Boolean)?.slice(0, 120) || '';
+        }
+
+        openTemplateSave() {
+            this.sync();
+            if (isEmpty(this.field.value)) {
+                this.notifyTemplate('Enter remarks before saving a template.', true);
+                return;
+            }
+            const nameField = this.savedDialog.querySelector('[data-template-name]');
+            nameField.value = this.pendingTemplateId
+                ? this.pendingTemplateName
+                : this.firstNonEmptyLine(this.field.value);
+            this.savedDialog.querySelector('[data-template-draft-preview]').innerHTML = sanitizeHtml(this.field.value);
+            this.savedDialog.querySelector('[data-template-save-current]').textContent = this.pendingTemplateId ? 'Update Template' : 'Save Current Remarks';
+            this.setTemplateStatus('');
+            this.savedDialog.hidden = false;
+            this.savedDialog.classList.add('is-open');
+            this.showLibraryTab('templates');
+            nameField.focus();
+        }
+
+        notifyTemplate(message, error = false) {
+            const notify = typeof Notiflix !== 'undefined' && Notiflix.Notify
+                ? (error ? Notiflix.Notify.failure : Notiflix.Notify.info)
+                : null;
+            if (typeof notify === 'function') notify(message);
+            else window.alert(message);
+        }
+
+        async saveTemplateFromEditor() {
+            this.sync();
+            const name = this.savedDialog.querySelector('[data-template-name]').value.trim();
+            const html = sanitizeHtml(this.field.value);
+            if (!name) return this.setTemplateStatus('Enter a name for this template.', true);
+            if (isEmpty(html)) return this.setTemplateStatus('Enter remarks before saving a template.', true);
+            const formData = new FormData();
+            formData.append('action', this.pendingTemplateId ? 'update' : 'create');
+            formData.append('name', name);
+            formData.append('remarks_html', html);
+            if (this.pendingTemplateId) formData.append('id', String(this.pendingTemplateId));
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            if (csrf) formData.append('csrf_token', csrf);
+            const button = this.savedDialog.querySelector('[data-template-save-current]');
+            button.disabled = true;
+            this.setTemplateStatus(this.pendingTemplateId ? 'Updating template...' : 'Saving template...');
+            try {
+                await this.loadTemplates();
+                const response = await fetch('../api/crf_remarks_templates.php', {
+                    method: 'POST', body: formData,
+                    headers: csrf ? { 'X-CSRF-Token': csrf } : {}, credentials: 'same-origin'
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success || !data.data?.template) throw new Error(data.message || 'Unable to save this template.');
+                const saved = data.data.template;
+                const index = this.templates.findIndex(item => Number(item.id) === Number(saved.id));
+                if (index >= 0) this.templates[index] = saved;
+                else this.templates.unshift(saved);
+                this.templates.sort((left, right) => String(right.updated_at || '').localeCompare(String(left.updated_at || '')));
+                this.templatesLoaded = true;
+                this.renderTemplates();
+                this.pendingTemplateId = 0;
+                this.pendingTemplateName = '';
+                this.dialog.querySelector('[data-template-open]').textContent = 'Save as Template';
+                this.savedDialog.querySelector('[data-template-save-current]').textContent = 'Save Current Remarks';
+                this.setTemplateStatus(data.message || 'Template saved.');
+            } catch (error) {
+                this.setTemplateStatus(error.message || 'Unable to save this template.', true);
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        async handleTemplateAction(event) {
+            const button = event.target.closest('[data-template-action]');
+            if (!button) return;
+            const card = button.closest('[data-template-id]');
+            const template = this.templates.find(item => Number(item.id) === Number(card?.dataset.templateId));
+            if (!template) return;
+            const action = button.dataset.templateAction;
+            if (action === 'delete') {
+                if (!window.confirm(`Delete the template "${template.name}"?`)) return;
+                return this.deleteTemplate(template, button);
+            }
+            if (action === 'edit') {
+                this.pendingTemplateId = Number(template.id);
+                this.pendingTemplateName = String(template.name || '');
+                this.dialog.querySelector('[data-template-open]').textContent = 'Update Template';
+                this.loadEditable(template.remarks_html || '');
+                this.sync();
+                this.closeSavedRemarks();
+                return;
+            }
+            this.applyTemplate(template, action);
+        }
+
+        applyTemplate(template, mode) {
+            const html = sanitizeHtml(template.remarks_html || '');
+            const current = sanitizeHtml(this.field.value);
+            if (mode === 'replace' && !isEmpty(current) && !window.confirm('Replace the current remarks with this template?')) return;
+            this.pendingTemplateId = 0;
+            this.pendingTemplateName = '';
+            this.dialog.querySelector('[data-template-open]').textContent = 'Save as Template';
+            if (mode === 'replace' || isEmpty(current)) {
+                this.loadEditable(html);
+            } else {
+                this.loadEditable(current);
+                const roots = Array.from(this.editable.children).filter(node => node.nodeType === Node.ELEMENT_NODE && node.tagName === 'DIV' && node.getAttribute('data-remarks-root') === '1');
+                const lastRoot = roots[roots.length - 1] || this.contentRoot;
+                if (lastRoot) lastRoot.insertAdjacentHTML('beforeend', '<p><br></p>');
+                const source = document.createElement('div');
+                source.innerHTML = html;
+                const templateRoot = Array.from(source.children).find(node => node.tagName === 'DIV' && node.getAttribute('data-remarks-root') === '1');
+                if (templateRoot) this.editable.appendChild(templateRoot.cloneNode(true));
+                else {
+                    const wrapper = document.createElement('div');
+                    wrapper.setAttribute('data-remarks-root', '1');
+                    while (source.firstChild) wrapper.appendChild(source.firstChild);
+                    this.editable.appendChild(wrapper);
+                }
+            }
+            this.sync();
+            this.closeSavedRemarks();
+        }
+
+        async deleteTemplate(template, button) {
+            const formData = new FormData();
+            formData.append('action', 'delete');
+            formData.append('id', String(template.id));
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            if (csrf) formData.append('csrf_token', csrf);
+            button.disabled = true;
+            this.setTemplateStatus('Deleting template...');
+            try {
+                const response = await fetch('../api/crf_remarks_templates.php', {
+                    method: 'POST', body: formData,
+                    headers: csrf ? { 'X-CSRF-Token': csrf } : {}, credentials: 'same-origin'
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.message || 'Unable to delete this template.');
+                this.templates = this.templates.filter(item => Number(item.id) !== Number(template.id));
+                if (Number(this.pendingTemplateId) === Number(template.id)) {
+                    this.pendingTemplateId = 0;
+                    this.pendingTemplateName = '';
+                    this.dialog.querySelector('[data-template-open]').textContent = 'Save as Template';
+                }
+                this.renderTemplates();
+                this.setTemplateStatus('Template deleted.');
+            } catch (error) {
+                this.setTemplateStatus(error.message || 'Unable to delete this template.', true);
+                button.disabled = false;
+            }
         }
 
         closeSavedRemarks() {
@@ -568,14 +808,25 @@
             if (isEmpty(this.savedRemarksHtml)) return;
             const current = sanitizeHtml(this.field.value);
             if (!isEmpty(current) && current !== this.savedRemarksHtml && !window.confirm('Replace the current remarks with the remarks saved on this CRF?')) return;
+            this.pendingTemplateId = 0;
+            this.pendingTemplateName = '';
+            this.dialog.querySelector('[data-template-open]').textContent = 'Save as Template';
             this.loadEditable(this.savedRemarksHtml);
             this.sync();
             this.closeSavedRemarks();
         }
 
         close(save) {
-            if (save) this.sync();
-            else this.loadEditable(this.field.value);
+            if (save) {
+                this.sync();
+                this.openingRemarksHtml = this.field.value;
+            } else {
+                this.field.value = this.openingRemarksHtml;
+                this.loadEditable(this.field.value);
+            }
+            this.pendingTemplateId = 0;
+            this.pendingTemplateName = '';
+            this.dialog.querySelector('[data-template-open]').textContent = 'Save as Template';
             this.dialog.classList.remove('is-open');
             this.dialog.hidden = true;
             this.onChange(this.field.value);

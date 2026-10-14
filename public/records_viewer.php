@@ -732,7 +732,7 @@ function detect_late_registration($record, $record_type) {
 
     <!-- Record Preview Modal Styles -->
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=10">
-    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=37">
+    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=38">
 
     <!-- PDF.js Library -->
     <script src="<?= asset_url('pdfjs') ?>"></script>
@@ -3926,10 +3926,10 @@ function detect_late_registration($record, $record_type) {
     <!-- Record Preview Modal Script -->
     <script src="../assets/js/family_relations_render.js?v=2"></script>
     <script src="../assets/js/record-preview-modal.js?v=13"></script>
-    <script src="../assets/js/crf-remarks-editor.js?v=20261012-crf-font-default-1"></script>
-    <script src="../assets/js/crf-1a-generator.js?v=20261012-requester-checkbox-1"></script>
-    <script src="../assets/js/crf-2a-generator.js?v=20261012-remarks-formatting-3"></script>
-    <script src="../assets/js/crf-3a-generator.js?v=20261012-remarks-formatting-3"></script>
+    <script src="../assets/js/crf-remarks-editor.js?v=20261014-personal-templates-1"></script>
+    <script src="../assets/js/crf-1a-generator.js?v=20261014-redirect-records-1"></script>
+    <script src="../assets/js/crf-2a-generator.js?v=20261014-redirect-records-1"></script>
+    <script src="../assets/js/crf-3a-generator.js?v=20261014-redirect-records-1"></script>
 
     <!-- Double Registration Comparison Modal -->
     <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=7">

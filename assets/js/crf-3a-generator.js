@@ -226,6 +226,7 @@
                 this.existingIssuances.unshift(data.data);
                 this.setStatus(`${data.data.crf_number} generated and saved for reprint.`, false, true);
                 this.notify('CRF No. 3A generated successfully.');
+                window.location.assign('crf_3a_records.php');
             } catch (error) {
                 this.setStatus(error.message, true);
                 this.notify(error.message, true);

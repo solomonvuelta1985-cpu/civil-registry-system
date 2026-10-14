@@ -447,6 +447,7 @@
                 this.issuanceCheckComplete = true;
                 this.setStatus(`${result.crf_number} generated and saved for reprint.`, false, true);
                 this.notify('CRF No. 1A generated successfully.');
+                window.location.assign('crf_1a_records.php');
             } catch (error) {
                 this.setStatus(error.message || 'Generation failed. No issuance was saved.', true);
                 this.notify(error.message || 'Generation failed.', true);

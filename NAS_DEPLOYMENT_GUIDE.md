@@ -76,7 +76,7 @@ Wait until the SSH login finishes and the prompt looks like `mcrobaggao@MCRO_NAS
 
 ### 4. Run the one-line NAS deployment command
 
-Use `scripts/deploy_nas_release.py`. It fetches `origin/main`, compares only changed tracked files with the live release, backs up affected files, applies safe changes, verifies them, then fast-forwards the NAS Git checkout. It supports new files and deletions. The helper and its test file stay in the NAS Git checkout; they are not copied into the live website.
+Use `scripts/deploy_nas_release.py`. It fetches `origin/main`, compares only changed tracked files with the live release, backs up affected files, applies safe changes, verifies them, then fast-forwards the NAS Git checkout. It supports new files and deletions. The helper and its test file stay in the NAS Git checkout; they are not copied into the live website. If the release includes a database migration, first create and verify the database backup described in Section 5, then return here and deploy the code.
 
 After local testing, commit and push the intended files to `origin/main`. Then run this same one-line command from the NAS SSH shell for each update. It fetches the newest helper, runs its preflight, backs up affected live files, deploys changed and new files, verifies the result, and advances the NAS Git checkout only after success. There is no need to delete or clean NAS-specific checkout files:
 
@@ -84,17 +84,41 @@ After local testing, commit and push the intended files to `origin/main`. Then r
 sudo sh -c 'R=/volume1/iscan; git -c safe.directory="$R" -C "$R" fetch origin main && git -c safe.directory="$R" -C "$R" show origin/main:scripts/deploy_nas_release.py > /tmp/iscan_deploy_nas_release.py && python3 /tmp/iscan_deploy_nas_release.py'
 ```
 
-Paste that whole line at the NAS prompt and press Enter. When `sudo` asks for `Password:`, type the NAS sudo password and press Enter; the terminal will not display the password characters. Wait for the command to finish. Proceed only if the output ends with `ISCAN_NAS_DEPLOY_OK`. `STOP` means a preflight check failed before live website files were changed; send the complete stop output for review. Do not reset or overwrite conflicts. `DEPLOYMENT_NEEDS_REVIEW` means the apply phase began: use the printed backup path and inspect the live files before retrying. The helper creates a timestamped code backup in `/volume1/iscan/backups/` before applying live changes. It never copies environment files into the live release, changes uploads, logs, storage, or temporary files, or runs migrations.
+Paste that whole line at the NAS prompt and press Enter. When `sudo` asks for `Password:`, type the NAS sudo password and press Enter; the terminal will not display the password characters. Wait for the command to finish. Proceed only if the output ends with `ISCAN_NAS_DEPLOY_OK`. `STOP` means a preflight check failed before live website files were changed; send the complete stop output for review. Do not reset or overwrite conflicts. `DEPLOYMENT_NEEDS_REVIEW` means the apply phase began: use the printed backup path and inspect the live files before retrying. The helper creates a timestamped code backup in `/volume1/iscan/backups/` before applying live changes. It never copies environment files into the live release, changes uploads, logs, storage, or temporary files, or runs migrations. If the update includes a new `database/migrations/NNN_*.sql` file, follow Section 5 and apply that exact migration after deployment, before using the feature.
 
 Use this same command for future updates; it fetches the latest helper before deploying. Do not use a full-directory `rsync`, `git reset --hard`, or recursive ownership/permission commands to get past a mismatch.
 
 **New files:** include them in the staged diff, commit, and push. During deployment, create only their required parent directories and copy the new file if that exact live path is absent. If a file with the same name already exists, deploy only if its contents already match the pushed version; otherwise stop and review it. The same rule applies to new assets, PHP files, and migration files. A new migration file is copied as code but is never executed automatically.
 
-### 5. Handle database migrations separately
+### 5. Apply a database migration when the release needs one
 
-Only run a migration when the update explicitly includes a new migration and its instructions have been reviewed. Keep migration filenames stable after they have been applied; make a new migration for later schema changes instead of renaming an old one. Before a production migration, take a database backup and verify the target database. Never run an old catch-up migration just because this guide mentions it, and never put a database password in a command, guide, or committed file.
+A release needs a migration when it adds or changes database tables, columns, indexes, constraints, or other schema. PHP, JavaScript, and CSS changes that use the existing schema do not need one. The deployment helper copies migration files but never executes them. Check the pushed file list and the helper output `DATABASE_MIGRATIONS_REVIEW_REQUIRED=...`; use only the exact migration filename named there.
 
-After the migration (if one is required), verify the expected columns/tables and test the affected workflow using a non-production test record where possible.
+**Before the Section 4 deployment command, if the release includes a migration, create and verify a database backup:**
+
+1. Sign in to iScan as an Admin and open **Maintenance → Database Backups** (`https://iscan.cdrms.online/admin/database_backups.php`).
+2. Select an approved backup location and start a database backup.
+3. Wait until its status is `completed`, then click **Verify** for that backup. Continue only when verification reports `VALID`. Keep the dump and manifest until the release is verified.
+
+After the backup is verified, return to Section 4 and deploy the release. Do not use the new feature until its migration is applied.
+
+After deployment, check the exact migration against the live database. Replace the example filename below with the filename printed by the deployment helper:
+
+```sh
+sudo /usr/local/bin/php82 /volume1/iscan/release_blue_candidate_20260930/database/apply_single_migration.php --check 053_crf_remarks_templates.sql
+```
+
+The check must print `DATABASE=iscan_db` and either `MIGRATION_STATUS=PENDING` or `MIGRATION_STATUS=ALREADY_APPLIED`. If the database name is different, or the command prints `STOP` or `ERROR`, stop and review before proceeding. If it says `ALREADY_APPLIED`, do not apply it again.
+
+If it says `PENDING`, and the verified database backup is ready, apply **only that migration**:
+
+```sh
+sudo /usr/local/bin/php82 /volume1/iscan/release_blue_candidate_20260930/database/apply_single_migration.php --apply 053_crf_remarks_templates.sql
+```
+
+Expect `MIGRATION_STATUS=APPLIED`. Run the `--check` command again; it should then report `MIGRATION_STATUS=ALREADY_APPLIED`. Finally, test the affected iScan workflow with a non-production test record where possible.
+
+`database/apply_single_migration.php` is CLI-only and accepts one numbered migration filename. **Do not run `database/run_migrations.php` to apply a single change:** it is a legacy batch runner containing older migrations that may not be recorded in the NAS migration table. Do not rerun a failed migration blindly; MySQL DDL can partially apply, so inspect the schema and migration record first. Keep applied migration files unchanged and create a new numbered migration for each later schema change. Never put a database password in a command, guide, or committed file.
 
 ### 6. Verify the deployed feature
 
