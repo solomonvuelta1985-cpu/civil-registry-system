@@ -30,6 +30,7 @@ REMOTE_REF = "origin/main"
 
 # This script is an operations tool in the Git checkout, not a website file.
 REPO_ONLY_PATHS = {
+    ".env.example",
     "NAS_DEPLOYMENT_GUIDE.md",
     "scripts/deploy_nas_release.py",
     "scripts/test_deploy_nas_release.py",
@@ -104,12 +105,12 @@ def safe_relative_path(relative: str) -> Tuple[str, ...]:
         raise DeployError("Unsafe changed path: {!r}".format(relative))
     if any(part in PROTECTED_SEGMENTS for part in parts):
         raise DeployError("Protected path changed; not deploying: {}".format(relative))
+    if relative in REPO_ONLY_PATHS:
+        return parts
     if any(part.lower().startswith(".env") for part in parts):
         raise DeployError("Environment file changed; not deploying: {}".format(relative))
     if any(part.lower().startswith(("uploads.copied_", "uploads_backup", "uploads-backup")) for part in parts):
         raise DeployError("Upload backup path changed; not deploying: {}".format(relative))
-    if relative in REPO_ONLY_PATHS:
-        return parts
     if relative.lower().endswith(".sql") and not relative.startswith("database/migrations/"):
         raise DeployError("Non-migration SQL file changed; review manually: {}".format(relative))
     return parts

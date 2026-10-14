@@ -56,10 +56,20 @@ class DeployClassificationTests(unittest.TestCase):
             DEPLOY.classify(b"nas-only edit", old, None)
 
     def test_production_data_paths_are_blocked_and_helper_files_stay_in_checkout(self):
-        for path in (".env", "uploads/birth/record.pdf", "logs/php_errors.log", "#recycle/file.pdf", "@eaDir/thumb.jpg"):
+        for path in (
+            ".env",
+            ".env.production",
+            "public/.env.example",
+            "uploads/birth/record.pdf",
+            "logs/php_errors.log",
+            "#recycle/file.pdf",
+            "@eaDir/thumb.jpg",
+        ):
             with self.subTest(path=path):
                 with self.assertRaises(DEPLOY.DeployError):
                     DEPLOY.safe_relative_path(path)
+        self.assertEqual(DEPLOY.safe_relative_path(".env.example"), (".env.example",))
+        self.assertTrue(DEPLOY.is_repo_only(".env.example"))
         self.assertTrue(DEPLOY.is_repo_only("NAS_DEPLOYMENT_GUIDE.md"))
         self.assertTrue(DEPLOY.is_repo_only("scripts/deploy_nas_release.py"))
         self.assertTrue(DEPLOY.is_repo_only("scripts/test_deploy_nas_release.py"))
