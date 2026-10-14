@@ -33,6 +33,9 @@ REPO_ONLY_PATHS = {
     ".env.example",
     ".env.production",
     ".env.synology",
+    # Local assistant settings are repository-only and must never reach the live site.
+    ".claude/settings.json",
+    ".claude/settings.local.json",
     "database/create_marriage_table.sql",
     # Migration 050 was already applied in production. Keep that exact file
     # immutable in the live release; later schema changes need a new migration.
@@ -44,7 +47,7 @@ REPO_ONLY_PATHS = {
     "scripts/test_deploy_nas_release.py",
     "scripts/test_template_files.php",
 }
-REPO_ONLY_PREFIXES = ("tests/", "docker/")
+REPO_ONLY_PREFIXES = ("tests/", "docker/", "scripts/__pycache__/")
 SENSITIVE_SQL_DELETE_PATHS = {"public/iscan_db (1).sql"}
 PROTECTED_SEGMENTS = {
     ".git",
@@ -113,11 +116,12 @@ def safe_relative_path(relative: str) -> Tuple[str, ...]:
     parts = tuple(relative.split("/"))
     if any(part in ("", ".", "..") for part in parts):
         raise DeployError("Unsafe changed path: {!r}".format(relative))
-    if any(part in PROTECTED_SEGMENTS for part in parts):
+    repository_only = relative in REPO_ONLY_PATHS or any(
+        relative.startswith(prefix) for prefix in REPO_ONLY_PREFIXES
+    )
+    if any(part in PROTECTED_SEGMENTS for part in parts) and not repository_only:
         raise DeployError("Protected path changed; not deploying: {}".format(relative))
-    if relative in REPO_ONLY_PATHS:
-        return parts
-    if relative in SENSITIVE_SQL_DELETE_PATHS:
+    if repository_only or relative in SENSITIVE_SQL_DELETE_PATHS:
         return parts
     if any(part.lower().startswith(".env") for part in parts):
         raise DeployError("Environment file changed; not deploying: {}".format(relative))

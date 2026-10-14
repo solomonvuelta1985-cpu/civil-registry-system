@@ -69,6 +69,10 @@ node_modules/
 npm-debug.log
 yarn-error.log
 
+# Python bytecode and test caches
+__pycache__/
+*.py[cod]
+
 # Build files
 dist/
 build/

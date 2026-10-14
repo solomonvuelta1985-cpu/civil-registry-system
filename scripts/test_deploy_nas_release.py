@@ -113,7 +113,19 @@ class DeployClassificationTests(unittest.TestCase):
                 with self.assertRaises(DEPLOY.DeployError):
                     DEPLOY.safe_relative_path(path)
         self.assertEqual(DEPLOY.safe_relative_path(".env.example"), (".env.example",))
+        self.assertEqual(
+            DEPLOY.safe_relative_path(".claude/settings.json"), (".claude", "settings.json")
+        )
+        self.assertEqual(
+            DEPLOY.safe_relative_path(".claude/settings.local.json"),
+            (".claude", "settings.local.json"),
+        )
         self.assertTrue(DEPLOY.is_repo_only(".env.example"))
+        self.assertTrue(DEPLOY.is_repo_only(".claude/settings.json"))
+        self.assertTrue(DEPLOY.is_repo_only(".claude/settings.local.json"))
+        self.assertTrue(
+            DEPLOY.is_repo_only("scripts/__pycache__/deploy_nas_release.cpython-311.pyc")
+        )
         self.assertTrue(DEPLOY.is_repo_only(".env.production"))
         self.assertTrue(DEPLOY.is_repo_only(".env.synology"))
         self.assertTrue(DEPLOY.is_repo_only("database/create_marriage_table.sql"))
@@ -227,6 +239,51 @@ class DeployPlanIntegrationTests(unittest.TestCase):
             dump_target = git(repo, "rev-parse", "HEAD")
             with self.assertRaisesRegex(DEPLOY.DeployError, "may only be deleted"):
                 DEPLOY.plan_operations(repo, live, target, dump_target)
+
+    def test_plan_skips_repository_settings_and_python_cache_changes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            repo = root / "repo"
+            live = root / "live"
+            repo.mkdir()
+            live.mkdir()
+            git(repo, "init")
+            git(repo, "checkout", "-b", "main")
+            git(repo, "config", "user.email", "deploy-test@example.invalid")
+            git(repo, "config", "user.name", "Deploy Test")
+
+            (repo / ".claude").mkdir()
+            (repo / ".claude" / "settings.json").write_text("{}\n", encoding="utf-8")
+            (repo / ".claude" / "settings.local.json").write_text("{}\n", encoding="utf-8")
+            (repo / "includes").mkdir()
+            (repo / "includes" / "feature.php").write_text("old\n", encoding="utf-8")
+            git(repo, "add", ".claude", "includes/feature.php")
+            git(repo, "commit", "-m", "base")
+            base = git(repo, "rev-parse", "HEAD")
+
+            (repo / ".claude" / "settings.json").unlink()
+            (repo / ".claude" / "settings.local.json").unlink()
+            (repo / "scripts" / "__pycache__").mkdir(parents=True)
+            (repo / "scripts" / "__pycache__" / "deploy.cpython-311.pyc").write_bytes(
+                b"\x00compiled-cache"
+            )
+            (repo / "includes" / "feature.php").write_text("new\n", encoding="utf-8")
+            git(repo, "add", "-A")
+            git(repo, "commit", "-m", "feature and local tooling changes")
+            target = git(repo, "rev-parse", "HEAD")
+
+            (live / "includes").mkdir()
+            (live / "includes" / "feature.php").write_text("old\n", encoding="utf-8")
+            operations = DEPLOY.plan_operations(repo, live, base, target)
+            self.assertEqual(
+                {item.path: item.action for item in operations},
+                {
+                    ".claude/settings.json": "already",
+                    ".claude/settings.local.json": "already",
+                    "includes/feature.php": "write",
+                    "scripts/__pycache__/deploy.cpython-311.pyc": "already",
+                },
+            )
 
     def make_nas_and_remote(self, root, initial_files=None):
         source = root / "source"
