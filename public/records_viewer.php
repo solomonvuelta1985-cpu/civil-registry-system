@@ -1223,7 +1223,7 @@ function detect_late_registration($record, $record_type) {
             letter-spacing: 0.02em;
             text-transform: uppercase;
             border-bottom: 2px solid var(--border-medium);
-            white-space: nowrap;
+            white-space: normal;
             word-break: normal;
             overflow-wrap: normal;
         }
@@ -1240,10 +1240,8 @@ function detect_late_registration($record, $record_type) {
         }
 
         .records-table th.sortable a {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            white-space: nowrap;
+            display: inline;
+            white-space: normal;
             word-break: normal;
             overflow-wrap: normal;
             color: inherit;
@@ -1256,6 +1254,9 @@ function detect_late_registration($record, $record_type) {
         }
 
         .sort-icon {
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 4px;
             opacity: 0.3;
             transition: all 0.2s ease;
             width: 16px;
