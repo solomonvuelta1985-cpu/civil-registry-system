@@ -1196,13 +1196,12 @@ function detect_late_registration($record, $record_type) {
             background: var(--bg-primary);
             border-radius: var(--radius-lg);
             border: 1.5px solid var(--border-light);
-            overflow-x: auto;
+            overflow: hidden;
             box-shadow: var(--shadow-md);
         }
 
         .records-table {
             width: 100%;
-            min-width: 1800px;
             border-collapse: collapse;
             table-layout: fixed;
         }
