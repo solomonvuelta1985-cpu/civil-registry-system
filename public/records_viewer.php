@@ -731,8 +731,8 @@ function detect_late_registration($record, $record_type) {
     <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
 
     <!-- Record Preview Modal Styles -->
-    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=10">
-    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=38">
+    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=14">
+    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=39">
 
     <!-- PDF.js Library -->
     <script src="<?= asset_url('pdfjs') ?>"></script>

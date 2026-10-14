@@ -195,7 +195,7 @@
 /* Modal Body */
 .record-modal-body {
     display: grid;
-    grid-template-columns: 380px minmax(0, 1fr);
+    grid-template-columns: 360px minmax(0, 1fr);
     gap: 0;
     flex: 1;
     overflow: hidden;
@@ -204,72 +204,82 @@
 
 /* Left Panel - Record Details */
 .record-details-panel {
-    border-right: 1px solid #E2E8F0;
+    min-width: 0;
+    min-height: 0;
+    border-right: 1px solid #DFE3E8;
     overflow-y: auto;
-    background: #F7F9FC;
-    padding: 18px;
+    overflow-x: hidden;
+    background: #F3F5F7;
+    padding: 12px;
 }
 
 .record-details-section {
     background: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 13px;
-    padding: 18px 20px;
-    margin-bottom: 12px;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, .03);
-    transition: border-color 0.15s ease;
+    border: 0;
+    border-right: 1px solid #DFE3E8;
+    border-bottom: 1px solid #ECEFF2;
+    border-left: 1px solid #DFE3E8;
+    border-radius: 0;
+    padding: 10px 13px;
+    margin: 0;
+    box-shadow: none;
+    transition: none;
 }
 
 .record-details-section:hover {
-    border-color: #CBD5E1;
+    border-color: #DFE3E8;
+}
+
+.record-details-section:first-child {
+    border-top: 1px solid #DFE3E8;
+    border-radius: 8px 8px 0 0;
 }
 
 .record-details-section:last-child {
-    margin-bottom: 0;
+    border-bottom: 1px solid #DFE3E8;
+    border-radius: 0 0 8px 8px;
 }
 
-/* Primary Section - flat navy-accented */
 .record-details-section.primary-section {
     background: #FFFFFF;
-    border-color: #E2E8F0;
-    border-left: 3px solid #4F46E5;
-    box-shadow: 0 4px 12px rgba(30, 58, 138, .05);
 }
 
 .record-section-title {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 11px;
+    gap: 7px;
+    font-size: 12px;
     font-weight: 700;
-    color: #3347A5;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-bottom: 16px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #E8EDF5;
+    color: #354150;
+    text-transform: none;
+    letter-spacing: 0;
+    margin-bottom: 4px;
+    padding-bottom: 7px;
+    border-bottom: 1px solid #ECEFF2;
 }
 
 .record-section-title i,
 .record-section-title svg {
-    width: 28px;
-    height: 28px;
-    padding: 5px;
-    flex: 0 0 28px;
-    border-radius: 8px;
-    background: #EEF2FF;
-    border: 1px solid #DDE3FF;
+    width: 15px;
+    height: 15px;
+    padding: 0;
+    flex: 0 0 15px;
+    border-radius: 0;
+    background: transparent;
+    border: 0;
     font-size: 14px;
-    color: #4F46E5;
+    color: #75808D;
 }
 
 .record-detail-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    padding: 11px 0;
-    border-bottom: 1px solid #EEF2F7;
-    gap: 16px;
+    display: grid;
+    grid-template-columns: minmax(100px, .82fr) minmax(0, 1.4fr);
+    align-items: start;
+    padding: 6px 0;
+    border-bottom: 1px solid #F0F2F4;
+    gap: 8px;
+    letter-spacing: 0;
+    font-family: inherit;
 }
 
 .record-detail-row:last-child {
@@ -282,23 +292,24 @@
 }
 
 .record-detail-label {
-    font-size: 12px;
-    font-weight: 500;
-    color: #64748B;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    line-height: 1.5;
-    flex-shrink: 0;
+    min-width: 0;
+    font-size: 10px;
+    font-weight: 400;
+    color: #737D88;
+    text-transform: none;
+    letter-spacing: 0;
+    line-height: 1.35;
 }
 
 .record-detail-value {
-    font-size: 13.5px;
+    min-width: 0;
+    font-size: 12px;
     font-weight: 600;
-    color: #0F172A;
-    word-wrap: break-word;
-    line-height: 1.5;
-    text-align: right;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+    color: #1F2933;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+    text-align: left;
+    font-family: inherit;
 }
 
 .record-detail-value.empty {
@@ -308,11 +319,11 @@
 }
 
 .record-detail-value.highlight {
-    color: #1E3A8A;
-    font-size: 15px;
+    color: #1F2933;
+    font-size: 12px;
     font-weight: 700;
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-    letter-spacing: 0.02em;
+    font-family: inherit;
+    letter-spacing: 0;
 }
 
 .record-detail-value.amount {
@@ -329,27 +340,27 @@
 }
 
 .record-detail-row.highlight-row {
-    background: #F5F7FF;
-    margin: -6px -10px 12px;
-    padding: 13px 12px !important;
-    border-radius: 9px;
-    border-bottom: none !important;
-    border-left: 2px solid #4F46E5;
+    background: transparent;
+    margin: 0;
+    padding: 6px 0 !important;
+    border-radius: 0;
+    border-bottom: 1px solid #F0F2F4 !important;
+    border-left: 0;
 }
 
 .record-detail-row.highlight-row .record-detail-label {
     display: block;
-    margin-bottom: 7px;
+    margin-bottom: 0;
 }
 
 .record-detail-row.highlight-row .record-detail-value.highlight {
     display: block;
     max-width: 100%;
     text-align: left;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 15px;
-    line-height: 1.4;
-    letter-spacing: .01em;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1.35;
+    letter-spacing: 0;
     overflow-wrap: anywhere;
 }
 
@@ -715,7 +726,7 @@
         max-width: 95%;
     }
     .record-modal-body {
-        grid-template-columns: 350px minmax(0, 1fr);
+        grid-template-columns: 360px minmax(0, 1fr);
     }
 }
 
@@ -729,8 +740,8 @@
     }
     .record-details-panel {
         border-right: none;
-        border-bottom: 1px solid #E2E8F0;
-        max-height: 280px;
+        border-bottom: 1px solid #DFE3E8;
+        max-height: min(42vh, 360px);
     }
     .record-modal-footer {
         flex-direction: column;
@@ -774,9 +785,7 @@
         margin-left: 46px;
         flex-wrap: wrap;
     }
-    .record-details-section {
-        padding: 16px 18px;
-    }
+    .record-details-section { padding: 10px 13px; }
     .pdf-preview-header {
         flex-direction: column;
         align-items: stretch;

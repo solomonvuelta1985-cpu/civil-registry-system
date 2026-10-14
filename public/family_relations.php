@@ -138,7 +138,7 @@ function fr_full_name($first, $middle, $last) {
     <script src="<?= asset_url('notiflix_js') ?>"></script>
     <script src="../assets/js/notiflix-config.js"></script>
     <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
-    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=10">
+    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=14">
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>
         if (typeof pdfjsLib !== 'undefined') {

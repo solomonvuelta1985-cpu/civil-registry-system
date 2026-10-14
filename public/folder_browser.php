@@ -39,8 +39,8 @@ $crf3aDefaults = branding_crf_preview_config(crf_3a_config());
     <script src="<?= asset_url('notiflix_js') ?>"></script>
 
     <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
-    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=12">
-    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=38">
+    <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=14">
+    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=39">
 
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>
