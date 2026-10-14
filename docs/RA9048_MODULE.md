@@ -257,8 +257,8 @@ database/migrations/
 
 scripts/
 ├── build_template_petition_cce.php  Phase 4b — generates petition_cce.docx
-├── verify_023_migration.php       Diagnostic — confirms migration applied
-└── test_template_files.php        Diagnostic — lists templates + generated files
+├── test_template_files.php          Diagnostic — CLI only; checks templates and generated docs
+└── verify_023_migration.php       Diagnostic — confirms migration applied
 
 documents/templates/
 ├── petition_cce.docx              Phase 4b — clean CCE template (built)
@@ -748,7 +748,7 @@ Read [Section 2](#2-current-status-phase-tracker) above. As of last update, **Te
 # 1. Check migrations are applied
 php c:/xampp/htdocs/iscan/scripts/verify_023_migration.php
 
-# 2. Check templates exist
+# 2. Check templates and generated documents (read-only)
 php c:/xampp/htdocs/iscan/scripts/test_template_files.php
 
 # 3. Visit in browser:
@@ -797,9 +797,9 @@ Replace `localhost` with your dev hostname if different.
 - **New petition:** http://localhost/iscan/public/ra9048/petition.php
 - **Records list (petition tab):** http://localhost/iscan/public/ra9048/records.php?type=petition
 
-### Diagnostic scripts (CLI or browser)
-- **Migration verifier:** http://localhost/iscan/scripts/verify_023_migration.php
-- **Template/generated-doc inspector:** http://localhost/iscan/scripts/test_template_files.php
+### Diagnostic scripts
+- **Migration verifier (CLI):** `php scripts/verify_023_migration.php`
+- **Template/generated-document inspector (CLI only):** `php scripts/test_template_files.php`
 - **Template builders:**
   - `php scripts/build_template_petition_cce.php` (already used)
   - `php scripts/build_template_petition_cfn.php` (TODO)

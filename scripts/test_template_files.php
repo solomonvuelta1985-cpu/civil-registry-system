@@ -1,12 +1,14 @@
 <?php
 /**
- * Diagnostic for Phase 4b — checks template files and a sample petition's generated docs.
- * Visit: http://localhost/iscan/scripts/test_template_files.php
+ * CLI-only diagnostic for Phase 4b — checks template files and generated docs.
  */
 
-require_once __DIR__ . '/../includes/config_ra9048.php';
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
 
-header('Content-Type: text/plain; charset=utf-8');
+require_once __DIR__ . '/../includes/config_ra9048.php';
 
 echo "=== RA 9048 Template & Generated-Doc Diagnostic ===\n\n";
 

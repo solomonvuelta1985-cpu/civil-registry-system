@@ -4,10 +4,13 @@ Options FollowSymLinks
 # Enable URL rewriting
 RewriteEngine On
 
-# Block access to sensitive files (env, logs, sql, shell scripts, markdown)
-<FilesMatch "(^\.|\.(env|log|sql|sh|bat|md|gitignore|bak|backup|ini|dist|old|orig|swp|swo|dump|sqlite|db)$)">
+# Block access to sensitive files (env, logs, SQL, scripts, and metadata)
+<FilesMatch "(^\.|\.(env|log|sql|sh|bat|md|gitignore|bak|backup|ini|dist|old|orig|swp|swo|dump|sqlite|db|py)$)">
     Require all denied
 </FilesMatch>
+
+# Test scripts remain available to CLI checks, but never execute through HTTP.
+RewriteRule (?:^|/)test_[^/]+\.php$ - [F,L,NC]
 
 # Block direct access to sensitive PHP includes
 <FilesMatch "^(env_loader|error_handler|security|security_headers|session_config|auth)\.php$">
