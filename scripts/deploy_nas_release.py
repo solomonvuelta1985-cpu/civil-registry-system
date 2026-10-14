@@ -149,6 +149,8 @@ def checkout_status(repo: pathlib.Path) -> Tuple[List[str], List[str]]:
     # untracked NAS data after checking that it cannot collide with this update.
     raw_status = run_git(
         repo,
+        "-c",
+        "core.filemode=false",
         "status",
         "--porcelain",
         "-z",
@@ -171,22 +173,22 @@ def checkout_status(repo: pathlib.Path) -> Tuple[List[str], List[str]]:
     return tracked_changes, untracked_paths
 
 
-def untracked_path_conflicts(untracked_paths: Sequence[str], incoming_paths: Sequence[str]) -> List[str]:
-    """Find untracked files that would block an incoming file or directory."""
-    untracked = set(untracked_paths)
+def local_path_conflicts(local_paths: Sequence[str], incoming_paths: Sequence[str]) -> List[str]:
+    """Find local files that overlap an incoming file or directory path."""
+    local = set(local_paths)
     incoming = set(incoming_paths)
     conflicts = set()
 
     for path in incoming:
-        if path in untracked:
+        if path in local:
             conflicts.add(path)
         parts = path.split("/")
         for depth in range(1, len(parts)):
             parent = "/".join(parts[:depth])
-            if parent in untracked:
+            if parent in local:
                 conflicts.add(parent)
 
-    for path in untracked:
+    for path in local:
         parts = path.split("/")
         for depth in range(1, len(parts)):
             parent = "/".join(parts[:depth])
@@ -359,10 +361,6 @@ def run_deployment(repo: pathlib.Path, live: pathlib.Path, backups: pathlib.Path
         raise DeployError("Expected NAS Git branch main; found {!r}.".format(branch))
 
     tracked_changes, untracked_paths = checkout_status(repo)
-    if tracked_changes:
-        raise DeployError(
-            "NAS Git checkout has {} tracked local change(s); nothing deployed.".format(len(tracked_changes))
-        )
 
     base = run_git(repo, "rev-parse", "HEAD").decode().strip()
     run_git(repo, "fetch", "origin", "main")
@@ -384,10 +382,10 @@ def run_deployment(repo: pathlib.Path, live: pathlib.Path, backups: pathlib.Path
         for value in run_git(repo, "diff", "--no-renames", "--name-only", "-z", base, target).split(b"\0")
         if value
     ]
-    collisions = untracked_path_conflicts(untracked_paths, incoming_paths)
+    collisions = local_path_conflicts(tracked_changes + untracked_paths, incoming_paths)
     if collisions:
         raise DeployError(
-            "Untracked NAS file(s) conflict with incoming Git paths; nothing deployed: {}".format(
+            "Local NAS file(s) conflict with incoming Git paths; nothing deployed: {}".format(
                 ", ".join(collisions[:5])
             )
         )
@@ -432,7 +430,7 @@ def run_deployment(repo: pathlib.Path, live: pathlib.Path, backups: pathlib.Path
             ):
                 raise DeployError("Post-deploy verification failed: {}".format(operation.path))
 
-        run_git(repo, "merge", "--ff-only", REMOTE_REF)
+        run_git(repo, "-c", "core.filemode=false", "merge", "--ff-only", REMOTE_REF)
     except Exception as exc:
         backup_note = " Backup: {}.".format(backup) if backup is not None else ""
         raise ApplyError(

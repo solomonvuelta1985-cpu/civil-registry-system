@@ -65,26 +65,26 @@ class DeployClassificationTests(unittest.TestCase):
         self.assertTrue(DEPLOY.is_repo_only("scripts/test_deploy_nas_release.py"))
         self.assertTrue(DEPLOY.is_repo_only("tests/example.php"))
 
-    def test_untracked_nas_data_is_allowed_unless_it_overlaps_incoming_paths(self):
-        untracked = [
+    def test_unrelated_local_paths_are_allowed_unless_they_overlap_incoming_paths(self):
+        local_paths = [
             "#recycle/release_old/uploads/record.pdf",
             "release_old/uploads/record.pdf",
             "api/nas_only.php",
         ]
         self.assertEqual(
-            DEPLOY.untracked_path_conflicts(untracked, ["assets/new.js", "includes/feature.php"]),
+            DEPLOY.local_path_conflicts(local_paths, ["assets/new.js", "includes/feature.php"]),
             [],
         )
         self.assertEqual(
-            DEPLOY.untracked_path_conflicts(["assets/new.js"], ["assets/new.js"]),
+            DEPLOY.local_path_conflicts(["assets/new.js"], ["assets/new.js"]),
             ["assets/new.js"],
         )
         self.assertEqual(
-            DEPLOY.untracked_path_conflicts(["assets"], ["assets/new.js"]),
+            DEPLOY.local_path_conflicts(["assets"], ["assets/new.js"]),
             ["assets"],
         )
         self.assertEqual(
-            DEPLOY.untracked_path_conflicts(["assets/new.js/child"], ["assets/new.js"]),
+            DEPLOY.local_path_conflicts(["assets/new.js/child"], ["assets/new.js"]),
             ["assets/new.js/child"],
         )
 
@@ -195,6 +195,7 @@ class DeployPlanIntegrationTests(unittest.TestCase):
                 extra = nas_repo / pathlib.PurePosixPath(relative)
                 extra.parent.mkdir(parents=True, exist_ok=True)
                 extra.write_bytes(b"NAS-only data")
+            (nas_repo / "public" / "index.php").write_text("<?php // local checkout customization\n", encoding="utf-8")
 
             (source / "includes" / "feature.php").write_text("new\n", encoding="utf-8")
             (source / "assets").mkdir()
@@ -215,6 +216,7 @@ class DeployPlanIntegrationTests(unittest.TestCase):
                 self.assertIn("includes/feature.php", archive.getnames())
             self.assertEqual((nas_repo / "#recycle" / "release_old" / "uploads" / "record.pdf").read_bytes(), b"NAS-only data")
             self.assertEqual((nas_repo / "api" / "nas_only.php").read_bytes(), b"NAS-only data")
+            self.assertIn("local checkout customization", (nas_repo / "public" / "index.php").read_text(encoding="utf-8"))
 
     def test_full_deploy_stops_when_untracked_file_collides_with_incoming_file(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -243,6 +245,31 @@ class DeployPlanIntegrationTests(unittest.TestCase):
                 DEPLOY.run_deployment(nas_repo, live, backups)
             self.assertEqual(git(nas_repo, "rev-parse", "HEAD"), old_checkout)
             self.assertFalse((live / "assets" / "new.js").exists())
+            self.assertFalse(backups.exists())
+
+    def test_full_deploy_stops_when_tracked_local_file_overlaps_incoming_file(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            source, nas_repo = self.make_nas_and_remote(root)
+            live = nas_repo / "release_blue_candidate_20260930"
+            backups = root / "backups"
+            (live / "includes").mkdir(parents=True)
+            (live / "public").mkdir()
+            (live / ".env").write_text("secret", encoding="utf-8")
+            (live / "includes" / "feature.php").write_text("old\n", encoding="utf-8")
+            (live / "public" / "index.php").write_text("<?php echo 'ok';\n", encoding="utf-8")
+
+            (source / "includes" / "feature.php").write_text("upstream change\n", encoding="utf-8")
+            git(source, "add", "includes/feature.php")
+            git(source, "commit", "-m", "update feature")
+            git(source, "push", "origin", "main")
+            old_checkout = git(nas_repo, "rev-parse", "HEAD")
+            (nas_repo / "includes" / "feature.php").write_text("NAS-only tracked edit\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(DEPLOY.DeployError, "conflict with incoming"):
+                DEPLOY.run_deployment(nas_repo, live, backups)
+            self.assertEqual(git(nas_repo, "rev-parse", "HEAD"), old_checkout)
+            self.assertEqual((live / "includes" / "feature.php").read_text(encoding="utf-8"), "old\n")
             self.assertFalse(backups.exists())
 
     def test_full_deploy_stops_on_live_only_change_without_writing(self):
