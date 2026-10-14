@@ -58,7 +58,7 @@ class DeployClassificationTests(unittest.TestCase):
     def test_production_data_paths_are_blocked_and_helper_files_stay_in_checkout(self):
         for path in (
             ".env",
-            ".env.production",
+            ".env.local",
             "public/.env.example",
             "uploads/birth/record.pdf",
             "logs/php_errors.log",
@@ -70,6 +70,11 @@ class DeployClassificationTests(unittest.TestCase):
                     DEPLOY.safe_relative_path(path)
         self.assertEqual(DEPLOY.safe_relative_path(".env.example"), (".env.example",))
         self.assertTrue(DEPLOY.is_repo_only(".env.example"))
+        self.assertTrue(DEPLOY.is_repo_only(".env.production"))
+        self.assertTrue(DEPLOY.is_repo_only(".env.synology"))
+        self.assertTrue(DEPLOY.is_repo_only("database/create_marriage_table.sql"))
+        self.assertTrue(DEPLOY.is_repo_only("database_schema.sql"))
+        self.assertEqual(DEPLOY.safe_relative_path("public/iscan_db (1).sql"), ("public", "iscan_db (1).sql"))
         self.assertTrue(DEPLOY.is_repo_only("NAS_DEPLOYMENT_GUIDE.md"))
         self.assertTrue(DEPLOY.is_repo_only("scripts/deploy_nas_release.py"))
         self.assertTrue(DEPLOY.is_repo_only("scripts/test_deploy_nas_release.py"))
@@ -160,7 +165,16 @@ class DeployPlanIntegrationTests(unittest.TestCase):
             with self.assertRaises(DEPLOY.DeployError):
                 DEPLOY.plan_operations(repo, live, base, target)
 
-    def make_nas_and_remote(self, root):
+            dump = repo / "public" / "iscan_db (1).sql"
+            dump.parent.mkdir(parents=True, exist_ok=True)
+            dump.write_text("sensitive dump", encoding="utf-8")
+            git(repo, "add", "public/iscan_db (1).sql")
+            git(repo, "commit", "-m", "add database dump")
+            dump_target = git(repo, "rev-parse", "HEAD")
+            with self.assertRaisesRegex(DEPLOY.DeployError, "may only be deleted"):
+                DEPLOY.plan_operations(repo, live, target, dump_target)
+
+    def make_nas_and_remote(self, root, initial_files=None):
         source = root / "source"
         remote = root / "remote.git"
         nas_repo = root / "nas-repo"
@@ -173,7 +187,12 @@ class DeployPlanIntegrationTests(unittest.TestCase):
         (source / "public").mkdir()
         (source / "includes" / "feature.php").write_text("old\n", encoding="utf-8")
         (source / "public" / "index.php").write_text("<?php echo 'ok';\n", encoding="utf-8")
-        git(source, "add", "includes/feature.php", "public/index.php")
+        initial_files = initial_files or {}
+        for relative, content in initial_files.items():
+            extra = source / pathlib.PurePosixPath(relative)
+            extra.parent.mkdir(parents=True, exist_ok=True)
+            extra.write_bytes(content)
+        git(source, "add", "includes/feature.php", "public/index.php", *initial_files.keys())
         git(source, "commit", "-m", "baseline")
 
         subprocess.run(["git", "init", "--bare", str(remote)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
@@ -334,6 +353,56 @@ class DeployPlanIntegrationTests(unittest.TestCase):
             self.assertEqual(local_dockerfile.read_text(encoding="utf-8"), "FROM alpine:latest\n")
             self.assertFalse((live / "docker" / "iscan-libreoffice" / "Dockerfile").exists())
             self.assertFalse(backups.exists())
+
+    def test_deleted_environment_templates_are_backed_up_but_never_deployed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            source, nas_repo = self.make_nas_and_remote(
+                root,
+                {
+                    ".env.production": b"DB_PASS=nas-private-production-template\n",
+                    ".env.synology": b"DB_PASS=nas-private-synology-template\n",
+                    "public/iscan_db (1).sql": b"nas-private-database-dump\n",
+                },
+            )
+            live = nas_repo / "release_blue_candidate_20260930"
+            backups = root / "backups"
+            (live / "includes").mkdir(parents=True)
+            (live / "public").mkdir()
+            (live / ".env").write_text("live-secret-remains", encoding="utf-8")
+            (live / "includes" / "feature.php").write_text("old\n", encoding="utf-8")
+            (live / "public" / "index.php").write_text("<?php echo 'ok';\n", encoding="utf-8")
+            (live / "public" / "iscan_db (1).sql").write_bytes(b"nas-private-database-dump\n")
+
+            git(source, "rm", ".env.production", ".env.synology", "public/iscan_db (1).sql")
+            git(source, "commit", "-m", "remove tracked environment templates and public dump")
+            git(source, "push", "origin", "main")
+
+            self.assertEqual(DEPLOY.run_deployment(nas_repo, live, backups), 0)
+            self.assertFalse((nas_repo / ".env.production").exists())
+            self.assertFalse((nas_repo / ".env.synology").exists())
+            self.assertFalse((nas_repo / "public" / "iscan_db (1).sql").exists())
+            self.assertEqual((live / ".env").read_text(encoding="utf-8"), "live-secret-remains")
+            self.assertFalse((live / ".env.production").exists())
+            self.assertFalse((live / ".env.synology").exists())
+            self.assertFalse((live / "public" / "iscan_db (1).sql").exists())
+            saved = list(backups.glob("iscan-env-template-before-*.bak"))
+            self.assertEqual(len(saved), 2)
+            saved_contents = {DEPLOY.normalized(item.read_bytes()) for item in saved}
+            self.assertEqual(
+                saved_contents,
+                {
+                    b"DB_PASS=nas-private-production-template\n",
+                    b"DB_PASS=nas-private-synology-template\n",
+                },
+            )
+            archives = list(backups.glob("*.tar.gz"))
+            self.assertEqual(len(archives), 1)
+            with DEPLOY.tarfile.open(str(archives[0]), "r:gz") as archive:
+                self.assertEqual(
+                    archive.extractfile("public/iscan_db (1).sql").read(),
+                    b"nas-private-database-dump\n",
+                )
 
     def test_full_deploy_stops_when_tracked_local_file_overlaps_incoming_file(self):
         with tempfile.TemporaryDirectory() as temporary:

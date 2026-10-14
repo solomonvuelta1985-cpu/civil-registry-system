@@ -31,11 +31,16 @@ REMOTE_REF = "origin/main"
 # This script is an operations tool in the Git checkout, not a website file.
 REPO_ONLY_PATHS = {
     ".env.example",
+    ".env.production",
+    ".env.synology",
+    "database/create_marriage_table.sql",
+    "database_schema.sql",
     "NAS_DEPLOYMENT_GUIDE.md",
     "scripts/deploy_nas_release.py",
     "scripts/test_deploy_nas_release.py",
 }
 REPO_ONLY_PREFIXES = ("tests/", "docker/")
+SENSITIVE_SQL_DELETE_PATHS = {"public/iscan_db (1).sql"}
 PROTECTED_SEGMENTS = {
     ".git",
     ".claude",
@@ -106,6 +111,8 @@ def safe_relative_path(relative: str) -> Tuple[str, ...]:
     if any(part in PROTECTED_SEGMENTS for part in parts):
         raise DeployError("Protected path changed; not deploying: {}".format(relative))
     if relative in REPO_ONLY_PATHS:
+        return parts
+    if relative in SENSITIVE_SQL_DELETE_PATHS:
         return parts
     if any(part.lower().startswith(".env") for part in parts):
         raise DeployError("Environment file changed; not deploying: {}".format(relative))
@@ -296,6 +303,59 @@ def restore_repo_only_untracked_files(
         os.replace(str(backup), str(source))
 
 
+def backup_deleted_env_templates(
+    repo: pathlib.Path,
+    backups: pathlib.Path,
+    base: str,
+    target: str,
+    incoming_paths: Sequence[str],
+) -> List[Tuple[str, pathlib.Path]]:
+    """Securely preserve tracked NAS checkout templates removed by the target commit."""
+    template_paths = {".env.production", ".env.synology"}
+    candidates: List[Tuple[str, pathlib.Path, bytes]] = []
+    for relative in incoming_paths:
+        if relative not in template_paths:
+            continue
+        old = tree_file(repo, base, relative)
+        new = tree_file(repo, target, relative)
+        if old is None or new is not None:
+            continue
+        source = repo / relative
+        try:
+            info = source.lstat()
+        except FileNotFoundError:
+            continue
+        if not stat.S_ISREG(info.st_mode):
+            raise DeployError("Environment template is not a regular file; refusing: {}".format(relative))
+        content = source.read_bytes()
+        if normalized(content) != normalized(old.content):
+            raise DeployError("Environment template differs from its Git baseline; refusing: {}".format(relative))
+        candidates.append((relative, source, content))
+
+    if not candidates:
+        return []
+    backups.mkdir(parents=True, exist_ok=True)
+    stamp = _datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    saved: List[Tuple[str, pathlib.Path]] = []
+    for index, (relative, _source, content) in enumerate(candidates, start=1):
+        backup = backups / "iscan-env-template-before-{}-{}-{}.bak".format(
+            stamp, target[:12], index
+        )
+        suffix = 1
+        while backup.exists():
+            backup = backups / "iscan-env-template-before-{}-{}-{}-{}.bak".format(
+                stamp, target[:12], index, suffix
+            )
+            suffix += 1
+        with backup.open("xb") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(str(backup), 0o600)
+        saved.append((relative, backup))
+    return saved
+
+
 def has_live_entrypoint(live: pathlib.Path) -> bool:
     """Accept either supported Web Station document-root layout."""
     candidates = (live / "public" / "index.php", live / "index.php")
@@ -353,6 +413,8 @@ def plan_operations(repo: pathlib.Path, live: pathlib.Path, base: str, target: s
 
         old = tree_file(repo, base, relative)
         new = tree_file(repo, target, relative)
+        if relative in SENSITIVE_SQL_DELETE_PATHS and new is not None:
+            raise DeployError("Sensitive database dump may only be deleted, never deployed: {}".format(relative))
         path = target_path(live, relative)
         try:
             info = path.lstat()
@@ -506,6 +568,7 @@ def run_deployment(repo: pathlib.Path, live: pathlib.Path, backups: pathlib.Path
         if operation.path.startswith("database/migrations/") and operation.path.lower().endswith(".sql")
     ]
     moved_repo_only: List[Tuple[str, pathlib.Path]] = []
+    saved_env_templates: List[Tuple[str, pathlib.Path]] = []
     try:
         for operation in operations:
             if is_repo_only(operation.path) or operation.action == "already":
@@ -539,6 +602,9 @@ def run_deployment(repo: pathlib.Path, live: pathlib.Path, backups: pathlib.Path
         moved_repo_only = preserve_repo_only_untracked_files(
             repo, backups, target, adoptable_untracked
         )
+        saved_env_templates = backup_deleted_env_templates(
+            repo, backups, base, target, incoming_paths
+        )
         run_git(repo, "-c", "core.filemode=false", "merge", "--ff-only", REMOTE_REF)
     except Exception as exc:
         restore_note = ""
@@ -555,6 +621,8 @@ def run_deployment(repo: pathlib.Path, live: pathlib.Path, backups: pathlib.Path
         ) from exc
     for relative, preserved_copy in moved_repo_only:
         print("CHECKOUT_FILE_ADOPTED {} backup={}".format(relative, preserved_copy))
+    for relative, preserved_copy in saved_env_templates:
+        print("CHECKOUT_ENV_TEMPLATE_BACKED_UP {} backup={}".format(relative, preserved_copy))
     print("SOURCE_CHECKOUT_UPDATED={}".format(target[:12]))
     if migrations:
         print("DATABASE_MIGRATIONS_REVIEW_REQUIRED=" + ",".join(migrations))
