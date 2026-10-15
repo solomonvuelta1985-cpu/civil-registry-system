@@ -10,10 +10,10 @@
     --sidebar-bg: #1e293b;
     --sidebar-border: rgba(148, 163, 184, 0.12);
     --sidebar-item-hover: rgba(255, 255, 255, 0.06);
-    --sidebar-item-active-bg: rgba(37, 99, 235, 0.12);
+    --sidebar-item-active-bg: #ffffff;
     --sidebar-text: #94a3b8;
     --sidebar-text-hover: #e2e8f0;
-    --sidebar-text-active: #ffffff;
+    --sidebar-text-active: #1e3a8a;
     --accent-color: #3b82f6;
     --accent-indicator: #3b82f6;
 }
@@ -41,12 +41,49 @@
     max-width: 100%;
 }
 
+.mobile-header-brand {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 12px;
+}
+
+.mobile-header-brand-copy {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.mobile-header-brand-divider {
+    flex: 0 0 auto;
+    color: rgba(241, 245, 249, 0.68);
+    font-size: 10px;
+}
+
 .mobile-header h4 {
     margin: 0;
     font-size: 1.1rem;
     font-weight: 700;
     color: #ffffff;
     letter-spacing: 0.3px;
+}
+
+.mobile-header-subtitle {
+    display: block;
+    min-width: 0;
+    flex: 0 1 auto;
+    max-width: 100%;
+    overflow: hidden;
+    color: rgba(241, 245, 249, 0.76);
+    font-size: 9px;
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .mobile-header-logo {
@@ -173,6 +210,26 @@
     object-fit: contain;
 }
 
+.sidebar-brand-copy {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+}
+
+.sidebar-brand-subtitle {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    color: rgba(203, 213, 225, 0.72);
+    font-size: 9px;
+    font-weight: 500;
+    line-height: 1.25;
+    letter-spacing: 0.015em;
+}
+
 .sidebar-collapsed .sidebar-logo {
     width: 34px;
     height: 34px;
@@ -198,6 +255,18 @@
 
 .sidebar-collapsed .sidebar-header h4 span {
     display: none;
+}
+
+@media (min-width: 1025px) {
+    .sidebar-collapsed .sidebar-brand-copy {
+        display: none;
+    }
+
+    .sidebar-collapsed .sidebar-header {
+        justify-content: center;
+        padding-right: 0;
+        padding-left: 0;
+    }
 }
 
 /* ========================================
@@ -261,22 +330,15 @@
     background: var(--sidebar-item-active-bg);
     color: var(--sidebar-text-active);
     font-weight: 600;
-    border-radius: 6px;
+    border-radius: 22px;
 }
 
 .sidebar-menu li a.active::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 6px;
-    bottom: 6px;
-    width: 3px;
-    background: var(--accent-indicator);
-    border-radius: 0 2px 2px 0;
+    display: none;
 }
 
 .sidebar-menu li a.active [data-lucide] {
-    color: var(--accent-indicator);
+    color: #facc15;
 }
 
 .sidebar-menu li a [data-lucide] {
@@ -291,6 +353,18 @@
     justify-content: center;
     padding: 12px 10px;
     margin: 2px 8px;
+}
+
+@media (min-width: 1025px) {
+    .sidebar-collapsed .sidebar-menu li a.active {
+        box-sizing: border-box;
+        width: 44px;
+        height: 44px;
+        min-height: 44px;
+        margin: 2px auto;
+        padding: 0;
+        border-radius: 50%;
+    }
 }
 
 .sidebar-collapsed .sidebar-menu li a span {
@@ -387,6 +461,20 @@
     transform: rotate(180deg);
 }
 
+.sidebar-menu .sidebar-group--tree .sidebar-group-toggle {
+    min-height: 42px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.sidebar-menu .sidebar-group--tree.is-open > .sidebar-group-toggle {
+    background: transparent;
+    color: var(--sidebar-text-hover);
+}
+
 .sidebar-menu .sidebar-submenu {
     list-style: none;
     margin: 0;
@@ -399,6 +487,41 @@
 
 .sidebar-menu .sidebar-submenu li a {
     padding-left: 27px;
+}
+
+.sidebar-menu .sidebar-group--tree .sidebar-submenu {
+    position: relative;
+    margin: 0 12px 6px 30px;
+    padding: 0 0 0 14px;
+}
+
+.sidebar-menu .sidebar-group--tree .sidebar-submenu li {
+    position: relative;
+    padding: 2px 0;
+}
+
+.sidebar-menu .sidebar-group--tree .sidebar-submenu li::before {
+    content: '';
+    position: absolute;
+    left: -14px;
+    top: -50%;
+    bottom: 50%;
+    width: 14px;
+    border-left: 1px solid rgba(148, 163, 184, 0.3);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+    border-bottom-left-radius: 6px;
+    pointer-events: none;
+}
+
+.sidebar-menu .sidebar-group--tree .sidebar-submenu li:first-child::before {
+    top: 0;
+}
+
+.sidebar-menu .sidebar-group--tree .sidebar-submenu li a {
+    gap: 9px;
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: 8px;
 }
 
 .sidebar-collapsed .sidebar-menu .sidebar-group-toggle {
@@ -415,6 +538,35 @@
 
 .sidebar-collapsed .sidebar-menu .sidebar-submenu li a {
     padding-left: 10px;
+}
+
+@media (min-width: 1025px) {
+    .sidebar-collapsed .sidebar-menu .sidebar-group--tree .sidebar-submenu {
+        margin: 0;
+        padding: 0;
+    }
+
+    .sidebar-collapsed .sidebar-menu .sidebar-group--tree .sidebar-submenu li::before {
+        display: none;
+    }
+
+    .sidebar-collapsed .sidebar-menu .sidebar-group--tree .sidebar-submenu li {
+        padding: 0;
+    }
+
+    .sidebar-collapsed .sidebar-menu .sidebar-group--tree .sidebar-submenu li a {
+        margin: 2px 8px;
+        padding: 12px 10px;
+    }
+
+    .sidebar-collapsed .sidebar-menu .sidebar-group--tree .sidebar-submenu li a.active {
+        width: 44px;
+        height: 44px;
+        min-height: 44px;
+        margin: 2px auto;
+        padding: 0;
+        border-radius: 50%;
+    }
 }
 /* ========================================
    TOP NAVBAR
@@ -654,6 +806,249 @@
 .dropdown-item.logout-item:hover {
     background: #fef2f2;
     color: #b91c1c;
+}
+
+/* ========================================
+   CHANGE PASSWORD DIALOG
+   ======================================== */
+.change-password-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.54);
+    backdrop-filter: blur(3px);
+}
+
+.change-password-modal[hidden] {
+    display: none !important;
+}
+
+.change-password-dialog {
+    width: min(100%, 460px);
+    max-height: min(90vh, 720px);
+    overflow-y: auto;
+    padding: 26px;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+    color: #0f172a;
+}
+
+.change-password-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.change-password-eyebrow {
+    margin: 0 0 5px;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.change-password-heading h2 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 21px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.change-password-close {
+    display: grid;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #64748b;
+    cursor: pointer;
+}
+
+.change-password-close:hover {
+    background: #f8fafc;
+    color: #0f172a;
+}
+
+.change-password-close [data-lucide] {
+    width: 18px;
+    height: 18px;
+}
+
+.change-password-description {
+    margin: 12px 0 22px;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.change-password-form {
+    display: flex;
+    flex-direction: column;
+}
+
+.change-password-form label {
+    margin: 0 0 7px;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.change-password-form input {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 44px;
+    margin: 0 0 16px;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    outline: none;
+    background: #ffffff;
+    color: #0f172a;
+    font: inherit;
+    font-size: 14px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.change-password-form input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.change-password-form input:disabled {
+    background: #f8fafc;
+}
+
+.change-password-hint {
+    margin: -9px 0 16px;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.change-password-message {
+    min-height: 0;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.change-password-message:not(:empty) {
+    margin: 0 0 16px;
+    padding: 10px 12px;
+    border-radius: 9px;
+}
+
+.change-password-message[data-state="pending"] {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.change-password-message[data-state="error"] {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+.change-password-message[data-state="success"] {
+    background: #f0fdf4;
+    color: #166534;
+}
+
+.change-password-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.change-password-actions button {
+    display: inline-flex;
+    min-height: 42px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.change-password-cancel {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+}
+
+.change-password-cancel:hover {
+    background: #f8fafc;
+}
+
+.change-password-submit {
+    border: 1px solid #173b70;
+    background: #173b70;
+    color: #ffffff;
+}
+
+.change-password-submit:hover {
+    background: #102e59;
+}
+
+.change-password-submit:disabled,
+.change-password-cancel:disabled {
+    cursor: wait;
+    opacity: 0.65;
+}
+
+.change-password-submit [data-lucide] {
+    width: 16px;
+    height: 16px;
+}
+
+.change-password-item {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+}
+
+.change-password-item:focus-visible,
+.change-password-close:focus-visible,
+.change-password-actions button:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+body.change-password-modal-open {
+    overflow: hidden;
+}
+
+@media (max-width: 480px) {
+    .change-password-modal {
+        align-items: flex-end;
+        padding: 10px;
+    }
+
+    .change-password-dialog {
+        width: 100%;
+        max-height: calc(100vh - 20px);
+        padding: 22px 18px;
+        border-radius: 18px 18px 12px 12px;
+    }
 }
 
 /* ========================================

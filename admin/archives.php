@@ -311,7 +311,7 @@ function fmt_datetime($val) {
     <link rel="stylesheet" href="<?= asset_url('notiflix_css') ?>">
     <script src="<?= asset_url('notiflix_js') ?>"></script>
     <script src="../assets/js/notiflix-config.js"></script>
-    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-sidebar-brand-center">
 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -745,9 +745,8 @@ function fmt_datetime($val) {
         .archive-info {
             background: var(--info-light);
             border: 1px solid #BAE6FD;
-            border-left: 4px solid var(--info);
             padding: 12px 16px;
-            border-radius: var(--radius-md);
+            border-radius: 0;
             margin-bottom: 16px;
             display: flex;
             align-items: flex-start;

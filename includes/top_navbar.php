@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/security.php';
+
 $_nav_fullname  = function_exists('getUserFullName') ? getUserFullName() : 'Admin User';
 $_nav_role      = function_exists('getUserRole')     ? getUserRole()     : 'Administrator';
 $_nav_initial   = strtoupper(substr($_nav_fullname, 0, 1)) ?: 'A';
@@ -35,6 +37,10 @@ $_nav_username  = function_exists('getUsername')     ? getUsername()     : '';
                     </div>
                 </div>
             </div>
+            <button type="button" class="dropdown-item change-password-item" id="changePasswordOpen" data-change-password-open aria-haspopup="dialog" aria-expanded="false" aria-controls="changePasswordModal">
+                <i data-lucide="key-round" aria-hidden="true"></i>
+                <span>Change Password</span>
+            </button>
             <div class="dropdown-divider"></div>
             <a href="../public/logout.php" class="dropdown-item logout-item">
                 <i data-lucide="log-out"></i>
@@ -43,3 +49,4 @@ $_nav_username  = function_exists('getUsername')     ? getUsername()     : '';
         </div>
     </div>
 </div>
+<?php require_once __DIR__ . '/profile_password_dialog.php'; ?>

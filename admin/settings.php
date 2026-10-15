@@ -238,7 +238,7 @@ $csrf_token = generateCSRFToken();
 
     <?= google_fonts_tag('Inter:wght@300;400;500;600;700') ?>
     <script src="<?= asset_url('lucide') ?>"></script>
-    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-sidebar-brand-center">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {

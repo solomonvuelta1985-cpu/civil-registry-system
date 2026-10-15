@@ -728,7 +728,7 @@ function detect_late_registration($record, $record_type) {
     <script src="../assets/js/notiflix-config.js"></script>
 
     <!-- Shared Sidebar Styles -->
-    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-sidebar-brand-center">
 
     <!-- Record Preview Modal Styles -->
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=14">

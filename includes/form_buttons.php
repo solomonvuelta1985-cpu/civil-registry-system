@@ -87,10 +87,43 @@ $records_label = ucfirst(str_replace(['_', '.php'], [' ', ''], $records_url_map[
     const form = toolbar.closest('form') || document.querySelector('form');
     if (!form) return;
 
+    // Keep the original action bar in the form until the user has seen it.
+    // After it scrolls above the viewport, float it while preserving its space
+    // in the document. It returns to its original position as the user scrolls
+    // back to the bar.
+    const toolbarAnchor = document.createElement('div');
+    toolbarAnchor.className = 'form-toolbar-anchor';
+    toolbarAnchor.setAttribute('aria-hidden', 'true');
+    const toolbarSpacer = document.createElement('div');
+    toolbarSpacer.className = 'form-toolbar-spacer';
+    toolbarSpacer.setAttribute('aria-hidden', 'true');
+    toolbar.parentNode.insertBefore(toolbarAnchor, toolbar);
+    toolbar.parentNode.insertBefore(toolbarSpacer, toolbar);
+
+    const naturalMarginTop = parseFloat(getComputedStyle(toolbar).marginTop) || 0;
+    const naturalMarginBottom = parseFloat(getComputedStyle(toolbar).marginBottom) || 0;
+    let toolbarHasBeenVisible = false;
+    const updateFloatingState = () => {
+        const anchorTop = toolbarAnchor.getBoundingClientRect().top + naturalMarginTop;
+        const toolbarBottom = anchorTop + toolbar.offsetHeight;
+        if (anchorTop < window.innerHeight && toolbarBottom > 0) {
+            toolbarHasBeenVisible = true;
+        }
+
+        const shouldFloat = toolbarHasBeenVisible && toolbarBottom < 0;
+        toolbar.classList.toggle('is-floating', shouldFloat);
+        toolbar.parentElement.classList.toggle('has-floating-toolbar', shouldFloat);
+        toolbarSpacer.style.display = shouldFloat ? 'block' : 'none';
+        toolbarSpacer.style.height = shouldFloat
+            ? `${toolbar.offsetHeight + naturalMarginTop + naturalMarginBottom}px`
+            : '0px';
+    };
+
     // ----- Sticky shadow state -----
     const stickyObserver = () => {
+        updateFloatingState();
         const rect = toolbar.getBoundingClientRect();
-        const stuck = rect.bottom >= window.innerHeight - 2;
+        const stuck = toolbar.classList.contains('is-floating') || rect.bottom >= window.innerHeight - 2;
         toolbar.classList.toggle('is-stuck', stuck);
     };
     window.addEventListener('scroll', stickyObserver, { passive: true });

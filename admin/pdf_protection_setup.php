@@ -21,7 +21,7 @@ $csrfMeta = csrfTokenMeta();
     <?= google_fonts_tag('Inter:wght@400;500;600;700;800') ?>
     <script src="<?= asset_url('lucide') ?>"></script>
     <link rel="stylesheet" href="<?= asset_url('fontawesome_css') ?>">
-    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-sidebar-brand-center">
     <style>
         :root { --primary:#6750A4; --ink:#1c1b1f; --muted:#64748b; --line:#e2e8f0; --bg:#f8fafc; --success:#15803d; --success-bg:#dcfce7; --warning:#b45309; --warning-bg:#fef3c7; --info:#1d4ed8; --info-bg:#dbeafe; --e1:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.06); --e2:0 4px 6px rgba(0,0,0,.07),0 2px 4px rgba(0,0,0,.06); }
         * { margin:0; padding:0; box-sizing:border-box; }

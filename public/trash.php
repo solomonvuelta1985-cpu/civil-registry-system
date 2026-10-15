@@ -321,7 +321,7 @@ function fmt_datetime($val) {
     <script src="../assets/js/notiflix-config.js"></script>
 
     <!-- Shared Sidebar Styles -->
-    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-sidebar-brand-center">
 
     <style>
         /* ========================================
@@ -888,9 +888,8 @@ function fmt_datetime($val) {
         .trash-info {
             background: var(--warning-light);
             border: 1px solid #FDE68A;
-            border-left: 4px solid var(--warning);
             padding: 12px 16px;
-            border-radius: var(--radius-md);
+            border-radius: 0;
             margin-bottom: 16px;
             display: flex;
             align-items: flex-start;

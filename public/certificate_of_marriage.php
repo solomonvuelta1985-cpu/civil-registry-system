@@ -119,10 +119,10 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
     <script src="../assets/js/notiflix-config.js"></script>
 
     <!-- Shared Sidebar Styles -->
-    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20260929-groups">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-sidebar-brand-center">
 
     <!-- Shared Certificate Form Styles -->
-    <link rel="stylesheet" href="../assets/css/certificate-forms-shared.css?v=2.2">
+    <link rel="stylesheet" href="../assets/css/certificate-forms-shared.css?v=2.5">
     <style>
         .form-section {
             margin-bottom: clamp(20px, 2.5vw, 28px);
