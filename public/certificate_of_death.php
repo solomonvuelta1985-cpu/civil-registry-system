@@ -127,7 +127,7 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
     <script src="../assets/js/notiflix-config.js"></script>
 
     <!-- Shared Sidebar Styles -->
-    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-sidebar-brand-center">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-notification-bell2">
 
     <!-- Shared Certificate Form Styles -->
     <link rel="stylesheet" href="../assets/css/certificate-forms-shared.css?v=2.5">

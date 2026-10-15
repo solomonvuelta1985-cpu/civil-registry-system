@@ -352,9 +352,9 @@ $user_first_name = explode(' ', $user_name)[0];
     <script src="<?= asset_url('chartjs') ?>"></script>
 
     <!-- Shared Sidebar Styles -->
-    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-sidebar-brand-center">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-notification-bell2">
 
-    <link rel="stylesheet" href="../assets/css/dashboard.css?v=20261015-inline-brand">
+    <link rel="stylesheet" href="../assets/css/dashboard.css?v=20261015-notification-bell">
 </head>
 <body class="dashboard-page" data-sidebar-breakpoint="1024">
     <?php include '../includes/preloader.php'; ?>
@@ -477,7 +477,7 @@ $user_first_name = explode(' ', $user_name)[0];
         <!-- Calendar & Notes Grid -->
         <div class="calendar-notes-grid">
             <!-- Calendar Widget -->
-            <div class="calendar-widget" role="region" aria-label="Calendar events">
+            <div class="calendar-widget" id="calendarWidget" role="region" aria-label="Calendar events">
                 <div class="widget-header">
                     <h3 class="widget-title">
                         <i class="fas fa-calendar-days" aria-hidden="true"></i>
@@ -558,7 +558,7 @@ $user_first_name = explode(' ', $user_name)[0];
             </div>
 
             <!-- Notes Widget -->
-            <div class="notes-widget" role="region" aria-label="System notes">
+            <div class="notes-widget" id="notesWidget" role="region" aria-label="System notes">
                 <div class="widget-header">
                     <h3 class="widget-title">
                         <i class="fas fa-clipboard" aria-hidden="true"></i>

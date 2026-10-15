@@ -11,6 +11,7 @@ require_once '../includes/auth.php';
 require_once '../includes/security.php';
 require_once '../includes/settings.php';
 require_once '../includes/branding.php';
+require_once '../includes/notifications.php';
 
 requireAuth();
 if (!isAdmin()) {
@@ -90,6 +91,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'updated_by' => getUserId(),
                     ];
                     if (set_setting($pdo, 'maintenance_schedule', $schedule, getUserId())) {
+                        app_notification_record_maintenance(
+                            $pdo,
+                            (string)$schedule['id'],
+                            'scheduled',
+                            $wasScheduled ? 'Maintenance schedule updated' : 'Scheduled system maintenance',
+                            $schedule['message'] . ' ' . $scheduleInput['starts_at'] . ' – ' . $scheduleInput['ends_at']
+                        );
                         log_activity($pdo, 'settings_updated', $wasScheduled ? 'Maintenance schedule updated' : 'Maintenance schedule created', getUserId());
                         $_SESSION['settings_flash'] = ['type' => 'success', 'message' => $wasScheduled ? 'Maintenance schedule updated. Users will be notified.' : 'Maintenance schedule saved. Users will be notified.'];
                         header('Location: ' . BASE_URL . 'admin/settings.php');
@@ -109,6 +117,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $schedule['cancelled_at'] = gmdate('Y-m-d\TH:i:s\Z');
                 $schedule['updated_by'] = getUserId();
                 if (set_setting($pdo, 'maintenance_schedule', $schedule, getUserId())) {
+                    app_notification_record_maintenance(
+                        $pdo,
+                        (string)$schedule['id'],
+                        'cancelled',
+                        'Maintenance schedule cancelled',
+                        'The scheduled maintenance has been cancelled.'
+                    );
                     log_activity($pdo, 'settings_updated', 'Maintenance schedule cancelled', getUserId());
                     $_SESSION['settings_flash'] = ['type' => 'success', 'message' => 'Maintenance schedule cancelled. Users will be notified.'];
                     header('Location: ' . BASE_URL . 'admin/settings.php');
@@ -195,11 +210,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($manualMaintenanceEnabled) {
         $manualMessage = trim((string)($_POST['maintenance_message'] ?? get_setting('maintenance_message', '')));
         if ($manualMessage === '') $manualMessage = 'The system is undergoing scheduled maintenance. Please try again shortly.';
-        set_setting($pdo, 'maintenance_manual_event', [
+        $manualEvent = [
             'id' => bin2hex(random_bytes(12)),
             'message' => $manualMessage,
             'started_at' => gmdate('Y-m-d\TH:i:s\Z'),
-        ], getUserId());
+        ];
+        if (set_setting($pdo, 'maintenance_manual_event', $manualEvent, getUserId())) {
+            app_notification_record_maintenance($pdo, (string)$manualEvent['id'], 'started', 'Emergency maintenance is active', $manualMessage);
+        }
     }
     if (!empty($changes)) {
         log_activity($pdo, 'settings_updated', implode('; ', $changes), getUserId());
@@ -238,7 +256,7 @@ $csrf_token = generateCSRFToken();
 
     <?= google_fonts_tag('Inter:wght@300;400;500;600;700') ?>
     <script src="<?= asset_url('lucide') ?>"></script>
-    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-sidebar-brand-center">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-notification-bell2">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {

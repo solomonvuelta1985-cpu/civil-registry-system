@@ -9,6 +9,7 @@ require_once '../../includes/config.php';
 require_once '../../includes/functions.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/security.php';
+require_once '../../includes/notifications.php';
 
 header('Content-Type: application/json');
 
@@ -54,6 +55,7 @@ try {
 
             if ($result) {
                 $note_id = $pdo->lastInsertId();
+                app_notification_record_note($pdo, (int)$note_id, (int)$user_id);
 
                 // Log activity
                 log_activity($pdo, 'CREATE_NOTE',
@@ -105,6 +107,10 @@ try {
             ]);
 
             if ($result) {
+                if ($stmt->rowCount() > 0) {
+                    app_notification_record_note($pdo, (int)$data['note_id'], (int)$user_id, true);
+                }
+
                 // Log activity
                 log_activity($pdo, 'UPDATE_NOTE',
                     "Updated note: " . $data['note_title'] . " (ID: {$data['note_id']})",

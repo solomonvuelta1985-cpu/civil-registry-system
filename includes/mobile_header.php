@@ -12,9 +12,12 @@
                 <small class="mobile-header-subtitle">Civil Registry &amp; Document Management System</small>
             </div>
         </div>
-        <button type="button" id="mobileSidebarToggle" title="Open Menu">
-            <i data-lucide="menu"></i>
-        </button>
+        <div class="mobile-header-actions">
+            <?php include __DIR__ . '/notification_bell.php'; ?>
+            <button type="button" id="mobileSidebarToggle" title="Open Menu" aria-label="Open menu">
+                <i data-lucide="menu"></i>
+            </button>
+        </div>
     </div>
 </div>
 

@@ -7,6 +7,7 @@
 require_once '../includes/config.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
+require_once '../includes/notifications.php';
 
 // Start session if not already started
 header('Content-Type: application/json');
@@ -99,10 +100,13 @@ function handlePost($pdo, $user_id) {
         $user_id
     ]);
 
+    $noteId = (int)$pdo->lastInsertId();
+    app_notification_record_note($pdo, $noteId, $user_id);
+
     echo json_encode([
         'success' => true,
         'message' => 'Note created successfully',
-        'note_id' => $pdo->lastInsertId()
+        'note_id' => $noteId
     ]);
 }
 
@@ -123,6 +127,10 @@ function handlePut($pdo, $user_id) {
             WHERE id = ? AND deleted_at IS NULL AND (created_by = ? OR ? = 1)
         ");
         $stmt->execute([$user_id, (int)$data['note_id'], $user_id, isAdmin() ? 1 : 0]);
+
+        if ($stmt->rowCount() > 0) {
+            app_notification_record_note($pdo, (int)$data['note_id'], $user_id, true);
+        }
 
         echo json_encode(['success' => true, 'message' => 'Pin status toggled']);
         return;
@@ -149,6 +157,10 @@ function handlePut($pdo, $user_id) {
         $user_id,
         (int)$data['note_id'], $user_id, isAdmin() ? 1 : 0
     ]);
+
+    if ($stmt->rowCount() > 0) {
+        app_notification_record_note($pdo, (int)$data['note_id'], $user_id, true);
+    }
 
     echo json_encode(['success' => true, 'message' => 'Note updated successfully']);
 }

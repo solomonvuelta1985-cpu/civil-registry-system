@@ -9,6 +9,7 @@ require_once '../../includes/config.php';
 require_once '../../includes/functions.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/security.php';
+require_once '../../includes/notifications.php';
 
 header('Content-Type: application/json');
 
@@ -54,6 +55,7 @@ try {
 
             if ($result) {
                 $event_id = $pdo->lastInsertId();
+                app_notification_record_calendar_event($pdo, (int)$event_id, (int)$user_id);
 
                 // Log activity
                 log_activity($pdo, 'CREATE_EVENT',
@@ -107,6 +109,10 @@ try {
             ]);
 
             if ($result) {
+                if ($stmt->rowCount() > 0) {
+                    app_notification_record_calendar_event($pdo, (int)$data['event_id'], (int)$user_id, true);
+                }
+
                 // Log activity
                 log_activity($pdo, 'UPDATE_EVENT',
                     "Updated event: " . $data['event_title'] . " (ID: {$data['event_id']})",

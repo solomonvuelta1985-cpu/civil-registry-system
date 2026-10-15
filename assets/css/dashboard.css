@@ -90,6 +90,12 @@
 .dashboard-page .mobile-header h4 { color: var(--gov-text); }
 .dashboard-page .mobile-header-brand-divider { color: #94a3b8; }
 .dashboard-page .mobile-header-subtitle { color: var(--gov-text-subtle); }
+.dashboard-page .notification-bell { background: #f8fafc; border: 0; color: var(--gov-text); }
+.dashboard-page .notification-bell:hover,
+.dashboard-page .notification-bell[aria-expanded="true"] { background: #eef2f7; border: 0; color: #1e3a8a; }
+.dashboard-page .notification-count { border-color: #ffffff; }
+.dashboard-page #calendarWidget,
+.dashboard-page #notesWidget { scroll-margin-top: 92px; }
 .dashboard-page #mobileSidebarToggle { color: #334155; background: #f8fafc; border: 1px solid var(--gov-border); }
 .dashboard-page .content { margin-left: var(--sidebar-width); padding: 100px 28px 32px; min-width: 0; transition: margin-left .2s ease; }
 .dashboard-page.sidebar-collapsed .content { margin-left: var(--sidebar-collapsed-width); }

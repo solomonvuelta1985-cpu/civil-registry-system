@@ -321,7 +321,7 @@ function fmt_datetime($val) {
     <script src="../assets/js/notiflix-config.js"></script>
 
     <!-- Shared Sidebar Styles -->
-    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-sidebar-brand-center">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-notification-bell2">
 
     <style>
         /* ========================================

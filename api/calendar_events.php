@@ -7,6 +7,7 @@
 require_once '../includes/config.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
+require_once '../includes/notifications.php';
 
 // Start session if not already started
 header('Content-Type: application/json');
@@ -116,6 +117,8 @@ function handlePost($pdo, $user_id) {
         $user_id
     ]);
 
+    app_notification_record_calendar_event($pdo, (int)$pdo->lastInsertId(), $user_id);
+
     echo json_encode([
         'success' => true,
         'message' => 'Event created successfully',
@@ -148,6 +151,10 @@ function handlePut($pdo, $user_id) {
         $user_id,
         (int)$data['event_id'], $user_id, isAdmin() ? 1 : 0
     ]);
+
+    if ($stmt->rowCount() > 0) {
+        app_notification_record_calendar_event($pdo, (int)$data['event_id'], $user_id, true);
+    }
 
     echo json_encode(['success' => true, 'message' => 'Event updated successfully']);
 }

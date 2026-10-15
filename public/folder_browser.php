@@ -38,7 +38,7 @@ $crf3aDefaults = branding_crf_preview_config(crf_3a_config());
     <link rel="stylesheet" href="<?= asset_url('notiflix_css') ?>">
     <script src="<?= asset_url('notiflix_js') ?>"></script>
 
-    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-sidebar-brand-center">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-notification-bell2">
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=14">
     <link rel="stylesheet" href="../assets/css/crf-1a.css?v=39">
 

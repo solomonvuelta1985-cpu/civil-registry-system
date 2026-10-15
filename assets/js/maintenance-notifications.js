@@ -81,8 +81,13 @@
                 (Array.isArray(data.notifications) ? data.notifications : []).forEach(function (event) {
                     if (!event || !event.id || known.indexOf(event.id) !== -1 || memorySeen[event.id]) return;
                     remember(event.id);
-                    showToast(event);
-                    newToastShown = true;
+                    // The signed-in notification bell handles normal notices.
+                    // Keep this legacy toast for pages without a bell and for
+                    // non-admins who must be redirected when maintenance starts.
+                    if (!document.querySelector('[data-notification-bell]') || data.logout === true) {
+                        showToast(event);
+                        newToastShown = true;
+                    }
                 });
                 if (data.logout === true) {
                     redirected = true;
