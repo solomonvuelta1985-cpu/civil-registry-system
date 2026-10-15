@@ -27,7 +27,7 @@ $crfDefaults = branding_crf_preview_config(crf_3a_config());
     <script src="<?= asset_url('lucide') ?>"></script>
     <link rel="stylesheet" href="<?= asset_url('notiflix_css') ?>">
     <script src="<?= asset_url('notiflix_js') ?>"></script>
-    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-notification-bell2">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-notification-bell3">
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=14">
     <link rel="stylesheet" href="../assets/css/crf-1a.css?v=39">
     <script src="<?= asset_url('pdfjs') ?>"></script>

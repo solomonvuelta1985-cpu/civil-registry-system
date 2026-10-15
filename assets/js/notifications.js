@@ -13,6 +13,8 @@
     var announcement = panel.querySelector('[data-notification-announcement]');
     var emptyState = panel.querySelector('[data-notification-empty]');
     var errorState = panel.querySelector('[data-notification-error]');
+    var todayEncodedValue = panel.querySelector('[data-encoded-today]');
+    var allTimeEncodedValue = panel.querySelector('[data-encoded-all-time]');
     var markAllButton = panel.querySelector('[data-notification-mark-all]');
     var closeButton = panel.querySelector('[data-notifications-close]');
     var animationSeenIds = Object.create(null);
@@ -59,6 +61,13 @@
             if (announcement.textContent !== message) announcement.textContent = message;
         }
         if (markAllButton) markAllButton.hidden = !(Number(count) > 0);
+    }
+
+    function updateEncodingStats(stats) {
+        if (!stats || typeof stats !== 'object') return;
+        var formatter = new Intl.NumberFormat();
+        if (todayEncodedValue) todayEncodedValue.textContent = formatter.format(Math.max(0, Number(stats.today) || 0));
+        if (allTimeEncodedValue) allTimeEncodedValue.textContent = formatter.format(Math.max(0, Number(stats.all_time) || 0));
     }
 
     function readableCategory(category) {
@@ -192,6 +201,7 @@
             if (hasUnseenUnread) persistAnimationSeenIds();
             renderItems(items);
             updateBadges(Number(data.unread_count) || 0);
+            updateEncodingStats(data.encoding_stats);
 
             justArrived.slice(0, 2).forEach(showToast);
         } catch (error) {

@@ -86,6 +86,32 @@ try {
 function notificationSendFeed(PDO $pdo, int $userId): void {
     $visible = '(n.recipient_user_id IS NULL OR n.recipient_user_id = :recipient_user_id) AND (n.actor_user_id IS NULL OR n.actor_user_id <> :actor_user_id)';
 
+    $encodingStmt = $pdo->prepare("
+        SELECT
+            COALESCE(SUM(CASE WHEN DATE(encoded_records.created_at) = CURDATE() THEN 1 ELSE 0 END), 0) AS today_count,
+            COUNT(*) AS total_count
+        FROM (
+            SELECT created_at FROM certificate_of_live_birth
+             WHERE status <> 'Deleted' AND created_by = :birth_user_id
+            UNION ALL
+            SELECT created_at FROM certificate_of_death
+             WHERE status <> 'Deleted' AND created_by = :death_user_id
+            UNION ALL
+            SELECT created_at FROM certificate_of_marriage
+             WHERE status <> 'Deleted' AND created_by = :marriage_user_id
+            UNION ALL
+            SELECT created_at FROM application_for_marriage_license
+             WHERE status <> 'Deleted' AND created_by = :license_user_id
+        ) encoded_records
+    ");
+    $encodingStmt->execute([
+        ':birth_user_id' => $userId,
+        ':death_user_id' => $userId,
+        ':marriage_user_id' => $userId,
+        ':license_user_id' => $userId,
+    ]);
+    $encodingRow = $encodingStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
     $countStmt = $pdo->prepare('
         SELECT COUNT(*)
           FROM app_notifications n
@@ -130,6 +156,10 @@ function notificationSendFeed(PDO $pdo, int $userId): void {
     echo json_encode([
         'success' => true,
         'unread_count' => $unreadCount,
+        'encoding_stats' => [
+            'today' => (int)($encodingRow['today_count'] ?? 0),
+            'all_time' => (int)($encodingRow['total_count'] ?? 0),
+        ],
         'notifications' => $items,
     ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
 }

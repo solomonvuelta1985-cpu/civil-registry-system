@@ -59,6 +59,11 @@ $_nav_username  = function_exists('getUsername')     ? getUsername()     : '';
             <div>
                 <h2>Notifications</h2>
                 <p id="notificationAnnouncement" data-notification-announcement aria-live="polite">Loading notifications...</p>
+                <p class="notification-encoding-stats" data-notification-encoding-stats>
+                    <span>Today encoded <strong data-encoded-today>—</strong></span>
+                    <span class="notification-encoding-divider" aria-hidden="true">·</span>
+                    <span>All-time encoded <strong data-encoded-all-time>—</strong></span>
+                </p>
             </div>
             <button type="button" class="notification-close" data-notifications-close aria-label="Close notifications">
                 <i data-lucide="x" aria-hidden="true"></i>
@@ -73,4 +78,4 @@ $_nav_username  = function_exists('getUsername')     ? getUsername()     : '';
         <p class="notification-error" data-notification-error role="status" hidden></p>
     </section>
 <?php require_once __DIR__ . '/profile_password_dialog.php'; ?>
-<script defer src="<?= htmlspecialchars(BASE_URL, ENT_QUOTES, 'UTF-8') ?>assets/js/notifications.js?v=2"></script>
+<script defer src="<?= htmlspecialchars(BASE_URL, ENT_QUOTES, 'UTF-8') ?>assets/js/notifications.js?v=3"></script>

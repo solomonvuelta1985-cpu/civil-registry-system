@@ -773,6 +773,23 @@
     font-size: 12px;
 }
 
+.notification-panel-heading .notification-encoding-stats {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    min-height: 0;
+    margin-top: 5px;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.notification-encoding-stats strong {
+    color: #334155;
+    font-weight: 700;
+}
+
 .notification-close {
     display: inline-flex;
     flex: 0 0 auto;

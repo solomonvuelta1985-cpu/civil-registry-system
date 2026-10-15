@@ -37,7 +37,7 @@ $can_delete = isAdmin();
     <script src="<?= asset_url('notiflix_js') ?>"></script>
     <script src="../../assets/js/notiflix-config.js"></script>
 
-    <link rel="stylesheet" href="../../assets/css/sidebar.css?v=20261015-notification-bell2">
+    <link rel="stylesheet" href="../../assets/css/sidebar.css?v=20261015-notification-bell3">
     <link rel="stylesheet" href="../../assets/css/certificate-forms-shared.css?v=2.5">
     <link rel="stylesheet" href="../../assets/css/ra9048.css?v=1.1">
 </head>

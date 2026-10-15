@@ -352,7 +352,7 @@ $user_first_name = explode(' ', $user_name)[0];
     <script src="<?= asset_url('chartjs') ?>"></script>
 
     <!-- Shared Sidebar Styles -->
-    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-notification-bell2">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-notification-bell3">
 
     <link rel="stylesheet" href="../assets/css/dashboard.css?v=20261015-notification-bell">
 </head>
