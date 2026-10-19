@@ -135,6 +135,8 @@ try {
 
     if (empty($child_sex)) {
         $errors[] = "Child's sex is required.";
+    } elseif (!in_array($child_sex, ['Male', 'Female', 'No Entry', 'Not Readable'], true)) {
+        $errors[] = "Invalid child's sex value.";
     }
 
     if (empty($legitimacy_status)) {

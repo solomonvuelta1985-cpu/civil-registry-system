@@ -50,7 +50,8 @@ $migrations = [
     '051_registry_no_status_and_registration_date_status.sql',
     '052_duplicate_match_dismissals.sql',
     '053_crf_remarks_templates.sql',
-    '054_in_app_notifications.sql'
+    '054_in_app_notifications.sql',
+    '055_live_birth_sex_status_options.sql'
 ];
 
 $results = [];

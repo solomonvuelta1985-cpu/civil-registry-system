@@ -552,13 +552,13 @@ if ($edit_mode && $record) {
                                 </label>
                                 <select id="child_sex" name="child_sex" required>
                                     <option value="">-- Select Sex --</option>
-                                    <?php
-                                    $sexes = ['Male', 'Female'];
-                                    foreach ($sexes as $sex) {
-                                        $selected = ($edit_mode && isset($record['child_sex']) && $record['child_sex'] === $sex) ? 'selected' : '';
-                                        echo "<option value='$sex' $selected>$sex</option>";
-                                    }
-                                    ?>
+                                    <?php foreach (['Male', 'Female'] as $sex): ?>
+                                        <option value="<?= htmlspecialchars($sex, ENT_QUOTES, 'UTF-8') ?>" <?= ($edit_mode && ($record['child_sex'] ?? '') === $sex) ? 'selected' : '' ?>><?= htmlspecialchars($sex, ENT_QUOTES, 'UTF-8') ?></option>
+                                    <?php endforeach; ?>
+                                    <hr aria-hidden="true">
+                                    <?php foreach (['No Entry', 'Not Readable'] as $sex): ?>
+                                        <option value="<?= htmlspecialchars($sex, ENT_QUOTES, 'UTF-8') ?>" <?= ($edit_mode && ($record['child_sex'] ?? '') === $sex) ? 'selected' : '' ?>><?= htmlspecialchars($sex, ENT_QUOTES, 'UTF-8') ?></option>
+                                    <?php endforeach; ?>
                                 </select>
                             </div>
 
