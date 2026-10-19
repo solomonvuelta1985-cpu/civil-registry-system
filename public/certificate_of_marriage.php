@@ -1437,6 +1437,10 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
         });
         // "Outside Baggao" residence toggle handlers
         (function() {
+            document.querySelectorAll('.residence-form-group input[readonly]').forEach(function(input) {
+                input.setAttribute('tabindex', '-1');
+            });
+
             const residenceFields = [
                 'husband_residence',
                 'husband_father_residence',
