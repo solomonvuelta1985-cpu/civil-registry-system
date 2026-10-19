@@ -27,9 +27,9 @@ $crfDefaults = branding_crf_preview_config(crf_3a_config());
     <script src="<?= asset_url('lucide') ?>"></script>
     <link rel="stylesheet" href="<?= asset_url('notiflix_css') ?>">
     <script src="<?= asset_url('notiflix_js') ?>"></script>
-    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-notification-bell3">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261019-active-icon-2">
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=14">
-    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=39">
+    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=42">
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = '<?= asset_url("pdfjs_worker") ?>';</script>
     <style>
@@ -83,7 +83,7 @@ $crfDefaults = branding_crf_preview_config(crf_3a_config());
 </script>
 <script src="../assets/js/crf-remarks-editor.js?v=20261014-personal-templates-1"></script>
 <script src="../assets/js/crf-3a-generator.js?v=20261014-redirect-records-1"></script>
-<script src="../assets/js/crf-3a-records.js?v=3"></script>
+<script src="../assets/js/crf-3a-records.js?v=5"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
 </body>
 </html>

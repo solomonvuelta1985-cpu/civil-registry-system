@@ -9,6 +9,7 @@ require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
 require_once '../includes/crf_1a.php';
+require_once '../includes/crf_correction_chain.php';
 
 requireAuth();
 if (!hasPermission(crf_1a_generate_permission())) {
@@ -108,6 +109,8 @@ $inputs = [
     'remarks_html' => crf_1a_sanitize_remarks_html($_POST['remarks_html'] ?? ''),
 ];
 
+$issuanceCommitted = false;
+$supersededRows = [];
 try {
     $pdo->beginTransaction();
     $recordStmt = $pdo->prepare(
@@ -132,12 +135,21 @@ try {
         $inputs['requester_name'] = $childName;
     }
     if ($replacesId) {
-        $replaceStmt = $pdo->prepare("SELECT id, crf_number, birth_record_id, status FROM crf_1a_issuances WHERE id = :id LIMIT 1");
+        $replaceStmt = $pdo->prepare("SELECT * FROM crf_1a_issuances WHERE id = :id LIMIT 1 FOR UPDATE");
         $replaceStmt->execute([':id' => $replacesId]);
         $replacement = $replaceStmt->fetch(PDO::FETCH_ASSOC);
-        if (!$replacement || (int)$replacement['birth_record_id'] !== (int)$birthRecordId || !in_array($replacement['status'], ['Active', 'Archived'], true)) {
+        if (!$replacement || (int)$replacement['birth_record_id'] !== (int)$birthRecordId || !in_array($replacement['issuance_kind'], ['Original', 'Corrected'], true)) {
             json_response(false, 'The original CRF record selected for correction is invalid or no longer available.', null, 422);
         }
+        $latestCurrent = crf_correction_latest_current($pdo, '1a', (int)$birthRecordId);
+        if (!$latestCurrent || (int)$latestCurrent['id'] !== $replacesId) {
+            $pdo->rollBack();
+            json_response(false, 'This CRF has already been corrected. Reopen the latest issuance before generating another corrected copy.', null, 409);
+        }
+        if (!in_array($replacement['status'], ['Active', 'Archived'], true)) {
+            json_response(false, 'The original CRF record selected for correction is invalid or no longer available.', null, 422);
+        }
+        crf_correction_load_chain($pdo, '1a', $replacesId, true);
     }
     $duplicateKey = crf_1a_duplicate_key((int)$birthRecordId, $amountPaid, $orNumber, $datePaid, $issueDate);
     $duplicateStmt = $pdo->prepare("SELECT id, crf_number, issuance_kind FROM crf_1a_issuances
@@ -273,10 +285,47 @@ try {
         ':created_by' => (int)getUserId(),
     ]);
     $issuanceId = (int)$pdo->lastInsertId();
-    crf_1a_record_history($pdo, $issuanceId, $crfNumber, 'generated', ucfirst($issuanceKind) . ' issuance generated from birth record #' . (int)$birthRecordId);
-    $pdo->commit();
+    $generatedDetails = ucfirst($issuanceKind) . ' issuance generated from birth record #' . (int)$birthRecordId;
+    if ($issuanceKind === 'Corrected' && !empty($replacement['crf_number'])) $generatedDetails .= '; replaces ' . $replacement['crf_number'];
+    crf_1a_record_history($pdo, $issuanceId, $crfNumber, 'generated', $generatedDetails);
+    if ($issuanceKind === 'Corrected' && $replacement) {
+        $newRowStmt = $pdo->prepare('SELECT * FROM crf_1a_issuances WHERE id = :id LIMIT 1');
+        $newRowStmt->execute([':id' => $issuanceId]);
+        $newRow = $newRowStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+        crf_correction_record_diffs($pdo, '1a', $issuanceId, $crfNumber, $replacement, $newRow);
 
-    log_activity($pdo, 'Generate CRF No. 1A', "Generated {$crfNumber} for birth record #{$birthRecordId}", getUserId());
+        $priorStmt = $pdo->prepare("SELECT * FROM crf_1a_issuances WHERE birth_record_id = :source_id AND id <> :current_id AND issuance_kind IN ('Original', 'Corrected') AND status IN ('Active', 'Archived', 'Voided') ORDER BY id ASC FOR UPDATE");
+        $priorStmt->execute([':source_id' => (int)$birthRecordId, ':current_id' => $issuanceId]);
+        $supersededRows = $priorStmt->fetchAll(PDO::FETCH_ASSOC);
+        $voidStmt = $pdo->prepare("UPDATE crf_1a_issuances SET status = 'Voided' WHERE id = :id AND status IN ('Active', 'Archived')");
+        foreach ($supersededRows as $prior) {
+            if (in_array($prior['status'], ['Active', 'Archived'], true)) {
+                $voidStmt->execute([':id' => (int)$prior['id']]);
+                crf_1a_record_history($pdo, (int)$prior['id'], (string)$prior['crf_number'], 'voided', 'Superseded by ' . $crfNumber . ' in the corrected issuance chain.');
+            }
+        }
+    }
+    $pdo->commit();
+    $issuanceCommitted = true;
+
+    if ($issuanceKind === 'Corrected') {
+        try {
+            crf_correction_cleanup_after_generation($pdo, '1a', [
+                'id' => $issuanceId,
+                'crf_number' => $crfNumber,
+                'pdf_filepath' => $pdfRelativePath,
+                'pdf_hash' => $pdfHash,
+            ], $supersededRows);
+        } catch (Throwable $cleanupError) {
+            error_log('CRF 1A correction cleanup will need a retry: ' . $cleanupError->getMessage());
+        }
+    }
+
+    try {
+        log_activity($pdo, 'Generate CRF No. 1A', "Generated {$crfNumber} for birth record #{$birthRecordId}", getUserId());
+    } catch (Throwable $activityError) {
+        error_log('CRF 1A activity logging failed after generation: ' . $activityError->getMessage());
+    }
 
     $baseUrl = rtrim(defined('BASE_URL') ? BASE_URL : '/iscan/', '/');
     json_response(true, 'CRF No. 1A generated successfully.', [
@@ -292,7 +341,7 @@ try {
     if (isset($pdo) && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    if (!empty($pdfAbsolutePath) && is_file($pdfAbsolutePath)) {
+    if (!$issuanceCommitted && !empty($pdfAbsolutePath) && is_file($pdfAbsolutePath)) {
         @unlink($pdfAbsolutePath);
     }
     error_log('CRF 1A generation failed: ' . $e->getMessage());

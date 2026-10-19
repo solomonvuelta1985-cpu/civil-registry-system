@@ -54,7 +54,7 @@ $can_delete = hasPermission('users_delete');
     <script src="<?= asset_url('lucide') ?>"></script>
 
     <!-- Shared Sidebar Styles -->
-    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-notification-bell3">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261019-active-icon-2">
 
     <style>
         /* Reset & Base */

@@ -346,8 +346,9 @@
     display: none;
 }
 
-.sidebar-menu li a.active [data-lucide] {
-    color: #facc15;
+.sidebar-menu li a.active [data-lucide],
+.sidebar-menu li a.active svg {
+    color: #004ef5;
 }
 
 .sidebar-menu li a [data-lucide] {

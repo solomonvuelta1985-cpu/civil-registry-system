@@ -485,8 +485,21 @@ body.crf1a-open { overflow: hidden; }
 .crf1a-issuance-corrected { color:#92400e; background:#fffbeb; border:1px solid #fcd34d; }
 .crf1a-issuance-reprint { color:#047857; background:#ecfdf5; border:1px solid #a7f3d0; }
 .crf1a-history-panel { margin-top:16px; }
+.crf1a-history-accordion > summary { display:flex; align-items:center; gap:10px; list-style:none; cursor:pointer; color:#334155; }
+.crf1a-history-accordion > summary::-webkit-details-marker { display:none; }
+.crf1a-history-summary { min-height:34px; }
+.crf1a-history-summary:focus-visible { outline:2px solid #2563eb; outline-offset:3px; border-radius:5px; }
+.crf1a-history-summary:hover .crf1a-history-title { color:#1d4ed8; }
+.crf1a-history-title { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700; }
+.crf1a-history-title [data-lucide], .crf1a-history-title svg { width:16px; height:16px; color:#75808d; }
+.crf1a-history-count { margin-left:auto; padding:3px 8px; border:1px solid #dbe4ee; border-radius:999px; background:#f8fafc; color:#64748b; font-size:11px; font-weight:600; white-space:nowrap; }
+.crf1a-history-chevron { width:16px; height:16px; color:#64748b; transition:transform .18s ease; }
+.crf1a-history-accordion[open] > summary { padding-bottom:9px; border-bottom:1px solid #e8edf3; }
+.crf1a-history-accordion[open] > summary .crf1a-history-chevron { transform:rotate(180deg); }
+.crf1a-history-content { padding-top:7px; }
+.crf1a-history-content .crf1a-history-list { max-height:none; overflow:visible; padding-right:0; }
 .crf1a-history-list { display:flex; flex-direction:column; gap:10px; }
-.crf1a-history-item { display:grid; grid-template-columns:auto 1fr; gap:2px 8px; padding:9px 0; border-bottom:1px solid #f1f5f9; }
+.crf1a-history-item { display:grid; grid-template-columns:auto 1fr; gap:2px 8px; padding:10px 0 13px; border-bottom:1px solid #cbd5e1; }
 .crf1a-history-item:last-child { border-bottom:0; }
 .crf1a-history-item strong { color:#1e3a8a; font-size:12px; text-transform:capitalize; }
 .crf1a-history-item span, .crf1a-history-item small { grid-column:1 / -1; color:#64748b; font-size:11px; }

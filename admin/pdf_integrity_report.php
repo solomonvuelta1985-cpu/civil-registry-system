@@ -72,7 +72,7 @@ try {
     <?= google_fonts_tag('Inter:wght@400;500;600;700;800') ?>
     <link rel="stylesheet" href="<?= asset_url('fontawesome_css') ?>">
     <script src="<?= asset_url('lucide') ?>"></script>
-    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-notification-bell3">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261019-active-icon-2">
     <style>
         :root {
             /* Material Design 3 Colors */

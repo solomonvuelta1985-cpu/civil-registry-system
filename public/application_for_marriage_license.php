@@ -76,7 +76,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
     <script src="../assets/js/notiflix-config.js"></script>
 
     <!-- Shared Sidebar Styles -->
-    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261015-notification-bell3">
+    <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261019-active-icon-2">
 
     <!-- Shared Certificate Form Styles -->
     <link rel="stylesheet" href="../assets/css/certificate-forms-shared.css?v=2.5">

@@ -7,6 +7,7 @@ require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
 require_once '../includes/crf_3a.php';
+require_once '../includes/crf_correction_chain.php';
 
 requireAuth();
 if (!hasPermission(crf_3a_view_permission())) json_response(false, 'You do not have permission to view CRF No. 3A records.', null, 403);
@@ -31,9 +32,7 @@ try {
         if (!$record) json_response(false, 'CRF No. 3A issuance not found.', null, 404);
         $record['record_snapshot'] = json_decode((string)$record['record_snapshot_json'], true);
         unset($record['record_snapshot_json']);
-        $historyStmt = $pdo->prepare("SELECT h.action, h.details, h.created_at, h.actor_id, u.full_name AS actor_name FROM crf_3a_issuance_history h LEFT JOIN users u ON u.id = h.actor_id WHERE h.issuance_id = :issuance_id ORDER BY h.created_at DESC, h.id DESC");
-        $historyStmt->execute([':issuance_id' => (int)$record['id']]);
-        $record['history'] = $historyStmt->fetchAll(PDO::FETCH_ASSOC);
+        $record['history'] = crf_correction_chain_history($pdo, '3a', (int)$record['id']);
         $base = rtrim(defined('BASE_URL') ? BASE_URL : '/iscan/', '/');
         $record['pdf_url'] = $base . '/api/serve_crf_3a.php?id=' . (int)$record['id'];
         $record['download_url'] = $record['pdf_url'] . '&download=1&action=download';
@@ -72,7 +71,7 @@ try {
     $whereSql = implode(' AND ', $where);
     $count = $pdo->prepare("SELECT COUNT(*) FROM crf_3a_issuances c WHERE {$whereSql}"); $count->execute($params);
     $total = (int)$count->fetchColumn(); $pages = max(1, (int)ceil($total / $perPage)); $page = min($page, $pages); $offset = ($page - 1) * $perPage;
-    $stmt = $pdo->prepare("SELECT c.id, c.crf_year, c.sequence_no, c.crf_number, c.marriage_record_id, c.replaces_issuance_id, c.issuance_kind, c.registry_no_snapshot, c.husband_name_snapshot, c.wife_name_snapshot, c.husband_last_name_snapshot, c.wife_last_name_snapshot, c.issue_date, c.page_number, c.book_number, c.requester_name, c.amount_paid, c.or_number, c.date_paid, c.pdf_filename, c.pdf_hash, c.created_at, c.created_by FROM crf_3a_issuances c WHERE {$whereSql} ORDER BY {$sortColumns[$sortBy]} {$sortDir}, c.id DESC LIMIT {$perPage} OFFSET {$offset}");
+    $stmt = $pdo->prepare("SELECT c.id, c.crf_year, c.sequence_no, c.crf_number, c.marriage_record_id, c.replaces_issuance_id, c.issuance_kind, c.registry_no_snapshot, c.husband_name_snapshot, c.wife_name_snapshot, c.husband_last_name_snapshot, c.wife_last_name_snapshot, c.issue_date, c.page_number, c.book_number, c.requester_name, c.amount_paid, c.or_number, c.date_paid, c.pdf_filename, c.pdf_hash, c.created_at, c.created_by, u.full_name AS created_by_name FROM crf_3a_issuances c LEFT JOIN users u ON u.id = c.created_by WHERE {$whereSql} ORDER BY {$sortColumns[$sortBy]} {$sortDir}, c.id DESC LIMIT {$perPage} OFFSET {$offset}");
     $stmt->execute($params); $records = $stmt->fetchAll(PDO::FETCH_ASSOC); $base = rtrim(defined('BASE_URL') ? BASE_URL : '/iscan/', '/');
     foreach ($records as &$record) { $record['pdf_url'] = $base . '/api/serve_crf_3a.php?id=' . (int)$record['id']; $record['download_url'] = $record['pdf_url'] . '&download=1&action=download'; } unset($record);
     json_response(true, 'CRF No. 3A records loaded.', ['records' => $records, 'pagination' => ['current_page' => $page, 'total_pages' => $pages, 'total_records' => $total, 'per_page' => $perPage, 'from' => $total ? $offset + 1 : 0, 'to' => min($offset + $perPage, $total)]]);

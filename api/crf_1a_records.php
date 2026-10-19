@@ -9,6 +9,7 @@ require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
 require_once '../includes/crf_1a.php';
+require_once '../includes/crf_correction_chain.php';
 
 requireAuth();
 if (!hasPermission(crf_1a_view_permission())) {
@@ -42,13 +43,7 @@ try {
 
         $record['record_snapshot'] = json_decode((string)$record['record_snapshot_json'], true);
         unset($record['record_snapshot_json']);
-        $historyStmt = $pdo->prepare("SELECT h.action, h.details, h.created_at, h.actor_id, u.full_name AS actor_name
-            FROM crf_1a_issuance_history h
-            LEFT JOIN users u ON u.id = h.actor_id
-            WHERE h.issuance_id = :issuance_id
-            ORDER BY h.created_at DESC, h.id DESC");
-        $historyStmt->execute([':issuance_id' => (int)$record['id']]);
-        $record['history'] = $historyStmt->fetchAll(PDO::FETCH_ASSOC);
+        $record['history'] = crf_correction_chain_history($pdo, '1a', (int)$record['id']);
         $baseUrl = rtrim(defined('BASE_URL') ? BASE_URL : '/iscan/', '/');
         $record['pdf_url'] = $baseUrl . '/api/serve_crf_1a.php?id=' . (int)$record['id'];
         $record['download_url'] = $record['pdf_url'] . '&download=1&action=download';
@@ -140,8 +135,9 @@ try {
                 c.issue_date, c.page_number, c.book_number, c.population_reference_no,
                 c.requester_name, c.amount_paid, c.or_number, c.date_paid,
                 c.certified_by_name, c.certified_by_position, c.pdf_filename,
-                c.pdf_hash, c.created_at, c.created_by
+                c.pdf_hash, c.created_at, c.created_by, u.full_name AS created_by_name
          FROM crf_1a_issuances c
+         LEFT JOIN users u ON u.id = c.created_by
          WHERE {$whereSql}
          ORDER BY {$sortColumns[$sortBy]} {$sortDir}, c.id DESC
          LIMIT {$perPage} OFFSET {$offset}"

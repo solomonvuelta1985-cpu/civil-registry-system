@@ -6,6 +6,7 @@ require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
 require_once '../includes/crf_2a.php';
+require_once '../includes/crf_correction_chain.php';
 
 requireAuth();
 if (!hasPermission(crf_2a_generate_permission())) json_response(false, 'You do not have permission to generate CRF No. 2A.', null, 403);
@@ -61,6 +62,8 @@ if ($issuanceKind === 'Corrected' && !$replacesId) json_response(false, 'A corre
 if ($issuanceKind !== 'Corrected' && $replacesId) json_response(false, 'Only a Corrected issuance can replace another CRF record.', null, 422);
 
 $pdfAbsolutePath = null;
+$issuanceCommitted = false;
+$supersededRows = [];
 try {
     $pdo->beginTransaction();
     $stmt = $pdo->prepare("SELECT * FROM certificate_of_death WHERE id = :id AND status = 'Active' LIMIT 1 FOR UPDATE");
@@ -80,12 +83,21 @@ try {
     }
 
     if ($replacesId) {
-        $replaceStmt = $pdo->prepare("SELECT id, crf_number, death_record_id, status FROM crf_2a_issuances WHERE id = :id LIMIT 1");
+        $replaceStmt = $pdo->prepare("SELECT * FROM crf_2a_issuances WHERE id = :id LIMIT 1 FOR UPDATE");
         $replaceStmt->execute([':id' => $replacesId]);
         $replacement = $replaceStmt->fetch(PDO::FETCH_ASSOC);
-        if (!$replacement || (int)$replacement['death_record_id'] !== (int)$deathRecordId || !in_array($replacement['status'], ['Active', 'Archived'], true)) {
+        if (!$replacement || (int)$replacement['death_record_id'] !== (int)$deathRecordId || !in_array($replacement['issuance_kind'], ['Original', 'Corrected'], true)) {
             json_response(false, 'The original CRF record selected for correction is invalid or no longer available.', null, 422);
         }
+        $latestCurrent = crf_correction_latest_current($pdo, '2a', (int)$deathRecordId);
+        if (!$latestCurrent || (int)$latestCurrent['id'] !== $replacesId) {
+            $pdo->rollBack();
+            json_response(false, 'This CRF has already been corrected. Reopen the latest issuance before generating another corrected copy.', null, 409);
+        }
+        if (!in_array($replacement['status'], ['Active', 'Archived'], true)) {
+            json_response(false, 'The original CRF record selected for correction is invalid or no longer available.', null, 422);
+        }
+        crf_correction_load_chain($pdo, '2a', $replacesId, true);
     }
 
     $duplicateKey = crf_2a_duplicate_key((int)$deathRecordId, $inputs['amount_paid'], $inputs['or_number'], $inputs['date_paid'], $inputs['issue_date']);
@@ -161,14 +173,50 @@ try {
         ':filename' => basename($pdfAbsolutePath), ':filepath' => $relativePath, ':hash' => $hash, ':duplicate_key' => $duplicateKey, ':created_by' => getUserId(),
     ]);
     $issuanceId = (int)$pdo->lastInsertId();
-    crf_2a_record_history($pdo, $issuanceId, $crfNumber, 'generated', ucfirst($issuanceKind) . ' issuance generated from death record #' . (int)$deathRecordId);
+    $generatedDetails = ucfirst($issuanceKind) . ' issuance generated from death record #' . (int)$deathRecordId;
+    if ($issuanceKind === 'Corrected' && !empty($replacement['crf_number'])) $generatedDetails .= '; replaces ' . $replacement['crf_number'];
+    crf_2a_record_history($pdo, $issuanceId, $crfNumber, 'generated', $generatedDetails);
+    if ($issuanceKind === 'Corrected' && $replacement) {
+        $newRowStmt = $pdo->prepare('SELECT * FROM crf_2a_issuances WHERE id = :id LIMIT 1');
+        $newRowStmt->execute([':id' => $issuanceId]);
+        $newRow = $newRowStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+        crf_correction_record_diffs($pdo, '2a', $issuanceId, $crfNumber, $replacement, $newRow);
+
+        $priorStmt = $pdo->prepare("SELECT * FROM crf_2a_issuances WHERE death_record_id = :source_id AND id <> :current_id AND issuance_kind IN ('Original', 'Corrected') AND status IN ('Active', 'Archived', 'Voided') ORDER BY id ASC FOR UPDATE");
+        $priorStmt->execute([':source_id' => (int)$deathRecordId, ':current_id' => $issuanceId]);
+        $supersededRows = $priorStmt->fetchAll(PDO::FETCH_ASSOC);
+        $voidStmt = $pdo->prepare("UPDATE crf_2a_issuances SET status = 'Voided' WHERE id = :id AND status IN ('Active', 'Archived')");
+        foreach ($supersededRows as $prior) {
+            if (in_array($prior['status'], ['Active', 'Archived'], true)) {
+                $voidStmt->execute([':id' => (int)$prior['id']]);
+                crf_2a_record_history($pdo, (int)$prior['id'], (string)$prior['crf_number'], 'voided', 'Superseded by ' . $crfNumber . ' in the corrected issuance chain.');
+            }
+        }
+    }
     $pdo->commit();
-    log_activity($pdo, 'Generate CRF No. 2A', "Generated {$crfNumber} for death record #{$deathRecordId}", getUserId());
+    $issuanceCommitted = true;
+    if ($issuanceKind === 'Corrected') {
+        try {
+            crf_correction_cleanup_after_generation($pdo, '2a', [
+                'id' => $issuanceId,
+                'crf_number' => $crfNumber,
+                'pdf_filepath' => $relativePath,
+                'pdf_hash' => $hash,
+            ], $supersededRows);
+        } catch (Throwable $cleanupError) {
+            error_log('CRF 2A correction cleanup will need a retry: ' . $cleanupError->getMessage());
+        }
+    }
+    try {
+        log_activity($pdo, 'Generate CRF No. 2A', "Generated {$crfNumber} for death record #{$deathRecordId}", getUserId());
+    } catch (Throwable $activityError) {
+        error_log('CRF 2A activity logging failed after generation: ' . $activityError->getMessage());
+    }
     $baseUrl = rtrim(defined('BASE_URL') ? BASE_URL : '/iscan/', '/');
     json_response(true, 'CRF No. 2A generated successfully.', ['issuance_id' => $issuanceId, 'crf_number' => $crfNumber, 'issuance_kind' => $issuanceKind, 'replaces_issuance_id' => $replacesId, 'issue_date' => $inputs['issue_date'], 'pdf_url' => $baseUrl . '/api/serve_crf_2a.php?id=' . $issuanceId, 'download_url' => $baseUrl . '/api/serve_crf_2a.php?id=' . $issuanceId . '&download=1&action=download']);
 } catch (Throwable $e) {
     if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
-    if ($pdfAbsolutePath && is_file($pdfAbsolutePath)) @unlink($pdfAbsolutePath);
+    if (!$issuanceCommitted && $pdfAbsolutePath && is_file($pdfAbsolutePath)) @unlink($pdfAbsolutePath);
     error_log('CRF 2A generation failed: ' . $e->getMessage());
     json_response(false, 'Unable to generate CRF No. 2A. Please try again.', null, 500);
 }

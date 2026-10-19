@@ -7,6 +7,7 @@ require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
 require_once '../includes/crf_3a.php';
+require_once '../includes/crf_correction_chain.php';
 
 requireAuth();
 if (!hasPermission(crf_3a_generate_permission())) json_response(false, 'You do not have permission to generate CRF No. 3A.', null, 403);
@@ -87,6 +88,8 @@ if ($issuanceKind === 'Corrected' && !$replacesId) json_response(false, 'A corre
 if ($issuanceKind !== 'Corrected' && $replacesId) json_response(false, 'Only a Corrected issuance can replace another CRF record.', null, 422);
 
 $pdfAbsolutePath = null;
+$issuanceCommitted = false;
+$supersededRows = [];
 try {
     $pdo->beginTransaction();
     $stmt = $pdo->prepare("SELECT * FROM certificate_of_marriage WHERE id = :id AND status = 'Active' LIMIT 1 FOR UPDATE");
@@ -134,12 +137,21 @@ try {
     }
 
     if ($replacesId) {
-        $replaceStmt = $pdo->prepare("SELECT id, crf_number, marriage_record_id, status FROM crf_3a_issuances WHERE id = :id LIMIT 1");
+        $replaceStmt = $pdo->prepare("SELECT * FROM crf_3a_issuances WHERE id = :id LIMIT 1 FOR UPDATE");
         $replaceStmt->execute([':id' => $replacesId]);
         $replacement = $replaceStmt->fetch(PDO::FETCH_ASSOC);
-        if (!$replacement || (int)$replacement['marriage_record_id'] !== (int)$marriageRecordId || !in_array($replacement['status'], ['Active', 'Archived'], true)) {
+        if (!$replacement || (int)$replacement['marriage_record_id'] !== (int)$marriageRecordId || !in_array($replacement['issuance_kind'], ['Original', 'Corrected'], true)) {
             json_response(false, 'The original CRF record selected for correction is invalid or no longer available.', null, 422);
         }
+        $latestCurrent = crf_correction_latest_current($pdo, '3a', (int)$marriageRecordId);
+        if (!$latestCurrent || (int)$latestCurrent['id'] !== $replacesId) {
+            $pdo->rollBack();
+            json_response(false, 'This CRF has already been corrected. Reopen the latest issuance before generating another corrected copy.', null, 409);
+        }
+        if (!in_array($replacement['status'], ['Active', 'Archived'], true)) {
+            json_response(false, 'The original CRF record selected for correction is invalid or no longer available.', null, 422);
+        }
+        crf_correction_load_chain($pdo, '3a', $replacesId, true);
     }
 
     $duplicateKey = crf_3a_duplicate_key((int)$marriageRecordId, $inputs['amount_paid'], $inputs['or_number'], $inputs['date_paid'], $inputs['issue_date']);
@@ -218,9 +230,45 @@ try {
         ':filename' => basename($pdfAbsolutePath), ':filepath' => $relativePath, ':hash' => $hash, ':duplicate_key' => $duplicateKey, ':created_by' => getUserId(),
     ]);
     $issuanceId = (int)$pdo->lastInsertId();
-    crf_3a_record_history($pdo, $issuanceId, $crfNumber, 'generated', ucfirst($issuanceKind) . ' issuance generated from marriage record #' . (int)$marriageRecordId);
+    $generatedDetails = ucfirst($issuanceKind) . ' issuance generated from marriage record #' . (int)$marriageRecordId;
+    if ($issuanceKind === 'Corrected' && !empty($replacement['crf_number'])) $generatedDetails .= '; replaces ' . $replacement['crf_number'];
+    crf_3a_record_history($pdo, $issuanceId, $crfNumber, 'generated', $generatedDetails);
+    if ($issuanceKind === 'Corrected' && $replacement) {
+        $newRowStmt = $pdo->prepare('SELECT * FROM crf_3a_issuances WHERE id = :id LIMIT 1');
+        $newRowStmt->execute([':id' => $issuanceId]);
+        $newRow = $newRowStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+        crf_correction_record_diffs($pdo, '3a', $issuanceId, $crfNumber, $replacement, $newRow);
+
+        $priorStmt = $pdo->prepare("SELECT * FROM crf_3a_issuances WHERE marriage_record_id = :source_id AND id <> :current_id AND issuance_kind IN ('Original', 'Corrected') AND status IN ('Active', 'Archived', 'Voided') ORDER BY id ASC FOR UPDATE");
+        $priorStmt->execute([':source_id' => (int)$marriageRecordId, ':current_id' => $issuanceId]);
+        $supersededRows = $priorStmt->fetchAll(PDO::FETCH_ASSOC);
+        $voidStmt = $pdo->prepare("UPDATE crf_3a_issuances SET status = 'Voided' WHERE id = :id AND status IN ('Active', 'Archived')");
+        foreach ($supersededRows as $prior) {
+            if (in_array($prior['status'], ['Active', 'Archived'], true)) {
+                $voidStmt->execute([':id' => (int)$prior['id']]);
+                crf_3a_record_history($pdo, (int)$prior['id'], (string)$prior['crf_number'], 'voided', 'Superseded by ' . $crfNumber . ' in the corrected issuance chain.');
+            }
+        }
+    }
     $pdo->commit();
-    log_activity($pdo, 'Generate CRF No. 3A', "Generated {$crfNumber} for marriage record #{$marriageRecordId}", getUserId());
+    $issuanceCommitted = true;
+    if ($issuanceKind === 'Corrected') {
+        try {
+            crf_correction_cleanup_after_generation($pdo, '3a', [
+                'id' => $issuanceId,
+                'crf_number' => $crfNumber,
+                'pdf_filepath' => $relativePath,
+                'pdf_hash' => $hash,
+            ], $supersededRows);
+        } catch (Throwable $cleanupError) {
+            error_log('CRF 3A correction cleanup will need a retry: ' . $cleanupError->getMessage());
+        }
+    }
+    try {
+        log_activity($pdo, 'Generate CRF No. 3A', "Generated {$crfNumber} for marriage record #{$marriageRecordId}", getUserId());
+    } catch (Throwable $activityError) {
+        error_log('CRF 3A activity logging failed after generation: ' . $activityError->getMessage());
+    }
     $baseUrl = rtrim(defined('BASE_URL') ? BASE_URL : '/iscan/', '/');
     json_response(true, 'CRF No. 3A generated successfully.', [
         'issuance_id' => $issuanceId,
@@ -233,7 +281,7 @@ try {
     ]);
 } catch (Throwable $e) {
     if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
-    if ($pdfAbsolutePath && is_file($pdfAbsolutePath)) @unlink($pdfAbsolutePath);
+    if (!$issuanceCommitted && $pdfAbsolutePath && is_file($pdfAbsolutePath)) @unlink($pdfAbsolutePath);
     error_log('CRF 3A generation failed: ' . $e->getMessage());
     json_response(false, 'Unable to generate CRF No. 3A. Please try again.', null, 500);
 }
