@@ -200,6 +200,9 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
             grid-row: 4;
             width: 100%;
             min-width: 0;
+            background-color: #e9ecef !important;
+            color: #495057;
+            cursor: not-allowed;
         }
         .residence-form-group label[for$="_residence_province"] {
             grid-column: 3;
@@ -210,6 +213,9 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
             grid-row: 4;
             width: 100%;
             min-width: 0;
+            background-color: #e9ecef !important;
+            color: #495057;
+            cursor: not-allowed;
         }
         @media (max-width: 720px) {
             .residence-form-group {
@@ -613,11 +619,11 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
                                     <div class="form-group">
                                         <label for="husband_residence_municipality">Municipality <span class="required">*</span></label>
-                                        <input type="text" id="husband_residence_municipality" name="husband_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_residence_municipality'] ?? '') : '') ?: ($hr_outside ? '' : 'Baggao')); ?>" data-progress-default="<?php echo empty($record['husband_residence_municipality'] ?? '') && !$hr_outside ? 'Baggao' : ''; ?>" required>
+                                        <input type="text" id="husband_residence_municipality" name="husband_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_residence_municipality'] ?? '') : '') ?: ($hr_outside ? '' : 'Baggao')); ?>" data-progress-default="<?php echo empty($record['husband_residence_municipality'] ?? '') && !$hr_outside ? 'Baggao' : ''; ?>" required readonly>
                                     </div>
                                     <div class="form-group">
                                         <label for="husband_residence_province">Province <span class="required">*</span></label>
-                                        <input type="text" id="husband_residence_province" name="husband_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_residence_province'] ?? '') : '') ?: ($hr_outside ? '' : 'Cagayan')); ?>" data-progress-default="<?php echo empty($record['husband_residence_province'] ?? '') && !$hr_outside ? 'Cagayan' : ''; ?>" required>
+                                        <input type="text" id="husband_residence_province" name="husband_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_residence_province'] ?? '') : '') ?: ($hr_outside ? '' : 'Cagayan')); ?>" data-progress-default="<?php echo empty($record['husband_residence_province'] ?? '') && !$hr_outside ? 'Cagayan' : ''; ?>" required readonly>
                                     </div>
                                 </div>
                             </div>
@@ -719,11 +725,11 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
                                     <div class="form-group">
                                         <label for="husband_father_residence_municipality">Municipality</label>
-                                        <input type="text" id="husband_father_residence_municipality" name="husband_father_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_father_residence_municipality'] ?? '') : '') ?: ($hfr_outside ? '' : 'Baggao')); ?>">
+                                        <input type="text" id="husband_father_residence_municipality" name="husband_father_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_father_residence_municipality'] ?? '') : '') ?: ($hfr_outside ? '' : 'Baggao')); ?>" readonly>
                                     </div>
                                     <div class="form-group">
                                         <label for="husband_father_residence_province">Province</label>
-                                        <input type="text" id="husband_father_residence_province" name="husband_father_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_father_residence_province'] ?? '') : '') ?: ($hfr_outside ? '' : 'Cagayan')); ?>">
+                                        <input type="text" id="husband_father_residence_province" name="husband_father_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_father_residence_province'] ?? '') : '') ?: ($hfr_outside ? '' : 'Cagayan')); ?>" readonly>
                                     </div>
                                 </div>
                             </div>
@@ -805,11 +811,11 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
                                     <div class="form-group">
                                         <label for="husband_mother_residence_municipality">Municipality</label>
-                                        <input type="text" id="husband_mother_residence_municipality" name="husband_mother_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_mother_residence_municipality'] ?? '') : '') ?: ($hmr_outside ? '' : 'Baggao')); ?>">
+                                        <input type="text" id="husband_mother_residence_municipality" name="husband_mother_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_mother_residence_municipality'] ?? '') : '') ?: ($hmr_outside ? '' : 'Baggao')); ?>" readonly>
                                     </div>
                                     <div class="form-group">
                                         <label for="husband_mother_residence_province">Province</label>
-                                        <input type="text" id="husband_mother_residence_province" name="husband_mother_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_mother_residence_province'] ?? '') : '') ?: ($hmr_outside ? '' : 'Cagayan')); ?>">
+                                        <input type="text" id="husband_mother_residence_province" name="husband_mother_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_mother_residence_province'] ?? '') : '') ?: ($hmr_outside ? '' : 'Cagayan')); ?>" readonly>
                                     </div>
                                 </div>
                             </div>
@@ -1009,11 +1015,11 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
                                     <div class="form-group">
                                         <label for="wife_residence_municipality">Municipality <span class="required">*</span></label>
-                                        <input type="text" id="wife_residence_municipality" name="wife_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_residence_municipality'] ?? '') : '') ?: ($wr_outside ? '' : 'Baggao')); ?>" data-progress-default="<?php echo empty($record['wife_residence_municipality'] ?? '') && !$wr_outside ? 'Baggao' : ''; ?>" required>
+                                        <input type="text" id="wife_residence_municipality" name="wife_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_residence_municipality'] ?? '') : '') ?: ($wr_outside ? '' : 'Baggao')); ?>" data-progress-default="<?php echo empty($record['wife_residence_municipality'] ?? '') && !$wr_outside ? 'Baggao' : ''; ?>" required readonly>
                                     </div>
                                     <div class="form-group">
                                         <label for="wife_residence_province">Province <span class="required">*</span></label>
-                                        <input type="text" id="wife_residence_province" name="wife_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_residence_province'] ?? '') : '') ?: ($wr_outside ? '' : 'Cagayan')); ?>" data-progress-default="<?php echo empty($record['wife_residence_province'] ?? '') && !$wr_outside ? 'Cagayan' : ''; ?>" required>
+                                        <input type="text" id="wife_residence_province" name="wife_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_residence_province'] ?? '') : '') ?: ($wr_outside ? '' : 'Cagayan')); ?>" data-progress-default="<?php echo empty($record['wife_residence_province'] ?? '') && !$wr_outside ? 'Cagayan' : ''; ?>" required readonly>
                                     </div>
                                 </div>
                             </div>
@@ -1114,11 +1120,11 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
                                     <div class="form-group">
                                         <label for="wife_father_residence_municipality">Municipality</label>
-                                        <input type="text" id="wife_father_residence_municipality" name="wife_father_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_father_residence_municipality'] ?? '') : '') ?: ($wfr_outside ? '' : 'Baggao')); ?>">
+                                        <input type="text" id="wife_father_residence_municipality" name="wife_father_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_father_residence_municipality'] ?? '') : '') ?: ($wfr_outside ? '' : 'Baggao')); ?>" readonly>
                                     </div>
                                     <div class="form-group">
                                         <label for="wife_father_residence_province">Province</label>
-                                        <input type="text" id="wife_father_residence_province" name="wife_father_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_father_residence_province'] ?? '') : '') ?: ($wfr_outside ? '' : 'Cagayan')); ?>">
+                                        <input type="text" id="wife_father_residence_province" name="wife_father_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_father_residence_province'] ?? '') : '') ?: ($wfr_outside ? '' : 'Cagayan')); ?>" readonly>
                                     </div>
                                 </div>
                             </div>
@@ -1200,11 +1206,11 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
                                     <div class="form-group">
                                         <label for="wife_mother_residence_municipality">Municipality</label>
-                                        <input type="text" id="wife_mother_residence_municipality" name="wife_mother_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_mother_residence_municipality'] ?? '') : '') ?: ($wmr_outside ? '' : 'Baggao')); ?>">
+                                        <input type="text" id="wife_mother_residence_municipality" name="wife_mother_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_mother_residence_municipality'] ?? '') : '') ?: ($wmr_outside ? '' : 'Baggao')); ?>" readonly>
                                     </div>
                                     <div class="form-group">
                                         <label for="wife_mother_residence_province">Province</label>
-                                        <input type="text" id="wife_mother_residence_province" name="wife_mother_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_mother_residence_province'] ?? '') : '') ?: ($wmr_outside ? '' : 'Cagayan')); ?>">
+                                        <input type="text" id="wife_mother_residence_province" name="wife_mother_residence_province" placeholder="Enter province" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_mother_residence_province'] ?? '') : '') ?: ($wmr_outside ? '' : 'Cagayan')); ?>" readonly>
                                     </div>
                                 </div>
                             </div>
