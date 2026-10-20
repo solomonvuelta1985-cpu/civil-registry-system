@@ -170,7 +170,7 @@ SESSION_TIMEOUT=7200  # 2 hours
 - [ ] Set `APP_ENV=production`
 - [ ] Enable HTTPS
 - [ ] Secure file permissions
-- [ ] Remove default admin
+- [ ] Review any seeded Admin account and secure or remove unused accounts
 - [ ] Test all security features
 
 ---

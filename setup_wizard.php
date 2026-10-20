@@ -692,7 +692,9 @@ $step = $_SESSION['wizard_step'];
                                 '004_add_citizenship_to_birth_certificates.sql',
                                 '005_add_barangay_and_time_of_birth.sql',
                                 '006_registered_devices.sql',
-                                '007_add_pdf_hash.sql'
+                                '007_add_pdf_hash.sql',
+                                '056_super_admin_mfa.sql',
+                                '057_super_admin_mfa_authenticators.sql'
                             ];
 
                             foreach ($migrations as $migration) {
@@ -865,7 +867,7 @@ $step = $_SESSION['wizard_step'];
                     <div class="alert alert-warning">
                         <strong>⚠️ Important Security Steps:</strong>
                         <ul style="margin-top: 10px; margin-left: 20px;">
-                            <li>Change the default admin password (admin/admin123) immediately after login</li>
+                            <li>Use only the active Admin account provisioned for this database; the current base schema has no default login</li>
                             <li>Install SSL certificate via cPanel for HTTPS</li>
                             <li>Set ENABLE_HSTS=true in .env after SSL is working</li>
                             <li>Delete setup_wizard.php after setup completes</li>
@@ -905,12 +907,7 @@ $step = $_SESSION['wizard_step'];
                         <p style="margin-bottom: 10px;"><strong>1. Access Your Application:</strong></p>
                         <div class="code-block"><?= htmlspecialchars($appUrl) ?></div>
 
-                        <p style="margin-bottom: 10px; margin-top: 20px;"><strong>2. Default Login Credentials:</strong></p>
-                        <div class="code-block">Username: admin
-Password: admin123</div>
-
-                        <p style="margin-bottom: 10px; margin-top: 20px;"><strong>3. Change Admin Password:</strong></p>
-                        <p style="color: #6b7280; font-size: 14px;">After logging in: Admin Panel → Users → Edit admin → Change Password</p>
+                        <p style="margin-bottom: 10px; margin-top: 20px;"><strong>2. Sign in with the provisioned Admin account:</strong></p><p style="color: #6b7280; font-size: 14px;">The base schema does not create default credentials. Use the active Admin account provisioned for this database.</p><p style="margin-bottom: 10px; margin-top: 20px;"><strong>3. Bootstrap Super Admin MFA:</strong></p><p style="color: #6b7280; font-size: 14px;">Configure MFA_ENCRYPTION_KEY, run scripts/bootstrap_super_admin.php from the server terminal, then complete authenticator enrollment and save the one-time recovery codes.</p>
 
                         <p style="margin-bottom: 10px; margin-top: 20px;"><strong>4. Security Recommendations:</strong></p>
                         <ul style="margin-left: 20px; color: #6b7280; font-size: 14px;">

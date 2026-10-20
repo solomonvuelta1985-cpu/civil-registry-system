@@ -8,7 +8,7 @@ Use `scripts/pdf_protection_resumable_worker.php` for large recovery or backup b
 php scripts/pdf_protection_resumable_worker.php --mode=recovery --source=<external-source-root> --destination=<uploads-root> --dry-run
 ```
 
-The command returns a job ID and leaves the job in `preview_ready`. An administrator may approve it through `api/pdf_protection_job_control.php` with the `approve` action, then execute the same job with `--job-id=N` without `--dry-run`.
+The command returns a job ID and leaves the job in `preview_ready`. A Super Admin may approve it through `api/pdf_protection_job_control.php` with the `approve` action, then execute the same job with `--job-id=N` without `--dry-run`.
 
 ## Chunked execution
 
@@ -21,7 +21,7 @@ The first command creates the job. Later commands reuse its inventory and do not
 
 ## Pause, resume, cancel, and retry
 
-The admin-only POST endpoint `api/pdf_protection_job_control.php` accepts:
+The Super Admin-only POST endpoint `api/pdf_protection_job_control.php` accepts:
 
 - `pause`: stops at the next file boundary;
 - `resume`: places a paused job back in the queue;
@@ -33,7 +33,7 @@ After `resume` or `retry`, run the worker again with the same `job_id`. No PDF i
 
 ## Downloadable reports
 
-Administrators can download the complete job report, including every source hash, mapping decision, attempt count, error, and final status:
+Super Admins can download the complete job report, including every source hash, mapping decision, attempt count, error, and final status:
 
 ```text
 /api/pdf_protection_job_report.php?job_id=N&format=csv
@@ -41,3 +41,6 @@ Administrators can download the complete job report, including every source hash
 ```
 
 Always retain the report with the recovery batch record and review `needs_review`, `unmatched`, `invalid_pdf`, `corrupt_source`, and `failed` items before reopening production writes.
+
+
+Controlled production recovery requires two active Super Admin accounts and two distinct approvals. See [SUPER_ADMIN_MFA.md](SUPER_ADMIN_MFA.md) for role, MFA, and recovery requirements.

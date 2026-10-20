@@ -2,7 +2,7 @@
 /**
  * API: Serve a PDF Backup File (Preview / Download)
  * Streams a backup file inline (preview) or as attachment (download).
- * Admin access required.
+ * Super Admin access required.
  *
  * GET params:
  *   id          (int)    pdf_backups.id
@@ -16,7 +16,7 @@ require_once '../includes/auth.php';
 require_once '../includes/security.php';
 
 if (!isLoggedIn())            { http_response_code(401); exit('Not authenticated'); }
-if (getUserRole() !== 'Admin'){ http_response_code(403); exit('Admin access required'); }
+if (!isSuperAdmin()){ http_response_code(403); exit('Super Admin access required'); }
 
 $backup_id   = (int)($_GET['id'] ?? 0);
 $disposition = ($_GET['disposition'] ?? 'inline') === 'attachment' ? 'attachment' : 'inline';

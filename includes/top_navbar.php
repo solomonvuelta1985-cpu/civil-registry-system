@@ -40,6 +40,12 @@ $_nav_username  = function_exists('getUsername')     ? getUsername()     : '';
                         </div>
                     </div>
                 </div>
+                <?php if (function_exists('isSuperAdmin') && isSuperAdmin()): ?>
+                <a href="<?= htmlspecialchars(rtrim(BASE_URL, '/') . '/public/mfa_management.php', ENT_QUOTES, 'UTF-8') ?>" class="dropdown-item">
+                    <i data-lucide="shield-check" aria-hidden="true"></i>
+                    <span>My MFA</span>
+                </a>
+                <?php endif; ?>
                 <button type="button" class="dropdown-item change-password-item" id="changePasswordOpen" data-change-password-open aria-haspopup="dialog" aria-expanded="false" aria-controls="changePasswordModal">
                     <i data-lucide="key-round" aria-hidden="true"></i>
                     <span>Change Password</span>

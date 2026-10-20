@@ -18,7 +18,7 @@ $notificationPdo = isset($pdo) && $pdo instanceof PDO ? $pdo : null;
 if ($notificationPdo) app_notification_sync_maintenance($notificationPdo);
 $role = $_SESSION['user_role'] ?? null;
 $loggedIn = !empty($_SESSION['user_id']);
-$shouldLogout = $isOn && $loggedIn && $role !== 'Admin';
+$shouldLogout = $isOn && $loggedIn && !in_array($role, ['Admin', 'Super Admin'], true);
 
 echo json_encode([
     'maintenance' => $isOn,

@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS `application_for_marriage_license` (
 
 -- =====================================================
 -- Note: This system uses role-based access control via
--- the users.role ENUM field (Admin, Encoder, Viewer).
+-- the users.role ENUM field (Super Admin, Admin, Encoder, Viewer).
 -- No separate permissions table is required.
 --
 -- Access Control:

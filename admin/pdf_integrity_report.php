@@ -18,6 +18,14 @@ setSecurityHeaders();
 
 $csrfMeta  = csrfTokenMeta();
 $csrfField = csrfTokenField();
+$canRestorePdfInventory = false;
+if (isSuperAdmin()) {
+    try {
+        $canRestorePdfInventory = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role='Super Admin' AND status='Active'")->fetchColumn() >= 2;
+    } catch (Throwable $e) {
+        $canRestorePdfInventory = false;
+    }
+}
 
 // Count last-30-day integrity events for summary
 try {
@@ -587,9 +595,9 @@ try {
         <button id="run-scan-btn" class="btn btn-primary">
             <i data-lucide="search" style="width:16px;height:16px;"></i> Run Full Integrity Scan
         </button>
-        <button id="backfill-all-btn" class="btn btn-secondary">
+        <?php if (isSuperAdmin()): ?><button id="backfill-all-btn" class="btn btn-secondary">
             <i data-lucide="hash" style="width:16px;height:16px;"></i> Backfill All Missing Hashes
-        </button>
+        </button><?php endif; ?>
         <span>Current PDFs available for scanning: <strong><?= number_format($totalPdfs) ?></strong></span>
     </div>
 
@@ -675,6 +683,8 @@ try {
 lucide.createIcons();
 
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+const canManagePdfInventoryRepairs = <?= isSuperAdmin() ? 'true' : 'false' ?>;
+const canRestorePdfInventory = <?= $canRestorePdfInventory ? 'true' : 'false' ?>;
 let allResults = [];
 let scanCounts = { total: 0, ok: 0, corrupt: 0, missing: 0, no_hash: 0 };
 let resultPage = 1;
@@ -851,14 +861,16 @@ function buildRow(r) {
 
     let actions = '';
     if (status === 'no_hash') {
-        actions = `<button class="action-btn btn-backfill" onclick="backfillHash(${JSON.stringify(certType)}, ${recordId}, this)">
+        actions = canManagePdfInventoryRepairs ? `<button class="action-btn btn-backfill" onclick="backfillHash(${JSON.stringify(certType)}, ${recordId}, this)">
                     <i data-lucide="hash" style="width:13px;height:13px;"></i> Backfill Hash
-                   </button>`;
+                   </button>` : '<span style="color:#94a3b8;font-size:.8rem;">-</span>';
     } else if (status === 'corrupt' || status === 'missing') {
-        if (r.backup_id) {
+        if (r.backup_id && canRestorePdfInventory) {
             actions = `<button class="action-btn btn-restore" onclick="restoreBackup(${Number(r.backup_id) || 0}, ${recordId}, this)">
                         <i data-lucide="archive-restore" style="width:13px;height:13px;"></i> Restore Backup
                        </button>`;
+        } else if (r.backup_id) {
+            actions = '<span style="color:#94a3b8;font-size:.8rem;">-</span>';
         } else {
             actions = `<span class="action-btn btn-disabled"><i data-lucide="x" style="width:13px;height:13px;"></i> No Backup</span>`;
         }
@@ -919,12 +931,13 @@ async function backfillHash(certType, recordId, btn) {
 }
 
 // ── Backfill All ──────────────────────────────────────────────────────────────
-document.getElementById('backfill-all-btn').addEventListener('click', async () => {
+const backfillAllButton = document.getElementById('backfill-all-btn');
+if (backfillAllButton) backfillAllButton.addEventListener('click', async () => {
     const noHashRows = allResults.filter(r => r.status === 'no_hash');
     if (noHashRows.length === 0) { alert('No records need backfilling.'); return; }
     if (!confirm(`Backfill SHA-256 hashes for ${noHashRows.length} records? This may take a moment.`)) return;
 
-    const btn = document.getElementById('backfill-all-btn');
+    const btn = backfillAllButton;
     btn.disabled = true;
     btn.textContent = 'Backfilling…';
 

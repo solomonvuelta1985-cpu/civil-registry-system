@@ -26,9 +26,9 @@ if (!isLoggedIn()) {
     echo json_encode(['registered' => false, 'error' => 'Not authenticated']);
     exit;
 }
-if (getUserRole() !== 'Admin') {
+if (!isSuperAdmin()) {
     http_response_code(403);
-    echo json_encode(['registered' => false, 'error' => 'Admin access required']);
+    echo json_encode(['registered' => false, 'error' => 'Super Admin access required']);
     exit;
 }
 

@@ -13,12 +13,7 @@ require_once '../includes/settings.php';
 require_once '../includes/branding.php';
 require_once '../includes/notifications.php';
 
-requireAuth();
-if (!isAdmin()) {
-    http_response_code(403);
-    header('Location: ' . BASE_URL . 'admin/dashboard.php');
-    exit;
-}
+requireSuperAdmin();
 
 /**
  * Settings rendered on this page. Add an entry here to expose a new toggle.

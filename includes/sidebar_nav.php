@@ -6,8 +6,8 @@ require_once __DIR__ . '/security.php';
 $__sidebar_user_name = function_exists('getUserFullName') ? getUserFullName() : 'User';
 $__sidebar_user_role = function_exists('getUserRole') ? getUserRole() : '';
 $__sidebar_user_initial = strtoupper(substr(trim((string)$__sidebar_user_name), 0, 1)) ?: 'U';
-$__is_admin=function_exists('isAdmin')?isAdmin():false;$__pending_devices=0;
-if($__is_admin){if(!function_exists('countPendingDevices'))@require_once __DIR__.'/device_auth.php';if(function_exists('countPendingDevices')){try{$__pending_devices=countPendingDevices();}catch(Throwable $e){$__pending_devices=0;}}}
+$__is_admin=function_exists('isAdmin')?isAdmin():false;$__is_super_admin=function_exists('isSuperAdmin')?isSuperAdmin():false;$__pending_devices=0;
+if($__is_super_admin){if(!function_exists('countPendingDevices'))@require_once __DIR__.'/device_auth.php';if(function_exists('countPendingDevices')){try{$__pending_devices=countPendingDevices();}catch(Throwable $e){$__pending_devices=0;}}}
 ?>
 <nav class="sidebar" id="sidebar"><div class="sidebar-header"><div class="sidebar-logo"><img src="<?= htmlspecialchars(branding_logo_url('app'), ENT_QUOTES, 'UTF-8') ?>" alt="CRDMS Logo"></div><div class="sidebar-brand-copy"><h4><span>CRDMS</span></h4><small class="sidebar-brand-subtitle">Civil Registry &amp; Document Management System</small></div></div><ul class="sidebar-menu">
 <li class="sidebar-heading">Dashboard</li><li><a href="<?= BASE_URL ?>admin/dashboard.php" class="<?php echo ($current_page=='dashboard.php'||$current_page=='dashboard_modern.php')?'active':''; ?>" title="Dashboard Overview"><i data-lucide="layout-grid"></i> <span>Dashboard</span></a></li>
@@ -115,6 +115,13 @@ $__maintenance_groups = [
         ],
     ],
 ];
+if (!$__is_super_admin) {
+    unset($__maintenance_groups['backup-restore'], $__maintenance_groups['system']);
+    $__maintenance_groups['pdf-operations']['items'] = array_values(array_filter(
+        $__maintenance_groups['pdf-operations']['items'],
+        static fn($item) => in_array($item['page'], ['pdf_integrity_report.php', 'pdf_reconciliation.php'], true)
+    ));
+}
 $__active_maintenance_group = null;
 foreach ($__maintenance_groups as $__group_key => $__group) {
     foreach ($__group['items'] as $__item) {
@@ -151,7 +158,7 @@ foreach ($__maintenance_groups as $__group_key => $__group) {
         </ul>
     </li>
 <?php endforeach; ?>
-<li class="sidebar-divider"></li><li class="sidebar-heading">Administration</li><li><a href="<?= BASE_URL ?>admin/users.php" class="<?php echo $current_page=='users.php'?'active':''; ?>" title="Manage System Users"><i data-lucide="users"></i> <span>Users</span></a></li><li><a href="<?= BASE_URL ?>admin/security_logs.php" class="<?php echo $current_page=='security_logs.php'?'active':''; ?>" title="Security Logs"><i data-lucide="shield"></i> <span>Security Logs</span></a></li><li><a href="<?= BASE_URL ?>admin/activity_logs.php" class="<?php echo $current_page=='activity_logs.php'?'active':''; ?>" title="User Activity Logs"><i data-lucide="history"></i> <span>Activity Logs</span></a></li><li><a href="<?= BASE_URL ?>admin/settings.php" class="<?php echo $current_page=='settings.php'?'active':''; ?>" title="System Configuration"><i data-lucide="settings"></i> <span>Settings</span></a></li><?php endif; ?>
+<li class="sidebar-divider"></li><li class="sidebar-heading">Administration</li><li><a href="<?= BASE_URL ?>admin/users.php" class="<?php echo $current_page=='users.php'?'active':''; ?>" title="Manage System Users"><i data-lucide="users"></i> <span>Users</span></a></li><li><a href="<?= BASE_URL ?>admin/security_logs.php" class="<?php echo $current_page=='security_logs.php'?'active':''; ?>" title="Security Logs"><i data-lucide="shield"></i> <span>Security Logs</span></a></li><li><a href="<?= BASE_URL ?>admin/activity_logs.php" class="<?php echo $current_page=='activity_logs.php'?'active':''; ?>" title="User Activity Logs"><i data-lucide="history"></i> <span>Activity Logs</span></a></li><?php if($__is_super_admin): ?><li><a href="<?= htmlspecialchars(BASE_URL . 'public/mfa_management.php', ENT_QUOTES, 'UTF-8') ?>" class="<?= $current_page === 'mfa_management.php' ? 'active' : '' ?>" title="Manage authenticator devices"><i data-lucide="shield-check"></i> <span>My MFA</span></a></li><li><a href="<?= BASE_URL ?>admin/settings.php" class="<?php echo $current_page=='settings.php'?'active':''; ?>" title="System Configuration"><i data-lucide="settings"></i> <span>Settings</span></a></li><?php endif; ?><?php endif; ?>
 </ul>
 <div class="sidebar-mobile-account" aria-label="Account actions">
     <div class="sidebar-mobile-account-user">

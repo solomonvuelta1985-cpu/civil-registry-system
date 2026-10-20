@@ -16,7 +16,7 @@ require_once '../includes/security.php';
 require_once '../includes/device_auth.php';
 
 requireAuth();
-requireAdmin();
+requireSuperAdmin();
 setSecurityHeaders();
 
 $devices      = getAllDevices();

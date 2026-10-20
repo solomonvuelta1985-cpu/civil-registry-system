@@ -79,7 +79,7 @@ iscan/
    - Database: `iscan_db`
    - Tables: `certificate_of_live_birth`, `users`, `activity_logs`
    - Views: `vw_active_certificates`, `vw_certificate_statistics`
-   - Default admin user (username: `admin`, password: `admin123`)
+   - `database_schema.sql` does not seed a default account; provision an active Admin before first login
 
 ### Step 2: Configure Database Connection
 

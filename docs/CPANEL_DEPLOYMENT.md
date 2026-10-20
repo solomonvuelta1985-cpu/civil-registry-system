@@ -283,6 +283,9 @@ DB_NAME=cpanel_username_iscan_db
 DB_USER=cpanel_username_iscan_user
 DB_PASS=paste_your_generated_password_here
 
+# Generate a dedicated base64 key from 32 random bytes; see SUPER_ADMIN_MFA.md.
+MFA_ENCRYPTION_KEY=PASTE_BASE64_KEY_HERE
+
 # Base URL (adjust based on your domain)
 BASE_URL=/iscan/
 
@@ -582,31 +585,9 @@ http://yourdomain.com/iscan/
 
 ---
 
-### B. Default Login Credentials
+### B. Sign-in and Super Admin setup
 
-| Field | Value |
-|-------|-------|
-| **Username** | `admin` |
-| **Password** | `admin123` |
-
----
-
-### C. **CRITICAL: Change Password Immediately**
-
-After first login:
-1. Go to **Admin Panel** > **Users**
-2. Find **admin** user
-3. Click **Edit** (pencil icon)
-4. Enter new strong password
-5. Click **Save**
-
-**Or** use the profile menu:
-1. Click **admin** (top-right corner)
-2. Select **Profile** or **Change Password**
-3. Enter new password
-4. Save
-
----
+Use the active Admin account provisioned for this database. The current `database_schema.sql` does not seed a default login. For an existing installation, back up the database and apply migrations 056 and 057 in order before activating the updated authentication code; configure `MFA_ENCRYPTION_KEY`, deploy the code, and promote the selected active Admin with `scripts/bootstrap_super_admin.php`. Complete authenticator enrollment and save the one-time recovery codes. Follow [SUPER_ADMIN_MFA.md](SUPER_ADMIN_MFA.md) for full instructions.
 
 ### D. Quick Functionality Test
 
@@ -852,7 +833,7 @@ After first login:
 
 ### Critical Security Steps
 
-- [ ] **Change default admin password** (admin/admin123 is PUBLIC KNOWLEDGE)
+- [ ] **Complete Super Admin MFA bootstrap** and store recovery codes securely
 - [ ] **Enable HTTPS** (install SSL certificate)
 - [ ] **Set ENABLE_HSTS=true** in `.env` (after SSL is working)
 - [ ] **Delete setup_wizard.php** (if it still exists)
@@ -867,7 +848,7 @@ After first login:
 ### Optional Hardening
 
 - [ ] **IP whitelist for admin panel** (edit .htaccess to restrict /admin/)
-- [ ] **Two-factor authentication** (if added as feature)
+- [ ] **Complete mandatory authenticator MFA** for every Super Admin and store recovery codes securely
 - [ ] **Regular password rotation** (set PASSWORD_EXPIRY_DAYS in .env)
 - [ ] **Monitor file changes** (cPanel File Manager for unexpected modifications)
 - [ ] **Enable WAF** (Web Application Firewall if host provides)
@@ -1023,15 +1004,9 @@ On VPS, you'll have full access to:
 
 ---
 
-### Default Login
+### Sign-in and Super Admin setup
 
-| Field | Value |
-|-------|-------|
-| URL | `https://yourdomain.com/iscan/` |
-| Username | `admin` |
-| Password | `admin123` |
-
-> **⚠️ CHANGE PASSWORD IMMEDIATELY AFTER FIRST LOGIN!**
+Use the active Admin account provisioned for the database. Follow [SUPER_ADMIN_MFA.md](SUPER_ADMIN_MFA.md) to configure the encryption key, apply the migration, bootstrap the first Super Admin, and complete MFA enrollment.
 
 ---
 

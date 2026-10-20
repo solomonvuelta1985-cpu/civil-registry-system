@@ -696,7 +696,7 @@ $user_first_name = explode(' ', $user_name)[0];
 
 
             <div class="system-checks">
-                <?php if (getUserRole() === 'Admin'): ?>
+                <?php if (isAdmin()): ?>
                     <?php $pdf_has_issues = ($stats['pdf_integrity_issues'] ?? 0) > 0; ?>
                     <a class="system-check <?= $pdf_has_issues ? 'has-issues' : 'healthy' ?>" href="pdf_integrity_report.php"><span class="check-icon"><i data-lucide="<?= $pdf_has_issues ? 'shield-alert' : 'shield-check' ?>" aria-hidden="true"></i></span><div><strong>PDF Inventory &amp; Integrity</strong><p><?= $pdf_has_issues ? number_format($stats['pdf_integrity_issues']) . ' issue(s) detected in the last 30 days' : 'Review current PDFs and file health' ?></p><small>Scan current PDFs; restore an old version when needed</small></div><i class="fas fa-chevron-right" aria-hidden="true"></i></a>
                 <?php endif; ?>

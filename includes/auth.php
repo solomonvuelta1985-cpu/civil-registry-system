@@ -20,10 +20,10 @@ function isLoggedIn() {
     }
     global $pdo;
     try {
-        $stmt = $pdo->prepare('SELECT id, username, full_name, email, role, status, password FROM users WHERE id = :id LIMIT 1');
+        $stmt = $pdo->prepare('SELECT id, username, full_name, email, role, status, password, require_2fa, mfa_enabled_at, mfa_session_version FROM users WHERE id = :id LIMIT 1');
         $stmt->execute([':id' => (int)$_SESSION['user_id']]);
         $user = $stmt->fetch();
-        if (!$user || $user['status'] !== 'Active' || !in_array($user['role'], ['Admin', 'Encoder', 'Viewer'], true)) {
+        if (!$user || $user['status'] !== 'Active' || !in_array($user['role'], ['Super Admin', 'Admin', 'Encoder', 'Viewer'], true)) {
             logoutUser();
             return false;
         }
@@ -32,6 +32,17 @@ function isLoggedIn() {
         $fingerprint = hash('sha256', (string)$user['password']);
         if (empty($_SESSION['password_fingerprint']) || !hash_equals($_SESSION['password_fingerprint'], $fingerprint)
             || ($_SESSION['user_role'] ?? '') !== $user['role']) {
+            logoutUser();
+            return false;
+        }
+        // A Super Admin session is valid only after TOTP enrollment succeeded.
+        if ($user['role'] === 'Super Admin'
+            && (empty($user['require_2fa']) || empty($user['mfa_enabled_at']))) {
+            logoutUser();
+            return false;
+        }
+        if ($user['role'] === 'Super Admin'
+            && (int)($_SESSION['mfa_session_version'] ?? 0) !== (int)$user['mfa_session_version']) {
             logoutUser();
             return false;
         }
@@ -96,8 +107,9 @@ function hasPermission($permission_name) {
         return false;
     }
 
-    // Admin has all permissions
-    if (getUserRole() === 'Admin') {
+    // Admin and Super Admin have all operational permissions. Super Admin-only
+    // system controls are guarded separately with requireSuperAdmin().
+    if (in_array(getUserRole(), ['Admin', 'Super Admin'], true)) {
         return true;
     }
 
@@ -212,7 +224,25 @@ function getAllArchivePermissions() {
  * Check if current user is Admin
  */
 function isAdmin() {
-    return getUserRole() === 'Admin';
+    return in_array(getUserRole(), ['Admin', 'Super Admin'], true);
+}
+
+/** Check whether the current account is the highest-privilege role. */
+function isSuperAdmin() {
+    return getUserRole() === 'Super Admin';
+}
+
+/** Check whether a role may manage a target account role. */
+function canManageUserRole($targetRole) {
+    if (!in_array($targetRole, ['Super Admin', 'Admin', 'Encoder', 'Viewer'], true)) {
+        return false;
+    }
+    return isSuperAdmin() || (isAdmin() && in_array($targetRole, ['Encoder', 'Viewer'], true));
+}
+
+/** Identify roles that are hidden from ordinary Admin user-management views. */
+function isPrivilegedUserRole($role) {
+    return in_array($role, ['Super Admin', 'Admin'], true);
 }
 
 /**
@@ -251,7 +281,7 @@ function requireAuth() {
  * Maintenance Mode guard.
  *
  * When the `maintenance_mode` system setting is ON:
- *   - Admins pass through untouched.
+ *   - Admins and Super Admins pass through untouched.
  *   - Anyone else (including unauthenticated visitors and any logged-in
  *     Encoder/Viewer) has their session destroyed and is redirected to
  *     public/maintenance.php.
@@ -267,14 +297,19 @@ function enforceMaintenanceMode() {
     if (!function_exists('get_setting')) return;
     if (!maintenance_is_active()) return;
 
-    // Admins always pass through.
-    if (isLoggedIn() && isAdmin()) return;
+    // Administrative accounts always pass through. A Super Admin who has
+    // completed password verification may also reach the MFA enrollment page.
+    $pendingSuperAdminMfa = (string)($_SESSION['pending_mfa_role'] ?? '') === 'Super Admin'
+        && !empty($_SESSION['pending_mfa_user_id']);
+    if ((isLoggedIn() && isAdmin()) || $pendingSuperAdminMfa) return;
 
     $script = $_SERVER['SCRIPT_NAME'] ?? '';
     $basename = basename($script);
 
-    // Allow the maintenance page itself and the login page (so Admins can sign in).
-    if ($basename === 'maintenance.php' || $basename === 'login.php') return;
+    // Allow maintenance/login pages and the restricted MFA step for a pending
+    // Super Admin so they can complete authentication during maintenance.
+    if ($basename === 'maintenance.php' || $basename === 'login.php'
+        || ($basename === 'mfa.php' && $pendingSuperAdminMfa)) return;
 
     // Destroy any non-admin session so the user is fully logged out.
     if (isLoggedIn()) {
@@ -325,6 +360,17 @@ function requireAdmin() {
     }
 }
 
+/** Require the Super Admin role for a page. */
+function requireSuperAdmin() {
+    requireAuth();
+
+    if (!isSuperAdmin()) {
+        http_response_code(403);
+        include __DIR__ . '/../public/403.php';
+        exit;
+    }
+}
+
 /**
  * Require Admin role for an API endpoint.
  * Emits a JSON 403 (instead of an HTML 403 page) and logs the denied attempt
@@ -366,6 +412,34 @@ function requireAdminApi($message = 'Only administrators can perform this action
     }
 }
 
+/** Require the Super Admin role for an API endpoint. */
+function requireSuperAdminApi($message = 'Only Super Administrators can perform this action.') {
+    if (!isLoggedIn()) {
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+            http_response_code(401);
+        }
+        echo json_encode(['success' => false, 'message' => 'Unauthorized access. Please log in.', 'data' => null]);
+        exit;
+    }
+
+    if (!isSuperAdmin()) {
+        if (function_exists('logSecurityEvent')) {
+            logSecurityEvent('SUPER_ADMIN_ACTION_DENIED', 'HIGH', [
+                'endpoint' => $_SERVER['SCRIPT_NAME'] ?? 'unknown',
+                'role' => getUserRole() ?? 'unknown',
+                'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+            ], getUserId());
+        }
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+            http_response_code(403);
+        }
+        echo json_encode(['success' => false, 'message' => $message, 'data' => null]);
+        exit;
+    }
+}
+
 /**
  * Get all permissions for a role
  */
@@ -393,7 +467,7 @@ function authenticateUser($username, $password) {
     global $pdo;
 
     try {
-        $sql = "SELECT id, username, password, full_name, email, role, status
+        $sql = "SELECT id, username, password, full_name, email, role, status, mfa_session_version
                 FROM users WHERE username = :username AND status = 'Active'";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([':username' => $username]);
@@ -428,6 +502,11 @@ function setUserSession($user) {
     $_SESSION['full_name'] = $user['full_name'];
     $_SESSION['email'] = $user['email'] ?? '';
     $_SESSION['password_fingerprint'] = hash('sha256', (string)$user['password']);
+    if (($user['role'] ?? '') === 'Super Admin') {
+        $_SESSION['mfa_session_version'] = (int)($user['mfa_session_version'] ?? 1);
+    } else {
+        unset($_SESSION['mfa_session_version']);
+    }
     $_SESSION['CREATED'] = time();
     $_SESSION['LAST_ACTIVITY'] = time();
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));

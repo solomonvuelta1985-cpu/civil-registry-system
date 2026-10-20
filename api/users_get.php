@@ -39,6 +39,12 @@ try {
         exit;
     }
 
+    if (!canManageUserRole((string)$user['role'])) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'User not found']);
+        exit;
+    }
+
     // Format dates
     $user['created_at_formatted'] = date('M d, Y', strtotime($user['created_at']));
     $user['last_login_formatted'] = $user['last_login'] ? date('M d, Y H:i', strtotime($user['last_login'])) : 'Never';

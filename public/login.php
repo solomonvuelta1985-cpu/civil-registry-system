@@ -3,6 +3,7 @@ require_once '../includes/session_config.php';
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../includes/mfa.php';
 require_once '../includes/security.php';
 require_once '../includes/security_headers.php';
 require_once '../includes/device_auth.php';
@@ -137,7 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         clearRateLimit($rate_limit_identifier);
 
                         // Maintenance Mode — only Admins can log in while ON.
-                        if (maintenance_is_active() && ($user['role'] ?? '') !== 'Admin') {
+                        if (maintenance_is_active() && !in_array(($user['role'] ?? ''), ['Admin', 'Super Admin'], true)) {
                             logSecurityEvent('LOGIN_BLOCKED_MAINTENANCE', 'LOW', "Non-admin login blocked during maintenance: {$username}", $user['id']);
                             header('Location: maintenance.php');
                             exit;
@@ -146,6 +147,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // Device Lock Gate — runs only when ENABLE_DEVICE_LOCK=true.
                         // Exits internally if device is not Active (Pending/Revoked/Unknown).
                         deviceLockGate($user);
+
+                        if (($user['role'] ?? '') === 'Super Admin') {
+                            mfa_begin_pending_session($user);
+                            logSecurityEvent('MFA_CHALLENGE_STARTED', 'LOW', 'Super Admin passed password and device checks', (int)$user['id']);
+                            header('Location: mfa.php');
+                            exit;
+                        }
 
                         // Set user session
                         setUserSession($user);
@@ -166,12 +174,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $user = authenticateUser($username, $password);
 
                 if ($user) {
-                    if (maintenance_is_active() && ($user['role'] ?? '') !== 'Admin') {
+                    if (maintenance_is_active() && !in_array(($user['role'] ?? ''), ['Admin', 'Super Admin'], true)) {
                         logSecurityEvent('LOGIN_BLOCKED_MAINTENANCE', 'LOW', "Non-admin login blocked during maintenance: {$username}", $user['id']);
                         header('Location: maintenance.php');
                         exit;
                     }
                     deviceLockGate($user);
+                    if (($user['role'] ?? '') === 'Super Admin') {
+                        mfa_begin_pending_session($user);
+                        logSecurityEvent('MFA_CHALLENGE_STARTED', 'LOW', 'Super Admin passed password and device checks', (int)$user['id']);
+                        header('Location: mfa.php');
+                        exit;
+                    }
                     setUserSession($user);
                     log_activity($pdo, 'login', 'User logged in', $user['id']);
                     logSecurityEvent('LOGIN_SUCCESS', 'LOW', "Successful login for user: {$username}", $user['id']);

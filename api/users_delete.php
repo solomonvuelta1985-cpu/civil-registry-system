@@ -40,29 +40,49 @@ if (empty($input['id'])) {
 $user_id = (int)$input['id'];
 
 // Prevent self-deletion
-if ($user_id === getUserId()) {
+if ($user_id === (int)getUserId()) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'You cannot delete your own account']);
     exit;
 }
 
 try {
+    $pdo->beginTransaction();
     // Check if user exists
-    $check_sql = "SELECT id, username, role FROM users WHERE id = :id";
+    $check_sql = "SELECT id, username, role, status FROM users WHERE id = :id FOR UPDATE";
     $check_stmt = $pdo->prepare($check_sql);
     $check_stmt->execute([':id' => $user_id]);
     $existing_user = $check_stmt->fetch();
 
     if (!$existing_user) {
+        $pdo->rollBack();
         http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'User not found']);
         exit;
+    }
+
+    if (!canManageUserRole((string)$existing_user['role'])) {
+        $pdo->rollBack();
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'User not found']);
+        exit;
+    }
+
+    if ($existing_user['role'] === 'Super Admin' && $existing_user['status'] === 'Active') {
+        $countStmt = $pdo->query("SELECT id FROM users WHERE role='Super Admin' AND status='Active' ORDER BY id FOR UPDATE");
+        if (count($countStmt->fetchAll(PDO::FETCH_COLUMN)) <= 1) {
+            $pdo->rollBack();
+            http_response_code(409);
+            echo json_encode(['success' => false, 'message' => 'At least one active Super Admin account must remain.']);
+            exit;
+        }
     }
 
     // Soft delete - set status to Inactive
     $sql = "UPDATE users SET status = 'Inactive' WHERE id = :id";
     $stmt = $pdo->prepare($sql);
     $stmt->execute([':id' => $user_id]);
+    $pdo->commit();
 
     // Log activity
     log_activity($pdo, 'delete', "Deleted user: {$existing_user['username']}", $user_id);
@@ -73,6 +93,12 @@ try {
     ]);
 
 } catch (PDOException $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Database error']);
+} catch (Throwable $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    error_log('users_delete failed: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Unable to deactivate user.']);
 }

@@ -257,11 +257,42 @@ CREATE TABLE `users` (
   `password` varchar(255) NOT NULL,
   `full_name` varchar(150) NOT NULL,
   `email` varchar(100) DEFAULT NULL,
-  `role` enum('Admin','Encoder','Viewer') DEFAULT 'Encoder',
+  `role` enum('Super Admin','Admin','Encoder','Viewer') DEFAULT 'Encoder',
   `status` enum('Active','Inactive') DEFAULT 'Active',
+  `require_2fa` tinyint(1) NOT NULL DEFAULT 0,
+  `mfa_secret_enc` text DEFAULT NULL,
+  `mfa_enabled_at` datetime DEFAULT NULL,
+  `mfa_last_totp_step` bigint(20) unsigned DEFAULT NULL,
+  `mfa_session_version` bigint(20) unsigned NOT NULL DEFAULT 1,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `last_login` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `rate_limits` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `identifier` varchar(255) NOT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_identifier` (`identifier`),
+  KEY `idx_rate_limits_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `security_logs` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `event_type` varchar(100) NOT NULL,
+  `severity` enum('LOW','MEDIUM','HIGH','CRITICAL') DEFAULT 'MEDIUM',
+  `user_id` int(11) DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` text DEFAULT NULL,
+  `details` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_event_type` (`event_type`),
+  KEY `idx_severity` (`severity`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_security_logs_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -373,6 +404,32 @@ ALTER TABLE `users`
   ADD UNIQUE KEY `username` (`username`),
   ADD KEY `idx_username` (`username`),
   ADD KEY `idx_status` (`status`);
+
+-- Super Admin one-time recovery codes are stored as password hashes.
+CREATE TABLE `user_mfa_recovery_codes` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) unsigned NOT NULL,
+  `code_hash` varchar(255) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `used_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_user_mfa_recovery_user_unused` (`user_id`,`used_at`),
+  CONSTRAINT `fk_user_mfa_recovery_codes_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Super Admin authenticator devices are encrypted and replay-protected individually.
+CREATE TABLE `user_mfa_authenticators` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) unsigned NOT NULL,
+  `label` varchar(60) NOT NULL,
+  `secret_enc` text NOT NULL,
+  `last_totp_step` bigint(20) unsigned DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `last_used_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_user_mfa_authenticators_user_created` (`user_id`,`created_at`),
+  CONSTRAINT `fk_user_mfa_authenticators_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- AUTO_INCREMENT for dumped tables

@@ -9,7 +9,7 @@ require_once '../includes/pdf_recovery_review.php';
 
 header('Content-Type: application/json; charset=utf-8');
 if (!isLoggedIn()) { http_response_code(401); echo json_encode(['success' => false, 'message' => 'Authentication required.']); exit; }
-if (getUserRole() !== 'Admin') { http_response_code(403); echo json_encode(['success' => false, 'message' => 'Administrator access required.']); exit; }
+if (!isSuperAdmin()) { http_response_code(403); echo json_encode(['success' => false, 'message' => 'Super Admin access required.']); exit; }
 
 $action = strtolower(trim((string)($_GET['action'] ?? $_POST['action'] ?? 'list')));
 try {

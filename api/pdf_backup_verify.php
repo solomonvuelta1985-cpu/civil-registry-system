@@ -2,7 +2,7 @@
 /**
  * API: Verify PDF Backup Integrity
  * Checks that a backup file is a valid, uncorrupted PDF before it is restored.
- * Admin access required.
+ * Super Admin access required.
  *
  * POST params:
  *   csrf_token  (string) CSRF token
@@ -18,7 +18,7 @@ require_once '../includes/security.php';
 header('Content-Type: application/json');
 
 if (!isLoggedIn()) { http_response_code(401); echo json_encode(['success' => false, 'message' => 'Not authenticated']); exit; }
-if (getUserRole() !== 'Admin') { http_response_code(403); echo json_encode(['success' => false, 'message' => 'Admin access required']); exit; }
+if (!isSuperAdmin()) { http_response_code(403); echo json_encode(['success' => false, 'message' => 'Super Admin access required']); exit; }
 
 requireCSRFToken();
 

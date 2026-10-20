@@ -9,9 +9,9 @@ if (!isLoggedIn()) {
     http_response_code(401);
     exit('Not authenticated');
 }
-if (getUserRole() !== 'Admin') {
+if (!isSuperAdmin()) {
     http_response_code(403);
-    exit('Admin access required');
+    exit('Super Admin access required');
 }
 
 $jobId = (int)($_GET['job_id'] ?? 0);

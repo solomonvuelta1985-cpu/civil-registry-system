@@ -71,7 +71,25 @@ DB_PASS=your_strong_password_here
 SESSION_TIMEOUT=3600
 MAX_LOGIN_ATTEMPTS=5
 MIN_PASSWORD_LENGTH=8
+# Required for Super Admin authenticator MFA; generate 32 random bytes and base64 encode them.
+MFA_ENCRYPTION_KEY=PASTE_BASE64_KEY_HERE
 ```
+
+### Bootstrap Super Admin access
+
+For an existing installation, back up the database, configure `MFA_ENCRYPTION_KEY`, and apply `056_super_admin_mfa.sql` followed by `057_super_admin_mfa_authenticators.sql` with `database/apply_single_migration.php` **before activating the updated authentication code**. The updated login flow reads the MFA device table and session-version column. Then deploy the application code and promote the selected account:
+
+```bash
+php -r "echo base64_encode(random_bytes(32)), PHP_EOL;"
+php database/apply_single_migration.php --check 056_super_admin_mfa.sql
+php database/apply_single_migration.php --apply 056_super_admin_mfa.sql
+php database/apply_single_migration.php --check 057_super_admin_mfa_authenticators.sql
+php database/apply_single_migration.php --apply 057_super_admin_mfa_authenticators.sql
+# Deploy the updated application files after the migration succeeds.
+php scripts/bootstrap_super_admin.php EXISTING_ADMIN_USERNAME --confirm-bootstrap
+```
+
+Sign in with that active Admin account to enroll an authenticator and save the one-time recovery codes. Create or promote a second active Super Admin and complete its enrollment before using controlled restore workflows. See [SUPER_ADMIN_MFA.md](SUPER_ADMIN_MFA.md) for the full procedure.
 
 ### Step 3: Secure Database
 
@@ -81,8 +99,7 @@ CREATE USER 'iscan_user'@'localhost' IDENTIFIED BY 'strong_password_here';
 GRANT SELECT, INSERT, UPDATE, DELETE ON iscan_db.* TO 'iscan_user'@'localhost';
 FLUSH PRIVILEGES;
 
--- Remove default admin (after creating new admin user)
-DELETE FROM users WHERE username = 'admin' AND id = 1;
+-- Inspect provisioned accounts in the Users page; do not run a fixed-account deletion.
 ```
 
 ### Step 4: Set File Permissions
@@ -242,7 +259,7 @@ chmod 755 uploads/
 - [ ] Create `.env` file with strong passwords
 - [ ] Set `APP_ENV=production`
 - [ ] Create dedicated database user
-- [ ] Remove default admin account
+- [ ] Verify only intended Admin and Super Admin accounts are active
 - [ ] Enable HTTPS/SSL
 - [ ] Set proper file permissions
 - [ ] Test all security features

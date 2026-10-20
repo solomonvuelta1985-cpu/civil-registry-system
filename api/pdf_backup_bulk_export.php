@@ -2,7 +2,7 @@
 /**
  * API: Bulk Export PDF Backups as ZIP
  * Builds a ZIP archive of selected backup files and streams it to the client.
- * Admin access required.
+ * Super Admin access required.
  *
  * POST params:
  *   csrf_token (string)
@@ -16,7 +16,7 @@ require_once '../includes/auth.php';
 require_once '../includes/security.php';
 
 if (!isLoggedIn())            { http_response_code(401); exit('Not authenticated'); }
-if (getUserRole() !== 'Admin'){ http_response_code(403); exit('Admin access required'); }
+if (!isSuperAdmin()){ http_response_code(403); exit('Super Admin access required'); }
 
 requireCSRFToken();
 

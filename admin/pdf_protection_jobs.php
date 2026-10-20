@@ -5,8 +5,7 @@ require_once '../includes/config.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
 
-if (!isLoggedIn()) { header('Location: ../public/login.php'); exit; }
-if (getUserRole() !== 'Admin') { http_response_code(403); exit('Administrator access required.'); }
+requireSuperAdmin();
 ?>
 <!doctype html>
 <html lang="en">

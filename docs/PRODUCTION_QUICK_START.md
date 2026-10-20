@@ -53,6 +53,8 @@ DB_USER=username_iscan_user
 DB_PASS=your_password_here
 BASE_URL=/iscan/
 ENABLE_HSTS=false  # Set to true after SSL
+# Generate a dedicated base64 key from 32 random bytes; see SUPER_ADMIN_MFA.md.
+MFA_ENCRYPTION_KEY=PASTE_BASE64_KEY_HERE
 ```
 
 ---
@@ -118,14 +120,7 @@ After SSL works:
 
 ### 8. First Login
 
-```
-URL: https://yourdomain.com/iscan/
-Username: admin
-Password: admin123
-
-⚠️ IMMEDIATELY change password:
-Admin Panel > Users > Edit admin > New Password
-```
+Sign in using the active Admin account provisioned for the database. The current base schema does not seed default credentials. For existing deployments, apply migrations 056 and 057 in order before activating the updated authentication code, configure `MFA_ENCRYPTION_KEY`, and follow [SUPER_ADMIN_MFA.md](SUPER_ADMIN_MFA.md) to bootstrap the first Super Admin and complete authenticator enrollment.
 
 ---
 
@@ -137,7 +132,7 @@ Admin Panel > Users > Edit admin > New Password
 - [ ] Records appear in Records Viewer
 - [ ] Search works
 - [ ] Security logs visible (Admin > Security Logs)
-- [ ] Default admin password changed
+- [ ] Super Admin MFA enrolled and one-time recovery codes saved
 - [ ] setup_wizard.php deleted
 - [ ] HTTPS working (if SSL installed)
 
@@ -187,7 +182,7 @@ Admin Panel > Users > Edit admin > New Password
 
 ## Security Checklist
 
-- [ ] Changed default admin password
+- [ ] Completed Super Admin MFA enrollment and saved recovery codes
 - [ ] Deleted setup_wizard.php
 - [ ] SSL certificate installed
 - [ ] ENABLE_HSTS=true (after SSL)

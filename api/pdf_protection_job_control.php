@@ -7,11 +7,12 @@ require_once '../includes/auth.php';
 require_once '../includes/security.php';
 require_once '../includes/pdf_protection_jobs.php';
 require_once '../includes/pdf_protection_launcher.php';
+require_once '../includes/restore_approval_guard.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
 if (!isLoggedIn()) { http_response_code(401); echo json_encode(['success' => false, 'message' => 'Not authenticated']); exit; }
-if (getUserRole() !== 'Admin') { http_response_code(403); echo json_encode(['success' => false, 'message' => 'Admin access required']); exit; }
+if (!isSuperAdmin()) { http_response_code(403); echo json_encode(['success' => false, 'message' => 'Super Admin access required']); exit; }
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') { http_response_code(405); echo json_encode(['success' => false, 'message' => 'POST required']); exit; }
 
 requireCSRFToken();
@@ -88,8 +89,24 @@ try {
 
     if ($action === 'approve') {
         if ($current !== 'preview_ready') throw new RuntimeException('Only preview_ready jobs can be approved.');
-        $stmt = $pdo->prepare("UPDATE pdf_protection_jobs SET status = 'approved', approved_by = :user_id, last_error = NULL, last_activity_at = NOW(), updated_at = NOW() WHERE id = :id AND status = 'preview_ready'");
-        $stmt->execute([':user_id' => (int)($_SESSION['user_id'] ?? 0), ':id' => $jobId]);
+        $approverId = (int)($_SESSION['user_id'] ?? 0);
+        if ((string)($job['job_type'] ?? '') === 'recovery') {
+            $pdo->beginTransaction();
+            try {
+                restore_assert_active_super_admin_approver($pdo, $approverId);
+                $stmt = $pdo->prepare("UPDATE pdf_protection_jobs SET status = 'approved', approved_by = :user_id, last_error = NULL, last_activity_at = NOW(), updated_at = NOW() WHERE id = :id AND status = 'preview_ready'");
+                $stmt->execute([':user_id' => $approverId, ':id' => $jobId]);
+                if ($stmt->rowCount() !== 1) throw new RuntimeException('The recovery job changed before approval.');
+                $pdo->commit();
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                throw $e;
+            }
+        } else {
+            $stmt = $pdo->prepare("UPDATE pdf_protection_jobs SET status = 'approved', approved_by = :user_id, last_error = NULL, last_activity_at = NOW(), updated_at = NOW() WHERE id = :id AND status = 'preview_ready'");
+            $stmt->execute([':user_id' => $approverId, ':id' => $jobId]);
+            if ($stmt->rowCount() !== 1) throw new RuntimeException('The job changed before approval.');
+        }
         $next = 'approved'; $message = 'Job approved and worker started.'; $shouldLaunch = true;
     } elseif ($action === 'pause') {
         if (!in_array($current, ['queued', 'scanning', 'approved', 'running'], true)) throw new RuntimeException('This job cannot be paused from its current state.');

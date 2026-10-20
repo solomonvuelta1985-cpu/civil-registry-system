@@ -32,12 +32,17 @@ try {
     $sort_order = isset($_GET['sort_order']) && strtoupper($_GET['sort_order']) === 'ASC' ? 'ASC' : 'DESC';
 
     // Filters
-    $role_filter = isset($_GET['role']) && in_array($_GET['role'], ['Admin', 'Encoder', 'Viewer']) ? $_GET['role'] : '';
+    $visibleRoles = isSuperAdmin() ? ['Super Admin', 'Admin', 'Encoder', 'Viewer'] : ['Encoder', 'Viewer'];
+    $role_filter = isset($_GET['role']) && in_array($_GET['role'], $visibleRoles, true) ? $_GET['role'] : '';
     $status_filter = isset($_GET['status']) && in_array($_GET['status'], ['Active', 'Inactive']) ? $_GET['status'] : '';
 
     // Build query
     $where_clauses = [];
     $params = [];
+
+    if (!isSuperAdmin()) {
+        $where_clauses[] = "role NOT IN ('Admin', 'Super Admin')";
+    }
 
     // By default, hide inactive (soft-deleted) users unless explicitly filtered
     if (empty($status_filter)) {
@@ -69,7 +74,10 @@ try {
     $total_pages = ceil($total / $per_page);
 
     // Fetch users
-    $sql = "SELECT id, username, full_name, email, role, status, created_at, last_login
+    $mfaSelect = isSuperAdmin()
+        ? ', users.mfa_enabled_at, (SELECT COUNT(*) FROM user_mfa_authenticators mfa WHERE mfa.user_id = users.id) AS mfa_device_count'
+        : '';
+    $sql = "SELECT id, username, full_name, email, role, status, created_at, last_login{$mfaSelect}
             FROM users {$where_sql}
             ORDER BY {$sort_by} {$sort_order}
             LIMIT :limit OFFSET :offset";

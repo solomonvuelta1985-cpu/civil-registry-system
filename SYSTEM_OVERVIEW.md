@@ -169,6 +169,7 @@ Each certificate type supports:
 | Page | File | Description |
 |------|------|-------------|
 | **Login** | `public/login.php` | Authentication with CSRF protection, rate limiting, device lock support |
+| **Super Admin MFA** | `public/mfa.php` | Restricted mandatory authenticator enrollment and sign-in verification |
 | **Birth Certificate Form** | `public/certificate_of_live_birth.php` | Data entry form for birth certificates with OCR integration |
 | **Marriage Certificate Form** | `public/certificate_of_marriage.php` | Data entry form for marriage certificates |
 | **Death Certificate Form** | `public/certificate_of_death.php` | Data entry form for death certificates |
@@ -178,7 +179,7 @@ Each certificate type supports:
 | **Death Records** | `public/death_records.php` | Record viewer for death certificates |
 | **Marriage License Records** | `public/marriage_license_records.php` | Record viewer for marriage license applications |
 | **Records Viewer** | `public/records_viewer.php` | Unified template for viewing, searching, filtering, editing records |
-| **Trash** | `public/trash.php` | View/restore/permanently delete soft-deleted records (Admin only) |
+| **Trash** | `public/trash.php` | View/restore/permanently delete soft-deleted records (Admin roles only) |
 | **Advanced Search** | `public/advanced_search.php` | Full-text search across all certificate types |
 | **Workflow Dashboard** | `public/workflow_dashboard.php` | Workflow lifecycle management with state transitions |
 | **Analytics Dashboard** | `public/analytics_dashboard.php` | System-wide statistics, trends, and performance metrics |
@@ -196,13 +197,13 @@ Each certificate type supports:
 |------|------|-------------|
 | **Dashboard** | `admin/dashboard.php` | Statistics overview, charts, monthly trends, recent activity |
 | **Reports** | `admin/reports.php` | Comprehensive analytics with date/type filters, demographics |
-| **Users** | `admin/users.php` | User CRUD with role assignment (Admin/Encoder/Viewer) |
-| **Devices** | `admin/devices.php` | Device registration management for device-lock feature |
+| **Users** | `admin/users.php` | User CRUD; Admin manages Encoder/Viewer, Super Admin manages every role |
+| **Devices** | `admin/devices.php` | Super Admin device registration management for device-lock feature |
 | **Archives** | `admin/archives.php` | Manage archived records, unarchive back to Active |
 | **Security Logs** | `admin/security_logs.php` | Security event monitoring (severity, event type, IP tracking) |
 | **Error Log Viewer** | `admin/error_log_viewer.php` | PHP error log viewer for debugging |
-| **PDF Integrity Report** | `admin/pdf_integrity_report.php` | Run integrity scans, identify corrupt/missing PDFs |
-| **PDF Backup Manager** | `admin/pdf_backup_manager.php` | Manage backup storage, verify integrity, restore from backups |
+| **PDF Integrity Report** | `admin/pdf_integrity_report.php` | Admin scans and reviews PDF status; Super Admin can backfill hashes and restore |
+| **PDF Backup Manager** | `admin/pdf_backup_manager.php` | Super Admin manages backup storage, verifies integrity, and restores versions |
 
 ---
 
@@ -238,10 +239,10 @@ Each certificate type supports:
 |----------|--------|-------------|
 | `api/serve_pdf.php` | GET | Secure PDF serving with permission validation and audit logging |
 | `api/pdf_integrity_scan.php` | POST | Full integrity scan on all PDFs (Admin) |
-| `api/pdf_restore.php` | POST | Restore PDF from backup storage (Admin) |
-| `api/pdf_backup_verify.php` | POST | Verify backup file integrity (Admin) |
-| `api/pdf_backup_cleanup.php` | POST | Remove old/orphaned backups (Admin) |
-| `api/pdf_hash_backfill.php` | POST | Compute SHA-256 hashes for legacy records (Admin) |
+| `api/pdf_restore.php` | POST | Restore PDF from backup storage (Super Admin) |
+| `api/pdf_backup_verify.php` | POST | Verify backup file integrity (Super Admin) |
+| `api/pdf_backup_cleanup.php` | POST | Remove old/orphaned backups (Super Admin) |
+| `api/pdf_hash_backfill.php` | POST | Compute SHA-256 hashes for legacy records (Super Admin) |
 | `api/ocr_process.php` | POST | Server-side Tesseract OCR processing |
 
 ### Archive & Trash (3 endpoints)
@@ -256,9 +257,9 @@ Each certificate type supports:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `api/users_save.php` | POST | Create new user account (Admin) |
-| `api/users_update.php` | POST | Update user details/role/status (Admin) |
-| `api/users_delete.php` | POST | Delete user account (Admin) |
+| `api/users_save.php` | POST | Create users within caller's allowed roles (Admin or Super Admin) |
+| `api/users_update.php` | POST | Update users within caller's allowed roles (Admin or Super Admin) |
+| `api/users_delete.php` | POST | Deactivate users within caller's allowed roles (Admin or Super Admin) |
 | `api/users_get.php` | GET | Fetch user details |
 | `api/users_list.php` | GET | List all users with pagination |
 
@@ -272,8 +273,8 @@ Each certificate type supports:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `api/device_save.php` | POST | Register new trusted device (Admin) |
-| `api/device_delete.php` | POST | Revoke device registration (Admin) |
+| `api/device_save.php` | POST | Register new trusted device (Super Admin) |
+| `api/device_delete.php` | POST | Revoke device registration (Super Admin) |
 
 ### Calendar & Notes (2 endpoints)
 
@@ -351,7 +352,8 @@ All certificate tables include: `pdf_filename`, `pdf_filepath`, `pdf_hash`, `sta
 
 | Role | Capabilities |
 |------|-------------|
-| **Admin** | Full system access — user management, security logs, archives, trash, device management, PDF management, all CRUD operations |
+| **Super Admin** | All routine Admin access plus privileged user management, system settings, device controls, backup/restore, PDF version controls, and upload reorganization. Mandatory TOTP MFA is required.|
+| **Admin** | Routine operations, records, reports, archives/trash, logs, and PDF inventory/reconciliation. May manage Encoder and Viewer accounts only.|
 | **Encoder** | Create, edit, and view records; archive individual records (with permission); no access to trash, security logs, or user management |
 | **Viewer** | Read-only access to records; no create, edit, delete, or archive capabilities |
 
@@ -365,7 +367,7 @@ All certificate tables include: `pdf_filename`, `pdf_filepath`, `pdf_hash`, `sta
 
 **System permissions:**
 - `users_view`, `users_create`, `users_edit`, `users_delete`
-- Delete permissions restricted to Admin role only
+- Delete permissions restricted to Admin and Super Admin roles
 
 ### Authentication Flow
 
@@ -373,18 +375,20 @@ All certificate tables include: `pdf_filename`, `pdf_filepath`, `pdf_hash`, `sta
 2. Rate limiting check (max 5 attempts per 5 minutes)
 3. Device fingerprint verification (if device lock enabled)
 4. Password verification with bcrypt
-5. Session creation with user_id, role, permissions cached
-6. Activity logged with IP address
-7. Session regenerated every 30 minutes
-8. Auto-timeout after configurable duration (default: 1 hour)
+5. For Super Admin, a restricted session allows only MFA enrollment or challenge
+6. Full session is created only after TOTP or a one-time recovery code succeeds
+7. Session creation caches the role and permissions; role changes invalidate the session
+8. Activity is logged with IP address and the session expires after its configured duration
 
 ### Key Functions (`includes/auth.php`)
 
 - `isLoggedIn()`, `getUserRole()`, `getUserId()`, `getUserFullName()`
 - `hasPermission()`, `hasAnyPermission()`, `hasAllPermissions()`
-- `isAdmin()`, `isEncoder()`, `isViewer()`
-- `requireAuth()`, `requirePermission()`, `requireAdmin()`, `requireAdminApi()`
+- `isAdmin()`, `isSuperAdmin()`, `isEncoder()`, `isViewer()`
+- `requireAuth()`, `requirePermission()`, `requireAdmin()`, `requireSuperAdmin()`, `requireAdminApi()`, `requireSuperAdminApi()`
 - `authenticateUser()`, `setUserSession()`, `logoutUser()`
+
+Migration `056_super_admin_mfa.sql` adds the role and mandatory MFA fields; migration `057_super_admin_mfa_authenticators.sql` adds multiple encrypted authenticator devices and session-version invalidation while migrating existing enrolled secrets. Super Admins manage their own devices in **My MFA**. Use `scripts/bootstrap_super_admin.php` for the one-time first promotion and `scripts/reset_super_admin_mfa.php` for operator MFA recovery. Controlled PDF and database restore require two active Super Admin accounts and distinct approvals.
 
 ---
 

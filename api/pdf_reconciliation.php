@@ -9,7 +9,7 @@ require_once '../includes/pdf_reconciliation.php';
 
 header('Content-Type: application/json; charset=utf-8');
 if (!isLoggedIn()) { http_response_code(401); echo json_encode(['success' => false, 'message' => 'Authentication required.']); exit; }
-if (getUserRole() !== 'Admin') { http_response_code(403); echo json_encode(['success' => false, 'message' => 'Administrator access required.']); exit; }
+if (!isAdmin()) { http_response_code(403); echo json_encode(['success' => false, 'message' => 'Administrator access required.']); exit; }
 
 $action = strtolower(trim((string)($_GET['action'] ?? 'summary')));
 $root = realpath(UPLOAD_DIR);

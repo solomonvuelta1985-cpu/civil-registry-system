@@ -50,8 +50,8 @@ foreach ($required as $field) {
 }
 
 // Validate role
-$allowed_roles = ['Admin', 'Encoder', 'Viewer'];
-if (!in_array($input['role'], $allowed_roles)) {
+$allowed_roles = isSuperAdmin() ? ['Super Admin', 'Admin', 'Encoder', 'Viewer'] : ['Encoder', 'Viewer'];
+if (!in_array($input['role'], $allowed_roles, true) || !canManageUserRole((string)$input['role'])) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Invalid role']);
     exit;
@@ -78,8 +78,9 @@ if (!empty($input['password']) && (strlen($input['password']) < MIN_PASSWORD_LEN
 }
 
 try {
-    // Check if user exists
-    $check_sql = "SELECT id, username FROM users WHERE id = :id";
+    $pdo->beginTransaction();
+    // Lock the target row so role and last-Super-Admin safeguards are atomic.
+    $check_sql = "SELECT id, username, role, status FROM users WHERE id = :id FOR UPDATE";
     $check_stmt = $pdo->prepare($check_sql);
     $check_stmt->execute([':id' => $user_id]);
     $existing_user = $check_stmt->fetch();
@@ -87,7 +88,35 @@ try {
     if (!$existing_user) {
         http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'User not found']);
+        $pdo->rollBack();
         exit;
+    }
+
+    if (!canManageUserRole((string)$existing_user['role'])) {
+        $pdo->rollBack();
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'User not found']);
+        exit;
+    }
+
+    $targetStatus = $input['status'] ?? 'Active';
+    if ($user_id === (int)getUserId()
+        && ((string)$input['role'] !== (string)$existing_user['role'] || $targetStatus !== 'Active')) {
+        $pdo->rollBack();
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'You cannot change your own role or deactivate your own account.']);
+        exit;
+    }
+
+    if ($existing_user['role'] === 'Super Admin' && $existing_user['status'] === 'Active'
+        && ($input['role'] !== 'Super Admin' || $targetStatus !== 'Active')) {
+        $countStmt = $pdo->query("SELECT id FROM users WHERE role='Super Admin' AND status='Active' ORDER BY id FOR UPDATE");
+        if (count($countStmt->fetchAll(PDO::FETCH_COLUMN)) <= 1) {
+            $pdo->rollBack();
+            http_response_code(409);
+            echo json_encode(['success' => false, 'message' => 'At least one active Super Admin account must remain.']);
+            exit;
+        }
     }
 
     // Check if email already exists for another user
@@ -96,6 +125,7 @@ try {
         $check_email_stmt = $pdo->prepare($check_email_sql);
         $check_email_stmt->execute([':email' => $input['email'], ':id' => $user_id]);
         if ($check_email_stmt->fetch()) {
+            $pdo->rollBack();
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => 'Email already exists']);
             exit;
@@ -110,13 +140,30 @@ try {
         'status = :status'
     ];
 
+    $update_fields[] = 'require_2fa = :require_2fa';
     $params = [
         ':id' => $user_id,
         ':full_name' => $input['full_name'],
         ':email' => $input['email'] ?? null,
         ':role' => $input['role'],
-        ':status' => $input['status'] ?? 'Active'
+        ':status' => $targetStatus,
+        ':require_2fa' => $input['role'] === 'Super Admin' ? 1 : 0
     ];
+
+    if ($input['role'] !== 'Super Admin') {
+        $update_fields[] = 'mfa_secret_enc = NULL';
+        $update_fields[] = 'mfa_enabled_at = NULL';
+        $update_fields[] = 'mfa_last_totp_step = NULL';
+        $update_fields[] = 'mfa_session_version = mfa_session_version + 1';
+    } elseif ($existing_user['role'] !== 'Super Admin') {
+        // A newly promoted Super Admin must enroll a fresh authenticator.
+        $update_fields[] = 'mfa_secret_enc = NULL';
+        $update_fields[] = 'mfa_enabled_at = NULL';
+        $update_fields[] = 'mfa_last_totp_step = NULL';
+        $update_fields[] = 'mfa_session_version = mfa_session_version + 1';
+    } elseif ($targetStatus !== (string)$existing_user['status']) {
+        $update_fields[] = 'mfa_session_version = mfa_session_version + 1';
+    }
 
     // Add password if provided
     if (!empty($input['password'])) {
@@ -127,6 +174,11 @@ try {
     $sql = "UPDATE users SET " . implode(', ', $update_fields) . " WHERE id = :id";
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
+    if ($input['role'] !== 'Super Admin' || $existing_user['role'] !== 'Super Admin') {
+        $pdo->prepare('DELETE FROM user_mfa_authenticators WHERE user_id = :id')->execute([':id' => $user_id]);
+        $pdo->prepare('DELETE FROM user_mfa_recovery_codes WHERE user_id = :id')->execute([':id' => $user_id]);
+    }
+    $pdo->commit();
 
     // Log activity
     log_activity($pdo, 'update', "Updated user: {$existing_user['username']}", $user_id);
@@ -137,6 +189,12 @@ try {
     ]);
 
 } catch (PDOException $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Database error']);
+} catch (Throwable $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    error_log('users_update failed: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Unable to update user.']);
 }

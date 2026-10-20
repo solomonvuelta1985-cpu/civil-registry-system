@@ -1,7 +1,7 @@
 <?php
 /**
  * API: Revoke or Reactivate a Device
- * Admin access required.
+ * Super Admin access required.
  *
  * POST params:
  *   csrf_token  (string) CSRF token
@@ -23,9 +23,9 @@ if (!isLoggedIn()) {
     echo json_encode(['success' => false, 'message' => 'Not authenticated']);
     exit;
 }
-if (getUserRole() !== 'Admin') {
+if (!isSuperAdmin()) {
     http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Admin access required']);
+    echo json_encode(['success' => false, 'message' => 'Super Admin access required']);
     exit;
 }
 

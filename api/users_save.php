@@ -55,8 +55,8 @@ if (strlen($input['password']) < MIN_PASSWORD_LENGTH || (REQUIRE_PASSWORD_COMPLE
 }
 
 // Validate role
-$allowed_roles = ['Admin', 'Encoder', 'Viewer'];
-if (!in_array($input['role'], $allowed_roles)) {
+$allowed_roles = isSuperAdmin() ? ['Super Admin', 'Admin', 'Encoder', 'Viewer'] : ['Encoder', 'Viewer'];
+if (!in_array($input['role'], $allowed_roles, true) || !canManageUserRole((string)$input['role'])) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Invalid role']);
     exit;
@@ -102,8 +102,8 @@ try {
     $hashed_password = password_hash($input['password'], PASSWORD_DEFAULT);
 
     // Insert user
-    $sql = "INSERT INTO users (username, password, full_name, email, role, status, created_at)
-            VALUES (:username, :password, :full_name, :email, :role, :status, NOW())";
+    $sql = "INSERT INTO users (username, password, full_name, email, role, status, require_2fa, created_at)
+            VALUES (:username, :password, :full_name, :email, :role, :status, :require_2fa, NOW())";
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute([
@@ -112,7 +112,8 @@ try {
         ':full_name' => $input['full_name'],
         ':email' => $input['email'] ?? null,
         ':role' => $input['role'],
-        ':status' => $input['status'] ?? 'Active'
+        ':status' => $input['status'] ?? 'Active',
+        ':require_2fa' => $input['role'] === 'Super Admin' ? 1 : 0
     ]);
 
     $user_id = $pdo->lastInsertId();

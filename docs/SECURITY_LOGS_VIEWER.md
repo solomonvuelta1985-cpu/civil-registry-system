@@ -71,7 +71,7 @@ http://localhost/iscan/admin/security_logs.php
 - **Icon:** Shield with alert symbol
 
 ### Permissions
-- **Admin Only** - Requires admin role to access
+- **Admin roles only** - Requires Admin or Super Admin role to access
 - Automatically checks user permissions
 - Redirects unauthorized users to 403 page
 

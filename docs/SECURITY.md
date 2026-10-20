@@ -57,25 +57,33 @@ This document outlines all security features implemented in the system and how t
    - Configurable time windows
 
 7. **Role-Based Access Control (RBAC)**
-   - Three roles: Admin, Encoder, Viewer
+   - Four roles: Super Admin, Admin, Encoder, Viewer
    - Granular permission system
    - Permission checking on all endpoints
-   - Admin-only functions
+   - Super Admin-only system controls and privileged role management
+   - Admin user management limited to Encoder and Viewer accounts
 
-8. **Audit Logging**
+8. **Super Admin MFA**
+   - Mandatory authenticator-app TOTP after password and device checks
+   - Restricted enrollment/challenge session before full authentication
+   - AES-256-GCM encrypted secrets and hashed one-time recovery codes
+   - Rate-limited challenges and replay prevention
+   - CLI-only first-account bootstrap and MFA recovery
+
+9. **Audit Logging**
    - Activity logs for all user actions
    - Security event logging
    - IP address and user agent tracking
    - Timestamp tracking for all actions
 
-9. **File Upload Security**
+10. **File Upload Security**
    - File type validation (PDF only by default)
    - MIME type verification using `finfo_*`
    - File size limits (default: 5MB)
    - Unique filename generation
    - Upload directory permissions
 
-10. **Security Headers**
+11. **Security Headers**
     - X-Frame-Options: SAMEORIGIN
     - X-XSS-Protection: 1; mode=block
     - X-Content-Type-Options: nosniff
@@ -84,13 +92,13 @@ This document outlines all security features implemented in the system and how t
     - Strict-Transport-Security (HTTPS only)
     - Permissions-Policy
 
-11. **Environment-Based Configuration**
+12. **Environment-Based Configuration**
     - Support for .env files
     - Separate development/production configs
     - Sensitive data not in version control
     - Easy configuration management
 
-12. **Enhanced Input Validation**
+13. **Enhanced Input Validation**
     - Type-specific validation (username, email, date, integer, etc.)
     - Regex pattern matching
     - Enum value validation
@@ -217,8 +225,11 @@ ENABLE_CSP=true
 | `ENABLE_HSTS` | true | Enable HSTS header (HTTPS only) |
 | `ENABLE_CSP` | true | Enable Content Security Policy |
 | `TIMEZONE` | Asia/Manila | Application timezone |
+| `MFA_ENCRYPTION_KEY` | (required for Super Admin) | Base64 encoding of 32 random bytes used to encrypt authenticator secrets |
 
 ### Development vs Production
+
+For Super Admin setup, authenticator enrollment, key management, and CLI recovery, follow [SUPER_ADMIN_MFA.md](SUPER_ADMIN_MFA.md). The Cloudflare checklist covers Cloudflare account MFA separately.
 
 **Development Mode (`APP_ENV=development`):**
 - Displays detailed errors
@@ -363,7 +374,7 @@ $result = validateInput($age, 'integer', ['min' => 18, 'max' => 100]);
 $result = validateInput($date, 'date', ['format' => 'Y-m-d']);
 
 // Enum validation
-$result = validateInput($role, 'enum', ['allowed' => ['Admin', 'Encoder', 'Viewer']]);
+$result = validateInput($role, 'enum', ['allowed' => ['Super Admin', 'Admin', 'Encoder', 'Viewer']]);
 
 if (!$result['valid']) {
     echo $result['error'];
@@ -384,7 +395,7 @@ if (!$result['valid']) {
 - [ ] Run security migrations
 - [ ] Configure HTTPS/SSL certificate
 - [ ] Test all features in staging
-- [ ] Review all default admin accounts
+- [ ] Confirm only intended Admin and Super Admin accounts are active
 - [ ] Set proper file permissions
 - [ ] Configure backups
 - [ ] Enable error logging
@@ -468,10 +479,7 @@ DB_USER=iscan_user
 DB_PASS=strong_password_here
 ```
 
-3. **Remove default admin account** (after creating new admin):
-```sql
-DELETE FROM users WHERE username = 'admin' AND id = 1;
-```
+3. **Review provisioned accounts:** The current base schema does not seed a default login. Use the Users page to deactivate an account only after confirming it is no longer needed and another authorized account remains active. The app prevents removing the last active Super Admin.
 
 ### HTTPS Configuration
 

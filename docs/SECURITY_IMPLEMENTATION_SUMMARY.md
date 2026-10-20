@@ -308,7 +308,7 @@ copy .env.example .env
 - [ ] Session timeout working
 - [ ] Security headers present (check browser tools)
 - [ ] Logs capturing events
-- [ ] Default admin removed
+- [ ] Intended Admin and Super Admin accounts reviewed
 
 ---
 
@@ -477,11 +477,12 @@ logSecurityEvent('EVENT_TYPE', 'MEDIUM', 'Description of what happened', $user_i
 - ✅ HTTPS support
 
 **Remaining Recommendations (Optional):**
-- Two-factor authentication (2FA)
 - Password history (prevent reuse)
 - Account lockout after multiple failures
 - Email notifications for security events
 - Intrusion detection system (IDS)
+
+Super Admin authenticator MFA is implemented separately from Cloudflare account MFA. See [SUPER_ADMIN_MFA.md](SUPER_ADMIN_MFA.md) for migration, bootstrap, enrollment, restore approval, and recovery procedures.
 
 ---
 
@@ -508,7 +509,7 @@ logSecurityEvent('EVENT_TYPE', 'MEDIUM', 'Description of what happened', $user_i
 - [ ] Security migration executed
 - [ ] HTTPS/SSL configured
 - [ ] File permissions set correctly
-- [ ] Default admin account removed
+- [ ] Super Admin MFA enrolled and recovery codes saved
 - [ ] All security features tested
 - [ ] Monitoring setup
 - [ ] Backups configured

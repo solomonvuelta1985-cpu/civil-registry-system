@@ -21,6 +21,7 @@ if (!hasPermission('users_view')) {
 $can_create = hasPermission('users_create');
 $can_edit = hasPermission('users_edit');
 $can_delete = hasPermission('users_delete');
+$is_super_admin = isSuperAdmin();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -734,7 +735,7 @@ $can_delete = hasPermission('users_delete');
                     </div>
                     <select class="filter-select" id="roleFilter">
                         <option value="">All Roles</option>
-                        <option value="Admin">Admin</option>
+                        <?php if ($is_super_admin): ?><option value="Super Admin">Super Admin</option><option value="Admin">Admin</option><?php endif; ?>
                         <option value="Encoder">Encoder</option>
                         <option value="Viewer">Viewer</option>
                     </select>
@@ -755,6 +756,7 @@ $can_delete = hasPermission('users_delete');
                                 <th>User</th>
                                 <th>Email</th>
                                 <th>Role</th>
+                                <?php if ($is_super_admin): ?><th>MFA</th><?php endif; ?>
                                 <th>Status</th>
                                 <th>Last Login</th>
                                 <th>Created</th>
@@ -763,7 +765,7 @@ $can_delete = hasPermission('users_delete');
                         </thead>
                         <tbody id="usersTableBody">
                             <tr>
-                                <td colspan="7">
+                                <td colspan="<?= $is_super_admin ? 8 : 7 ?>">
                                     <div class="empty-state">
                                         <i data-lucide="loader-2" class="spinner"></i>
                                         <h3>Loading users...</h3>
@@ -811,8 +813,9 @@ $can_delete = hasPermission('users_delete');
                             <select id="role" name="role" required>
                                 <option value="Encoder">Encoder</option>
                                 <option value="Viewer">Viewer</option>
-                                <option value="Admin">Admin</option>
+                                <?php if ($is_super_admin): ?><option value="Admin">Admin</option><option value="Super Admin">Super Admin</option><?php endif; ?>
                             </select>
+                            <?php if ($is_super_admin): ?><small class="form-hint">New Super Admins must enroll an authenticator on their first sign-in.</small><?php endif; ?>
                         </div>
                         <div class="form-group">
                             <label for="status">Status</label>
@@ -863,6 +866,45 @@ $can_delete = hasPermission('users_delete');
         </div>
     </div>
 
+    <?php if ($is_super_admin): ?>
+    <div class="modal-overlay" id="mfaResetModal">
+        <div class="modal" style="max-width: 520px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Reset Super Admin MFA</h3>
+                <button class="modal-close" type="button" onclick="closeMfaResetModal()"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <p style="color:#4b5563;margin-bottom:16px">This revokes every authenticator and recovery code for <strong id="mfaResetTarget"></strong>. They must enroll again at their next sign-in.</p>
+                <form id="mfaResetForm" onsubmit="event.preventDefault(); confirmMfaReset();">
+                    <?= csrfTokenField() ?>
+                    <div class="form-group">
+                        <label for="mfaResetReason">Reason (required)</label>
+                        <textarea id="mfaResetReason" name="reason" minlength="10" maxlength="500" rows="3" required placeholder="Explain why this account needs MFA recovery"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:flex-start;gap:9px;font-weight:500">
+                            <input type="checkbox" name="confirm_reset" value="1" required style="margin-top:4px">
+                            <span>I understand this revokes all authenticators and recovery codes and requires the target to enroll again.</span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="mfaResetPassword">Your password</label>
+                        <input id="mfaResetPassword" name="password" type="password" autocomplete="current-password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="mfaResetCode">Your current authenticator code</label>
+                        <input id="mfaResetCode" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" type="button" onclick="closeMfaResetModal()">Cancel</button>
+                <button class="btn btn-danger" type="submit" form="mfaResetForm" id="confirmMfaResetBtn"><i data-lucide="shield-alert"></i> Reset MFA</button>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
@@ -876,6 +918,7 @@ $can_delete = hasPermission('users_delete');
         let users = [];
         let deleteUserId = null;
         let isEditing = false;
+        let mfaResetUserId = null;
 
         // Permissions from PHP
         const canCreate = <?php echo $can_create ? 'true' : 'false'; ?>;
@@ -944,6 +987,9 @@ $can_delete = hasPermission('users_delete');
             document.getElementById('deleteModal').addEventListener('click', function(e) {
                 if (e.target === this) closeDeleteModal();
             });
+            document.getElementById('mfaResetModal')?.addEventListener('click', function(e) {
+                if (e.target === this) closeMfaResetModal();
+            });
         }
 
         async function loadUsers() {
@@ -982,7 +1028,7 @@ $can_delete = hasPermission('users_delete');
             if (users.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="7">
+                        <td colspan="<?= $is_super_admin ? 8 : 7 ?>">
                             <div class="empty-state">
                                 <i data-lucide="users"></i>
                                 <h3>No users found</h3>
@@ -1001,6 +1047,8 @@ $can_delete = hasPermission('users_delete');
                 const status = String(user.status || '');
                 const roleClass = role.toLowerCase().replace(/[^a-z0-9_-]/g, '');
                 const statusClass = status.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+                const deviceCount = Number(user.mfa_device_count || 0);
+                const mfaStatus = role !== 'Super Admin' ? '—' : (deviceCount > 0 && user.mfa_enabled_at ? `Enrolled (${deviceCount})` : 'Enrollment required');
                 return `
                 <tr>
                     <td>
@@ -1016,6 +1064,7 @@ $can_delete = hasPermission('users_delete');
                     </td>
                     <td>${escapeHtml(user.email || '-')}</td>
                     <td><span class="badge badge-${roleClass}">${escapeHtml(role)}</span></td>
+                    <?php if ($is_super_admin): ?><td>${escapeHtml(mfaStatus)}</td><?php endif; ?>
                     <td><span class="badge badge-${statusClass}">${escapeHtml(status)}</span></td>
                     <td>${escapeHtml(user.last_login_formatted || '-')}</td>
                     <td>${escapeHtml(user.created_at_formatted || '-')}</td>
@@ -1031,6 +1080,13 @@ $can_delete = hasPermission('users_delete');
                                 <i data-lucide="trash-2"></i>
                             </button>
                             ` : ''}
+                            <?php if ($is_super_admin): ?>
+                            ${role === 'Super Admin' && status === 'Active' && Number(user.id) !== <?= (int)getUserId() ?> ? `
+                            <button class="action-btn delete" onclick="openMfaResetModal(${Number(user.id)})" title="Reset MFA" aria-label="Reset MFA for ${escapeHtml(user.username)}">
+                                <i data-lucide="shield-alert"></i>
+                            </button>
+                            ` : ''}
+                            <?php endif; ?>
                         </div>
                     </td>
                 </tr>
@@ -1224,6 +1280,48 @@ $can_delete = hasPermission('users_delete');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<i data-lucide="trash-2"></i> Delete';
+                lucide.createIcons();
+            }
+        }
+
+        function openMfaResetModal(userId) {
+            mfaResetUserId = Number(userId);
+            const target = users.find(user => Number(user.id) === mfaResetUserId);
+            document.getElementById('mfaResetTarget').textContent = target?.username || 'this account';
+            document.getElementById('mfaResetForm').reset();
+            document.getElementById('mfaResetModal').classList.add('show');
+            document.getElementById('mfaResetReason').focus();
+            lucide.createIcons();
+        }
+
+        function closeMfaResetModal() {
+            document.getElementById('mfaResetModal')?.classList.remove('show');
+            document.getElementById('mfaResetForm')?.reset();
+            mfaResetUserId = null;
+        }
+
+        async function confirmMfaReset() {
+            if (!mfaResetUserId) return;
+            const form = document.getElementById('mfaResetForm');
+            if (!form.reportValidity()) return;
+            const button = document.getElementById('confirmMfaResetBtn');
+            const formData = new FormData(form);
+            formData.append('target_user_id', String(mfaResetUserId));
+            button.disabled = true;
+            button.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> Verifying...';
+            lucide.createIcons();
+            try {
+                const response = await fetch('../api/users_mfa_reset.php', { method: 'POST', body: formData });
+                const result = await response.json();
+                if (!response.ok || !result.success) throw new Error(result.message || 'MFA reset failed.');
+                closeMfaResetModal();
+                showToast(result.message || 'MFA reset successfully', 'success');
+                loadUsers();
+            } catch (error) {
+                showToast(error.message || 'MFA reset failed', 'error');
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '<i data-lucide="shield-alert"></i> Reset MFA';
                 lucide.createIcons();
             }
         }

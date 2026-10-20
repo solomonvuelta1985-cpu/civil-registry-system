@@ -2,7 +2,7 @@
 /**
  * API: Restore a PDF from Backup
  * Copies a backup file back as the current PDF for a certificate record.
- * Admin access required.
+ * Super Admin access required.
  *
  * POST params:
  *   csrf_token  (string) CSRF token
@@ -14,11 +14,12 @@ require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../includes/security.php';
+require_once '../includes/restore_approval_guard.php';
 
 header('Content-Type: application/json');
 
 if (!isLoggedIn()) { http_response_code(401); echo json_encode(['success' => false, 'message' => 'Not authenticated']); exit; }
-if (getUserRole() !== 'Admin') { http_response_code(403); echo json_encode(['success' => false, 'message' => 'Admin access required']); exit; }
+if (!isSuperAdmin()) { http_response_code(403); echo json_encode(['success' => false, 'message' => 'Super Admin access required']); exit; }
 
 requireCSRFToken();
 
@@ -36,6 +37,7 @@ $table_map = [
 ];
 
 try {
+    restore_assert_two_active_super_admins($pdo);
     $stmt = $pdo->prepare("SELECT * FROM pdf_backups WHERE id = :id LIMIT 1");
     $stmt->execute([':id' => $backup_id]);
     $backup = $stmt->fetch();

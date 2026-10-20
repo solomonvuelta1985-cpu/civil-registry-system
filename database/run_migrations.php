@@ -51,7 +51,9 @@ $migrations = [
     '052_duplicate_match_dismissals.sql',
     '053_crf_remarks_templates.sql',
     '054_in_app_notifications.sql',
-    '055_live_birth_sex_status_options.sql'
+    '055_live_birth_sex_status_options.sql',
+    '056_super_admin_mfa.sql',
+    '057_super_admin_mfa_authenticators.sql'
 ];
 
 $results = [];

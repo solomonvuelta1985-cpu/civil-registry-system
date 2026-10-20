@@ -1,4 +1,6 @@
-# Cloudflare Security Checklist — cdrms.online
+# Cloudflare Security Checklist
+
+> Scope: This checklist covers Cloudflare account and Cloudflare member security. Its MFA status does not represent iScan application MFA; see [SUPER_ADMIN_MFA.md](SUPER_ADMIN_MFA.md) for Super Admin sign-in MFA. — cdrms.online
 
 This checklist addresses the findings from the **Cloudflare Security Center** scan
 (`SecurityInsights_20260622.csv`). Most findings are **dashboard or DNS settings** that

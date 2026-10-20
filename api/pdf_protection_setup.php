@@ -11,7 +11,7 @@ require_once '../includes/pdf_protection_launcher.php';
 
 header('Content-Type: application/json; charset=utf-8');
 if (!isLoggedIn()) { http_response_code(401); echo json_encode(['success'=>false,'message'=>'Not authenticated']); exit; }
-if (getUserRole() !== 'Admin') { http_response_code(403); echo json_encode(['success'=>false,'message'=>'Admin access required']); exit; }
+if (!isSuperAdmin()) { http_response_code(403); echo json_encode(['success'=>false,'message'=>'Super Admin access required']); exit; }
 $action = strtolower(trim((string)($_GET['action'] ?? $_POST['action'] ?? 'locations')));
 try {
     if ($action === 'locations' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {

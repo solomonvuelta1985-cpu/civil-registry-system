@@ -271,6 +271,8 @@ mysql -u root -p iscan_db < /volume1/web/iscan/database/migrations/002_workflow_
 mysql -u root -p iscan_db < /volume1/web/iscan/database/migrations/003_calendar_notes_system.sql
 mysql -u root -p iscan_db < /volume1/web/iscan/database/migrations/004_add_citizenship_to_birth_certificates.sql
 mysql -u root -p iscan_db < /volume1/web/iscan/database/migrations/005_add_barangay_and_time_of_birth.sql
+mysql -u root -p iscan_db < /volume1/web/iscan/database/migrations/056_super_admin_mfa.sql
+mysql -u root -p iscan_db < /volume1/web/iscan/database/migrations/057_super_admin_mfa_authenticators.sql
 ```
 
 ---
@@ -301,6 +303,10 @@ BASE_URL=/iscan/
 
 # Offline mode — keep true so it works without internet
 OFFLINE_MODE=true
+
+# Required to encrypt Super Admin authenticator secrets.
+# Generate with: php -r "echo base64_encode(random_bytes(32)), PHP_EOL;"
+MFA_ENCRYPTION_KEY=PASTE_BASE64_KEY_HERE
 ```
 
 Save the file: press `Ctrl+X`, then `Y`, then `Enter`.
@@ -326,22 +332,25 @@ Or if the NAS hostname is configured:
 http://NAS-HOSTNAME/iscan/
 ```
 
-### Default Login Credentials:
+### Sign-in and Super Admin bootstrap
 
-| Field | Value |
-|-------|-------|
-| Username | `admin` |
-| Password | `admin123` |
+Use the named active Admin account provisioned for this database. The current `database_schema.sql` does not seed a default login; do not use credentials from older deployment notes.
 
-> **CRITICAL: Change the admin password immediately after first login!**
-> Go to: Admin Panel > Users > Edit admin user > Change Password
+After configuring `MFA_ENCRYPTION_KEY` and importing the schema, promote the intended active Admin once from the server terminal:
+
+```bash
+cd /volume1/web/iscan
+php scripts/bootstrap_super_admin.php EXISTING_ADMIN_USERNAME --confirm-bootstrap
+```
+
+For an existing installation, apply migrations 056 and 057 in order before deploying updated application files. Sign in with the selected account, enroll an authenticator, and save the one-time recovery codes. Create or promote a second active Super Admin and complete enrollment before using controlled restore workflows. Follow [SUPER_ADMIN_MFA.md](SUPER_ADMIN_MFA.md) for the full steps.
 
 ### Quick Functionality Test:
 
 | Test | Expected Result |
 |------|----------------|
 | Login page loads | Form appears with logo |
-| Login with admin/admin123 | Redirects to dashboard |
+| Login with the provisioned Admin account | Redirects to dashboard |
 | Dashboard shows | Stats and charts visible |
 | Open "Birth Certificate" form | Form loads with PDF preview panel |
 | Upload a test PDF | PDF appears in the preview panel |
@@ -529,7 +538,7 @@ Then verify files exist:
 ls /volume1/web/iscan/assets/vendor/
 ```
 
-Also verify `OFFLINE_MODE=true` is set in `.env`.
+Also verify `OFFLINE_MODE=true` and `MFA_ENCRYPTION_KEY` are configured in `.env`.
 
 ---
 
@@ -639,15 +648,9 @@ mysql -u root -p iscan_db < /volume1/web/iscan/database_schema.sql
 df -h /volume1
 ```
 
-### Default Login
+### Sign-in and Super Admin setup
 
-| Field | Value |
-|-------|-------|
-| URL | `http://NAS-IP/iscan/` |
-| Username | `admin` |
-| Password | `admin123` |
-
-> **Change password immediately after first login!**
+Use the active Admin account provisioned for this database. The current base schema does not seed default credentials. Follow [SUPER_ADMIN_MFA.md](SUPER_ADMIN_MFA.md) to apply migration 056, bootstrap Super Admin, enroll MFA, and designate a second active Super Admin.
 
 ---
 

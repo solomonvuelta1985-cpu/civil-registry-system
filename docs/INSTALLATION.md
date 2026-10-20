@@ -74,6 +74,10 @@ Only needed if your database credentials differ from defaults:
 
 ---
 
+## Super Admin setup
+
+For an existing installation, back up the database, configure `MFA_ENCRYPTION_KEY`, and apply migrations `056_super_admin_mfa.sql` and `057_super_admin_mfa_authenticators.sql` in order before activating application code that reads the MFA device table and session-version column. Then deploy the code, promote the named active Admin with `scripts/bootstrap_super_admin.php`, and complete authenticator enrollment. Create a second active Super Admin before controlled restore workflows. Follow [SUPER_ADMIN_MFA.md](SUPER_ADMIN_MFA.md) for the full procedure.
+
 ## Step 5: Set Folder Permissions
 
 ### Windows (XAMPP)
@@ -228,8 +232,8 @@ After successful installation:
    - Add your organization's logo
 
 2. **Add users** (optional):
-   - Default admin: username `admin`, password `admin123`
-   - Change the password immediately!
+   - Use the active Admin account provisioned for this database
+   - Follow [SUPER_ADMIN_MFA.md](SUPER_ADMIN_MFA.md) to bootstrap Super Admin MFA
    - Add more users via SQL or create a user management page
 
 3. **Configure backups**:

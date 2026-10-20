@@ -7,7 +7,7 @@
  *   mode=keep_n   For each (cert_type, record_id), keep the latest N pending backups; delete the rest.
  *
  * Restored backups are NEVER deleted by either mode.
- * Admin access required.
+ * Super Admin access required.
  *
  * POST params:
  *   csrf_token        (string)
@@ -25,7 +25,7 @@ require_once '../includes/security.php';
 header('Content-Type: application/json');
 
 if (!isLoggedIn()) { http_response_code(401); echo json_encode(['success' => false, 'message' => 'Not authenticated']); exit; }
-if (getUserRole() !== 'Admin') { http_response_code(403); echo json_encode(['success' => false, 'message' => 'Admin access required']); exit; }
+if (!isSuperAdmin()) { http_response_code(403); echo json_encode(['success' => false, 'message' => 'Super Admin access required']); exit; }
 
 requireCSRFToken();
 
