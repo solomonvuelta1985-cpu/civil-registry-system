@@ -480,10 +480,28 @@
                 remarks_html: this.form.elements.namedItem('remarks_html')?.value || ''
             };
             this.previewHost.innerHTML = this.buildDocumentMarkup(this.record, inputs, crfNumber || 'ID assigned on generate');
+            this.adjustPreviewFlow();
             this.previewTotalPages = Math.max(1, this.previewHost.querySelectorAll('.crf1a-document').length);
             this.previewCurrentPage = Math.min(this.previewCurrentPage, this.previewTotalPages);
             this.updatePreviewControls();
             this.applyPreviewTransform();
+        }
+
+        adjustPreviewFlow() {
+            const millimetersPerPixel = 25.4 / 96;
+            this.previewHost?.querySelectorAll('.crf1a-document').forEach(documentNode => {
+                const flow = documentNode.querySelector('[data-preview-flow-base-mm]');
+                if (!flow) return;
+                const baseHeight = Number(flow.dataset.previewFlowBaseMm) || 0;
+                const extraHeight = Math.max(0, flow.getBoundingClientRect().height * millimetersPerPixel - baseHeight);
+                if (extraHeight < 0.7) return;
+                documentNode.querySelectorAll('.doc-certification, .doc-remarks, .doc-signature, .doc-certified, .doc-payment, .doc-note').forEach(element => {
+                    const inlineTop = Number.parseFloat(element.style.top);
+                    const computedTop = Number.parseFloat(window.getComputedStyle(element).top);
+                    const originalTop = Number.isFinite(inlineTop) ? inlineTop : computedTop * millimetersPerPixel;
+                    if (Number.isFinite(originalTop)) element.style.top = `${(originalTop + extraHeight).toFixed(1)}mm`;
+                });
+            });
         }
 
         requesterRecordName() {
@@ -563,13 +581,11 @@
             };
             const line = (value, isManual = false) => {
                 const text = String(value || '');
-                const fontSize = text.length > 68 ? '6.5pt' : (text.length > 48 ? '7.5pt' : '');
-                return `<span class="doc-line"${fontSize ? ` style="font-size:${fontSize}"` : ''}>${text ? (isManual ? manualEntry(text) : this.escape(text)) : '&nbsp;'}</span>`;
+                return `<span class="doc-line">${text ? (isManual ? manualEntry(text) : this.escape(text)) : '&nbsp;'}</span>`;
             };
             const shortLine = (value, isManual = false) => `<span class="doc-short-line">${value ? (isManual ? manualEntry(value) : this.escape(value)) : '&nbsp;'}</span>`;
             const requester = String(inputs?.requester_name || '').trim();
-            const requesterSize = requester.length > 68 ? '6.5pt' : (requester.length > 48 ? '7.5pt' : '');
-            const requesterLine = `<span class="doc-requester-line"${requesterSize ? ` style="font-size:${requesterSize}"` : ''}>${requester ? manualEntry(requester) : '&nbsp;'}</span>`;
+            const requesterLine = `<span class="doc-requester-line">${requester ? manualEntry(requester) : '&nbsp;'}</span>`;
             const row = (label, value, isManual = true) => `<div class="doc-row"><span class="doc-label">${this.escape(label)}</span><span class="doc-colon">:</span><span class="doc-value">${line(value, isManual)}</span></div>`;
              const config = window.CRF1A_OFFICE_CONFIG || {};
              const isDraftPreview = String(crfNumber || '').trim() === 'ID assigned on generate';
@@ -610,7 +626,7 @@
                 <div class="doc-rule"></div><div class="doc-title">Civil Registry Form No. 1A</div><div class="doc-subtitle">(Birth-Available)</div>
                 <div class="doc-date">Date: ${manualEntry(issueDateText)}</div>
                 <div class="doc-intro"><strong>TO WHOM IT MAY CONCERN:</strong><div class="doc-intro-statement">We certify that, among others, the following facts of birth<br>appear in our Register of Births on page ${shortLine(page, true)} Book number ${shortLine(book, true)}.</div></div>
-                <div class="doc-grid">${row('Registry Number', values.registry_no)}${row('Date of Registration', values.date_of_registration)}${row('Population Reference No.', values.population_reference_no, true)}${row('Name of Child', values.name_of_child)}${row('Sex', values.sex)}${row('Date of Birth', values.date_of_birth)}${row('Place of Birth', values.place_of_birth)}${row('Name of Mother', values.name_of_mother)}${row('Citizenship of Mother', values.mother_citizenship)}${row('Name of father', values.name_of_father)}${row('Citizenship of Father', values.father_citizenship)}${row('Date of marriage of parents', values.parents_marriage_date)}${row('Place of Marriage of parents', values.parents_marriage_place)}</div>
+                <div class="doc-grid" data-preview-flow-base-mm="59.8">${row('Registry Number', values.registry_no)}${row('Date of Registration', values.date_of_registration)}${row('Population Reference No.', values.population_reference_no, true)}${row('Name of Child', values.name_of_child)}${row('Sex', values.sex)}${row('Date of Birth', values.date_of_birth)}${row('Place of Birth', values.place_of_birth)}${row('Name of Mother', values.name_of_mother)}${row('Citizenship of Mother', values.mother_citizenship)}${row('Name of father', values.name_of_father)}${row('Citizenship of Father', values.father_citizenship)}${row('Date of marriage of parents', values.parents_marriage_date)}${row('Place of Marriage of parents', values.parents_marriage_place)}</div>
                 <div class="doc-certification">This certification is issued to ${requesterLine} upon his/her<br>request.</div>
                 ${remarksBlock(remarks[0] || '', remarksTop)}${mainClosing}
             </div>`);

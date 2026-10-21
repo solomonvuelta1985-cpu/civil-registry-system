@@ -240,7 +240,26 @@
             if (!this.record) return;
             const inputs = this.values();
             this.preview.innerHTML = this.withRemarks(this.markup(this.record, inputs, this.backdrop.querySelector('[data-crf-id]').textContent), inputs, this.backdrop.querySelector('[data-crf-id]').textContent);
+            this.preview.querySelectorAll('.crf3a-details-table').forEach(table => { table.dataset.previewFlowBaseMm = '60.8'; });
+            this.adjustPreviewFlow();
             this.preview.querySelectorAll('.crf1a-document').forEach(documentNode => { documentNode.style.transformOrigin = 'top center'; documentNode.style.transform = `scale(${this.scale}) rotate(${this.rotation}deg)`; });
+        }
+
+        adjustPreviewFlow() {
+            const millimetersPerPixel = 25.4 / 96;
+            this.preview.querySelectorAll('.crf1a-document').forEach(documentNode => {
+                const flow = documentNode.querySelector('[data-preview-flow-base-mm]');
+                if (!flow) return;
+                const baseHeight = Number(flow.dataset.previewFlowBaseMm) || 0;
+                const extraHeight = Math.max(0, flow.getBoundingClientRect().height * millimetersPerPixel - baseHeight);
+                if (extraHeight < 0.7) return;
+                documentNode.querySelectorAll('.crf3a-certification, .crf3a-signature, .crf3a-verified, .doc-payment, .doc-note').forEach(element => {
+                    const inlineTop = Number.parseFloat(element.style.top);
+                    const computedTop = Number.parseFloat(window.getComputedStyle(element).top);
+                    const originalTop = Number.isFinite(inlineTop) ? inlineTop : computedTop * millimetersPerPixel;
+                    if (Number.isFinite(originalTop)) element.style.top = `${(originalTop + extraHeight).toFixed(1)}mm`;
+                });
+            });
         }
 
         values() { const values = {}; new FormData(this.form).forEach((value, key) => { values[key] = key === 'remarks_html' ? String(value || '') : String(value || '').trim(); }); return values; }

@@ -365,6 +365,82 @@ body.crf1a-open { overflow: hidden; }
 .crf1a-document .crf3a-verified-heading>span:first-child { width:32mm; flex:0 0 32mm; }
 .crf1a-document .crf3a-verified-line { display:inline-block; width:62mm; height:5mm; border-bottom:1px solid #222; overflow:hidden; white-space:nowrap; }
 .crf1a-document .crf3a-verified-position { margin-left:32mm; width:62mm; min-height:4mm; text-align:left; }
+.crf1a-generator-preview-panel .crf1a-document .doc-row { align-items:flex-start; }
+.crf1a-generator-preview-panel .crf1a-document .doc-row:not(.doc-cause-row) .doc-label,
+.crf1a-generator-preview-panel .crf1a-document .doc-row:not(.doc-cause-row) .doc-colon { line-height:4.6mm; }
+.crf1a-generator-preview-panel .crf1a-document .doc-line {
+    display:block;
+    box-sizing:border-box;
+    min-height:4.6mm;
+    line-height:4.6mm;
+    border-bottom:0;
+    white-space:pre-wrap;
+    overflow-wrap:anywhere;
+    word-break:normal;
+    overflow:visible;
+    background-image:repeating-linear-gradient(to bottom, transparent 0, transparent calc(4.6mm - 1px), #222 calc(4.6mm - 1px), #222 4.6mm);
+}
+.crf1a-generator-preview-panel .crf1a-document .doc-short-line {
+    height:auto;
+    min-height:3.8mm;
+    line-height:3.8mm;
+    border-bottom:0;
+    white-space:pre-wrap;
+    overflow-wrap:anywhere;
+    overflow:visible;
+    background-image:repeating-linear-gradient(to bottom, transparent 0, transparent calc(3.8mm - 1px), #222 calc(3.8mm - 1px), #222 3.8mm);
+}
+.crf1a-generator-preview-panel .crf1a-document .doc-requester-line {
+    height:auto;
+    line-height:3.8mm;
+    border-bottom:0;
+    white-space:pre-wrap;
+    overflow-wrap:anywhere;
+    overflow:visible;
+    background-image:repeating-linear-gradient(to bottom, transparent 0, transparent calc(3.8mm - 1px), #222 calc(3.8mm - 1px), #222 3.8mm);
+}
+.crf1a-generator-preview-panel .crf1a-document .doc-certified-line {
+    height:auto;
+    min-height:5mm;
+    line-height:5mm;
+    border-bottom:0;
+    white-space:pre-wrap;
+    overflow-wrap:anywhere;
+    overflow:visible;
+    background-image:repeating-linear-gradient(to bottom, transparent 0, transparent calc(5mm - 1px), #222 calc(5mm - 1px), #222 5mm);
+}
+.crf1a-generator-preview-panel .crf1a-document .doc-certified-position,
+.crf1a-generator-preview-panel .crf1a-document .crf3a-verified-position { white-space:pre-wrap; overflow-wrap:anywhere; }
+.crf1a-generator-preview-panel .crf1a-document .crf3a-verified-line {
+    display:block;
+    box-sizing:border-box;
+    height:auto;
+    min-height:5mm;
+    line-height:5mm;
+    border-bottom:0;
+    white-space:pre-wrap;
+    overflow-wrap:anywhere;
+    overflow:visible;
+    background-image:repeating-linear-gradient(to bottom, transparent 0, transparent calc(5mm - 1px), #222 calc(5mm - 1px), #222 5mm);
+}
+.crf1a-generator-preview-panel .crf1a-document .doc-payment-row { align-items:flex-start; }
+.crf1a-generator-preview-panel .crf1a-document .crf3a-details-table th,
+.crf1a-generator-preview-panel .crf1a-document .crf3a-details-table td { vertical-align:top; white-space:normal; }
+.crf1a-generator-preview-panel .crf1a-document .crf3a-details-table .crf3a-party-line,
+.crf1a-generator-preview-panel .crf1a-document .crf3a-details-table .crf3a-shared-line,
+.crf1a-generator-preview-panel .crf1a-document .crf3a-details-table .crf3a-single-line {
+    display:block;
+    box-sizing:border-box;
+    height:auto;
+    min-height:4.4mm;
+    line-height:4.4mm;
+    padding:0;
+    border-bottom:0;
+    white-space:pre-wrap;
+    overflow-wrap:anywhere;
+    overflow:visible;
+    background-image:repeating-linear-gradient(to bottom, transparent 0, transparent calc(4.4mm - 1px), #222 calc(4.4mm - 1px), #222 4.4mm);
+}
 .crf1a-pdf-frame {
     display: block;
     width: min(215.9mm, 100%);

@@ -23,7 +23,28 @@
         async loadPreviousSavedRemarks(issuances, beforeIssuanceId = 0) { const beforeId=Number(beforeIssuanceId)||0; for(const issuance of issuances||[]){const id=Number(issuance?.id||issuance?.issuance_id)||0;if(!id||(beforeId&&id>=beforeId))continue;try{const r=await fetch(`../api/crf_2a_records.php?action=detail&id=${id}`,{credentials:'same-origin'});const d=await r.json();if(!r.ok||!d.success)continue;const html=d.data?.record_snapshot?.manual_overrides?.remarks_html||'';if(this.remarksEditor?.setSavedRemarks(html))return true;}catch(e){console.warn('Unable to load a saved CRF No. 2A remarks copy.',e);}}this.remarksEditor?.setSavedRemarks('');return false; }
         confirmGeneration() { if(!this.record?.id) return this.setStatus('No source death record selected.',true); if(!this.form.reportValidity()) return this.setStatus('Complete the required fields.',true); if(this.checkPending) return this.setStatus('Still checking existing CRF issuances.',true); if(!this.checkComplete) return this.setStatus('Existing-issuance check did not finish. Reopen the generator.',true); const values=this.values(); const kind=values.issuance_kind||'Original'; const has=this.existingIssuances.length>0; if(kind==='Reprint') this.replacesIssuanceId=0; if(kind==='Corrected'&&!this.replacesIssuanceId&&has) this.replacesIssuanceId=Number(this.existingIssuances[0].id)||0; if(kind==='Corrected'&&!this.replacesIssuanceId) return this.setStatus('Select an existing CRF record before creating a corrected issuance.',true); if(kind==='Original'&&has) return this.setStatus('An issuance already exists for this death record. Choose Corrected or Reprint to prevent redundancy.',true); const nums=this.existingIssuances.map(x=>x.crf_number).filter(Boolean).slice(0,3); const existingText=nums.length?'<br><br>Existing: '+this.escape(nums.join(', ')):''; const msg=kind==='Reprint'?'Create a new Reprint issuance using these same source and payment details?<br><br><span style="color:#475569">The existing CRF will remain unchanged.</span>'+existingText:kind==='Corrected'?'Create a new Corrected issuance linked to the previous CRF?<br><br><span style="color:#475569">The source death record and previous issuance will remain unchanged.</span>'+existingText:'Generate this Original CRF No. 2A PDF and save it as a new immutable issuance?<br><br><span style="color:#475569">The source death record will remain unchanged.</span>'; const title=kind==='Reprint'?'Generate Reprint':kind==='Corrected'?'Generate Corrected CRF':'Generate CRF No. 2A'; this.confirm(title,msg,kind==='Original'?'Generate PDF':'Create New Record','#2563EB',()=>this.generate()); }
         async generate() { const selectedKind=this.values().issuance_kind||'Original'; if(this.replacesIssuanceId&&selectedKind!=='Corrected'){this.set('issuance_kind','Corrected');} const fd=new FormData(this.form); fd.append('death_record_id',String(this.record.id)); if(this.replacesIssuanceId) fd.append('replaces_issuance_id',String(this.replacesIssuanceId)); const token=document.querySelector('meta[name="csrf-token"]')?.content||''; if(token) fd.append('csrf_token',token); this.button.disabled=true; this.backdrop.classList.add('is-generating'); this.setStatus('Generating immutable CRF PDF...'); try { const r=await fetch('../api/crf_2a_generate.php',{method:'POST',body:fd,headers:token?{'X-CSRF-Token':token}:{},credentials:'same-origin'}); const d=await r.json(); if(!r.ok||!d.success) throw new Error(d.message||'Generation failed.'); this.backdrop.querySelector('[data-crf-id]').textContent=d.data.crf_number; this.existingIssuances.unshift(d.data); this.setStatus(`${d.data.crf_number} generated and saved for reprint.`,false,true); this.notify('CRF No. 2A generated successfully.'); window.location.assign('crf_2a_records.php'); } catch(e){ this.setStatus(e.message,true); this.notify(e.message,true); } finally { this.backdrop.classList.remove('is-generating'); this.button.disabled=false; } }
-        render() { if(!this.record) return; const i=this.values(); const merged={...this.record,civil_status:i.civil_status,citizenship:i.citizenship,cause_of_death:i.cause_of_death}; this.preview.innerHTML=this.markup(merged,i,this.backdrop.querySelector('[data-crf-id]').textContent); this.preview.querySelectorAll('.crf1a-document').forEach(doc=>doc.style.transform=`scale(${this.scale}) rotate(${this.rotation}deg)`); }
+        render() {
+            if (!this.record) return;
+            const i = this.values();
+            const merged = { ...this.record, civil_status: i.civil_status, citizenship: i.citizenship, cause_of_death: i.cause_of_death };
+            this.preview.innerHTML = this.markup(merged, i, this.backdrop.querySelector('[data-crf-id]').textContent);
+            this.adjustPreviewFlow();
+            this.preview.querySelectorAll('.crf1a-document').forEach(doc => doc.style.transform = `scale(${this.scale}) rotate(${this.rotation}deg)`);
+        }
+        adjustPreviewFlow() {
+            const millimetersPerPixel = 25.4 / 96;
+            this.preview.querySelectorAll('.crf1a-document').forEach(documentNode => {
+                const flow = documentNode.querySelector('[data-preview-flow-base-mm]');
+                if (!flow) return;
+                const baseHeight = Number(flow.dataset.previewFlowBaseMm) || 0;
+                const extraHeight = Math.max(0, flow.getBoundingClientRect().height * millimetersPerPixel - baseHeight);
+                if (extraHeight < 0.7) return;
+                documentNode.querySelectorAll('.doc-certification, .doc-remarks, .doc-signature, .doc-certified, .doc-payment, .doc-note').forEach(element => {
+                    const originalTop = Number.parseFloat(element.style.top);
+                    if (Number.isFinite(originalTop)) element.style.top = `${(originalTop + extraHeight).toFixed(1)}mm`;
+                });
+            });
+        }
         values(){ const o={}; new FormData(this.form).forEach((v,k)=>o[k]=k==='remarks_html'?String(v||''):k==='cause_of_death'?String(v??'').replace(/\r\n?/g,'\n'):String(v||'').trim()); return o; }
         registryNumber(r){const number=String(r?.registry_no||'').trim();if(number)return number;return({not_readable:'Not Readable',no_entry:'No Entry'})[r?.registry_no_status]||'No Entry';}
         formatDate(value) {
@@ -180,7 +201,8 @@
                     mainFooter = this.certificationMarkup(i, crf, certificationTop) + remarksMarkup(remarksPages[0], remarksTop) + this.closingMarkup(i, crf, { signature: sig, certified: sig + 21, payment: sig + 41, note: sig + 65 });
                 } else mainFooter = this.certificationMarkup(i, crf, certificationTop) + remarksMarkup(remarksPages[0], remarksTop);
             }
-            pages.push(`<div class="crf1a-document crf2a-document">${header}${intro}<div class="doc-grid">${regularRows}${causeBlock(plan.firstPageLines)}</div>${mainFooter}</div>`);
+            const mainGridBaseHeight = (9 + plan.firstPageLines.length) * 4.6;
+            pages.push(`<div class="crf1a-document crf2a-document">${header}${intro}<div class="doc-grid" data-preview-flow-base-mm="${mainGridBaseHeight}">${regularRows}${causeBlock(plan.firstPageLines)}</div>${mainFooter}</div>`);
             plan.continuationPages.forEach(page => {
                 const continuationTop = 55 + page.lines.length * 4.6;
                 const title = page.lines.length ? 'Civil Registry Form No. 2A - continuation' : 'Civil Registry Form No. 2A - certification and payment';

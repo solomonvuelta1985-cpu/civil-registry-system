@@ -40,7 +40,7 @@ $crf3aDefaults = branding_crf_preview_config(crf_3a_config());
 
     <link rel="stylesheet" href="../assets/css/sidebar.css?v=20261019-active-icon-2">
     <link rel="stylesheet" href="../assets/css/record-preview-modal.css?v=14">
-    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=39">
+    <link rel="stylesheet" href="../assets/css/crf-1a.css?v=43">
 
     <script src="<?= asset_url('pdfjs') ?>"></script>
     <script>
@@ -871,10 +871,10 @@ function openPreview(id, type) {
 <script src="../assets/js/family_relations_render.js?v=2"></script>
 <script src="../assets/js/record-preview-modal.js?v=13"></script>
 <script src="../assets/js/crf-remarks-editor.js?v=20261014-personal-templates-1"></script>
-<script src="../assets/js/crf-1a-generator.js?v=20261014-redirect-records-1"></script>
-<script src="../assets/js/crf-2a-generator.js?v=20261014-redirect-records-1"></script>
+<script src="../assets/js/crf-1a-generator.js?v=20261021-preview-flow-1"></script>
+<script src="../assets/js/crf-2a-generator.js?v=20261021-preview-flow-1"></script>
 <script src="../assets/js/crf-2a-records.js?v=4"></script>
-<script src="../assets/js/crf-3a-generator.js?v=20261014-redirect-records-1"></script>
+<script src="../assets/js/crf-3a-generator.js?v=20261021-preview-flow-1"></script>
 <script src="../assets/js/crf-3a-records.js?v=2"></script>
 <script src="../assets/js/crf-1a-records.js?v=20"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
