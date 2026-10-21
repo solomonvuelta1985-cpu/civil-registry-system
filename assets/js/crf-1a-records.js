@@ -268,7 +268,8 @@
                     ['Mother', snapshot.name_of_mother], ['Father', snapshot.name_of_father]
                 ])
             ].join('')}</div>`;
-            const correctedAction = window.CRF1A_CAN_GENERATE === true && window.crf1aGenerator
+            const correctedAction = ['Original', 'Corrected'].includes(record.issuance_kind || 'Original')
+                && window.CRF1A_CAN_GENERATE === true && window.crf1aGenerator
                 ? '<button type="button" class="modal-btn modal-btn-primary" data-corrected-copy><i data-lucide="file-pen-line"></i><span>Generate Corrected Copy</span></button>'
                 : '';
             const sourceAction = record.birth_record_id

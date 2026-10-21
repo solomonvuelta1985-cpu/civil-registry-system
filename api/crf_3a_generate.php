@@ -140,8 +140,11 @@ try {
         $replaceStmt = $pdo->prepare("SELECT * FROM crf_3a_issuances WHERE id = :id LIMIT 1 FOR UPDATE");
         $replaceStmt->execute([':id' => $replacesId]);
         $replacement = $replaceStmt->fetch(PDO::FETCH_ASSOC);
-        if (!$replacement || (int)$replacement['marriage_record_id'] !== (int)$marriageRecordId || !in_array($replacement['issuance_kind'], ['Original', 'Corrected'], true)) {
+        if (!$replacement || (int)$replacement['marriage_record_id'] !== (int)$marriageRecordId) {
             json_response(false, 'The original CRF record selected for correction is invalid or no longer available.', null, 422);
+        }
+        if (!in_array($replacement['issuance_kind'], ['Original', 'Corrected'], true)) {
+            json_response(false, 'A Reprint cannot be used as the basis for a corrected CRF. Open the Original or latest Corrected CRF instead.', null, 422);
         }
         $latestCurrent = crf_correction_latest_current($pdo, '3a', (int)$marriageRecordId);
         if (!$latestCurrent || (int)$latestCurrent['id'] !== $replacesId) {
@@ -149,7 +152,7 @@ try {
             json_response(false, 'This CRF has already been corrected. Reopen the latest issuance before generating another corrected copy.', null, 409);
         }
         if (!in_array($replacement['status'], ['Active', 'Archived'], true)) {
-            json_response(false, 'The original CRF record selected for correction is invalid or no longer available.', null, 422);
+            json_response(false, 'This CRF issuance is no longer available for correction. Refresh the Records page and open the latest active Original or Corrected issuance.', null, 409);
         }
         crf_correction_load_chain($pdo, '3a', $replacesId, true);
     }
