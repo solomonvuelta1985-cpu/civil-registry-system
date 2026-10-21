@@ -9,7 +9,7 @@
             <div class="mobile-header-brand-copy">
                 <h4>CRDMS</h4>
                 <span class="mobile-header-brand-divider" aria-hidden="true">|</span>
-                <small class="mobile-header-subtitle">Civil Registry &amp; Document Management System</small>
+                <small class="mobile-header-subtitle">Civil Registry Documents Management System</small>
             </div>
         </div>
         <div class="mobile-header-actions">

@@ -1,6 +1,6 @@
 <?php
 /**
- * Dashboard - Civil Registry Document Management System (CRDMS)
+ * Dashboard - Civil Registry Documents Management System (CRDMS)
  * Main admin dashboard with analytics and statistics
  */
 

@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-**iScan** is a comprehensive web-based Civil Registry Document Management System (CRDMS) designed to digitize and manage Certificate of Live Birth records. The system allows users to scan PDF certificates and extract metadata into a structured database for easy retrieval and management.
+**iScan** is a comprehensive web-based Civil Registry Documents Management System (CRDMS) designed to digitize and manage Certificate of Live Birth records. The system allows users to scan PDF certificates and extract metadata into a structured database for easy retrieval and management.
 
 ---
 
@@ -357,7 +357,7 @@ For issues, questions, or feature requests:
 
 ## 📜 License
 
-This project is developed for Civil Registry Document Management System (CRDMS).
+This project is developed for Civil Registry Documents Management System (CRDMS).
 All rights reserved.
 
 ---

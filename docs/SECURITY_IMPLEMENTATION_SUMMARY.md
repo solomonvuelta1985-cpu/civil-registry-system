@@ -1,5 +1,5 @@
 # Security Implementation Summary
-## iSCAN - Civil Registry Document Management System
+## iSCAN - Civil Registry Documents Management System
 
 **Date:** January 18, 2026
 **Version:** 1.0.0

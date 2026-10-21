@@ -1,7 +1,7 @@
 <?php
 /**
  * Authentication and Authorization Helper
- * Civil Registry Document Management System (CRDMS)
+ * Civil Registry Documents Management System (CRDMS)
  */
 
 require_once __DIR__ . '/session_config.php';

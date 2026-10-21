@@ -163,7 +163,7 @@ if ($edit_mode && $record) {
                         <img src="<?= htmlspecialchars(branding_logo_url('app'), ENT_QUOTES, 'UTF-8') ?>" alt="Bayan ng Baggao Logo">
                     </div>
                     <div class="system-title-container">
-                        <h1 class="system-title">Civil Registry Document Management System (CRDMS)</h1>
+                        <h1 class="system-title">Civil Registry Documents Management System (CRDMS)</h1>
                         <p class="system-subtitle">Lalawigan ng Cagayan - Bayan ng Baggao</p>
                     </div>
                 </div>

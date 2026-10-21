@@ -4,7 +4,7 @@
 >
 > **Last updated:** 2026-04-28
 > **Author of changes:** Claude Code (Opus 4.7) working with the Baggao LCRO admin
-> **Project:** iScan (Civil Registry Document Management System) at `c:\xampp\htdocs\iscan`
+> **Project:** iScan (Civil Registry Documents Management System) at `c:\xampp\htdocs\iscan`
 
 ---
 

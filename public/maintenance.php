@@ -1,7 +1,7 @@
 <?php
 /**
  * Maintenance Page
- * Civil Registry Document Management System (CRDMS)
+ * Civil Registry Documents Management System (CRDMS)
  *
  * Standalone page shown to non-admin users when Maintenance Mode is ON.
  * Does NOT include session_config.php / auth.php to avoid the maintenance
@@ -27,7 +27,7 @@ if ($message === '') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="refresh" content="30">
-    <title>System Maintenance - Civil Registry Document Management System (CRDMS)</title>
+    <title>System Maintenance - Civil Registry Documents Management System (CRDMS)</title>
     <?= google_fonts_tag('Inter:wght@300;400;500;600;700') ?>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }

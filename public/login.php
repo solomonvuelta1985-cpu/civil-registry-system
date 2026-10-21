@@ -205,7 +205,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Civil Registry Document Management System (CRDMS)</title>
+    <title>Login - Civil Registry Documents Management System (CRDMS)</title>
     <?= google_fonts_tag('Poppins:wght@300;400;500;600;700') ?>
     <style>
         * {
@@ -748,7 +748,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </form>
 
                 <div class="form-footer">
-                    Civil Registry Document Management System (CRDMS)
+                    Civil Registry Documents Management System (CRDMS)
                 </div>
             </div>
         </div>

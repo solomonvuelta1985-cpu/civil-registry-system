@@ -1,7 +1,7 @@
 <?php
 /**
  * User Management - View, Search, Edit, Delete Users
- * Civil Registry Document Management System (CRDMS)
+ * Civil Registry Documents Management System (CRDMS)
  */
 
 require_once '../includes/session_config.php';

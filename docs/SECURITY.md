@@ -1,5 +1,5 @@
 # Security Implementation Guide
-## iSCAN - Civil Registry Document Management System
+## iSCAN - Civil Registry Documents Management System
 
 This document outlines all security features implemented in the system and how to configure them for both development (localhost) and production environments.
 

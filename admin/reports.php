@@ -1,6 +1,6 @@
 <?php
 /**
- * Reports & Analytics - Civil Registry Document Management System (CRDMS)
+ * Reports & Analytics - Civil Registry Documents Management System (CRDMS)
  * Comprehensive analytics dashboard with charts, statistics, and export functionality
  */
 
