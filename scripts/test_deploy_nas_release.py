@@ -128,6 +128,7 @@ class DeployClassificationTests(unittest.TestCase):
         )
         self.assertTrue(DEPLOY.is_repo_only(".env.production"))
         self.assertTrue(DEPLOY.is_repo_only(".env.synology"))
+        self.assertTrue(DEPLOY.is_repo_only("database/application_for_marriage_license.sql"))
         self.assertTrue(DEPLOY.is_repo_only("database/create_marriage_table.sql"))
         self.assertTrue(DEPLOY.is_repo_only("database/migrations/050_marriage_civil_status.sql"))
         self.assertTrue(DEPLOY.is_repo_only("database_schema.sql"))
@@ -257,7 +258,10 @@ class DeployPlanIntegrationTests(unittest.TestCase):
             (repo / ".claude" / "settings.local.json").write_text("{}\n", encoding="utf-8")
             (repo / "includes").mkdir()
             (repo / "includes" / "feature.php").write_text("old\n", encoding="utf-8")
-            git(repo, "add", ".claude", "includes/feature.php")
+            (repo / "database").mkdir()
+            schema_template = repo / "database" / "application_for_marriage_license.sql"
+            schema_template.write_text("-- users.role: Admin, Encoder, Viewer\n", encoding="utf-8")
+            git(repo, "add", ".claude", "includes/feature.php", "database/application_for_marriage_license.sql")
             git(repo, "commit", "-m", "base")
             base = git(repo, "rev-parse", "HEAD")
 
@@ -268,6 +272,7 @@ class DeployPlanIntegrationTests(unittest.TestCase):
                 b"\x00compiled-cache"
             )
             (repo / "includes" / "feature.php").write_text("new\n", encoding="utf-8")
+            schema_template.write_text("-- users.role: Super Admin, Admin, Encoder, Viewer\n", encoding="utf-8")
             git(repo, "add", "-A")
             git(repo, "commit", "-m", "feature and local tooling changes")
             target = git(repo, "rev-parse", "HEAD")
@@ -280,6 +285,7 @@ class DeployPlanIntegrationTests(unittest.TestCase):
                 {
                     ".claude/settings.json": "already",
                     ".claude/settings.local.json": "already",
+                    "database/application_for_marriage_license.sql": "already",
                     "includes/feature.php": "write",
                     "scripts/__pycache__/deploy.cpython-311.pyc": "already",
                 },

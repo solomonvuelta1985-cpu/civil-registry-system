@@ -36,6 +36,9 @@ REPO_ONLY_PATHS = {
     # Local assistant settings are repository-only and must never reach the live site.
     ".claude/settings.json",
     ".claude/settings.local.json",
+    # Bootstrap schema files are installation references; production schema changes
+    # must be delivered as numbered migrations, not by copying these SQL templates.
+    "database/application_for_marriage_license.sql",
     "database/create_marriage_table.sql",
     # Migration 050 was already applied in production. Keep that exact file
     # immutable in the live release; later schema changes need a new migration.

@@ -12,7 +12,7 @@ The Git checkout and the website files are in different folders:
 
 Updating `/volume1/iscan` with `git pull` **does not by itself update the website**. The live folder is not a Git checkout and has had NAS-specific changes. Deployment must copy only reviewed files into the live folder, after checking that their current contents are understood.
 
-The NAS checkout may also contain NAS-specific file changes, untracked data such as Synology `#recycle` contents, old release folders, and backups. The helper leaves them alone when their paths do not overlap the incoming update. It stops before deployment if a local path conflicts with an incoming file. A matching untracked source file under `docker/` is saved in `/volume1/iscan/backups/` and adopted by Git; other differing collisions still stop. `.env.example`, `.env.production`, `.env.synology`, `database_schema.sql`, `database/create_marriage_table.sql`, the already-applied `database/migrations/050_marriage_civil_status.sql`, `docs/RA9048_MODULE.md`, `scripts/test_template_files.php`, files under `docker/` and `tests/`, and the helper/guide paths stay in the Git checkout and are not copied into the live website. Keep applied migration files stable; create a new migration file for later schema changes. The helper can reconcile three specifically reviewed NAS variants (the branding comment/newline, the marriage civil-status options refactor, and formatting in the migration runner) only when the entire normalized result matches the pushed target; each replacement is backed up with the rest of the live files. Any other differences still stop preflight. When a commit deletes the tracked `.env.production` or `.env.synology` template, the helper saves a mode-600 copy under backups before updating the checkout. The actual `.env` and all other `.env.*` paths remain blocked. The single tracked dump `public/iscan_db (1).sql` may only be deleted, never added or updated; if the live copy matches the old Git version, the helper backs it up before deleting it. Other non-migration SQL files remain blocked. The helper ignores executable-bit drift caused by NAS-wide permission commands; it does not change permissions recursively.
+The NAS checkout may also contain NAS-specific file changes, untracked data such as Synology `#recycle` contents, old release folders, and backups. The helper leaves them alone when their paths do not overlap the incoming update. It stops before deployment if a local path conflicts with an incoming file. A matching untracked source file under `docker/` is saved in `/volume1/iscan/backups/` and adopted by Git; other differing collisions still stop. `.env.example`, `.env.production`, `.env.synology`, `database_schema.sql`, `database/application_for_marriage_license.sql`, `database/create_marriage_table.sql`, the already-applied `database/migrations/050_marriage_civil_status.sql`, `docs/RA9048_MODULE.md`, `scripts/test_template_files.php`, files under `docker/` and `tests/`, and the helper/guide paths stay in the Git checkout and are not copied into the live website. The two application SQL files are bootstrap schema templates; production schema changes must use a new numbered file under `database/migrations/`. Keep applied migration files stable; create a new migration file for later schema changes. The helper can reconcile three specifically reviewed NAS variants (the branding comment/newline, the marriage civil-status options refactor, and formatting in the migration runner) only when the entire normalized result matches the pushed target; each replacement is backed up with the rest of the live files. Any other differences still stop preflight. When a commit deletes the tracked `.env.production` or `.env.synology` template, the helper saves a mode-600 copy under backups before updating the checkout. The actual `.env` and all other `.env.*` paths remain blocked. The single tracked dump `public/iscan_db (1).sql` may only be deleted, never added or updated; if the live copy matches the old Git version, the helper backs it up before deleting it. Other non-migration SQL files remain blocked. The helper ignores executable-bit drift caused by NAS-wide permission commands; it does not change permissions recursively.
 
 The DSM task **iScan Auto Update** currently contains an old script (`git reset --hard`, recursive `chown`, recursive `chmod`). That script is unsafe and does not deploy to the live folder. Keep the task disabled for the manual deployment workflow in this guide. Do not paste the `sudo sh -s <<'NAS_UPDATE'` example previously discussed; it is not the Task Scheduler command.
 
@@ -84,7 +84,7 @@ After local testing, commit and push the intended files to `origin/main`. Then r
 sudo sh -c 'R=/volume1/iscan; git -c safe.directory="$R" -C "$R" fetch origin main && git -c safe.directory="$R" -C "$R" show origin/main:scripts/deploy_nas_release.py > /tmp/iscan_deploy_nas_release.py && python3 /tmp/iscan_deploy_nas_release.py'
 ```
 
-Paste that whole line at the NAS prompt and press Enter. When `sudo` asks for `Password:`, type the NAS sudo password and press Enter; the terminal will not display the password characters. Wait for the command to finish. Proceed only if the output ends with `ISCAN_NAS_DEPLOY_OK`. `STOP` means a preflight check failed before live website files were changed; send the complete stop output for review. Do not reset or overwrite conflicts. `DEPLOYMENT_NEEDS_REVIEW` means the apply phase began: use the printed backup path and inspect the live files before retrying. The helper creates a timestamped code backup in `/volume1/iscan/backups/` before applying live changes. It never copies environment files into the live release, changes uploads, logs, storage, or temporary files, or runs migrations. If the update includes a new `database/migrations/NNN_*.sql` file, follow Section 5 and apply that exact migration after deployment, before using the feature.
+Paste that whole line at the NAS prompt and press Enter. When `sudo` asks for `Password:`, type the NAS sudo password and press Enter; the terminal will not display the password characters. Wait for the command to finish. Proceed only if the output ends with `ISCAN_NAS_DEPLOY_OK`. `STOP` means a preflight check failed before live website files were changed; send the complete stop output for review. Do not reset or overwrite conflicts. `DEPLOYMENT_NEEDS_REVIEW` means the apply phase began: use the printed backup path and inspect the live files before retrying. The helper creates a timestamped code backup in `/volume1/iscan/backups/` before applying live changes. It never copies environment files into the live release, changes uploads, logs, storage, or temporary files, or runs migrations. Most migrations are applied after deployment as described in Section 5. If release documentation says a migration must be applied before activating its code, follow that release-specific order instead; the current MFA release is one such case.
 
 Use this same command for future updates; it fetches the latest helper before deploying. Do not use a full-directory `rsync`, `git reset --hard`, or recursive ownership/permission commands to get past a mismatch.
 
@@ -92,7 +92,7 @@ Use this same command for future updates; it fetches the latest helper before de
 
 ### 5. Apply a database migration when the release needs one
 
-A release needs a migration when it adds or changes database tables, columns, indexes, constraints, or other schema. PHP, JavaScript, and CSS changes that use the existing schema do not need one. The deployment helper copies migration files but never executes them. Check the pushed file list and the helper output `DATABASE_MIGRATIONS_REVIEW_REQUIRED=...`; use only the exact migration filename named there.
+A release needs a migration when it adds or changes database tables, columns, indexes, constraints, or other schema. PHP, JavaScript, and CSS changes that use the existing schema do not need one. The deployment helper copies migration files but never executes them. Check the pushed file list and the helper output `DATABASE_MIGRATIONS_REVIEW_REQUIRED=...`; use only the exact migration filename named there. Follow any release-specific order: migrations that the new code needs at startup must be applied before deploying that code. The Super Admin MFA release below requires migrations 056 and 057 before deployment.
 
 **Before the Section 4 deployment command, if the release includes a migration, create and verify a database backup:**
 
@@ -100,7 +100,48 @@ A release needs a migration when it adds or changes database tables, columns, in
 2. Select an approved backup location and start a database backup.
 3. Wait until its status is `completed`, then click **Verify** for that backup. Continue only when verification reports `VALID`. Keep the dump and manifest until the release is verified.
 
-After the backup is verified, return to Section 4 and deploy the release. Do not use the new feature until its migration is applied.
+After the backup is verified, apply the migration in the order required by that release. For the current MFA release, first configure and verify the encryption key, then apply migrations 056 and 057 before Section 4. For an ordinary migration that is safe to apply after deployment, deploy first and then continue with the check/apply commands below. Do not use the new feature until its migration is applied.
+
+#### Current release: prepare the MFA schema before deployment
+
+This applies when the pushed update includes `database/migrations/056_super_admin_mfa.sql` and `database/migrations/057_super_admin_mfa_authenticators.sql`. The new login/session code reads the schema these migrations create, so do not deploy that code first.
+
+First make sure the live `/volume1/iscan/release_blue_candidate_20260930/.env` has a `MFA_ENCRYPTION_KEY` containing Base64 for 32 random bytes. If a key is already configured, keep it; do not replace it. If it is missing, generate one on the NAS and add it to `.env` using the NAS's secure file editor. Do not paste the key into chat or Git:
+
+```sh
+sudo /usr/local/bin/php82 -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
+```
+
+Check that the existing live `.env` contains a correctly formatted key without printing the key itself:
+
+```sh
+sudo grep -Eq '^MFA_ENCRYPTION_KEY=[A-Za-z0-9+/]{43}=$' /volume1/iscan/release_blue_candidate_20260930/.env && echo MFA_KEY_FORMAT_OK || echo MFA_KEY_MISSING_OR_INVALID
+```
+
+After the database backup is verified and the key check prints `MFA_KEY_FORMAT_OK`, fetch the pushed release without running the deployment helper yet:
+
+```sh
+sudo git -c safe.directory=/volume1/iscan -C /volume1/iscan fetch origin main
+```
+
+Next, run the following NAS SSH command with `MODE=--check`. It extracts only the migration runner and the two migration files from the fetched `origin/main` into a temporary directory, then points the runner at the live `.env`. It does not change the live application files or database:
+
+```sh
+sudo sh -c '
+set -eu
+R=/volume1/iscan
+LIVE=/volume1/iscan/release_blue_candidate_20260930
+WORK=$(mktemp -d /tmp/iscan-mfa-migrations.XXXXXX)
+trap "rm -rf $WORK" EXIT HUP INT TERM
+git -c safe.directory="$R" -C "$R" archive origin/main database/apply_single_migration.php includes/env_loader.php database/migrations/056_super_admin_mfa.sql database/migrations/057_super_admin_mfa_authenticators.sql | tar -xf - -C "$WORK"
+PHP=/usr/local/bin/php82
+MODE=--check
+"$PHP" "$WORK/database/apply_single_migration.php" "$MODE" 056_super_admin_mfa.sql "--env-file=$LIVE/.env"
+"$PHP" "$WORK/database/apply_single_migration.php" "$MODE" 057_super_admin_mfa_authenticators.sql "--env-file=$LIVE/.env"
+'
+```
+
+Both results must name `DATABASE=iscan_db` and show either `MIGRATION_STATUS=PENDING` or `MIGRATION_STATUS=ALREADY_APPLIED`. If either command prints `STOP`, `ERROR`, or a different database name, stop. If one or both are `PENDING`, confirm the database backup is verified, then run the same block again after changing only `MODE=--check` to `MODE=--apply`. Each migration is applied by itself and recorded in the migration table. Do not proceed to Section 4 until both report `ALREADY_APPLIED` on a `--check` run. If an apply reports an error, stop and inspect the schema and tracking row before retrying.
 
 After deployment, check the exact migration against the live database. Replace the example filename below with the filename printed by the deployment helper:
 
@@ -118,7 +159,7 @@ sudo /usr/local/bin/php82 /volume1/iscan/release_blue_candidate_20260930/databas
 
 Expect `MIGRATION_STATUS=APPLIED`. Run the `--check` command again; it should then report `MIGRATION_STATUS=ALREADY_APPLIED`. Finally, test the affected iScan workflow with a non-production test record where possible.
 
-`database/apply_single_migration.php` is CLI-only and accepts one numbered migration filename. **Do not run `database/run_migrations.php` to apply a single change:** it is a legacy batch runner containing older migrations that may not be recorded in the NAS migration table. Do not rerun a failed migration blindly; MySQL DDL can partially apply, so inspect the schema and migration record first. Keep applied migration files unchanged and create a new numbered migration for each later schema change. Never put a database password in a command, guide, or committed file.
+`database/apply_single_migration.php` is CLI-only and accepts one numbered migration filename. It normally reads `.env` beside the application; when running a staged copy from `/tmp`, pass `--env-file=/absolute/path/.env` to use the live application's environment file. **Do not run `database/run_migrations.php` to apply a single change:** it is a legacy batch runner containing older migrations that may not be recorded in the NAS migration table. Do not rerun a failed migration blindly; MySQL DDL can partially apply, so inspect the schema and migration record first. Keep applied migration files unchanged and create a new numbered migration for each later schema change. Never put a database password in a command, guide, or committed file.
 
 ### 6. Verify the deployed feature
 

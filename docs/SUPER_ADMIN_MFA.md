@@ -18,7 +18,7 @@ Page and API checks enforce these boundaries. Hiding a sidebar link is only a us
    ```
 
    Set the output as `MFA_ENCRYPTION_KEY`. Keep the key outside source control, restrict access to `.env`, and store a secure backup separately from the database. Losing the key prevents authenticator secrets from being decrypted.
-3. For an existing installation, place migrations `056_super_admin_mfa.sql` and `057_super_admin_mfa_authenticators.sql` and the existing CLI migration runner on the server, then apply both migrations **before activating the updated authentication code**. The session validator and login flow read the MFA device table and session version, so deploying the code before these migrations prevents Super Admin sign-in. Check and apply the migrations in order:
+3. For an existing installation, apply migrations `056_super_admin_mfa.sql` and `057_super_admin_mfa_authenticators.sql` **before activating the updated authentication code**. The session validator and login flow read the MFA device table and session version, so deploying the code before these migrations prevents Super Admin sign-in. On the Synology NAS, follow Section 5 of `NAS_DEPLOYMENT_GUIDE.md` to stage the target migration files in `/tmp` and run the CLI migration runner with `--env-file=/volume1/iscan/release_blue_candidate_20260930/.env`. For a normal application checkout with `.env` at its root, check and apply the migrations in order:
 
    ```bash
    php database/apply_single_migration.php --check 056_super_admin_mfa.sql
