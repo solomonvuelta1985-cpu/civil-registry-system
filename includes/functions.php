@@ -3,19 +3,62 @@
  * Helper Functions for Certificate of Live Birth System
  */
 
-/** Return the Baggao barangay names used by marriage residence fields. */
-function get_baggao_barangays(): array {
+/** Official Abulug defaults; administrators can replace the list in Settings. */
+function locality_default_barangays(): array {
     return [
-        'Adaoag', 'Agaman (Proper)', 'Agaman Norte', 'Agaman Sur', 'Alba', 'Annayatan',
-        'Asassi', 'Asinga-Via', 'Awallan', 'Bacagan', 'Bagunot', 'Barsat East',
-        'Barsat West', 'Bitag Grande', 'Bitag Pequeño', 'Bunugan', 'C. Verzosa',
-        'Canagatan', 'Carupian', 'Catugay', 'Dabbac Grande', 'Dalin', 'Dalla',
-        'Hacienda Intal', 'Ibulo', 'Imurung', 'J. Pallagao', 'Lasilat', 'Mabini',
-        'Masical', 'Mocag', 'Nangalinan', 'Poblacion (Centro)', 'Remus', 'San Antonio',
-        'San Francisco', 'San Isidro', 'San Jose', 'San Miguel', 'San Vicente',
-        'Santa Margarita', 'Santor', 'Taguing', 'Taguntungan', 'Tallang', 'Taytay',
-        'Temblique', 'Tungel',
+        'Alinunu', 'Bagu', 'Banguian', 'Calog Norte', 'Calog Sur', 'Canayun',
+        'Centro', 'Dana-Ili', 'Guiddam', 'Libertad', 'Lucban', 'Pinili',
+        'Santa Filomena', 'Santo Tomas', 'Siguiran', 'Simayung', 'Sirit',
+        'San Agustin', 'San Julian', 'Santa Rosa',
     ];
+}
+
+function get_local_barangays(): array {
+    require_once __DIR__ . '/settings.php';
+    $configured = get_setting('locality_barangays', locality_default_barangays());
+    if (!is_array($configured) || $configured === []) {
+        return locality_default_barangays();
+    }
+    $names = array_values(array_filter($configured, static fn($name): bool => is_string($name) && trim($name) !== ''));
+    return $names !== [] ? $names : locality_default_barangays();
+}
+
+/** Admin-maintained facility names. An empty list means none have been configured yet. */
+function get_local_facilities(string $settingKey): array {
+    require_once __DIR__ . '/settings.php';
+    $configured = get_setting($settingKey, []);
+    if (!is_array($configured)) {
+        return [];
+    }
+    return array_values(array_filter($configured, static fn($name): bool => is_string($name) && trim($name) !== ''));
+}
+
+function get_local_hospitals(): array {
+    return get_local_facilities('locality_hospitals');
+}
+
+function get_local_health_centers(): array {
+    return get_local_facilities('locality_health_centers');
+}
+
+function get_local_municipality(): string {
+    require_once __DIR__ . '/settings.php';
+    $value = trim((string) get_setting('locality_municipality', 'Abulug'));
+    return $value !== '' ? $value : 'Abulug';
+}
+
+function get_local_crf_address(): string {
+    require_once __DIR__ . '/settings.php';
+    return trim((string) get_setting('locality_crf_address', ''));
+}
+
+function get_locality_tagline(): string {
+    return 'Lalawigan ng Cagayan - Bayan ng ' . get_local_municipality();
+}
+
+/** Compatibility for any integration that still calls the old helper name. */
+function get_baggao_barangays(): array {
+    return get_local_barangays();
 }
 
 /**

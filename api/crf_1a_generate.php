@@ -20,6 +20,8 @@ requireCSRFToken();
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     json_response(false, 'Invalid request method.', null, 405);
 }
+if (get_local_crf_address() === '') json_response(false, 'An admin must enter the CRF office address in Locality Settings before issuance.', null, 422);
+if (($_POST['locality_confirmed'] ?? '') !== '1') json_response(false, 'Confirm or correct the birth locality before issuance.', null, 422);
 
 function crf_1a_post_string(string $key, int $maxLength = 255): string
 {
@@ -93,6 +95,9 @@ if ($issuanceKind !== 'Corrected' && $replacesId) {
 }
 
 $inputs = [
+    'place_municipality' => crf_1a_required_string('place_municipality', 'Birth Municipality', 100),
+    'place_province' => crf_1a_required_string('place_province', 'Birth Province', 100),
+    'locality_confirmed' => '1',
     'issue_date' => $issueDate,
     'page_number' => $pageNumber,
     'book_number' => $bookNumber,
@@ -123,7 +128,7 @@ try {
     }
     reject_active_duplicate_registration_issuance($pdo, 'birth', (int)$birthRecordId, 'CRF No. 1A');
 
-    $values = crf_1a_record_values($record);
+    $values = crf_1a_record_values($record, $inputs);
     if ($inputs['requester_use_child_name']) {
         $childName = trim((string)($values['name_of_child'] ?? ''));
         if ($childName === '') {
@@ -224,6 +229,7 @@ try {
     $pdfRelativePath = crf_1a_output_relative_path((string)$year, $lastName, $crfNumber);
     $pdfAbsolutePath = UPLOAD_PATH . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $pdfRelativePath);
     $html = crf_1a_render_document_html($record, $inputs, $crfNumber);
+    $html = crf_1a_apply_generation_footer($html, $crfNumber, $generatedAt);
     $renderError = null;
     if (!crf_1a_render_pdf($html, $pdfAbsolutePath, $renderError, true)) {
         throw new RuntimeException($renderError ?: 'Unable to generate the CRF PDF.');
@@ -234,6 +240,9 @@ try {
         'display' => $values,
         'manual_overrides' => [
             'remarks_html' => $inputs['remarks_html'],
+            'place_municipality' => $inputs['place_municipality'],
+            'place_province' => $inputs['place_province'],
+            'locality_confirmed' => true,
             'requester_use_child_name' => $inputs['requester_use_child_name'],
         ],
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);

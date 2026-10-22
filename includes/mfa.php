@@ -10,7 +10,10 @@ function mfa_text_length(string $value): int
 
 function mfa_encryption_key(): string
 {
-    $decoded = base64_decode((string)MFA_ENCRYPTION_KEY, true);
+    $configuredKey = defined('MFA_ENCRYPTION_KEY')
+        ? constant('MFA_ENCRYPTION_KEY')
+        : (function_exists('env') ? env('MFA_ENCRYPTION_KEY', '') : '');
+    $decoded = base64_decode((string)$configuredKey, true);
     if (!is_string($decoded) || strlen($decoded) !== 32) {
         throw new RuntimeException('MFA_ENCRYPTION_KEY must be base64 for exactly 32 random bytes.');
     }

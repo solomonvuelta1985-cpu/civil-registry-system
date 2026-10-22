@@ -11,6 +11,8 @@
 
     function updateGenerationNotes(root, systemId, generatedAt, escapeHtml) {
         root.querySelectorAll('.doc-note, .note').forEach(note => {
+            const footer = note.querySelector('small');
+            if (!footer || !footer.textContent.includes('System ID:')) return;
             note.innerHTML = `<strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>This is a system-generated certification.<br>Generated: ${escapeHtml(generatedAt)} | System ID: ${escapeHtml(systemId)}</small>`;
         });
     }
@@ -121,6 +123,9 @@
             document.body.appendChild(this.backdrop);
             this.modal = this.backdrop.querySelector('.crf1a-generator-modal');
             this.form = this.backdrop.querySelector('#crf1aGeneratorForm');
+            const localityFields = document.createElement('div');
+            localityFields.innerHTML = `<div class="crf1a-section-title" style="margin-top:20px;"><span>Birth Locality</span></div><div class="crf1a-two-col"><div class="crf1a-form-group"><label for="crf1aPlaceMunicipality">Municipality <span class="required">*</span></label><input id="crf1aPlaceMunicipality" name="place_municipality" class="crf1a-form-control" maxlength="100" required></div><div class="crf1a-form-group"><label for="crf1aPlaceProvince">Province <span class="required">*</span></label><input id="crf1aPlaceProvince" name="place_province" class="crf1a-form-control" maxlength="100" required></div></div><div class="crf1a-form-group"><label><input type="checkbox" name="locality_confirmed" value="1" required> I checked and confirmed or corrected the birth locality for this CRF.</label></div>`;
+            this.form.insertBefore(localityFields, this.form.querySelector('.crf1a-form-actions'));
             this.previewHost = this.backdrop.querySelector('#crf1aPreviewHost');
             this.requesterInput = this.form.elements.namedItem('requester_name');
             this.requesterUseChildName = this.form.elements.namedItem('requester_use_child_name');
@@ -211,6 +216,9 @@
                 this.setValue('crf1aMcrPosition', issuance.mcr_title || '');
                 this.setValue('crf1aCertifiedName', issuance.certified_by_name || '');
                 this.setValue('crf1aCertifiedPosition', issuance.certified_by_position || '');
+                const manualOverrides = issuance.record_snapshot?.manual_overrides || {};
+                this.setValue('crf1aPlaceMunicipality', manualOverrides.place_municipality || this.value('crf1aPlaceMunicipality'));
+                this.setValue('crf1aPlaceProvince', manualOverrides.place_province || this.value('crf1aPlaceProvince'));
                 const savedRemarks = issuance.record_snapshot?.manual_overrides?.remarks_html || '';
                 const remarksField = this.form.elements.namedItem('remarks_html');
                 if (remarksField) remarksField.value = savedRemarks;
@@ -247,6 +255,8 @@
             this.setValue('crf1aMcrPosition', '');
             this.setValue('crf1aCertifiedName', '');
             this.setValue('crf1aCertifiedPosition', '');
+            this.setValue('crf1aPlaceMunicipality', this.record.municipality || window.CRF1A_OFFICE_CONFIG?.municipality || 'Abulug');
+            this.setValue('crf1aPlaceProvince', this.record.province || window.CRF1A_OFFICE_CONFIG?.province || 'Cagayan');
             this.previewScale = 1;
             this.previewRotation = 0;
             this.previewCurrentPage = 1;
@@ -492,7 +502,9 @@
                 mcr_title: this.value('crf1aMcrPosition'),
                 certified_by_name: this.value('crf1aCertifiedName'),
                 certified_by_position: this.value('crf1aCertifiedPosition'),
-                remarks_html: this.form.elements.namedItem('remarks_html')?.value || ''
+                remarks_html: this.form.elements.namedItem('remarks_html')?.value || '',
+                place_municipality: this.value('crf1aPlaceMunicipality'),
+                place_province: this.value('crf1aPlaceProvince')
             };
             this.previewHost.innerHTML = this.buildDocumentMarkup(this.record, inputs, crfNumber || 'ID assigned on generate');
             updateGenerationNotes(this.previewHost, crfNumber || 'ID assigned on generate', this.generatedAt || formatGenerationTimestamp(), value => this.escape(value));
@@ -583,7 +595,7 @@
                 name_of_child: this.fullName(r, 'child'),
                 sex: r.child_sex || '',
                 date_of_birth: this.sourceDate(r, 'child_date_of_birth'),
-                place_of_birth: this.placeOfBirth(r),
+                place_of_birth: this.placeOfBirth(r, inputs),
                 name_of_mother: this.fullName(r, 'mother'),
                 mother_citizenship: r.mother_citizenship || '',
                 name_of_father: this.fullName(r, 'father'),
@@ -614,9 +626,9 @@
              const registrarPosition = previewValue(inputs?.mcr_title, 'Enter registrar position');
              const certifiedName = previewValue(inputs?.certified_by_name, 'Enter certifier name');
              const certifiedPosition = previewValue(inputs?.certified_by_position, 'Enter certifier position');
-             const logoSeal = config.logo_seal === '__hidden__' ? '' : `<img src="../${this.escape(config.logo_seal || 'assets/img/LOGO1.png')}" alt="Baggao seal" style="display:block;width:27mm;height:27mm;">`;
-            const logoBaggao = config.logo_baggao === '__hidden__' ? '' : `<img src="../${this.escape(config.logo_baggao || 'assets/img/CRF1A_BAGGAO_REFERENCE.png')}" alt="Baggao reference logo" style="display:block;width:27mm;height:27mm;">`;
-            const logoPilipinas = config.logo_pilipinas === '__hidden__' ? '' : `<img src="../${this.escape(config.logo_pilipinas || 'assets/img/CRF1A_BAGONG_PILIPINAS.png')}" alt="Bagong Pilipinas" style="display:block;width:34mm;height:28mm;">`;
+             const logoSeal = !config.logo_seal || config.logo_seal === '__hidden__' ? '' : `<img src="../${this.escape(config.logo_seal)}" alt="Municipality seal" style="display:block;width:27mm;height:27mm;">`;
+            const logoBaggao = !config.logo_baggao || config.logo_baggao === '__hidden__' ? '' : `<img src="../${this.escape(config.logo_baggao)}" alt="Municipality logo" style="display:block;width:27mm;height:27mm;">`;
+            const logoPilipinas = !config.logo_pilipinas || config.logo_pilipinas === '__hidden__' ? '' : `<img src="../${this.escape(config.logo_pilipinas)}" alt="Bagong Pilipinas" style="display:block;width:34mm;height:28mm;">`;
             const officeName = String(config.office_name || 'OFFICE OF THE MUNICIPAL CIVIL REGISTRAR').trim();
             const officeHtml = officeName === 'OFFICE OF THE MUNICIPAL CIVIL REGISTRAR'
                 ? 'OFFICE OF THE MUNICIPAL CIVIL<br>REGISTRAR'
@@ -635,7 +647,7 @@
             pages.push(`<div class="crf1a-document">
                 <div class="doc-header"><div class="doc-logo doc-logo-seal">${logoSeal}</div><div class="doc-logo doc-logo-baggao">${logoBaggao}</div><div class="doc-header-copy">
                     <div class="doc-republic">Republic of the Philippines</div><div class="doc-province">Province of ${this.escape(config.province || 'CAGAYAN')}</div>
-                    <div class="doc-municipality">MUNICIPALITY OF ${this.escape(config.municipality || 'BAGGAO')}</div>
+                    <div class="doc-municipality">MUNICIPALITY OF ${this.escape(config.municipality || 'ABULUG')}</div>
                     <div class="doc-office">${officeHtml}</div>
                     <div class="doc-address">${this.escape(config.address || '')}</div>
                 </div><div class="doc-header-right"><div class="doc-logo doc-logo-pilipinas">${logoPilipinas}</div><div class="doc-meta">CRF ID<strong>${this.escape(crfNumber || '')}</strong></div></div></div>
@@ -701,10 +713,10 @@
             return other ? other.replaceAll('_', ' ').toUpperCase() : this.sourceDate(record, 'date_of_marriage');
         }
 
-        placeOfBirth(record) {
+        placeOfBirth(record, inputs = {}) {
             const config = window.CRF1A_OFFICE_CONFIG || {};
-            const municipality = String(record?.municipality || config.municipality || 'Baggao').trim();
-            const province = String(record?.province || config.province || 'Cagayan').trim();
+            const municipality = String(inputs.place_municipality || record?.municipality || config.municipality || 'Abulug').trim();
+            const province = String(inputs.place_province || record?.province || config.province || 'Cagayan').trim();
             return [...new Set([municipality, province].filter(Boolean))].join(', ');
         }
 

@@ -96,11 +96,11 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
             <!-- System Header with Logo -->
             <div class="system-header">
                 <div class="system-logo">
-                    <img src="<?= htmlspecialchars(branding_logo_url('app'), ENT_QUOTES, 'UTF-8') ?>" alt="Bayan ng Baggao Logo">
+                    <img src="<?= htmlspecialchars(branding_logo_url('app'), ENT_QUOTES, 'UTF-8') ?>" alt="Bayan ng <?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?> Logo">
                 </div>
                 <div class="system-title-container">
                     <h1 class="system-title">Civil Registry Documents Management System (CRDMS)</h1>
-                    <p class="system-subtitle">Lalawigan ng Cagayan - Bayan ng Baggao</p>
+                    <p class="system-subtitle"><?= htmlspecialchars(get_locality_tagline(), ENT_QUOTES, 'UTF-8') ?></p>
                 </div>
             </div>
 
@@ -172,17 +172,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                 <div class="form-column">
 
                     <?php
-                    $baggao_barangays = [
-                        'Adaoag','Agaman (Proper)','Agaman Norte','Agaman Sur','Alba','Annayatan',
-                        'Asassi','Asinga-Via','Awallan','Bacagan','Bagunot','Barsat East',
-                        'Barsat West','Bitag Grande','Bitag Pequeño','Bunugan','C. Verzosa',
-                        'Canagatan','Carupian','Catugay','Dabbac Grande','Dalin','Dalla',
-                        'Hacienda Intal','Ibulo','Imurung','J. Pallagao','Lasilat','Mabini',
-                        'Masical','Mocag','Nangalinan','Poblacion (Centro)','Remus','San Antonio',
-                        'San Francisco','San Isidro','San Jose','San Miguel','San Vicente',
-                        'Santa Margarita','Santor','Taguing','Taguntungan','Tallang','Taytay',
-                        'Temblique','Tungel',
-                    ];
+                    $baggao_barangays = get_local_barangays();
                     ?>
 
                     <!-- Registry Information Section -->
@@ -359,7 +349,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                         style="width:1rem; height:1rem; cursor:pointer; margin:0;"
                                         <?php echo $gr_outside ? 'checked' : ''; ?>
                                     >
-                                    Outside Baggao
+                                    Outside <?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?>
                                 </label>
                                 <select
                                     id="groom_residence"
@@ -384,7 +374,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                     style="display: <?php echo $gr_outside ? 'block' : 'none'; ?>;"
                                 >
                                 <div id="groom_residence_locality" class="residence-locality" style="display: <?php echo $gr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
-                                    Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
+                                    Municipality: <strong style="color:#495057; font-weight:600;"><?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?></strong>
                                     <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
                                     Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
                                 </div>
@@ -464,7 +454,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                         style="width:1rem; height:1rem; cursor:pointer; margin:0;"
                                         <?php echo $gfr_outside ? 'checked' : ''; ?>
                                     >
-                                    Outside Baggao
+                                    Outside <?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?>
                                 </label>
                                 <select
                                     id="groom_father_residence"
@@ -487,7 +477,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                     style="display: <?php echo $gfr_outside ? 'block' : 'none'; ?>;"
                                 >
                                 <div id="groom_father_residence_locality" class="residence-locality" style="display: <?php echo $gfr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
-                                    Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
+                                    Municipality: <strong style="color:#495057; font-weight:600;"><?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?></strong>
                                     <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
                                     Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
                                 </div>
@@ -567,7 +557,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                         style="width:1rem; height:1rem; cursor:pointer; margin:0;"
                                         <?php echo $gmr_outside ? 'checked' : ''; ?>
                                     >
-                                    Outside Baggao
+                                    Outside <?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?>
                                 </label>
                                 <select
                                     id="groom_mother_residence"
@@ -590,7 +580,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                     style="display: <?php echo $gmr_outside ? 'block' : 'none'; ?>;"
                                 >
                                 <div id="groom_mother_residence_locality" class="residence-locality" style="display: <?php echo $gmr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
-                                    Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
+                                    Municipality: <strong style="color:#495057; font-weight:600;"><?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?></strong>
                                     <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
                                     Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
                                 </div>
@@ -720,7 +710,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                         style="width:1rem; height:1rem; cursor:pointer; margin:0;"
                                         <?php echo $br_outside ? 'checked' : ''; ?>
                                     >
-                                    Outside Baggao
+                                    Outside <?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?>
                                 </label>
                                 <select
                                     id="bride_residence"
@@ -745,7 +735,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                     style="display: <?php echo $br_outside ? 'block' : 'none'; ?>;"
                                 >
                                 <div id="bride_residence_locality" class="residence-locality" style="display: <?php echo $br_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
-                                    Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
+                                    Municipality: <strong style="color:#495057; font-weight:600;"><?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?></strong>
                                     <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
                                     Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
                                 </div>
@@ -825,7 +815,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                         style="width:1rem; height:1rem; cursor:pointer; margin:0;"
                                         <?php echo $bfr_outside ? 'checked' : ''; ?>
                                     >
-                                    Outside Baggao
+                                    Outside <?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?>
                                 </label>
                                 <select
                                     id="bride_father_residence"
@@ -848,7 +838,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                     style="display: <?php echo $bfr_outside ? 'block' : 'none'; ?>;"
                                 >
                                 <div id="bride_father_residence_locality" class="residence-locality" style="display: <?php echo $bfr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
-                                    Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
+                                    Municipality: <strong style="color:#495057; font-weight:600;"><?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?></strong>
                                     <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
                                     Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
                                 </div>
@@ -928,7 +918,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                         style="width:1rem; height:1rem; cursor:pointer; margin:0;"
                                         <?php echo $bmr_outside ? 'checked' : ''; ?>
                                     >
-                                    Outside Baggao
+                                    Outside <?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?>
                                 </label>
                                 <select
                                     id="bride_mother_residence"
@@ -951,7 +941,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
                                     style="display: <?php echo $bmr_outside ? 'block' : 'none'; ?>;"
                                 >
                                 <div id="bride_mother_residence_locality" class="residence-locality" style="display: <?php echo $bmr_outside ? 'none' : 'block'; ?>; font-size:0.78rem; color:#6c757d; margin-top:6px;">
-                                    Municipality: <strong style="color:#495057; font-weight:600;">Baggao</strong>
+                                    Municipality: <strong style="color:#495057; font-weight:600;"><?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?></strong>
                                     <span style="color:#adb5bd; margin:0 4px;">&middot;</span>
                                     Province: <strong style="color:#495057; font-weight:600;">Cagayan</strong>
                                 </div>
@@ -1086,7 +1076,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
             });
         })();
 
-        // "Outside Baggao" residence toggle handlers
+        // Residence toggle handlers for addresses outside the configured municipality.
         (function() {
             const residenceFields = [
                 'groom_residence',
@@ -1242,6 +1232,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
     <script src="../assets/js/ocr-processor.js"></script>
 
     <!-- Core OCR Integration -->
+    <script>window.LOCAL_BARANGAYS = <?= json_encode(get_local_barangays(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
     <script src="../assets/js/ocr-field-mapper.js"></script>
     <script src="../assets/js/ocr-modal.js"></script>
 

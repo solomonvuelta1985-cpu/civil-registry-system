@@ -13,6 +13,7 @@ requireAuth();
 if (!hasPermission(crf_3a_generate_permission())) json_response(false, 'You do not have permission to generate CRF No. 3A.', null, 403);
 requireCSRFToken();
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') json_response(false, 'Invalid request method.', null, 405);
+if (get_local_crf_address() === '') json_response(false, 'An admin must enter the CRF office address in Locality Settings before issuance.', null, 422);
 
 function crf_3a_post_string(string $key, int $maxLength = 255): string
 {
@@ -203,12 +204,14 @@ try {
     if ($sequence > 999999) throw new RuntimeException('The CRF No. 3A sequence has reached its six-digit limit for this year.');
     $pdo->prepare('UPDATE crf_3a_sequences SET last_sequence = :sequence WHERE issue_year = :year')->execute([':sequence' => $sequence, ':year' => $year]);
 
+    $generatedAt = date('M j, Y, g:i A');
     $crfNumber = sprintf('CRF3A-%04d-%06d', $year, $sequence);
     $generatedAt = date('M j, Y, g:i A');
     $inputs['generated_at'] = $generatedAt;
     $relativePath = crf_3a_output_relative_path((string)$year, $lastName, $crfNumber);
     $pdfAbsolutePath = UPLOAD_PATH . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $relativePath);
     $html = crf_3a_render_document_html($record, $inputs, $crfNumber);
+    $html = crf_1a_apply_generation_footer($html, $crfNumber, $generatedAt);
     $renderError = null;
     if (!crf_3a_render_pdf($html, $pdfAbsolutePath, $renderError)) throw new RuntimeException($renderError ?: 'Unable to generate the CRF PDF.');
 

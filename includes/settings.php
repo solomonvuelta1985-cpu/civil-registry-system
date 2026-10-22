@@ -8,6 +8,7 @@
  */
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/functions.php';
 
 /**
  * Idempotent table + seed bootstrap. Runs at most once per request.
@@ -19,6 +20,7 @@ function __settings_bootstrap(PDO $pdo): bool {
         return $initialized;
     }
     try {
+        $defaultBarangaysSql = $pdo->quote(json_encode(locality_default_barangays(), JSON_UNESCAPED_UNICODE));
         $pdo->exec("
             CREATE TABLE IF NOT EXISTS `system_settings` (
                 `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -42,10 +44,19 @@ function __settings_bootstrap(PDO $pdo): bool {
                 ('maintenance_message','The system is undergoing scheduled maintenance. Please try again shortly.','string','System','Message shown to non-admin users while maintenance mode is active. Include ETA here if known.',1),
                 ('maintenance_schedule','{}','json','System','Scheduled system maintenance window and notification details.',0),
                 ('maintenance_manual_event','{}','json','System','Latest emergency maintenance start notification.',0),
-                ('branding_app_logo','','string','Branding','Custom application logo used on the login page and shared page headers.',1),
+                ('locality_municipality','Abulug','string','Locality','Municipality shown on forms and CRF headers.',1),
+                ('locality_barangays',{$defaultBarangaysSql},'json','Locality','Barangays available in entry forms, search, and OCR.',1),
+                ('locality_hospitals','[]','json','Locality','Hospitals and clinics available in entry forms, search, and OCR.',1),
+                ('locality_health_centers','[]','json','Locality','Health centers available in entry forms, search, and OCR.',1),
+                ('locality_crf_address','','string','Locality','Office address printed on new CRF documents.',0),
+                ('branding_app_logo','','string','Branding','Legacy application logo setting.',1),
                 ('branding_crf_logo_seal','','string','Branding','Custom CRF seal used on Civil Registry Form headers.',1),
                 ('branding_crf_logo_baggao','','string','Branding','Custom Baggao reference logo used on Civil Registry Form headers.',1),
-                ('branding_crf_logo_pilipinas','','string','Branding','Custom Bagong Pilipinas logo used on Civil Registry Form headers.',1)
+                ('branding_crf_logo_pilipinas','','string','Branding','Custom Bagong Pilipinas logo used on Civil Registry Form headers.',1),
+                ('branding_app_logo_current','__hidden__','string','Branding','Current municipality application logo.',1),
+                ('branding_crf_logo_seal_current','__hidden__','string','Branding','Current municipality CRF seal.',1),
+                ('branding_crf_logo_municipality_current','__hidden__','string','Branding','Current municipality CRF logo.',1),
+                ('branding_crf_logo_pilipinas_current','__hidden__','string','Branding','Current national CRF logo.',1)
         ");
         $initialized = true;
     } catch (PDOException $e) {

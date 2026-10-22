@@ -367,7 +367,7 @@ function performSearch($pdo, $params) {
 
                     <div class="filter-group">
                         <label>Municipality:</label>
-                        <input type="text" name="municipality" placeholder="e.g., Baggao" value="<?= htmlspecialchars($_GET['municipality'] ?? '') ?>">
+                        <input type="text" name="municipality" placeholder="e.g., <?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?>" value="<?= htmlspecialchars($_GET['municipality'] ?? '') ?>">
                     </div>
                 </div>
             </form>

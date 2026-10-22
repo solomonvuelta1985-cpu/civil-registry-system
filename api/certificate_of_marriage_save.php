@@ -130,9 +130,9 @@ try {
         ($wife_civil_status !== '' && !in_array($wife_civil_status, $allowed_civil_statuses, true))) {
         json_response(false, 'Invalid civil status.', null, 400);
     }
-    $baggao_barangays = get_baggao_barangays();
-    $husband_residence_locality_required = in_array($husband_residence, $baggao_barangays, true);
-    $wife_residence_locality_required = in_array($wife_residence, $baggao_barangays, true);
+    $local_barangays = get_local_barangays();
+    $husband_residence_locality_required = in_array($husband_residence, $local_barangays, true);
+    $wife_residence_locality_required = in_array($wife_residence, $local_barangays, true);
     if (empty($husband_first_name) || empty($husband_last_name) ||
         empty($husband_place_of_birth) || empty($husband_residence) ||
         ($husband_residence_locality_required && (empty($husband_residence_municipality) || empty($husband_residence_province))) ||

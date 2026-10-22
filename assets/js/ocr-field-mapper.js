@@ -277,22 +277,10 @@ class OCRFieldMapper {
     handlePlaceOfBirthCascade(location) {
         console.log('🏥 Handling place of birth cascade for:', location);
 
-        const barangays = [
-            'Adaoag', 'Agaman (Proper)', 'Agaman Norte', 'Agaman Sur', 'Alba', 'Annayatan',
-            'Asassi', 'Asinga-Via', 'Awallan', 'Bacagan', 'Bagunot', 'Barsat East',
-            'Barsat West', 'Bitag Grande', 'Bitag Pequeño', 'Bunugan', 'C. Verzosa',
-            'Canagatan', 'Carupian', 'Catugay', 'Dabbac Grande', 'Dalin', 'Dalla',
-            'Hacienda Intal', 'Ibulo', 'Imurung', 'J. Pallagao', 'Lasilat', 'Mabini',
-            'Masical', 'Mocag', 'Nangalinan', 'Poblacion (Centro)', 'Remus', 'San Antonio',
-            'San Francisco', 'San Isidro', 'San Jose', 'San Miguel', 'San Vicente',
-            'Santa Margarita', 'Santor', 'Taguing', 'Taguntungan', 'Tallang', 'Taytay',
-            'Temblique', 'Tungel'
-        ];
+        const barangays = window.LOCAL_BARANGAYS || [];
 
-        const hospitals = [
-            'Baggao District Hospital',
-            'Municipal Health Office'
-        ];
+        const hospitals = window.LOCAL_HOSPITALS || [];
+        const healthCenters = window.LOCAL_HEALTH_CENTERS || [];
 
         const placeTypeField = document.getElementById('place_type');
         const placeOfBirthField = document.getElementById('child_place_of_birth');
@@ -313,6 +301,10 @@ class OCRFieldMapper {
             h.toUpperCase() === location.toUpperCase() ||
             location.toUpperCase().includes(h.toUpperCase())
         );
+        const matchedHealthCenter = healthCenters.find(center =>
+            center.toUpperCase() === location.toUpperCase() ||
+            location.toUpperCase().includes(center.toUpperCase())
+        );
 
         // Also try to set the barangay field
         const barangayField = document.getElementById('barangay');
@@ -324,6 +316,15 @@ class OCRFieldMapper {
 
             setTimeout(() => {
                 placeOfBirthField.value = matchedHospital;
+                placeOfBirthField.dispatchEvent(new Event('change', { bubbles: true }));
+            }, 400);
+        } else if (matchedHealthCenter) {
+            console.log('Detected as Barangay Health Center:', matchedHealthCenter);
+            placeTypeField.value = 'Barangay Health Center';
+            placeTypeField.dispatchEvent(new Event('change', { bubbles: true }));
+
+            setTimeout(() => {
+                placeOfBirthField.value = matchedHealthCenter;
                 placeOfBirthField.dispatchEvent(new Event('change', { bubbles: true }));
             }, 400);
         } else if (matchedBarangay) {

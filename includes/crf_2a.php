@@ -43,9 +43,9 @@ function crf_2a_config(): array
     $oneA = crf_1a_config();
     $config = branding_apply_crf_logo_overrides([
         'office_name' => env('CRF2A_OFFICE_NAME', $oneA['office_name']),
-        'municipality' => env('CRF2A_MUNICIPALITY', $oneA['municipality']),
+        'municipality' => $oneA['municipality'],
         'province' => env('CRF2A_PROVINCE', $oneA['province']),
-        'address' => env('CRF2A_OFFICE_ADDRESS', $oneA['address']),
+        'address' => $oneA['address'],
         'logo_seal' => env('CRF2A_LOGO_SEAL', $oneA['logo_seal']),
         'logo_baggao' => env('CRF2A_LOGO_BAGGAO', $oneA['logo_baggao']),
         'logo_pilipinas' => env('CRF2A_LOGO_PILIPINAS', $oneA['logo_pilipinas']),
@@ -83,18 +83,18 @@ function crf_2a_date(array $record, string $field): string
     return $timestamp === false ? (string)$date : date('F d, Y', $timestamp);
 }
 
-function crf_2a_place_of_death(): string
+function crf_2a_place_of_death(array $record = [], array $inputs = []): string
 {
     $config = crf_2a_config();
     $parts = [];
     foreach (['municipality', 'province'] as $key) {
-        $value = trim((string)($config[$key] ?? ''));
+        $value = trim((string)($inputs['place_' . $key] ?? $record[$key] ?? $config[$key] ?? ''));
         if ($value !== '' && !in_array($value, $parts, true)) $parts[] = $value;
     }
     return implode(', ', $parts);
 }
 
-function crf_2a_record_values(array $record): array
+function crf_2a_record_values(array $record, array $inputs = []): array
 {
     $age = trim((string)($record['age'] ?? ''));
     $ageUnit = trim((string)($record['age_unit'] ?? 'years'));
@@ -108,7 +108,7 @@ function crf_2a_record_values(array $record): array
         'civil_status' => trim((string)($record['civil_status'] ?? '')),
         'citizenship' => trim((string)($record['citizenship'] ?? '')),
         'date_of_death' => crf_2a_date($record, 'date_of_death'),
-        'place_of_death' => crf_2a_place_of_death(),
+        'place_of_death' => crf_2a_place_of_death($record, $inputs),
         'cause_of_death' => trim((string)($record['cause_of_death'] ?? '')),
     ];
 }
@@ -183,7 +183,7 @@ function crf_2a_output_relative_path(string $year, string $lastName, string $crf
 function crf_2a_render_document_html(array $record, array $inputs, string $crfNumber): string
 {
     $inputs['remarks_html'] = crf_1a_sanitize_remarks_html($inputs['remarks_html'] ?? '');
-    $values = crf_2a_record_values($record);
+    $values = crf_2a_record_values($record, $inputs);
     $displayCause = function_exists('mb_strtoupper')
         ? mb_strtoupper($values['cause_of_death'], 'UTF-8')
         : strtoupper($values['cause_of_death']);
@@ -218,7 +218,7 @@ function crf_2a_render_edge_document_html(array $record, array $inputs, string $
 {
     $inputs['remarks_html'] = crf_1a_sanitize_remarks_html($inputs['remarks_html'] ?? '');
     $cfg = crf_2a_config();
-    $values = crf_2a_record_values($record);
+    $values = crf_2a_record_values($record, $inputs);
     $plan = crf_2a_cause_page_plan($causeLines);
     $e = static fn($value): string => htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
     $line = static function ($value, bool $manual = false) use ($e): string {
@@ -241,6 +241,7 @@ function crf_2a_render_edge_document_html(array $record, array $inputs, string $
     };
     $logo = static function (string $path, string $alt, string $size) use ($e): string {
         $uri = crf_1a_asset_data_uri($path);
+        $alt = str_replace('Baggao', 'Municipality', $alt);
         return $uri !== '' ? '<img src="' . $uri . '" alt="' . $e($alt) . '" style="display:block;width:' . $size . ';height:' . $size . ';object-fit:contain;">' : '';
     };
     $officeName = trim((string)$cfg['office_name']);

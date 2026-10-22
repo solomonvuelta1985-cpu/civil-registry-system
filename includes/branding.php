@@ -11,28 +11,28 @@ function branding_logo_definitions(): array
 {
     return [
         'app' => [
-            'setting_key' => 'branding_app_logo',
+            'setting_key' => 'branding_app_logo_current',
             'label' => 'Application Logo',
             'description' => 'Shown on the login page, page headers, sidebar, mobile header, and preloader.',
-            'default_path' => 'assets/img/LOGO1.png',
+            'default_path' => '',
         ],
         'crf_seal' => [
-            'setting_key' => 'branding_crf_logo_seal',
+            'setting_key' => 'branding_crf_logo_seal_current',
             'label' => 'CRF Seal',
             'description' => 'Leftmost seal in Civil Registry Form headers.',
-            'default_path' => env('CRF1A_LOGO_SEAL', 'assets/img/LOGO1.png'),
+            'default_path' => '',
         ],
         'crf_baggao' => [
-            'setting_key' => 'branding_crf_logo_baggao',
-            'label' => 'CRF Baggao Logo',
+            'setting_key' => 'branding_crf_logo_municipality_current',
+            'label' => 'CRF Municipality Logo',
             'description' => 'Second logo in Civil Registry Form headers.',
-            'default_path' => env('CRF1A_LOGO_BAGGAO', 'assets/img/CRF1A_BAGGAO_REFERENCE.png'),
+            'default_path' => '',
         ],
         'crf_pilipinas' => [
-            'setting_key' => 'branding_crf_logo_pilipinas',
+            'setting_key' => 'branding_crf_logo_pilipinas_current',
             'label' => 'CRF Bagong Pilipinas Logo',
             'description' => 'Rightmost logo in Civil Registry Form headers.',
-            'default_path' => env('CRF1A_LOGO_PILIPINAS', 'assets/img/CRF1A_BAGONG_PILIPINAS.png'),
+            'default_path' => '',
         ],
     ];
 }
@@ -108,7 +108,7 @@ function branding_logo_path(string $slot): string
     }
 
     $definition = $definitions[$slot];
-    $storedPath = (string) get_setting($definition['setting_key'], '');
+    $storedPath = (string) get_setting($definition['setting_key'], BRANDING_LOGO_HIDDEN_VALUE);
     if (branding_is_logo_hidden($storedPath)) {
         return '';
     }
@@ -132,7 +132,9 @@ function branding_logo_url(string $slot): string
     $path = branding_logo_path($slot);
     $absolutePath = $path !== '' ? branding_resolve_absolute_logo_path($path) : null;
     if ($absolutePath === null) {
-        return '';
+        // Existing shared layouts contain img elements. A transparent image keeps
+        // them from requesting an empty URL while no municipality seal is set.
+        return $slot === 'app' ? 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=' : '';
     }
     $version = substr(hash_file('sha256', $absolutePath), 0, 16);
 
@@ -150,11 +152,13 @@ function branding_apply_crf_logo_overrides(array $config): array
 
     foreach ($fieldSlots as $field => $slot) {
         $definition = $definitions[$slot];
-        $storedPath = (string) get_setting($definition['setting_key'], '');
+        $storedPath = (string) get_setting($definition['setting_key'], BRANDING_LOGO_HIDDEN_VALUE);
         if (branding_is_logo_hidden($storedPath)) {
             $config[$field] = BRANDING_LOGO_HIDDEN_VALUE;
         } elseif (branding_is_uploaded_logo_path($storedPath) && branding_resolve_relative_logo_path($storedPath) !== null) {
             $config[$field] = branding_normalize_logo_path($storedPath);
+        } else {
+            $config[$field] = BRANDING_LOGO_HIDDEN_VALUE;
         }
     }
 
@@ -171,7 +175,7 @@ function branding_crf_preview_config(array $config): array
     $definitions = branding_logo_definitions();
 
     foreach ($fieldSlots as $field => $slot) {
-        $storedPath = (string) get_setting($definitions[$slot]['setting_key'], '');
+        $storedPath = (string) get_setting($definitions[$slot]['setting_key'], BRANDING_LOGO_HIDDEN_VALUE);
         if (branding_is_logo_hidden($storedPath)) {
             $config[$field] = BRANDING_LOGO_HIDDEN_VALUE;
             continue;
@@ -189,6 +193,8 @@ function branding_crf_preview_config(array $config): array
                 }
                 $config[$field] = $logoPath . (isset($parts['query']) ? '?' . $parts['query'] : '');
             }
+        } else {
+            $config[$field] = BRANDING_LOGO_HIDDEN_VALUE;
         }
     }
 

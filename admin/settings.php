@@ -52,7 +52,63 @@ if ($initialSchedule) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     requireCSRFToken();
 
-    if (($_POST['form_action'] ?? '') === 'maintenance_schedule') {
+    if (($_POST['form_action'] ?? '') === 'locality') {
+        $municipality = trim((string) ($_POST['locality_municipality'] ?? ''));
+        $address = trim((string) ($_POST['locality_crf_address'] ?? ''));
+        $lines = preg_split('/\r\n|\r|\n/', (string) ($_POST['locality_barangays'] ?? ''));
+        $barangays = array_values(array_filter(array_map('trim', $lines), static fn($name) => $name !== ''));
+        $folded = array_map(static fn($name) => mb_strtolower($name, 'UTF-8'), $barangays);
+        $parseFacilities = static function (string $input): array {
+            $lines = preg_split('/\r\n|\r|\n/', $input);
+            return array_values(array_filter(array_map('trim', $lines), static fn($name) => $name !== ''));
+        };
+        $hospitals = $parseFacilities((string) ($_POST['locality_hospitals'] ?? ''));
+        $healthCenters = $parseFacilities((string) ($_POST['locality_health_centers'] ?? ''));
+        $validFacilities = static function (array $names): bool {
+            if (count($names) > 200) return false;
+            $foldedNames = array_map(static fn($name) => mb_strtolower($name, 'UTF-8'), $names);
+            if (count(array_unique($foldedNames)) !== count($names)) return false;
+            foreach ($names as $name) {
+                if (mb_strlen($name) > 100 || preg_match('/[<>]/', $name)) return false;
+            }
+            return true;
+        };
+        if ($municipality === '' || mb_strlen($municipality) > 100 || preg_match('/[\r\n<>]/', $municipality)) {
+            $flash = ['type' => 'error', 'message' => 'Enter a municipality name of up to 100 characters.'];
+        } elseif (count($barangays) < 1 || count($barangays) > 200 || count(array_unique($folded)) !== count($barangays)) {
+            $flash = ['type' => 'error', 'message' => 'Enter 1 to 200 distinct barangay names, one per line.'];
+        } elseif (array_filter($barangays, static fn($name) => mb_strlen($name) > 100 || preg_match('/[<>]/', $name))) {
+            $flash = ['type' => 'error', 'message' => 'Each barangay name must be at most 100 characters and contain no angle brackets.'];
+        } elseif (!$validFacilities($hospitals) || !$validFacilities($healthCenters)
+            || array_intersect(
+                array_map(static fn($name) => mb_strtolower($name, 'UTF-8'), $hospitals),
+                array_map(static fn($name) => mb_strtolower($name, 'UTF-8'), $healthCenters)
+            )) {
+            $flash = ['type' => 'error', 'message' => 'Enter up to 200 distinct names per facility list, with no name in both lists. Names must be at most 100 characters and contain no angle brackets.'];
+        } elseif (mb_strlen($address) > 500 || preg_match('/[<>]/', $address)) {
+            $flash = ['type' => 'error', 'message' => 'The CRF office address must be at most 500 characters and contain no angle brackets.'];
+        } else {
+            try {
+                $pdo->beginTransaction();
+                if (!set_setting($pdo, 'locality_municipality', $municipality, getUserId())
+                    || !set_setting($pdo, 'locality_barangays', $barangays, getUserId())
+                    || !set_setting($pdo, 'locality_hospitals', $hospitals, getUserId())
+                    || !set_setting($pdo, 'locality_health_centers', $healthCenters, getUserId())
+                    || !set_setting($pdo, 'locality_crf_address', $address, getUserId())) {
+                    throw new RuntimeException('Could not save locality settings.');
+                }
+                log_activity($pdo, 'settings_updated', 'Locality settings updated: municipality, barangays, hospitals/clinics, health centers, CRF office address', getUserId());
+                $pdo->commit();
+                $_SESSION['settings_flash'] = ['type' => 'success', 'message' => 'Locality settings saved.'];
+                header('Location: ' . BASE_URL . 'admin/settings.php');
+                exit;
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                error_log('Locality settings save failed: ' . $e->getMessage());
+                $flash = ['type' => 'error', 'message' => 'Locality settings could not be saved.'];
+            }
+        }
+    } elseif (($_POST['form_action'] ?? '') === 'maintenance_schedule') {
         $scheduleAction = (string)($_POST['schedule_action'] ?? '');
         $scheduleInput = [
             'starts_at' => trim((string)($_POST['maintenance_starts_at'] ?? '')),
@@ -143,22 +199,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
             }
             $flash = ['type' => 'error', 'message' => $uploadError];
-        } elseif ($brandingAction === 'hide' && $slot !== 'app') {
+        } elseif ($brandingAction === 'hide') {
             $settingKey = $logoDefinitions[$slot]['setting_key'];
-            $previousPath = (string) get_setting($settingKey, '');
             if (set_setting($pdo, $settingKey, BRANDING_LOGO_HIDDEN_VALUE, getUserId())) {
-                branding_delete_uploaded_logo_if_unused($previousPath, $settingKey);
                 log_activity($pdo, 'settings_updated', $logoDefinitions[$slot]['label'] . ' hidden', getUserId());
-                $_SESSION['settings_flash'] = ['type' => 'success', 'message' => $logoDefinitions[$slot]['label'] . ' hidden from CRF forms.'];
+                $_SESSION['settings_flash'] = ['type' => 'success', 'message' => $logoDefinitions[$slot]['label'] . ' hidden.'];
                 header('Location: ' . BASE_URL . 'admin/settings.php');
                 exit;
             }
             $flash = ['type' => 'error', 'message' => 'The logo could not be hidden. Please try again.'];
         } elseif ($brandingAction === 'reset') {
             $settingKey = $logoDefinitions[$slot]['setting_key'];
-            $previousPath = (string) get_setting($settingKey, '');
-            if (set_setting($pdo, $settingKey, '', getUserId())) {
-                branding_delete_uploaded_logo_if_unused($previousPath, $settingKey);
+            if (set_setting($pdo, $settingKey, BRANDING_LOGO_HIDDEN_VALUE, getUserId())) {
                 log_activity($pdo, 'settings_updated', $logoDefinitions[$slot]['label'] . ' reset to default', getUserId());
                 $_SESSION['settings_flash'] = ['type' => 'success', 'message' => $logoDefinitions[$slot]['label'] . ' reset to its default.'];
                 header('Location: ' . BASE_URL . 'admin/settings.php');
@@ -742,6 +794,22 @@ $csrf_token = generateCSRFToken();
                 </div>
             <?php endif; ?>
 
+            <section class="category-card" aria-labelledby="locality-title">
+                <div class="category-header"><div class="category-title" id="locality-title">Locality</div></div>
+                <form method="post" action="" style="padding:24px;display:grid;gap:16px;max-width:760px;">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8') ?>">
+                    <input type="hidden" name="form_action" value="locality">
+                    <label>Municipality<br><input type="text" name="locality_municipality" maxlength="100" required value="<?= htmlspecialchars((string) ($_POST['locality_municipality'] ?? get_local_municipality()), ENT_QUOTES, 'UTF-8') ?>" style="width:100%;padding:10px;"></label>
+                    <label>Barangays (one name per line)<br><textarea name="locality_barangays" rows="21" required style="width:100%;padding:10px;"><?= htmlspecialchars((string) ($_POST['locality_barangays'] ?? implode("\n", get_local_barangays())), ENT_QUOTES, 'UTF-8') ?></textarea></label>
+                    <label>Hospitals and clinics (one name per line)<br><textarea name="locality_hospitals" rows="6" style="width:100%;padding:10px;"><?= htmlspecialchars((string) ($_POST['locality_hospitals'] ?? implode("\n", get_local_hospitals())), ENT_QUOTES, 'UTF-8') ?></textarea></label>
+                    <label>Barangay health centers (one name per line)<br><textarea name="locality_health_centers" rows="6" style="width:100%;padding:10px;"><?= htmlspecialchars((string) ($_POST['locality_health_centers'] ?? implode("\n", get_local_health_centers())), ENT_QUOTES, 'UTF-8') ?></textarea></label>
+                    <p class="text-desc">Facility lists may be empty until you enter Abulug locations. Saved locations on older records remain available when editing them.</p>
+                    <label>CRF office address<br><textarea name="locality_crf_address" rows="3" maxlength="500" style="width:100%;padding:10px;"><?= htmlspecialchars((string) ($_POST['locality_crf_address'] ?? get_local_crf_address()), ENT_QUOTES, 'UTF-8') ?></textarea></label>
+                    <p class="text-desc">Enter the office address before issuing a new CRF 1A, 2A, or 3A.</p>
+                    <div><button type="submit" class="btn btn-primary">Save Locality</button></div>
+                </form>
+            </section>
+
             <section class="category-card" aria-labelledby="branding-title">
                 <div class="category-header">
                     <div class="category-title" id="branding-title">Branding Logos</div>
@@ -750,7 +818,7 @@ $csrf_token = generateCSRFToken();
                     <?php foreach ($logoDefinitions as $slot => $definition):
                         $previewUrl = branding_logo_url($slot);
                         $storedPath = (string) get_setting($definition['setting_key'], '');
-                        $hasCustomLogo = trim($storedPath) !== '';
+                        $hasCustomLogo = branding_is_uploaded_logo_path($storedPath);
                         $isLogoHidden = branding_is_logo_hidden($storedPath);
                         $logoStatus = $isLogoHidden ? 'Hidden' : ($previewUrl === '' ? 'Logo unavailable' : ($hasCustomLogo ? 'Custom logo' : 'Default logo'));
                         $slotId = preg_replace('/[^a-z0-9_-]/i', '-', $slot);
@@ -791,13 +859,11 @@ $csrf_token = generateCSRFToken();
                                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8') ?>">
                                     <input type="hidden" name="form_action" value="branding">
                                     <input type="hidden" name="logo_slot" value="<?= htmlspecialchars($slot, ENT_QUOTES, 'UTF-8') ?>">
-                                    <?php if ($slot !== 'app'): ?>
                                         <button type="submit" name="branding_action" value="hide" class="btn btn-secondary" <?= $isLogoHidden ? 'disabled' : '' ?>>
                                             <i data-lucide="eye-off"></i> Hide Logo
                                         </button>
-                                    <?php endif; ?>
                                     <button type="submit" name="branding_action" value="reset" class="btn btn-secondary" <?= $hasCustomLogo ? '' : 'disabled' ?>>
-                                        <i data-lucide="rotate-ccw"></i> Reset to Default
+                                        <i data-lucide="rotate-ccw"></i> Remove Logo
                                     </button>
                                 </form>
                             </div>

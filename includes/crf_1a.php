@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/branding.php';
+require_once __DIR__ . '/functions.php';
 /**
  * Shared CRF No. 1A helpers.
  *
@@ -322,14 +323,14 @@ function crf_1a_config(): array
 
     $config = branding_apply_crf_logo_overrides([
         'office_name' => env('CRF1A_OFFICE_NAME', 'OFFICE OF THE MUNICIPAL CIVIL REGISTRAR'),
-        'municipality' => env('CRF1A_MUNICIPALITY', 'BAGGAO'),
+        'municipality' => strtoupper(get_local_municipality()),
         'province' => env('CRF1A_PROVINCE', 'CAGAYAN'),
-        'address' => env('CRF1A_OFFICE_ADDRESS', 'Ground Floor, Executive Building, San Jose, Baggao, Cagayan'),
+        'address' => get_local_crf_address(),
         'mcr_full_name' => env('CRF1A_MCR_FULL_NAME', 'ATANACIO G. TUNGPALAN'),
         'mcr_title' => env('CRF1A_MCR_TITLE', 'Municipal Civil Registrar'),
-        'logo_seal' => env('CRF1A_LOGO_SEAL', 'assets/img/LOGO1.png'),
-        'logo_baggao' => env('CRF1A_LOGO_BAGGAO', 'assets/img/CRF1A_BAGGAO_REFERENCE.png'),
-        'logo_pilipinas' => env('CRF1A_LOGO_PILIPINAS', 'assets/img/CRF1A_BAGONG_PILIPINAS.png'),
+        'logo_seal' => BRANDING_LOGO_HIDDEN_VALUE,
+        'logo_baggao' => BRANDING_LOGO_HIDDEN_VALUE,
+        'logo_pilipinas' => BRANDING_LOGO_HIDDEN_VALUE,
     ]);
 
     return $config;
@@ -402,11 +403,11 @@ function crf_1a_marriage_date(array $record): string
     return crf_1a_date_value($record, 'date_of_marriage');
 }
 
-function crf_1a_place_of_birth(array $record): string
+function crf_1a_place_of_birth(array $record, array $inputs = []): string
 {
     $config = crf_1a_config();
-    $municipality = trim((string)($record['municipality'] ?? ''));
-    $province = trim((string)($record['province'] ?? ''));
+    $municipality = trim((string)($inputs['place_municipality'] ?? $record['municipality'] ?? ''));
+    $province = trim((string)($inputs['place_province'] ?? $record['province'] ?? ''));
     if ($municipality === '') $municipality = trim((string)($config['municipality'] ?? ''));
     if ($province === '') $province = trim((string)($config['province'] ?? ''));
     $place = array_values(array_unique(array_filter(
@@ -417,7 +418,7 @@ function crf_1a_place_of_birth(array $record): string
     return implode(', ', $place);
 }
 
-function crf_1a_record_values(array $record): array
+function crf_1a_record_values(array $record, array $inputs = []): array
 {
     return [
         'registry_no' => format_registry_number($record, true),
@@ -425,7 +426,7 @@ function crf_1a_record_values(array $record): array
         'name_of_child' => crf_1a_full_name($record, 'child'),
         'sex' => trim((string)($record['child_sex'] ?? '')),
         'date_of_birth' => crf_1a_birth_date($record),
-        'place_of_birth' => crf_1a_place_of_birth($record),
+        'place_of_birth' => crf_1a_place_of_birth($record, $inputs),
         'name_of_mother' => crf_1a_full_name($record, 'mother'),
         'mother_citizenship' => trim((string)($record['mother_citizenship'] ?? '')),
         'name_of_father' => crf_1a_full_name($record, 'father'),
@@ -478,7 +479,18 @@ function crf_1a_generation_note_html(string $crfNumber, string $generatedAt): st
         . '<br><small>This is a system-generated certification.<br>Generated: ' . $escape($generatedAt)
         . ' | System ID: ' . $escape($crfNumber) . '</small>';
 }
-
+function crf_1a_apply_generation_footer(string $html, string $crfNumber, string $generatedAt): string
+{
+    $escape = static fn(string $value): string => htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $systemId = $escape($crfNumber);
+    $oldFooter = '<small>System ID: ' . $systemId . '</small>';
+    $newFooter = '<small>This is a system-generated certification.<br>Generated: ' . $escape($generatedAt)
+        . ' | System ID: ' . $systemId . '</small>';
+    if (strpos($html, $oldFooter) === false) {
+        throw new RuntimeException('The generated CRF footer marker could not be found.');
+    }
+    return str_replace($oldFooter, $newFooter, $html);
+}
 function crf_1a_render_document_html(array $record, array $inputs, string $crfNumber): string
 {
     $inputs['remarks_html'] = crf_1a_sanitize_remarks_html($inputs['remarks_html'] ?? '');
@@ -496,7 +508,7 @@ function crf_1a_render_document_html(array $record, array $inputs, string $crfNu
             'Name of Child' => crf_1a_record_values($record)['name_of_child'],
             'Sex' => crf_1a_record_values($record)['sex'],
             'Date of Birth' => crf_1a_record_values($record)['date_of_birth'],
-            'Place of Birth' => crf_1a_record_values($record)['place_of_birth'],
+            'Place of Birth' => crf_1a_record_values($record, $inputs)['place_of_birth'],
             'Name of Mother' => crf_1a_record_values($record)['name_of_mother'],
             'Citizenship of Mother' => crf_1a_record_values($record)['mother_citizenship'],
             'Name of father' => crf_1a_record_values($record)['name_of_father'],
@@ -509,7 +521,7 @@ function crf_1a_render_document_html(array $record, array $inputs, string $crfNu
     );
 
     $cfg = crf_1a_config();
-    $values = crf_1a_record_values($record);
+    $values = crf_1a_record_values($record, $inputs);
     $e = static function ($value): string {
         return htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
     };
@@ -532,8 +544,8 @@ function crf_1a_render_document_html(array $record, array $inputs, string $crfNu
     $logoSeal = crf_1a_asset_data_uri($cfg['logo_seal']);
     $logoBaggao = crf_1a_asset_data_uri($cfg['logo_baggao']);
     $logoPilipinas = crf_1a_asset_data_uri($cfg['logo_pilipinas']);
-    $logoSealHtml = $logoSeal !== '' ? '<img src="' . $logoSeal . '" alt="Baggao seal" style="display:block;width:27mm;height:27mm;">' : '';
-    $logoBaggaoHtml = $logoBaggao !== '' ? '<img src="' . $logoBaggao . '" alt="Baggao reference logo" style="display:block;width:27mm;height:27mm;">' : '';
+    $logoSealHtml = $logoSeal !== '' ? '<img src="' . $logoSeal . '" alt="Municipality seal" style="display:block;width:27mm;height:27mm;">' : '';
+    $logoBaggaoHtml = $logoBaggao !== '' ? '<img src="' . $logoBaggao . '" alt="Municipality logo" style="display:block;width:27mm;height:27mm;">' : '';
     $logoPilipinasHtml = $logoPilipinas !== '' ? '<img src="' . $logoPilipinas . '" alt="Bagong Pilipinas" style="display:block;width:34mm;height:28mm;">' : '';
     $defaultOffice = 'OFFICE OF THE MUNICIPAL CIVIL REGISTRAR';
     $officeName = trim((string)$cfg['office_name']);
@@ -701,6 +713,7 @@ function crf_1a_render_table_pdf_html(
     };
     $logo = static function (string $path, string $alt, string $width, string $height) use ($e): string {
         $uri = crf_1a_asset_data_uri($path);
+        $alt = str_replace('Baggao', 'Municipality', $alt);
         return $uri !== ''
             ? '<img src="' . $uri . '" alt="' . $e($alt) . '" style="display:block;width:' . $width . ';height:' . $height . ';">'
             : '';

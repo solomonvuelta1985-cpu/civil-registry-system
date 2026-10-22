@@ -258,11 +258,11 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
             <!-- System Header with Logo -->
             <div class="system-header">
                 <div class="system-logo">
-                    <img src="<?= htmlspecialchars(branding_logo_url('app'), ENT_QUOTES, 'UTF-8') ?>" alt="Bayan ng Baggao Logo">
+                    <img src="<?= htmlspecialchars(branding_logo_url('app'), ENT_QUOTES, 'UTF-8') ?>" alt="Bayan ng <?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?> Logo">
                 </div>
                 <div class="system-title-container">
                     <h1 class="system-title">Civil Registry Documents Management System (CRDMS)</h1>
-                    <p class="system-subtitle">Lalawigan ng Cagayan - Bayan ng Baggao</p>
+                    <p class="system-subtitle"><?= htmlspecialchars(get_locality_tagline(), ENT_QUOTES, 'UTF-8') ?></p>
                 </div>
             </div>
 
@@ -339,7 +339,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                 <div class="form-column">
 
                     <?php
-                    $baggao_barangays = get_baggao_barangays();
+                    $baggao_barangays = get_local_barangays();
                     ?>
 
                     <!-- Registry Information Section -->
@@ -591,7 +591,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                     style="width:1rem; height:1rem; cursor:pointer; margin:0;"
                                     <?php echo $hr_outside ? 'checked' : ''; ?>
                                 >
-                                Outside Baggao
+                                Outside <?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?>
                             </label>
                             <select
                                 id="husband_residence"
@@ -619,7 +619,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
                                     <div class="form-group">
                                         <label for="husband_residence_municipality">Municipality <span class="required">*</span></label>
-                                        <input type="text" id="husband_residence_municipality" name="husband_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_residence_municipality'] ?? '') : '') ?: ($hr_outside ? '' : 'Baggao')); ?>" data-progress-default="<?php echo empty($record['husband_residence_municipality'] ?? '') && !$hr_outside ? 'Baggao' : ''; ?>" required readonly>
+                                        <input type="text" id="husband_residence_municipality" name="husband_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_residence_municipality'] ?? '') : '') ?: ($hr_outside ? '' : get_local_municipality())); ?>" data-progress-default="<?php echo empty($record['husband_residence_municipality'] ?? '') && !$hr_outside ? htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') : ''; ?>" required readonly>
                                     </div>
                                     <div class="form-group">
                                         <label for="husband_residence_province">Province <span class="required">*</span></label>
@@ -699,7 +699,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                         style="width:1rem; height:1rem; cursor:pointer; margin:0;"
                                         <?php echo $hfr_outside ? 'checked' : ''; ?>
                                     >
-                                    Outside Baggao
+                                    Outside <?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?>
                                 </label>
                                 <select
                                     id="husband_father_residence"
@@ -725,7 +725,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
                                     <div class="form-group">
                                         <label for="husband_father_residence_municipality">Municipality</label>
-                                        <input type="text" id="husband_father_residence_municipality" name="husband_father_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_father_residence_municipality'] ?? '') : '') ?: ($hfr_outside ? '' : 'Baggao')); ?>" readonly>
+                                        <input type="text" id="husband_father_residence_municipality" name="husband_father_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_father_residence_municipality'] ?? '') : '') ?: ($hfr_outside ? '' : get_local_municipality())); ?>" readonly>
                                     </div>
                                     <div class="form-group">
                                         <label for="husband_father_residence_province">Province</label>
@@ -785,7 +785,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                         style="width:1rem; height:1rem; cursor:pointer; margin:0;"
                                         <?php echo $hmr_outside ? 'checked' : ''; ?>
                                     >
-                                    Outside Baggao
+                                    Outside <?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?>
                                 </label>
                                 <select
                                     id="husband_mother_residence"
@@ -811,7 +811,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
                                     <div class="form-group">
                                         <label for="husband_mother_residence_municipality">Municipality</label>
-                                        <input type="text" id="husband_mother_residence_municipality" name="husband_mother_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_mother_residence_municipality'] ?? '') : '') ?: ($hmr_outside ? '' : 'Baggao')); ?>" readonly>
+                                        <input type="text" id="husband_mother_residence_municipality" name="husband_mother_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['husband_mother_residence_municipality'] ?? '') : '') ?: ($hmr_outside ? '' : get_local_municipality())); ?>" readonly>
                                     </div>
                                     <div class="form-group">
                                         <label for="husband_mother_residence_province">Province</label>
@@ -987,7 +987,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                     style="width:1rem; height:1rem; cursor:pointer; margin:0;"
                                     <?php echo $wr_outside ? 'checked' : ''; ?>
                                 >
-                                Outside Baggao
+                                Outside <?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?>
                             </label>
                             <select
                                 id="wife_residence"
@@ -1015,7 +1015,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
                                     <div class="form-group">
                                         <label for="wife_residence_municipality">Municipality <span class="required">*</span></label>
-                                        <input type="text" id="wife_residence_municipality" name="wife_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_residence_municipality'] ?? '') : '') ?: ($wr_outside ? '' : 'Baggao')); ?>" data-progress-default="<?php echo empty($record['wife_residence_municipality'] ?? '') && !$wr_outside ? 'Baggao' : ''; ?>" required readonly>
+                                        <input type="text" id="wife_residence_municipality" name="wife_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_residence_municipality'] ?? '') : '') ?: ($wr_outside ? '' : get_local_municipality())); ?>" data-progress-default="<?php echo empty($record['wife_residence_municipality'] ?? '') && !$wr_outside ? htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') : ''; ?>" required readonly>
                                     </div>
                                     <div class="form-group">
                                         <label for="wife_residence_province">Province <span class="required">*</span></label>
@@ -1094,7 +1094,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                         style="width:1rem; height:1rem; cursor:pointer; margin:0;"
                                         <?php echo $wfr_outside ? 'checked' : ''; ?>
                                     >
-                                    Outside Baggao
+                                    Outside <?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?>
                                 </label>
                                 <select
                                     id="wife_father_residence"
@@ -1120,7 +1120,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
                                     <div class="form-group">
                                         <label for="wife_father_residence_municipality">Municipality</label>
-                                        <input type="text" id="wife_father_residence_municipality" name="wife_father_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_father_residence_municipality'] ?? '') : '') ?: ($wfr_outside ? '' : 'Baggao')); ?>" readonly>
+                                        <input type="text" id="wife_father_residence_municipality" name="wife_father_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_father_residence_municipality'] ?? '') : '') ?: ($wfr_outside ? '' : get_local_municipality())); ?>" readonly>
                                     </div>
                                     <div class="form-group">
                                         <label for="wife_father_residence_province">Province</label>
@@ -1180,7 +1180,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                         style="width:1rem; height:1rem; cursor:pointer; margin:0;"
                                         <?php echo $wmr_outside ? 'checked' : ''; ?>
                                     >
-                                    Outside Baggao
+                                    Outside <?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?>
                                 </label>
                                 <select
                                     id="wife_mother_residence"
@@ -1206,7 +1206,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                                 <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
                                     <div class="form-group">
                                         <label for="wife_mother_residence_municipality">Municipality</label>
-                                        <input type="text" id="wife_mother_residence_municipality" name="wife_mother_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_mother_residence_municipality'] ?? '') : '') ?: ($wmr_outside ? '' : 'Baggao')); ?>" readonly>
+                                        <input type="text" id="wife_mother_residence_municipality" name="wife_mother_residence_municipality" placeholder="Enter municipality" maxlength="100" value="<?php echo htmlspecialchars(($edit_mode ? ($record['wife_mother_residence_municipality'] ?? '') : '') ?: ($wmr_outside ? '' : get_local_municipality())); ?>" readonly>
                                     </div>
                                     <div class="form-group">
                                         <label for="wife_mother_residence_province">Province</label>
@@ -1435,7 +1435,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
                 }
             });
         });
-        // "Outside Baggao" residence toggle handlers
+        // Residence toggle handlers for addresses outside the configured municipality.
         (function() {
             document.querySelectorAll('.residence-form-group input[readonly]').forEach(function(input) {
                 input.setAttribute('tabindex', '-1');
@@ -1528,6 +1528,7 @@ $wife_dob    = $init_partial_dob($edit_mode ? $record : null, 'wife_date_of_birt
     <script src="../assets/js/ocr-processor.js"></script>
 
     <!-- Core OCR Integration -->
+    <script>window.LOCAL_BARANGAYS = <?= json_encode(get_local_barangays(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
     <script src="../assets/js/ocr-field-mapper.js"></script>
     <script src="../assets/js/ocr-modal.js"></script>
 

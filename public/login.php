@@ -666,10 +666,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="logo-circle" id="logoCircle">
-                    <img src="<?= htmlspecialchars(branding_logo_url('app'), ENT_QUOTES, 'UTF-8') ?>" alt="Baggao Logo">
+                    <img src="<?= htmlspecialchars(branding_logo_url('app'), ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?> logo">
                 </div>
                 <h1 class="brand-name">Civil Registry Documents<br>Management System (CRDMS)</h1>
-                <p class="tagline">Lalawigan ng Cagayan - Bayan ng Baggao</p>
+                <p class="tagline"><?= htmlspecialchars(get_locality_tagline(), ENT_QUOTES, 'UTF-8') ?></p>
             </div>
         </div>
 

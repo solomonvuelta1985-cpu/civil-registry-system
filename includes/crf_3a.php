@@ -49,9 +49,9 @@ function crf_3a_config(): array
     $oneA = crf_1a_config();
     $config = branding_apply_crf_logo_overrides([
         'office_name' => env('CRF3A_OFFICE_NAME', $oneA['office_name']),
-        'municipality' => env('CRF3A_MUNICIPALITY', $oneA['municipality']),
+        'municipality' => $oneA['municipality'],
         'province' => env('CRF3A_PROVINCE', $oneA['province']),
-        'address' => env('CRF3A_OFFICE_ADDRESS', $oneA['address']),
+        'address' => $oneA['address'],
         'logo_seal' => env('CRF3A_LOGO_SEAL', $oneA['logo_seal']),
         'logo_baggao' => env('CRF3A_LOGO_BAGGAO', $oneA['logo_baggao']),
         'logo_pilipinas' => env('CRF3A_LOGO_PILIPINAS', $oneA['logo_pilipinas']),
@@ -276,6 +276,7 @@ function crf_3a_render_document_html(array $record, array $inputs, string $crfNu
     $mainClosing = count($remarksPages) > 1 ? '' : $closing(['signature' => $signatureTop, 'verified' => $signatureTop + 22, 'payment' => $signatureTop + 42, 'note' => $signatureTop + 66]);
     $logo = static function (string $path, string $alt, string $size) use ($e): string {
         $uri = crf_1a_asset_data_uri($path);
+        $alt = str_replace('Baggao', 'Municipality', $alt);
         return $uri !== '' ? '<img src="' . $uri . '" alt="' . $e($alt) . '" style="display:block;width:' . $size . ';height:' . $size . ';object-fit:contain;">' : '';
     };
     $officeName = trim((string)$cfg['office_name']);

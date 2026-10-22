@@ -12,6 +12,8 @@ requireAuth();
 if (!hasPermission(crf_2a_generate_permission())) json_response(false, 'You do not have permission to generate CRF No. 2A.', null, 403);
 requireCSRFToken();
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') json_response(false, 'Invalid request method.', null, 405);
+if (get_local_crf_address() === '') json_response(false, 'An admin must enter the CRF office address in Locality Settings before issuance.', null, 422);
+if (($_POST['locality_confirmed'] ?? '') !== '1') json_response(false, 'Confirm or correct the death locality before issuance.', null, 422);
 
 function crf_2a_post_string(string $key, int $maxLength = 255): string
 {
@@ -40,6 +42,9 @@ $deathRecordId = filter_var($_POST['death_record_id'] ?? null, FILTER_VALIDATE_I
 if ($deathRecordId === false || $deathRecordId === null) json_response(false, 'A valid death record is required.', null, 422);
 
 $inputs = [
+    'place_municipality' => crf_2a_required('place_municipality', 'Death Municipality', 100),
+    'place_province' => crf_2a_required('place_province', 'Death Province', 100),
+    'locality_confirmed' => '1',
     'page_number' => crf_2a_required('page_number', 'Page Number', 50),
     'book_number' => crf_2a_required('book_number', 'Book Number', 50),
     'requester_name' => crf_2a_post_string('requester_name', 150),
@@ -77,7 +82,7 @@ try {
         $posted = crf_2a_post_string($key, $maxLength);
         if ($posted !== '') $recordForIssuance[$key] = $posted;
     }
-    $values = crf_2a_record_values($recordForIssuance);
+    $values = crf_2a_record_values($recordForIssuance, $inputs);
     foreach (['civil_status' => 'Civil Status', 'citizenship' => 'Citizenship', 'cause_of_death' => 'Cause of Death'] as $key => $label) {
         if (trim((string)($values[$key] ?? '')) === '') json_response(false, $label . ' is required on the death record before generating CRF No. 2A.', null, 422);
     }
@@ -153,16 +158,18 @@ try {
     if ($sequence > 999999) throw new RuntimeException('The CRF No. 2A sequence has reached its six-digit limit for this year.');
     $pdo->prepare('UPDATE crf_2a_sequences SET last_sequence = :sequence WHERE issue_year = :year')->execute([':sequence' => $sequence, ':year' => $year]);
 
+    $generatedAt = date('M j, Y, g:i A');
     $crfNumber = sprintf('CRF2A-%04d-%06d', $year, $sequence);
     $generatedAt = date('M j, Y, g:i A');
     $inputs['generated_at'] = $generatedAt;
     $relativePath = crf_2a_output_relative_path((string)$year, $lastName, $crfNumber);
     $pdfAbsolutePath = UPLOAD_PATH . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $relativePath);
     $html = crf_2a_render_document_html($recordForIssuance, $inputs, $crfNumber);
+    $html = crf_1a_apply_generation_footer($html, $crfNumber, $generatedAt);
     $renderError = null;
     if (!crf_2a_render_pdf($html, $pdfAbsolutePath, $renderError)) throw new RuntimeException($renderError ?: 'Unable to generate the CRF PDF.');
 
-    $snapshot = json_encode(['raw' => $record, 'display' => $values, 'manual_overrides' => ['civil_status' => $values['civil_status'], 'citizenship' => $values['citizenship'], 'cause_of_death' => $values['cause_of_death'], 'remarks_html' => $inputs['remarks_html']]], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+    $snapshot = json_encode(['raw' => $record, 'display' => $values, 'manual_overrides' => ['civil_status' => $values['civil_status'], 'citizenship' => $values['citizenship'], 'cause_of_death' => $values['cause_of_death'], 'remarks_html' => $inputs['remarks_html'], 'place_municipality' => $inputs['place_municipality'], 'place_province' => $inputs['place_province'], 'locality_confirmed' => true]], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
     $hash = hash_file('sha256', $pdfAbsolutePath);
     if ($hash === false) throw new RuntimeException('Unable to checksum the generated CRF PDF.');
     $insert = $pdo->prepare("INSERT INTO crf_2a_issuances

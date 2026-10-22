@@ -144,6 +144,7 @@ if ($edit_mode && $record) {
     <!-- Shared Certificate Form Styles -->
     <link rel="stylesheet" href="../assets/css/certificate-forms-shared.css?v=2.5">
     <link rel="stylesheet" href="../assets/css/certificate-entry-spacing.css?v=20261001-1">
+    <style>#child_place_of_birth_group[hidden] { display: none !important; }</style>
 </head>
 <body>
     <?php include '../includes/preloader.php'; ?>
@@ -160,11 +161,11 @@ if ($edit_mode && $record) {
                 <!-- System Header with Logo -->
                 <div class="system-header">
                     <div class="system-logo">
-                        <img src="<?= htmlspecialchars(branding_logo_url('app'), ENT_QUOTES, 'UTF-8') ?>" alt="Bayan ng Baggao Logo">
+                        <img src="<?= htmlspecialchars(branding_logo_url('app'), ENT_QUOTES, 'UTF-8') ?>" alt="Bayan ng <?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?> Logo">
                     </div>
                     <div class="system-title-container">
                         <h1 class="system-title">Civil Registry Documents Management System (CRDMS)</h1>
-                        <p class="system-subtitle">Lalawigan ng Cagayan - Bayan ng Baggao</p>
+                        <p class="system-subtitle"><?= htmlspecialchars(get_locality_tagline(), ENT_QUOTES, 'UTF-8') ?></p>
                     </div>
                 </div>
 
@@ -479,13 +480,15 @@ if ($edit_mode && $record) {
                                 <span class="help-text">Select where the birth occurred (hospital, home, health center, etc.)</span>
                             </div>
 
-                            <div class="form-group" id="child_place_of_birth_group" style="display: <?php echo ($edit_mode && !empty($record['place_type'])) ? 'block' : 'none'; ?>;">
+                            <?php $show_birth_location = $edit_mode && in_array($record['place_type'] ?? '', ['Hospital/Clinic', 'Barangay Health Center'], true); ?>
+                            <div class="form-group" id="child_place_of_birth_group" <?php echo $show_birth_location ? '' : 'hidden'; ?>>
                                 <label for="child_place_of_birth">
                                     <span id="place_label">Location</span>
                                 </label>
                                 <select
                                     id="child_place_of_birth"
                                     name="child_place_of_birth"
+                                    <?php echo $show_birth_location ? '' : 'disabled'; ?>
                                 >
                                     <option value="">-- Select Location --</option>
                                 </select>
@@ -512,7 +515,7 @@ if ($edit_mode && $record) {
                                     type="text"
                                     id="municipality"
                                     name="municipality"
-                                    value="Baggao"
+                                    value="<?= htmlspecialchars($edit_mode && !empty($record['municipality']) ? $record['municipality'] : get_local_municipality(), ENT_QUOTES, 'UTF-8') ?>"
                                     readonly
                                     disabled
                                     style="background-color: #e9ecef; cursor: not-allowed;"
@@ -1087,38 +1090,13 @@ if ($edit_mode && $record) {
             updateEndpoint: '../api/certificate_of_live_birth_update.php'
         });
 
-        // Barangay list for Baggao, Cagayan
-        const barangays = [
-            'Adaoag', 'Agaman (Proper)', 'Agaman Norte', 'Agaman Sur', 'Alba', 'Annayatan',
-            'Asassi', 'Asinga-Via', 'Awallan', 'Bacagan', 'Bagunot', 'Barsat East',
-            'Barsat West', 'Bitag Grande', 'Bitag Pequeño', 'Bunugan', 'C. Verzosa',
-            'Canagatan', 'Carupian', 'Catugay', 'Dabbac Grande', 'Dalin', 'Dalla',
-            'Hacienda Intal', 'Ibulo', 'Imurung', 'J. Pallagao', 'Lasilat', 'Mabini',
-            'Masical', 'Mocag', 'Nangalinan', 'Poblacion (Centro)', 'Remus', 'San Antonio',
-            'San Francisco', 'San Isidro', 'San Jose', 'San Miguel', 'San Vicente',
-            'Santa Margarita', 'Santor', 'Taguing', 'Taguntungan', 'Tallang', 'Taytay',
-            'Temblique', 'Tungel'
-        ];
+        const barangays = <?= json_encode(get_local_barangays(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        window.LOCAL_BARANGAYS = barangays;
 
-        const hospitals = [
-            'Baggao District Hospital',
-            'Municipal Health Office',
-            'Baggao Community Medicare (Poblacion)',
-            'Baggao Municipal Hospital (Tallang)'
-        ];
-
-        // Auto-map hospital/clinic to corresponding barangay
-        const hospitalBarangayMap = {
-            'Baggao District Hospital': 'Tungel',
-            'Municipal Health Office': 'San Jose',
-            'Baggao Community Medicare (Poblacion)': 'Poblacion (Centro)',
-            'Baggao Municipal Hospital (Tallang)': 'Tallang'
-        };
-
-        const healthCenters = [
-            'Baggao Rural Health Unit',
-            'Barangay Health Station'
-        ];
+        const hospitals = <?= json_encode(get_local_hospitals(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        const healthCenters = <?= json_encode(get_local_health_centers(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        window.LOCAL_HOSPITALS = hospitals;
+        window.LOCAL_HEALTH_CENTERS = healthCenters;
 
         // Populate Barangay dropdown
         const barangaySelect = document.getElementById('barangay');
@@ -1131,7 +1109,9 @@ if ($edit_mode && $record) {
 
         // Set barangay value in edit mode
         <?php if ($edit_mode && !empty($record['barangay'])): ?>
-        barangaySelect.value = '<?php echo htmlspecialchars($record['barangay']); ?>';
+        const savedBarangay = <?= json_encode((string) $record['barangay'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        if (!Array.from(barangaySelect.options).some(option => option.value === savedBarangay)) barangaySelect.add(new Option(savedBarangay + ' (saved)', savedBarangay));
+        barangaySelect.value = savedBarangay;
         <?php endif; ?>
 
         // Place of Birth Cascading Dropdown Logic
@@ -1145,78 +1125,56 @@ if ($edit_mode && $record) {
             const selectedType = this.value;
 
             if (selectedType && selectedType !== 'Home' && selectedType !== 'Other') {
-                placeOfBirthSelect.value = '';
+                placeOfBirthSelect.required = true;
+                placeOfBirthSelect.disabled = false;
+                placeOfBirthSelect.innerHTML = '<option value="">-- Select Location --</option>';
 
-                Notiflix.Loading.pulse('Loading locations...', {
-                    svgColor: '#0d6efd',
-                    backgroundColor: 'rgba(0,0,0,0.8)',
-                    messageColor: '#ffffff'
-                });
+                let locations = [];
+                if (selectedType === 'Hospital/Clinic') {
+                    locations = hospitals;
+                    placeLabel.textContent = 'Hospital/Clinic';
+                } else if (selectedType === 'Barangay Health Center') {
+                    locations = healthCenters;
+                    placeLabel.textContent = 'Health Center';
+                }
 
-                setTimeout(() => {
-                    placeOfBirthSelect.innerHTML = '<option value="">-- Select Location --</option>';
-
-                    let locations = [];
-                    if (selectedType === 'Hospital/Clinic') {
-                        locations = hospitals;
-                        placeLabel.textContent = 'Hospital/Clinic';
-                    } else if (selectedType === 'Barangay Health Center') {
-                        locations = healthCenters;
-                        placeLabel.textContent = 'Health Center';
-                    }
-
-                    locations.forEach(location => {
-                        const option = document.createElement('option');
-                        option.value = location;
-                        option.textContent = location;
-                        placeOfBirthSelect.appendChild(option);
-                    });
-
-                    placeOfBirthGroup.style.display = 'block';
-
-                    Notiflix.Loading.remove();
-                    Notiflix.Notify.success(`${locations.length} locations loaded!`, {
-                        timeout: 2000,
-                        position: 'right-top'
-                    });
-                }, 300);
+                locations.forEach(location => placeOfBirthSelect.add(new Option(location, location)));
+                if (locations.length === 0) {
+                    placeOfBirthSelect.add(new Option('No locations configured; ask an admin', ''));
+                }
+                placeOfBirthGroup.hidden = false;
             } else if (selectedType === 'Home' || selectedType === 'Other') {
                 // For Home/Other, hide location dropdown - barangay is enough
-                placeOfBirthGroup.style.display = 'none';
+                placeOfBirthGroup.hidden = true;
                 placeOfBirthSelect.required = false;
+                placeOfBirthSelect.disabled = true;
                 placeOfBirthSelect.value = '';
                 placeOfBirthSelect.innerHTML = '<option value="">-- Select Location --</option>';
             } else {
-                placeOfBirthGroup.style.display = 'none';
+                placeOfBirthGroup.hidden = true;
                 placeOfBirthSelect.required = false;
+                placeOfBirthSelect.disabled = true;
                 placeOfBirthSelect.value = '';
                 placeOfBirthSelect.innerHTML = '<option value="">-- Select Location --</option>';
-            }
-        });
-
-        // Auto-update barangay when a hospital/clinic is selected
-        placeOfBirthSelect.addEventListener('change', function() {
-            const selectedLocation = this.value;
-            if (hospitalBarangayMap[selectedLocation]) {
-                barangaySelect.value = hospitalBarangayMap[selectedLocation];
             }
         });
 
         // Handle edit mode - populate dropdowns if editing
-        <?php if ($edit_mode && !empty($record['child_place_of_birth'])): ?>
+        <?php if ($edit_mode && $record): ?>
         (function() {
-            const savedLocation = '<?php echo htmlspecialchars($record['child_place_of_birth']); ?>';
-            const savedPlaceType = '<?php echo htmlspecialchars($record['place_type'] ?? ''); ?>';
+            const savedLocation = <?= json_encode((string) ($record['child_place_of_birth'] ?? ''), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+            const savedPlaceType = <?= json_encode((string) ($record['place_type'] ?? ''), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 
             if (savedPlaceType && placeTypeSelect.value !== savedPlaceType) {
                 placeTypeSelect.value = savedPlaceType;
             }
 
-            if (savedPlaceType) {
-                placeTypeSelect.dispatchEvent(new Event('change'));
-                setTimeout(() => {
-                    placeOfBirthSelect.value = savedLocation;
-                }, 450);
+            placeTypeSelect.dispatchEvent(new Event('change'));
+            if (savedPlaceType && savedPlaceType !== 'Home' && savedPlaceType !== 'Other' && savedLocation) {
+                if (!Array.from(placeOfBirthSelect.options).some(option => option.value === savedLocation)) {
+                    placeOfBirthSelect.add(new Option(savedLocation + ' (saved)', savedLocation));
+                }
+                placeOfBirthSelect.value = savedLocation;
             }
         })();
         <?php endif; ?>

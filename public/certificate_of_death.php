@@ -149,11 +149,11 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
                 <!-- System Header with Logo -->
                 <div class="system-header">
                     <div class="system-logo">
-                        <img src="<?= htmlspecialchars(branding_logo_url('app'), ENT_QUOTES, 'UTF-8') ?>" alt="Bayan ng Baggao Logo">
+                        <img src="<?= htmlspecialchars(branding_logo_url('app'), ENT_QUOTES, 'UTF-8') ?>" alt="Bayan ng <?= htmlspecialchars(get_local_municipality(), ENT_QUOTES, 'UTF-8') ?> Logo">
                     </div>
                     <div class="system-title-container">
                         <h1 class="system-title">Civil Registry Documents Management System (CRDMS)</h1>
-                        <p class="system-subtitle">Lalawigan ng Cagayan - Bayan ng Baggao</p>
+                        <p class="system-subtitle"><?= htmlspecialchars(get_locality_tagline(), ENT_QUOTES, 'UTF-8') ?></p>
                     </div>
                 </div>
 
@@ -556,33 +556,30 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
                                     <option value="">-- Select Location --</option>
                                     <option value="" disabled>──────── Hospitals ────────</option>
                                     <?php
-                                    $death_hospitals = [
-                                        'Baggao District Hospital',
-                                        'Municipal Health Office',
-                                        'Baggao Community Medicare (Poblacion)',
-                                        'Baggao Municipal Hospital (Tallang)',
-                                    ];
+                                    $death_hospitals = get_local_hospitals();
                                     foreach ($death_hospitals as $h) {
                                         $sel = ($edit_mode && ($record['place_of_death'] ?? '') === $h) ? 'selected' : '';
                                         echo '<option value="' . htmlspecialchars($h) . '" ' . $sel . '>' . htmlspecialchars($h) . '</option>';
                                     }
                                     ?>
+                                    <option value="" disabled>──────── Health Centers ────────</option>
+                                    <?php
+                                    $death_health_centers = get_local_health_centers();
+                                    foreach ($death_health_centers as $center) {
+                                        $sel = ($edit_mode && ($record['place_of_death'] ?? '') === $center) ? 'selected' : '';
+                                        echo '<option value="' . htmlspecialchars($center, ENT_QUOTES, 'UTF-8') . '" ' . $sel . '>' . htmlspecialchars($center, ENT_QUOTES, 'UTF-8') . '</option>';
+                                    }
+                                    ?>
                                     <option value="" disabled>──────── Barangays ────────</option>
                                     <?php
-                                    $death_barangays = [
-                                        'Adaoag','Agaman (Proper)','Agaman Norte','Agaman Sur','Alba','Annayatan',
-                                        'Asassi','Asinga-Via','Awallan','Bacagan','Bagunot','Barsat East',
-                                        'Barsat West','Bitag Grande','Bitag Pequeño','Bunugan','C. Verzosa',
-                                        'Canagatan','Carupian','Catugay','Dabbac Grande','Dalin','Dalla',
-                                        'Hacienda Intal','Ibulo','Imurung','J. Pallagao','Lasilat','Mabini',
-                                        'Masical','Mocag','Nangalinan','Poblacion (Centro)','Remus','San Antonio',
-                                        'San Francisco','San Isidro','San Jose','San Miguel','San Vicente',
-                                        'Santa Margarita','Santor','Taguing','Taguntungan','Tallang','Taytay',
-                                        'Temblique','Tungel',
-                                    ];
+                                    $death_barangays = get_local_barangays();
                                     foreach ($death_barangays as $b) {
                                         $sel = ($edit_mode && ($record['place_of_death'] ?? '') === $b) ? 'selected' : '';
                                         echo '<option value="' . htmlspecialchars($b) . '" ' . $sel . '>' . htmlspecialchars($b) . '</option>';
+                                    }
+                                    $savedPlace = $edit_mode ? (string) ($record['place_of_death'] ?? '') : '';
+                                    if ($savedPlace !== '' && !in_array($savedPlace, array_merge($death_hospitals, $death_health_centers, $death_barangays), true)) {
+                                        echo '<option value="' . htmlspecialchars($savedPlace, ENT_QUOTES, 'UTF-8') . '" selected>' . htmlspecialchars($savedPlace, ENT_QUOTES, 'UTF-8') . ' (saved)</option>';
                                     }
                                     ?>
                                 </select>
@@ -597,7 +594,7 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
                                     type="text"
                                     id="municipality"
                                     name="municipality"
-                                    value="Baggao"
+                                    value="<?= htmlspecialchars($edit_mode && !empty($record['municipality']) ? $record['municipality'] : get_local_municipality(), ENT_QUOTES, 'UTF-8') ?>"
                                     readonly
                                     disabled
                                     style="background-color: #e9ecef; cursor: not-allowed;"
@@ -1232,6 +1229,7 @@ $manual_age_mode = $edit_mode && !empty($record['age']) && (empty($record['date_
     <script src="../assets/js/ocr-processor.js"></script>
 
     <!-- Core OCR Integration -->
+    <script>window.LOCAL_BARANGAYS = <?= json_encode(get_local_barangays(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
     <script src="../assets/js/ocr-field-mapper.js"></script>
     <script src="../assets/js/ocr-modal.js"></script>
 
