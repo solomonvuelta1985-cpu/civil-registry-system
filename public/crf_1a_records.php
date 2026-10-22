@@ -96,7 +96,7 @@ $crfDefaults = branding_crf_preview_config(crf_1a_config());
 </script>
 <script src="../assets/js/record-preview-modal.js?v=13"></script>
 <script src="../assets/js/crf-remarks-editor.js?v=20261014-personal-templates-1"></script>
-<script src="../assets/js/crf-1a-generator.js?v=20261021-preview-flow-1"></script>
+<script src="../assets/js/crf-1a-generator.js?v=20261022-generated-footer-1"></script>
 <script src="../assets/js/crf-1a-records.js?v=24"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
 </body>

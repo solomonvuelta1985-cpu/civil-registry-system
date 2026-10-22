@@ -2,6 +2,19 @@
 (function () {
     'use strict';
 
+    function formatGenerationTimestamp(value = new Date()) {
+        const instant = value instanceof Date ? value : new Date(value);
+        const date = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' }).format(instant);
+        const time = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', hour12: true }).format(instant);
+        return `${date}, ${time}`;
+    }
+
+    function updateGenerationNotes(root, systemId, generatedAt, escapeHtml) {
+        root.querySelectorAll('.doc-note, .note').forEach(note => {
+            note.innerHTML = `<strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>This is a system-generated certification.<br>Generated: ${escapeHtml(generatedAt)} | System ID: ${escapeHtml(systemId)}</small>`;
+        });
+    }
+
     class Crf1AGenerator {
         constructor() {
             this.backdrop = null;
@@ -216,6 +229,7 @@
 
         open(record) {
             this.record = record || {};
+            this.generatedAt = formatGenerationTimestamp();
             this.replacesIssuanceId = 0;
             this.existingIssuances = [];
             this.issuanceCheckPending = false;
@@ -436,6 +450,7 @@
                 const data = await response.json();
                 if (!response.ok || !data.success || !data.data) throw new Error(data.message || 'Generation failed.');
                 const result = data.data;
+                this.generatedAt = result.generated_at || this.generatedAt;
                 this.backdrop.querySelector('#crf1aPreviewId').textContent = result.crf_number;
                 // Keep the stable browser legal-size preview visible after generation.
                 // The immutable PDF is saved and remains available from the records table.
@@ -480,6 +495,7 @@
                 remarks_html: this.form.elements.namedItem('remarks_html')?.value || ''
             };
             this.previewHost.innerHTML = this.buildDocumentMarkup(this.record, inputs, crfNumber || 'ID assigned on generate');
+            updateGenerationNotes(this.previewHost, crfNumber || 'ID assigned on generate', this.generatedAt || formatGenerationTimestamp(), value => this.escape(value));
             this.adjustPreviewFlow();
             this.previewTotalPages = Math.max(1, this.previewHost.querySelectorAll('.crf1a-document').length);
             this.previewCurrentPage = Math.min(this.previewCurrentPage, this.previewTotalPages);

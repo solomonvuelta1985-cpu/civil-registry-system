@@ -3927,9 +3927,9 @@ function detect_late_registration($record, $record_type) {
     <script src="../assets/js/family_relations_render.js?v=2"></script>
     <script src="../assets/js/record-preview-modal.js?v=13"></script>
     <script src="../assets/js/crf-remarks-editor.js?v=20261014-personal-templates-1"></script>
-    <script src="../assets/js/crf-1a-generator.js?v=20261021-preview-flow-1"></script>
-    <script src="../assets/js/crf-2a-generator.js?v=20261021-preview-flow-1"></script>
-    <script src="../assets/js/crf-3a-generator.js?v=20261021-preview-flow-1"></script>
+    <script src="../assets/js/crf-1a-generator.js?v=20261022-generated-footer-1"></script>
+    <script src="../assets/js/crf-2a-generator.js?v=20261022-generated-footer-1"></script>
+    <script src="../assets/js/crf-3a-generator.js?v=20261022-generated-footer-1"></script>
 
     <!-- Double Registration Comparison Modal -->
     <link rel="stylesheet" href="../assets/css/double-reg-comparison-modal.css?v=7">

@@ -219,6 +219,8 @@ try {
     $sequenceUpdate->execute([':sequence' => $sequence, ':year' => $year]);
 
     $crfNumber = sprintf('CRF1A-%04d-%06d', $year, $sequence);
+    $generatedAt = date('M j, Y, g:i A');
+    $inputs['generated_at'] = $generatedAt;
     $pdfRelativePath = crf_1a_output_relative_path((string)$year, $lastName, $crfNumber);
     $pdfAbsolutePath = UPLOAD_PATH . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $pdfRelativePath);
     $html = crf_1a_render_document_html($record, $inputs, $crfNumber);
@@ -337,6 +339,7 @@ try {
         'issuance_kind' => $issuanceKind,
         'replaces_issuance_id' => $replacesId,
         'issue_date' => $issueDate,
+        'generated_at' => $generatedAt,
         'pdf_url' => $baseUrl . '/api/serve_crf_1a.php?id=' . $issuanceId,
         'download_url' => $baseUrl . '/api/serve_crf_1a.php?id=' . $issuanceId . '&download=1&action=download',
     ]);

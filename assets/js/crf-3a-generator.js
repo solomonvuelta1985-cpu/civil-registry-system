@@ -2,6 +2,19 @@
 (function () {
     'use strict';
 
+    function formatGenerationTimestamp(value = new Date()) {
+        const instant = value instanceof Date ? value : new Date(value);
+        const date = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' }).format(instant);
+        const time = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', hour12: true }).format(instant);
+        return `${date}, ${time}`;
+    }
+
+    function updateGenerationNotes(root, systemId, generatedAt, escapeHtml) {
+        root.querySelectorAll('.doc-note, .note').forEach(note => {
+            note.innerHTML = `<strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>This is a system-generated certification.<br>Generated: ${escapeHtml(generatedAt)} | System ID: ${escapeHtml(systemId)}</small>`;
+        });
+    }
+
     class Crf3AGenerator {
         constructor() {
             this.record = null;
@@ -113,6 +126,7 @@
 
         open(record) {
             this.record = record || {};
+            this.generatedAt = formatGenerationTimestamp();
             this.replacesIssuanceId = 0;
             this.form.reset();
             this.remarksEditor?.setSavedRemarks('');
@@ -239,7 +253,9 @@
         render() {
             if (!this.record) return;
             const inputs = this.values();
-            this.preview.innerHTML = this.withRemarks(this.markup(this.record, inputs, this.backdrop.querySelector('[data-crf-id]').textContent), inputs, this.backdrop.querySelector('[data-crf-id]').textContent);
+            const systemId = this.backdrop.querySelector('[data-crf-id]').textContent;
+            this.preview.innerHTML = this.withRemarks(this.markup(this.record, inputs, systemId), inputs, systemId);
+            updateGenerationNotes(this.preview, systemId, this.generatedAt || formatGenerationTimestamp(), value => this.escape(value));
             this.preview.querySelectorAll('.crf3a-details-table').forEach(table => { table.dataset.previewFlowBaseMm = '60.8'; });
             this.adjustPreviewFlow();
             this.preview.querySelectorAll('.crf1a-document').forEach(documentNode => { documentNode.style.transformOrigin = 'top center'; documentNode.style.transform = `scale(${this.scale}) rotate(${this.rotation}deg)`; });

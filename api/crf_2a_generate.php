@@ -154,6 +154,8 @@ try {
     $pdo->prepare('UPDATE crf_2a_sequences SET last_sequence = :sequence WHERE issue_year = :year')->execute([':sequence' => $sequence, ':year' => $year]);
 
     $crfNumber = sprintf('CRF2A-%04d-%06d', $year, $sequence);
+    $generatedAt = date('M j, Y, g:i A');
+    $inputs['generated_at'] = $generatedAt;
     $relativePath = crf_2a_output_relative_path((string)$year, $lastName, $crfNumber);
     $pdfAbsolutePath = UPLOAD_PATH . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $relativePath);
     $html = crf_2a_render_document_html($recordForIssuance, $inputs, $crfNumber);
@@ -216,7 +218,7 @@ try {
         error_log('CRF 2A activity logging failed after generation: ' . $activityError->getMessage());
     }
     $baseUrl = rtrim(defined('BASE_URL') ? BASE_URL : '/iscan/', '/');
-    json_response(true, 'CRF No. 2A generated successfully.', ['issuance_id' => $issuanceId, 'crf_number' => $crfNumber, 'issuance_kind' => $issuanceKind, 'replaces_issuance_id' => $replacesId, 'issue_date' => $inputs['issue_date'], 'pdf_url' => $baseUrl . '/api/serve_crf_2a.php?id=' . $issuanceId, 'download_url' => $baseUrl . '/api/serve_crf_2a.php?id=' . $issuanceId . '&download=1&action=download']);
+    json_response(true, 'CRF No. 2A generated successfully.', ['issuance_id' => $issuanceId, 'crf_number' => $crfNumber, 'issuance_kind' => $issuanceKind, 'replaces_issuance_id' => $replacesId, 'issue_date' => $inputs['issue_date'], 'generated_at' => $generatedAt, 'pdf_url' => $baseUrl . '/api/serve_crf_2a.php?id=' . $issuanceId, 'download_url' => $baseUrl . '/api/serve_crf_2a.php?id=' . $issuanceId . '&download=1&action=download']);
 } catch (Throwable $e) {
     if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
     if (!$issuanceCommitted && $pdfAbsolutePath && is_file($pdfAbsolutePath)) @unlink($pdfAbsolutePath);

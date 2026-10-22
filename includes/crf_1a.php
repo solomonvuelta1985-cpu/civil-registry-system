@@ -471,6 +471,14 @@ function crf_1a_edge_path(): ?string
     return $path;
 }
 
+function crf_1a_generation_note_html(string $crfNumber, string $generatedAt): string
+{
+    $escape = static fn(string $value): string => htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    return '<strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.'
+        . '<br><small>This is a system-generated certification.<br>Generated: ' . $escape($generatedAt)
+        . ' | System ID: ' . $escape($crfNumber) . '</small>';
+}
+
 function crf_1a_render_document_html(array $record, array $inputs, string $crfNumber): string
 {
     $inputs['remarks_html'] = crf_1a_sanitize_remarks_html($inputs['remarks_html'] ?? '');
@@ -550,7 +558,7 @@ function crf_1a_render_document_html(array $record, array $inputs, string $crfNu
         return '<div class="signature-block" style="top:' . $positions['signature'] . 'mm"><strong>' . crf_1a_manual_entry_html($registrarName) . '</strong><div>' . crf_1a_manual_entry_html($registrarTitle) . '</div></div>'
             . '<div class="certified-block" style="top:' . $positions['certified'] . 'mm"><div class="certified-heading"><span>Certified by:</span><span class="certified-line">' . crf_1a_manual_entry_html($inputs['certified_by_name'] ?? '') . '</span></div><div class="certified-position">' . crf_1a_manual_entry_html($inputs['certified_by_position'] ?? '') . '</div></div>'
             . '<div class="payment-block" style="top:' . $positions['payment'] . 'mm"><div class="payment-row"><span class="payment-label">Amount paid</span><span class="payment-colon">:</span><span class="payment-value">' . $line($amount, true) . '</span></div><div class="payment-row"><span class="payment-label">O.R. Number</span><span class="payment-colon">:</span><span class="payment-value">' . $line($inputs['or_number'] ?? '', true) . '</span></div><div class="payment-row"><span class="payment-label">Date paid</span><span class="payment-colon">:</span><span class="payment-value">' . $line(crf_1a_full_date($inputs['date_paid'] ?? ''), true) . '</span></div></div>'
-            . '<div class="note" style="top:' . $positions['note'] . 'mm"><strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>System ID: ' . $e($crfNumber) . '</small></div>';
+            . '<div class="note" style="top:' . $positions['note'] . 'mm">' . crf_1a_generation_note_html($crfNumber, (string)($inputs['generated_at'] ?? date('M j, Y, g:i A'))) . '</div>';
     };
     $mainClosing = count($remarksPages) > 1 ? '' : $closing(['signature' => $signatureTop, 'certified' => $signatureTop + 21, 'payment' => $signatureTop + 41, 'note' => $signatureTop + 65]);
 
@@ -855,7 +863,7 @@ function crf_1a_render_table_pdf_html(
     $closingRows = '<tr><td class="signature-row"><table class="signature-table" cellspacing="0" cellpadding="0" border="0"><tr><td class="signature-spacer">&nbsp;</td><td class="signature-cell"><strong>' . crf_1a_manual_entry_html($inputs['mcr_full_name'] ?? '') . '</strong><div>' . crf_1a_manual_entry_html($inputs['mcr_title'] ?? '') . '</div></td><td class="signature-right-spacer">&nbsp;</td></tr></table></td></tr>'
         . '<tr><td class="certified-row"><table class="certified-table" cellspacing="0" cellpadding="0" border="0"><tr><td><table class="certified-heading" cellspacing="0" cellpadding="0" border="0"><tr><td class="certified-label">Certified by:</td><td class="certified-line">' . crf_1a_manual_entry_html($inputs['certified_by_name'] ?? '') . '</td></tr></table><div class="certified-position">' . crf_1a_manual_entry_html($inputs['certified_by_position'] ?? '') . '</div></td></tr></table></td></tr>'
         . '<tr><td class="payment-row"><table class="payment-table" cellspacing="0" cellpadding="0" border="0"><tr><td class="payment-label">Amount paid</td><td class="payment-colon">:</td><td class="payment-value">' . $valueLine($amount, true) . '</td></tr><tr><td class="payment-label">O.R. Number</td><td class="payment-colon">:</td><td class="payment-value">' . $valueLine($inputs['or_number'] ?? '', true) . '</td></tr><tr><td class="payment-label">Date paid</td><td class="payment-colon">:</td><td class="payment-value">' . $valueLine(crf_1a_full_date($inputs['date_paid'] ?? ''), true) . '</td></tr></table></td></tr>'
-        . '<tr><td class="note-row"><div class="note"><strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>System ID: ' . $e($crfNumber) . '</small></div></td></tr>';
+        . '<tr><td class="note-row"><div class="note">' . crf_1a_generation_note_html($crfNumber, (string)($inputs['generated_at'] ?? date('M j, Y, g:i A'))) . '</div></td></tr>';
 
     if ($causePlan === null || $causePlan['continuation_pages'] === []) {
         $firstRemarks = $remarksPages[0] ?? '';

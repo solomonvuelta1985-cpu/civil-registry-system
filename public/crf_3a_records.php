@@ -82,7 +82,7 @@ $crfDefaults = branding_crf_preview_config(crf_3a_config());
     window.CRF3A_DEFAULT_ISSUE_DATE = <?= json_encode(date('Y-m-d')) ?>;
 </script>
 <script src="../assets/js/crf-remarks-editor.js?v=20261014-personal-templates-1"></script>
-<script src="../assets/js/crf-3a-generator.js?v=20261021-preview-flow-1"></script>
+<script src="../assets/js/crf-3a-generator.js?v=20261022-generated-footer-1"></script>
 <script src="../assets/js/crf-3a-records.js?v=6"></script>
 <?php include '../includes/sidebar_scripts.php'; ?>
 </body>

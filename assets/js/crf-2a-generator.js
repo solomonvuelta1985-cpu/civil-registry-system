@@ -1,6 +1,17 @@
 /* CRF No. 2A generator: death record source, live legal-size preview, and immutable issuance. */
 (function () {
     'use strict';
+    function formatGenerationTimestamp(value = new Date()) {
+        const instant = value instanceof Date ? value : new Date(value);
+        const date = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' }).format(instant);
+        const time = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', hour12: true }).format(instant);
+        return `${date}, ${time}`;
+    }
+    function updateGenerationNotes(root, systemId, generatedAt, escapeHtml) {
+        root.querySelectorAll('.doc-note, .note').forEach(note => {
+            note.innerHTML = `<strong>Note:</strong> A mark, erasure or alteration of any entry invalidates this certification.<br><small>This is a system-generated certification.<br>Generated: ${escapeHtml(generatedAt)} | System ID: ${escapeHtml(systemId)}</small>`;
+        });
+    }
     class Crf2AGenerator {
         constructor() {
             this.record = null; this.existingIssuances = []; this.checkComplete = false; this.checkPending = false; this.replacesIssuanceId = 0;
@@ -28,6 +39,7 @@
             const i = this.values();
             const merged = { ...this.record, civil_status: i.civil_status, citizenship: i.citizenship, cause_of_death: i.cause_of_death };
             this.preview.innerHTML = this.markup(merged, i, this.backdrop.querySelector('[data-crf-id]').textContent);
+            updateGenerationNotes(this.preview, this.backdrop.querySelector('[data-crf-id]').textContent, this.generatedAt || formatGenerationTimestamp(), value => this.escape(value));
             this.adjustPreviewFlow();
             this.preview.querySelectorAll('.crf1a-document').forEach(doc => doc.style.transform = `scale(${this.scale}) rotate(${this.rotation}deg)`);
         }
@@ -229,7 +241,7 @@
             return pages.join('');
         }
         attachRemarksEditor() { this.backdrop.querySelector('.crf1a-preview-title span').textContent='Live legal-size preview'; this.remarksEditor = window.CrfRemarksEditor?.attach(this.backdrop, this.form, () => this.render()); this.form.addEventListener('reset', () => this.remarksEditor?.setSavedRemarks('')); }
-        show(){this.backdrop.classList.add('is-open');this.backdrop.setAttribute('aria-hidden','false');document.body.classList.add('crf1a-open');}
+        show(){this.generatedAt=formatGenerationTimestamp();this.backdrop.classList.add('is-open');this.backdrop.setAttribute('aria-hidden','false');document.body.classList.add('crf1a-open');}
         close(){this.backdrop.classList.remove('is-open');this.backdrop.setAttribute('aria-hidden','true');document.body.classList.remove('crf1a-open');}
         zoom(s){this.scale=Math.min(2.5,Math.max(.5,this.scale+s));this.render();this.backdrop.querySelector('[data-zoom]').textContent=Math.round(this.scale*100)+'%';}
         rotate(s){this.rotation=(this.rotation+s+360)%360;this.render();}
