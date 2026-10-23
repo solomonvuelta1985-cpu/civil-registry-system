@@ -179,6 +179,17 @@ $record_configs = [
                         'Baggao Rural Health Unit',
                         'Barangay Health Station'
                     ],
+                    'Home' => [
+                        'Adaoag', 'Agaman (Proper)', 'Agaman Norte', 'Agaman Sur', 'Alba', 'Annayatan',
+                        'Asassi', 'Asinga-Via', 'Awallan', 'Bacagan', 'Bagunot', 'Barsat East',
+                        'Barsat West', 'Bitag Grande', 'Bitag PequeÃ±o', 'Bunugan', 'C. Verzosa',
+                        'Canagatan', 'Carupian', 'Catugay', 'Dabbac Grande', 'Dalin', 'Dalla',
+                        'Hacienda Intal', 'Ibulo', 'Imurung', 'J. Pallagao', 'Lasilat', 'Mabini',
+                        'Masical', 'Mocag', 'Nangalinan', 'Poblacion (Centro)', 'Remus', 'San Antonio',
+                        'San Francisco', 'San Isidro', 'San Jose', 'San Miguel', 'San Vicente',
+                        'Santa Margarita', 'Santor', 'Taguing', 'Taguntungan', 'Tallang', 'Taytay',
+                        'Temblique', 'Tungel'
+                    ],
                     // Legacy records stored the barangay or hospital in child_place_of_birth.
                     'Barangay' => [
                         'Adaoag', 'Agaman (Proper)', 'Agaman Norte', 'Agaman Sur', 'Alba', 'Annayatan',
@@ -418,7 +429,20 @@ foreach ($config['filters'] as $filter) {
         $active_filters[] = $filter['name'];
         $param_name = ':' . $filter['name'];
 
-        if ($filter['operator'] === 'LIKE') {
+        // "Barangay" is a legacy filter choice; current home-birth records use
+        // place_type="Home" and keep the barangay in the barangay column.
+        if ($filter['name'] === 'place_type' && $_GET[$filter['name']] === 'Barangay') {
+            $filter_query .= " AND place_type IN (:place_type_home, :place_type_legacy_barangay)";
+            $filter_params[':place_type_home'] = 'Home';
+            $filter_params[':place_type_legacy_barangay'] = 'Barangay';
+        } elseif ($filter['name'] === 'child_place_of_birth' && ($_GET['place_type'] ?? '') === 'Home') {
+            $filter_query .= " AND barangay = {$param_name}";
+            $filter_params[$param_name] = $_GET[$filter['name']];
+        } elseif ($filter['name'] === 'child_place_of_birth' && ($_GET['place_type'] ?? '') === 'Barangay') {
+            $filter_query .= " AND (barangay = :birth_barangay OR child_place_of_birth = :legacy_birth_barangay)";
+            $filter_params[':birth_barangay'] = $_GET[$filter['name']];
+            $filter_params[':legacy_birth_barangay'] = $_GET[$filter['name']];
+        } elseif ($filter['operator'] === 'LIKE') {
             $filter_query .= " AND {$filter['field']} LIKE {$param_name}";
             $filter_params[$param_name] = "%{$_GET[$filter['name']]}%";
         } else {
@@ -2755,6 +2779,17 @@ function detect_late_registration($record, $record_type) {
                     'Santa Margarita', 'Santor', 'Taguing', 'Taguntungan', 'Tallang', 'Taytay',
                     'Temblique', 'Tungel'
                 ],
+                'Home': [
+                    'Adaoag', 'Agaman (Proper)', 'Agaman Norte', 'Agaman Sur', 'Alba', 'Annayatan',
+                    'Asassi', 'Asinga-Via', 'Awallan', 'Bacagan', 'Bagunot', 'Barsat East',
+                    'Barsat West', 'Bitag Grande', 'Bitag PequeÃ±o', 'Bunugan', 'C. Verzosa',
+                    'Canagatan', 'Carupian', 'Catugay', 'Dabbac Grande', 'Dalin', 'Dalla',
+                    'Hacienda Intal', 'Ibulo', 'Imurung', 'J. Pallagao', 'Lasilat', 'Mabini',
+                    'Masical', 'Mocag', 'Nangalinan', 'Poblacion (Centro)', 'Remus', 'San Antonio',
+                    'San Francisco', 'San Isidro', 'San Jose', 'San Miguel', 'San Vicente',
+                    'Santa Margarita', 'Santor', 'Taguing', 'Taguntungan', 'Tallang', 'Taytay',
+                    'Temblique', 'Tungel'
+                ],
                 'Hospital': [
                     'Baggao District Hospital',
                     'Municipal Health Office'
@@ -2797,7 +2832,7 @@ function detect_late_registration($record, $record_type) {
 
                     // Update label dynamically
                     if (locationLabel) {
-                        const labelText = selectedType === 'Barangay' ? 'Barangay'
+                        const labelText = ['Barangay', 'Home'].includes(selectedType) ? 'Barangay'
                             : selectedType === 'Barangay Health Center' ? 'Health Center'
                             : selectedType === 'Hospital/Clinic' ? 'Hospital/Clinic'
                             : 'Hospital';
@@ -2827,7 +2862,7 @@ function detect_late_registration($record, $record_type) {
                 // Update label based on initial value
                 const locationLabel = locationGroup.querySelector('label[for="child_place_of_birth"]');
                 if (locationLabel) {
-                    const labelText = initialPlaceType === 'Barangay' ? 'Barangay'
+                    const labelText = ['Barangay', 'Home'].includes(initialPlaceType) ? 'Barangay'
                         : initialPlaceType === 'Barangay Health Center' ? 'Health Center'
                         : initialPlaceType === 'Hospital/Clinic' ? 'Hospital/Clinic'
                         : 'Hospital';
