@@ -114,7 +114,9 @@ $record_configs = [
             'mother_middle_name',
             'mother_last_name',
             'child_date_of_birth',
-            'child_place_of_birth'
+            'child_place_of_birth',
+            'barangay',
+            'place_type'
         ],
         'sort_columns' => [
             'registry_no',
@@ -378,6 +380,7 @@ if (!empty($search)) {
         }
     }
 }
+$search_tokens = array_values(array_unique($search_tokens));
 
 /**
  * Build WHERE fragment and bind params for a search mode.
@@ -412,6 +415,115 @@ $build_search_clause = function (array $tokens, array $search_fields, string $mo
         }
     }
     return [' AND (' . implode(' OR ', $field_clauses) . ')', $p];
+};
+
+/**
+ * Build a typo-tolerant fallback and a relevance score. Literal token matches
+ * work across all configured fields; longer text tokens also get a Soundex
+ * comparison on names and locations, plus one-character typo matching on names.
+ * The score rewards rows matching more query tokens, while recency is the tie-breaker.
+ *
+ * Returns [where_fragment, where_params, score_sql, score_params].
+ */
+$build_fuzzy_search_clause = function (array $tokens, array $search_fields): array {
+    if (empty($tokens)) {
+        return ['', [], null, []];
+    }
+
+    $phonetic_fields = [];
+    $name_fields = [];
+    foreach ($search_fields as $field) {
+        if (strpos($field, 'date') === false && strpos($field, 'registry_no') === false) {
+            $phonetic_fields[] = $field;
+        }
+        if (preg_match('/(?:^|_)(?:first_name|middle_name|last_name)$/', $field)) {
+            $name_fields[] = $field;
+        }
+    }
+
+    $build_token_group = function (string $token, string $prefix, array &$params, int &$index) use ($search_fields, $phonetic_fields, $name_fields): string {
+        $clauses = [];
+        foreach ($search_fields as $field) {
+            $name = ':' . $prefix . '_' . $index++;
+            $clauses[] = "{$field} LIKE {$name}";
+            $params[$name] = "%{$token}%";
+        }
+
+        // Soundex is only useful for longer alphabetic/numeric words. Keep it
+        // off dates and registry numbers, where phonetic matches are misleading.
+        if (strlen($token) >= 4 && preg_match('/^[\p{L}\p{N}]+$/u', $token)) {
+            foreach ($phonetic_fields as $field) {
+                $name = ':' . $prefix . '_' . $index++;
+                $clauses[] = "SOUNDEX({$field}) = SOUNDEX({$name})";
+                $params[$name] = $token;
+
+                $last_word_name = ':' . $prefix . '_' . $index++;
+                $clauses[] = "SOUNDEX(SUBSTRING_INDEX(TRIM({$field}), ' ', -1)) = SOUNDEX({$last_word_name})";
+                $params[$last_word_name] = $token;
+            }
+        }
+
+        // Catch a single inserted, omitted, or substituted character in names.
+        // The exact search already ran first, so this broader match is only a fallback.
+        $characters = preg_match('/^[\p{L}\p{N}]+$/u', $token)
+            ? preg_split('//u', $token, -1, PREG_SPLIT_NO_EMPTY)
+            : false;
+        if ($characters !== false && count($characters) >= 5 && count($characters) <= 32 && $name_fields) {
+            $variants = [];
+            $length = count($characters);
+            for ($position = 0; $position <= $length; $position++) {
+                $before = implode('', array_slice($characters, 0, $position));
+                $after = implode('', array_slice($characters, $position));
+                $variants[] = preg_quote($before, '~') . '.' . preg_quote($after, '~');
+            }
+            for ($position = 0; $position < $length; $position++) {
+                $before = implode('', array_slice($characters, 0, $position));
+                $after = implode('', array_slice($characters, $position + 1));
+                $variants[] = preg_quote($before, '~') . '.' . preg_quote($after, '~');
+                $variants[] = preg_quote($before . $after, '~');
+            }
+            $pattern = implode('|', array_unique($variants));
+            foreach ($name_fields as $field) {
+                $name = ':' . $prefix . '_' . $index++;
+                $clauses[] = "{$field} REGEXP {$name}";
+                $params[$name] = $pattern;
+            }
+        }
+
+        return '(' . implode(' OR ', $clauses) . ')';
+    };
+
+    $where_groups = [];
+    $where_params = [];
+    $where_index = 0;
+    $score_groups = [];
+    $score_params = [];
+    $score_index = 0;
+
+    foreach ($tokens as $token) {
+        $where_groups[] = $build_token_group($token, 'fz_w', $where_params, $where_index);
+        $score_groups[] = $build_token_group($token, 'fz_r', $score_params, $score_index);
+    }
+
+    $where_score_parts = [];
+    $rank_score_parts = [];
+    foreach ($where_groups as $group) {
+        $where_score_parts[] = "(CASE WHEN {$group} THEN 1 ELSE 0 END)";
+    }
+    foreach ($score_groups as $group) {
+        $rank_score_parts[] = "(CASE WHEN {$group} THEN 1 ELSE 0 END)";
+    }
+
+    $minimum_matches = max(1, (int)ceil(count($tokens) * 0.6));
+    $where_score = '(' . implode(' + ', $where_score_parts) . ')';
+    $rank_score = '(' . implode(' + ', $rank_score_parts) . ')';
+
+    return [
+        ' AND (' . $where_score . ' >= ' . $minimum_matches . ')',
+        $where_params,
+        $rank_score,
+        $score_params
+    ];
 };
 
 $search_params = [];
@@ -476,18 +588,19 @@ $sort_order = isset($_GET['sort_order']) && strtoupper($_GET['sort_order']) === 
 // Closure to run count + fetch for a given search fragment/params combo.
 // Used twice when the strict search returns no hits so we can fall back
 // to a fuzzy (any-token) search transparently.
-$run_records_query = function (string $search_fragment, array $search_binds) use (
+$run_records_query = function (string $search_fragment, array $search_binds, ?string $relevance_sql = null, array $relevance_params = []) use (
     $pdo, $config, $status_sql, $filter_query, $filter_params,
     $sort_by, $sort_order, $records_per_page, &$offset, &$pagination_current_page
 ) {
-    $all_params = array_merge($search_binds, $filter_params);
+    $count_params = array_merge($search_binds, $filter_params);
+    $fetch_params = array_merge($count_params, $relevance_params);
 
     $count_sql = "SELECT COUNT(*) as total FROM {$config['table']} WHERE {$status_sql}" . $search_fragment . $filter_query;
     $total_records = 0;
     $total_pages = 0;
     try {
         $count_stmt = $pdo->prepare($count_sql);
-        foreach ($all_params as $key => $value) {
+        foreach ($count_params as $key => $value) {
             $count_stmt->bindValue($key, $value);
         }
         $count_stmt->execute();
@@ -502,17 +615,20 @@ $run_records_query = function (string $search_fragment, array $search_binds) use
     } catch (PDOException $e) {
         error_log("Count query error: " . $e->getMessage());
         error_log("Count SQL: " . $count_sql);
-        error_log("Params: " . print_r($all_params, true));
+        error_log("Params: " . print_r($count_params, true));
     }
 
+    $order_by = $relevance_sql !== null
+        ? "{$relevance_sql} DESC, {$sort_by} {$sort_order}"
+        : "{$sort_by} {$sort_order}";
     $sql = "SELECT * FROM {$config['table']} WHERE {$status_sql}"
         . $search_fragment
         . $filter_query
-        . " ORDER BY {$sort_by} {$sort_order} LIMIT :limit OFFSET :offset";
+        . " ORDER BY {$order_by} LIMIT :limit OFFSET :offset";
     $records = [];
     try {
         $stmt = $pdo->prepare($sql);
-        foreach ($all_params as $key => $value) {
+        foreach ($fetch_params as $key => $value) {
             $stmt->bindValue($key, $value);
         }
         $stmt->bindValue(':limit', $records_per_page, PDO::PARAM_INT);
@@ -522,7 +638,7 @@ $run_records_query = function (string $search_fragment, array $search_binds) use
     } catch (PDOException $e) {
         error_log("Main query error: " . $e->getMessage());
         error_log("Main SQL: " . $sql);
-        error_log("Params: " . print_r($all_params, true));
+        error_log("Params: " . print_r($fetch_params, true));
     }
 
     return [$records, $total_records, $total_pages];
@@ -535,9 +651,14 @@ $run_records_query = function (string $search_fragment, array $search_binds) use
 // an OR across all tokens and surface the results as "possible matches".
 // Only triggers when the user typed 2+ tokens — a single word has no
 // "near" interpretation beyond the literal LIKE already attempted.
-if ($total_records === 0 && count($search_tokens) > 1) {
-    [$fuzzy_query, $fuzzy_params] = $build_search_clause($search_tokens, $config['search_fields'], 'fuzzy');
-    [$records, $total_records, $total_pages] = $run_records_query($fuzzy_query, $fuzzy_params);
+$can_try_fuzzy = count($search_tokens) > 1;
+if (count($search_tokens) === 1 && preg_match('/^[\p{L}\p{N}]{4,}$/u', $search_tokens[0])) {
+    $can_try_fuzzy = true;
+}
+
+if ($total_records === 0 && $can_try_fuzzy) {
+    [$fuzzy_query, $fuzzy_params, $fuzzy_rank_sql, $fuzzy_rank_params] = $build_fuzzy_search_clause($search_tokens, $config['search_fields']);
+    [$records, $total_records, $total_pages] = $run_records_query($fuzzy_query, $fuzzy_params, $fuzzy_rank_sql, $fuzzy_rank_params);
     if ($total_records > 0) {
         $is_fuzzy = true;
     }
@@ -2376,7 +2497,7 @@ function detect_late_registration($record, $record_type) {
                     <i data-lucide="search" style="width:18px; height:18px;"></i>
                     <div>
                         <strong>No exact match found for "<?php echo htmlspecialchars($search); ?>".</strong>
-                        Showing near / possible results based on the words you typed.
+                        Showing likely matches ranked by matching words and phonetic similarity.
                     </div>
                 </div>
                 <?php endif; ?>
@@ -3431,7 +3552,7 @@ function detect_late_registration($record, $record_type) {
                                     <i data-lucide="search" style="width:18px; height:18px;"></i>
                                     <div>
                                         <strong>No exact match found.</strong>
-                                        Showing near / possible results based on the words you typed.
+                                        Showing likely matches ranked by matching words and phonetic similarity.
                                     </div>
                                 </div>
                             </td>

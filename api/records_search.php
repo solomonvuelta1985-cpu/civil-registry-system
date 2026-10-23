@@ -67,10 +67,10 @@ $configs = [
             'child_first_name', 'child_middle_name', 'child_last_name',
             'father_first_name', 'father_middle_name', 'father_last_name',
             'mother_first_name', 'mother_middle_name', 'mother_last_name',
-            'child_place_of_birth', 'barangay'
+            'child_date_of_birth', 'child_place_of_birth', 'barangay', 'place_type'
         ],
         'columns' => ['id', 'status', 'registry_no', 'registry_no_status', 'date_of_registration_format', 'date_of_registration_partial_month', 'date_of_registration_partial_year', 'date_of_registration_partial_day', 'child_first_name', 'child_middle_name', 'child_last_name',
-                     'child_date_of_birth', 'time_of_birth', 'child_sex', 'barangay',
+                     'child_date_of_birth', 'time_of_birth', 'child_sex', 'child_place_of_birth', 'place_type', 'barangay',
                      'father_first_name', 'father_middle_name', 'father_last_name',
                      'father_citizenship', 'mother_first_name', 'mother_middle_name', 'mother_last_name',
                      'mother_citizenship', 'date_of_registration', 'pdf_filename']
@@ -153,6 +153,111 @@ function build_search_clause(array $tokens, array $search_fields, string $mode):
     return [' AND (' . implode(' OR ', $field_clauses) . ')', $params];
 }
 
+/**
+ * Build a ranked typo-tolerant fallback. Longer text tokens use Soundex on
+ * names and locations, plus one-character typo matching on name fields.
+ * Dates and registry numbers stay literal.
+ * Returns [where_fragment, where_params, score_sql, score_params].
+ */
+function build_fuzzy_search_clause(array $tokens, array $search_fields): array {
+    if (empty($tokens)) {
+        return ['', [], null, []];
+    }
+
+    $phonetic_fields = [];
+    $name_fields = [];
+    foreach ($search_fields as $field) {
+        if (strpos($field, 'date') === false && strpos($field, 'registry_no') === false) {
+            $phonetic_fields[] = $field;
+        }
+        if (preg_match('/(?:^|_)(?:first_name|middle_name|last_name)$/', $field)) {
+            $name_fields[] = $field;
+        }
+    }
+
+    $build_token_group = function (string $token, string $prefix, array &$params, int &$index) use ($search_fields, $phonetic_fields, $name_fields): string {
+        $clauses = [];
+        foreach ($search_fields as $field) {
+            $name = ':' . $prefix . '_' . $index++;
+            $clauses[] = "{$field} LIKE {$name}";
+            $params[$name] = "%{$token}%";
+        }
+
+        if (strlen($token) >= 4 && preg_match('/^[\p{L}\p{N}]+$/u', $token)) {
+            foreach ($phonetic_fields as $field) {
+                $name = ':' . $prefix . '_' . $index++;
+                $clauses[] = "SOUNDEX({$field}) = SOUNDEX({$name})";
+                $params[$name] = $token;
+
+                $last_word_name = ':' . $prefix . '_' . $index++;
+                $clauses[] = "SOUNDEX(SUBSTRING_INDEX(TRIM({$field}), ' ', -1)) = SOUNDEX({$last_word_name})";
+                $params[$last_word_name] = $token;
+            }
+        }
+
+        // Catch a single inserted, omitted, or substituted character in names.
+        // The exact search already ran first, so this broader match is only a fallback.
+        $characters = preg_match('/^[\p{L}\p{N}]+$/u', $token)
+            ? preg_split('//u', $token, -1, PREG_SPLIT_NO_EMPTY)
+            : false;
+        if ($characters !== false && count($characters) >= 5 && count($characters) <= 32 && $name_fields) {
+            $variants = [];
+            $length = count($characters);
+            for ($position = 0; $position <= $length; $position++) {
+                $before = implode('', array_slice($characters, 0, $position));
+                $after = implode('', array_slice($characters, $position));
+                $variants[] = preg_quote($before, '~') . '.' . preg_quote($after, '~');
+            }
+            for ($position = 0; $position < $length; $position++) {
+                $before = implode('', array_slice($characters, 0, $position));
+                $after = implode('', array_slice($characters, $position + 1));
+                $variants[] = preg_quote($before, '~') . '.' . preg_quote($after, '~');
+                $variants[] = preg_quote($before . $after, '~');
+            }
+            $pattern = implode('|', array_unique($variants));
+            foreach ($name_fields as $field) {
+                $name = ':' . $prefix . '_' . $index++;
+                $clauses[] = "{$field} REGEXP {$name}";
+                $params[$name] = $pattern;
+            }
+        }
+
+        return '(' . implode(' OR ', $clauses) . ')';
+    };
+
+    $where_groups = [];
+    $where_params = [];
+    $where_index = 0;
+    $score_groups = [];
+    $score_params = [];
+    $score_index = 0;
+
+    foreach ($tokens as $token) {
+        $where_groups[] = $build_token_group($token, 'fz_w', $where_params, $where_index);
+        $score_groups[] = $build_token_group($token, 'fz_r', $score_params, $score_index);
+    }
+
+    $where_score_parts = [];
+    $rank_score_parts = [];
+    foreach ($where_groups as $group) {
+        $where_score_parts[] = "(CASE WHEN {$group} THEN 1 ELSE 0 END)";
+    }
+    foreach ($score_groups as $group) {
+        $rank_score_parts[] = "(CASE WHEN {$group} THEN 1 ELSE 0 END)";
+    }
+
+    $minimum_matches = max(1, (int)ceil(count($tokens) * 0.6));
+    $where_score = '(' . implode(' + ', $where_score_parts) . ')';
+    $rank_score = '(' . implode(' + ', $rank_score_parts) . ')';
+
+    return [
+        ' AND (' . $where_score . ' >= ' . $minimum_matches . ')',
+        $where_params,
+        $rank_score,
+        $score_params
+    ];
+}
+
 try {
     // Tokenize the search query on whitespace. Multi-word names like
     // "Dela Cruz" are handled naturally because each token only needs to
@@ -166,6 +271,7 @@ try {
             }
         }
     }
+    $tokens = array_values(array_unique($tokens));
 
     // Status filter: Active by default, include Archived when requested. Never include Deleted.
     $status_in_list = $include_archived ? "'Active','Archived'" : "'Active'";
@@ -175,7 +281,7 @@ try {
     [$search_query, $params] = build_search_clause($tokens, $config['search_fields'], 'strict');
     $is_fuzzy = false;
 
-    $run_query = function (string $where_extra, array $bind_params) use ($pdo, $config, $base_where, $page, $per_page) {
+    $run_query = function (string $where_extra, array $bind_params, ?string $relevance_sql = null, array $relevance_params = []) use ($pdo, $config, $base_where, &$page, $per_page) {
         $columns_str = implode(', ', $config['columns']);
 
         $count_query = "SELECT COUNT(*) as total FROM {$config['table']}{$base_where}{$where_extra}";
@@ -186,14 +292,17 @@ try {
         $count_stmt->execute();
         $total_records = (int) $count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
 
-        $offset = ($page - 1) * $per_page;
         $total_pages = $total_records > 0 ? (int) ceil($total_records / $per_page) : 0;
+        $page = min($page, max(1, $total_pages));
+        $offset = ($page - 1) * $per_page;
+
+        $order_by = $relevance_sql !== null ? "{$relevance_sql} DESC, id DESC" : 'id DESC';
 
         $query = "SELECT {$columns_str} FROM {$config['table']}{$base_where}{$where_extra}
-                  ORDER BY id DESC
+                  ORDER BY {$order_by}
                   LIMIT {$per_page} OFFSET {$offset}";
         $stmt = $pdo->prepare($query);
-        foreach ($bind_params as $key => $value) {
+        foreach (array_merge($bind_params, $relevance_params) as $key => $value) {
             $stmt->bindValue($key, $value, PDO::PARAM_STR);
         }
         $stmt->execute();
@@ -208,9 +317,14 @@ try {
     // OR search to surface near / possible matches. Only triggers when the user
     // actually typed more than one token — a single-token search has no "near"
     // interpretation beyond the literal LIKE it already ran.
-    if ($total_records === 0 && count($tokens) > 1) {
-        [$fuzzy_query, $fuzzy_params] = build_search_clause($tokens, $config['search_fields'], 'fuzzy');
-        [$records, $total_records, $total_pages, $offset] = $run_query($fuzzy_query, $fuzzy_params);
+    $can_try_fuzzy = count($tokens) > 1;
+    if (count($tokens) === 1 && preg_match('/^[\p{L}\p{N}]{4,}$/u', $tokens[0])) {
+        $can_try_fuzzy = true;
+    }
+
+    if ($total_records === 0 && $can_try_fuzzy) {
+        [$fuzzy_query, $fuzzy_params, $fuzzy_rank_sql, $fuzzy_rank_params] = build_fuzzy_search_clause($tokens, $config['search_fields']);
+        [$records, $total_records, $total_pages, $offset] = $run_query($fuzzy_query, $fuzzy_params, $fuzzy_rank_sql, $fuzzy_rank_params);
         if ($total_records > 0) {
             $is_fuzzy = true;
         }
