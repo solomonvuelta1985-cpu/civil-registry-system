@@ -1163,10 +1163,15 @@ if ($edit_mode && $record) {
         const placeOfBirthHelp = document.getElementById('place_of_birth_help');
 
         // Handle place type change
-        placeTypeSelect.addEventListener('change', function() {
+        placeTypeSelect.addEventListener('change', function(event) {
             const selectedType = this.value;
 
             if (selectedType === 'Other') {
+                // Do not submit an old Barangay selection hidden from the user.
+                // Preserve legacy values when this handler is dispatched while opening an edit record.
+                if (event.isTrusted) {
+                    barangaySelect.value = '';
+                }
                 placeOfBirthGroup.style.display = 'none';
                 birthAddressRow.style.display = 'none';
                 otherPlaceOfBirthRow.style.display = 'grid';
