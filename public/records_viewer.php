@@ -357,7 +357,7 @@ $records_per_page = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
 if ($records_per_page < 5 || $records_per_page > 100) {
     $records_per_page = 10;
 }
-$pagination_current_page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$pagination_current_page = max(1, isset($_GET['page']) ? (int)$_GET['page'] : 1);
 $offset = ($pagination_current_page - 1) * $records_per_page;
 
 // Search functionality — multi-token: split query on whitespace so
@@ -478,7 +478,7 @@ $sort_order = isset($_GET['sort_order']) && strtoupper($_GET['sort_order']) === 
 // to a fuzzy (any-token) search transparently.
 $run_records_query = function (string $search_fragment, array $search_binds) use (
     $pdo, $config, $status_sql, $filter_query, $filter_params,
-    $sort_by, $sort_order, $records_per_page, $offset
+    $sort_by, $sort_order, $records_per_page, &$offset, &$pagination_current_page
 ) {
     $all_params = array_merge($search_binds, $filter_params);
 
@@ -493,6 +493,12 @@ $run_records_query = function (string $search_fragment, array $search_binds) use
         $count_stmt->execute();
         $total_records = (int)($count_stmt->fetch()['total'] ?? 0);
         $total_pages = (int)ceil($total_records / $records_per_page);
+
+        // A stale page number can survive when a filtered result set is much
+        // smaller than the unfiltered list. Clamp it before fetching rows so
+        // the final valid page is shown instead of a false "No records found".
+        $pagination_current_page = min($pagination_current_page, max(1, $total_pages));
+        $offset = ($pagination_current_page - 1) * $records_per_page;
     } catch (PDOException $e) {
         error_log("Count query error: " . $e->getMessage());
         error_log("Count SQL: " . $count_sql);
@@ -2391,7 +2397,7 @@ function detect_late_registration($record, $record_type) {
                                 $is_active = $sort_by === $sort_field;
                             ?>
                             <th class="sortable <?php echo $is_active ? 'active' : ''; ?>">
-                                <a href="<?php echo get_sort_url($sort_field); ?>">
+                                <a href="<?php echo htmlspecialchars(get_sort_url($sort_field), ENT_QUOTES, 'UTF-8'); ?>">
                                     <?php echo htmlspecialchars($column['label']); ?>
                                     <i data-lucide="<?php echo get_sort_icon($sort_field); ?>" class="sort-icon"></i>
                                 </a>
@@ -2602,17 +2608,18 @@ function detect_late_registration($record, $record_type) {
 
                 $base_query = build_query_string(['page']);
                 $query_prefix = $base_query ? '&' . $base_query : '';
+                $query_prefix_html = htmlspecialchars($query_prefix, ENT_QUOTES, 'UTF-8');
                 ?>
 
                 <!-- First Page Button -->
-                <a href="?page=1<?php echo $query_prefix; ?>"
+                <a href="?page=1<?php echo $query_prefix_html; ?>"
                    class="pagination-btn <?php echo $pagination_current_page === 1 ? 'disabled' : ''; ?>"
                    title="First page">
                     <i data-lucide="chevrons-left"></i>
                 </a>
 
                 <!-- Previous Page Button -->
-                <a href="?page=<?php echo max(1, $pagination_current_page - 1); ?><?php echo $query_prefix; ?>"
+                <a href="?page=<?php echo max(1, $pagination_current_page - 1); ?><?php echo $query_prefix_html; ?>"
                    class="pagination-btn <?php echo $pagination_current_page === 1 ? 'disabled' : ''; ?>"
                    title="Previous page">
                     <i data-lucide="chevron-left"></i>
@@ -2626,7 +2633,7 @@ function detect_late_registration($record, $record_type) {
                 // Show ellipsis at start if needed
                 if ($start_page > 1):
                 ?>
-                <a href="?page=1<?php echo $query_prefix; ?>"
+                <a href="?page=1<?php echo $query_prefix_html; ?>"
                    class="pagination-btn <?php echo $pagination_current_page === 1 ? 'active' : ''; ?>"
                    <?php if ($pagination_current_page === 1): ?>style="background: #3B82F6 !important; color: #FFFFFF !important; border-color: #3B82F6 !important; font-weight: 700 !important;"<?php endif; ?>>1</a>
                 <?php if ($start_page > 2): ?>
@@ -2637,7 +2644,7 @@ function detect_late_registration($record, $record_type) {
                 <?php for ($i = $start_page; $i <= $end_page; $i++):
                     $is_active = $i === $pagination_current_page;
                 ?>
-                <a href="?page=<?php echo $i; ?><?php echo $query_prefix; ?>"
+                <a href="?page=<?php echo $i; ?><?php echo $query_prefix_html; ?>"
                    class="pagination-btn <?php echo $is_active ? 'active' : ''; ?>"
                    <?php if ($is_active): ?>style="background: #3B82F6 !important; color: #FFFFFF !important; border-color: #3B82F6 !important; font-weight: 700 !important;"<?php endif; ?>
                    title="Page <?php echo $i; ?>">
@@ -2650,20 +2657,20 @@ function detect_late_registration($record, $record_type) {
                 <?php if ($end_page < $total_pages - 1): ?>
                 <span class="pagination-info">...</span>
                 <?php endif; ?>
-                <a href="?page=<?php echo $total_pages; ?><?php echo $query_prefix; ?>"
+                <a href="?page=<?php echo $total_pages; ?><?php echo $query_prefix_html; ?>"
                    class="pagination-btn <?php echo $pagination_current_page === $total_pages ? 'active' : ''; ?>"
                    <?php if ($pagination_current_page === $total_pages): ?>style="background: #3B82F6 !important; color: #FFFFFF !important; border-color: #3B82F6 !important; font-weight: 700 !important;"<?php endif; ?>><?php echo $total_pages; ?></a>
                 <?php endif; ?>
 
                 <!-- Next Page Button -->
-                <a href="?page=<?php echo min($total_pages, $pagination_current_page + 1); ?><?php echo $query_prefix; ?>"
+                <a href="?page=<?php echo min($total_pages, $pagination_current_page + 1); ?><?php echo $query_prefix_html; ?>"
                    class="pagination-btn <?php echo $pagination_current_page === $total_pages ? 'disabled' : ''; ?>"
                    title="Next page">
                     <i data-lucide="chevron-right"></i>
                 </a>
 
                 <!-- Last Page Button -->
-                <a href="?page=<?php echo $total_pages; ?><?php echo $query_prefix; ?>"
+                <a href="?page=<?php echo $total_pages; ?><?php echo $query_prefix_html; ?>"
                    class="pagination-btn <?php echo $pagination_current_page === $total_pages ? 'disabled' : ''; ?>"
                    title="Last page">
                     <i data-lucide="chevrons-right"></i>
