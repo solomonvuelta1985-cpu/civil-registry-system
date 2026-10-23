@@ -462,6 +462,7 @@ if ($edit_mode && $record) {
 
                         <!-- Place of Birth -->
                         <div class="form-row">
+                            <?php $is_other_birth_place = $edit_mode && ($record['place_type'] ?? '') === 'Other'; ?>
                             <div class="form-group">
                                 <label for="place_type">
                                     Place Type
@@ -479,21 +480,22 @@ if ($edit_mode && $record) {
                                 <span class="help-text">Select where the birth occurred (hospital, home, health center, etc.)</span>
                             </div>
 
-                            <div class="form-group" id="child_place_of_birth_group" style="display: <?php echo ($edit_mode && !empty($record['place_type'])) ? 'block' : 'none'; ?>;">
+                            <div class="form-group" id="child_place_of_birth_group" style="display: <?php echo ($edit_mode && !empty($record['place_type']) && !in_array($record['place_type'], ['Other', 'Home'], true)) ? 'block' : 'none'; ?>;">
                                 <label for="child_place_of_birth">
                                     <span id="place_label">Location</span>
                                 </label>
                                 <select
                                     id="child_place_of_birth"
                                     name="child_place_of_birth"
+                                    <?php echo $is_other_birth_place ? 'disabled' : ''; ?>
                                 >
                                     <option value="">-- Select Location --</option>
                                 </select>
-                                <span class="help-text">Select the specific location where the child was born</span>
+                                <span class="help-text" id="place_of_birth_help">Select the specific location where the child was born</span>
                             </div>
                         </div>
 
-                        <div class="form-row">
+                        <div class="form-row" id="birth_address_row" style="display: <?php echo $is_other_birth_place ? 'none' : 'grid'; ?>;">
                             <div class="form-group">
                                 <label for="barangay">
                                     Barangay
@@ -532,6 +534,22 @@ if ($edit_mode && $record) {
                                     disabled
                                     style="background-color: #e9ecef; cursor: not-allowed;"
                                 >
+                            </div>
+                        </div>
+
+                        <div class="form-row" id="child_place_of_birth_other_row" style="display: <?php echo $is_other_birth_place ? 'grid' : 'none'; ?>;">
+                            <div class="form-group" style="grid-column: 1 / -1;">
+                                <label for="child_place_of_birth_other">Other Location</label>
+                                <input
+                                    type="text"
+                                    id="child_place_of_birth_other"
+                                    name="child_place_of_birth"
+                                    maxlength="255"
+                                    placeholder="Enter other place of birth"
+                                    autocomplete="off"
+                                    <?php echo $is_other_birth_place ? 'value="' . htmlspecialchars($record['child_place_of_birth'] ?? '', ENT_QUOTES, 'UTF-8') . '"' : 'disabled'; ?>
+                                >
+                                <span class="help-text" id="place_of_birth_other_help">Enter the specific place where the child was born.</span>
                             </div>
                         </div>
                     </div>
@@ -1138,13 +1156,38 @@ if ($edit_mode && $record) {
         const placeTypeSelect = document.getElementById('place_type');
         const placeOfBirthGroup = document.getElementById('child_place_of_birth_group');
         const placeOfBirthSelect = document.getElementById('child_place_of_birth');
+        const otherPlaceOfBirthInput = document.getElementById('child_place_of_birth_other');
+        const birthAddressRow = document.getElementById('birth_address_row');
+        const otherPlaceOfBirthRow = document.getElementById('child_place_of_birth_other_row');
         const placeLabel = document.getElementById('place_label');
+        const placeOfBirthHelp = document.getElementById('place_of_birth_help');
 
         // Handle place type change
         placeTypeSelect.addEventListener('change', function() {
             const selectedType = this.value;
 
-            if (selectedType && selectedType !== 'Home' && selectedType !== 'Other') {
+            if (selectedType === 'Other') {
+                placeOfBirthGroup.style.display = 'none';
+                birthAddressRow.style.display = 'none';
+                otherPlaceOfBirthRow.style.display = 'grid';
+                placeOfBirthSelect.style.display = 'none';
+                placeOfBirthSelect.disabled = true;
+                placeOfBirthSelect.required = false;
+                placeOfBirthSelect.value = '';
+                placeOfBirthSelect.innerHTML = '<option value="">-- Select Location --</option>';
+                otherPlaceOfBirthInput.style.display = 'block';
+                otherPlaceOfBirthInput.disabled = false;
+                otherPlaceOfBirthInput.required = false;
+                otherPlaceOfBirthInput.value = '';
+            } else if (selectedType && selectedType !== 'Home') {
+                birthAddressRow.style.display = 'grid';
+                otherPlaceOfBirthRow.style.display = 'none';
+                otherPlaceOfBirthInput.style.display = 'none';
+                otherPlaceOfBirthInput.disabled = true;
+                otherPlaceOfBirthInput.required = false;
+                otherPlaceOfBirthInput.value = '';
+                placeOfBirthSelect.style.display = 'block';
+                placeOfBirthSelect.disabled = false;
                 placeOfBirthSelect.value = '';
 
                 Notiflix.Loading.pulse('Loading locations...', {
@@ -1173,6 +1216,7 @@ if ($edit_mode && $record) {
                     });
 
                     placeOfBirthGroup.style.display = 'block';
+                    placeOfBirthHelp.textContent = 'Select the specific location where the child was born.';
 
                     Notiflix.Loading.remove();
                     Notiflix.Notify.success(`${locations.length} locations loaded!`, {
@@ -1180,17 +1224,22 @@ if ($edit_mode && $record) {
                         position: 'right-top'
                     });
                 }, 300);
-            } else if (selectedType === 'Home' || selectedType === 'Other') {
-                // For Home/Other, hide location dropdown - barangay is enough
-                placeOfBirthGroup.style.display = 'none';
-                placeOfBirthSelect.required = false;
-                placeOfBirthSelect.value = '';
-                placeOfBirthSelect.innerHTML = '<option value="">-- Select Location --</option>';
             } else {
+                // Home births use the separate Barangay field; blank selection has no location.
+                birthAddressRow.style.display = 'grid';
+                otherPlaceOfBirthRow.style.display = 'none';
                 placeOfBirthGroup.style.display = 'none';
+                placeOfBirthSelect.style.display = 'block';
+                placeOfBirthSelect.disabled = true;
                 placeOfBirthSelect.required = false;
                 placeOfBirthSelect.value = '';
                 placeOfBirthSelect.innerHTML = '<option value="">-- Select Location --</option>';
+                otherPlaceOfBirthInput.style.display = 'none';
+                otherPlaceOfBirthInput.disabled = true;
+                otherPlaceOfBirthInput.required = false;
+                otherPlaceOfBirthInput.value = '';
+                placeLabel.textContent = 'Location';
+                placeOfBirthHelp.textContent = 'Select the specific location where the child was born.';
             }
         });
 
@@ -1203,17 +1252,20 @@ if ($edit_mode && $record) {
         });
 
         // Handle edit mode - populate dropdowns if editing
-        <?php if ($edit_mode && !empty($record['child_place_of_birth'])): ?>
+        <?php if ($edit_mode): ?>
         (function() {
-            const savedLocation = '<?php echo htmlspecialchars($record['child_place_of_birth']); ?>';
-            const savedPlaceType = '<?php echo htmlspecialchars($record['place_type'] ?? ''); ?>';
+            const savedLocation = <?php echo json_encode($record['child_place_of_birth'] ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
+            const savedPlaceType = <?php echo json_encode($record['place_type'] ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
 
-            if (savedPlaceType && placeTypeSelect.value !== savedPlaceType) {
+            if (!savedPlaceType) return;
+            if (placeTypeSelect.value !== savedPlaceType) {
                 placeTypeSelect.value = savedPlaceType;
             }
 
-            if (savedPlaceType) {
-                placeTypeSelect.dispatchEvent(new Event('change'));
+            placeTypeSelect.dispatchEvent(new Event('change'));
+            if (savedPlaceType === 'Other') {
+                otherPlaceOfBirthInput.value = savedLocation;
+            } else if (savedLocation) {
                 setTimeout(() => {
                     placeOfBirthSelect.value = savedLocation;
                 }, 450);

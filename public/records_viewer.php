@@ -151,6 +151,11 @@ $record_configs = [
                 'operator' => '=',
                 'options' => [
                     '' => 'All',
+                    'Hospital/Clinic' => 'Hospital/Clinic',
+                    'Barangay Health Center' => 'Barangay Health Center',
+                    'Home' => 'Home',
+                    'Other' => 'Other',
+                    // Retain values used by records entered before the current place-type choices.
                     'Barangay' => 'Barangay',
                     'Hospital' => 'Hospital'
                 ]
@@ -164,6 +169,17 @@ $record_configs = [
                 'dependent_on' => 'place_type',
                 'options' => [
                     '' => 'All Locations',
+                    'Hospital/Clinic' => [
+                        'Baggao District Hospital',
+                        'Municipal Health Office',
+                        'Baggao Community Medicare (Poblacion)',
+                        'Baggao Municipal Hospital (Tallang)'
+                    ],
+                    'Barangay Health Center' => [
+                        'Baggao Rural Health Unit',
+                        'Barangay Health Station'
+                    ],
+                    // Legacy records stored the barangay or hospital in child_place_of_birth.
                     'Barangay' => [
                         'Adaoag', 'Agaman (Proper)', 'Agaman Norte', 'Agaman Sur', 'Alba', 'Annayatan',
                         'Asassi', 'Asinga-Via', 'Awallan', 'Bacagan', 'Bagunot', 'Barsat East',
@@ -177,7 +193,9 @@ $record_configs = [
                     ],
                     'Hospital' => [
                         'Baggao District Hospital',
-                        'Municipal Health Office'
+                        'Municipal Health Office',
+                        'Baggao Community Medicare (Poblacion)',
+                        'Baggao Municipal Hospital (Tallang)'
                     ]
                 ]
             ],
@@ -2206,10 +2224,14 @@ function detect_late_registration($record, $record_type) {
                         <div class="filter-grid">
                             <?php foreach ($config['filters'] as $filter): ?>
                             <?php
-                            // Check if this is a dependent filter and if parent has no value
+                            // Show dependent options only when the selected parent has locations.
                             $is_dependent = isset($filter['dependent_on']);
-                            $parent_has_value = $is_dependent && !empty($_GET[$filter['dependent_on']] ?? '');
-                            $should_hide = $is_dependent && !$parent_has_value;
+                            $parent_value = $is_dependent ? ($_GET[$filter['dependent_on']] ?? '') : '';
+                            $parent_has_options = $is_dependent
+                                && !empty($parent_value)
+                                && isset($filter['options'][$parent_value])
+                                && is_array($filter['options'][$parent_value]);
+                            $should_hide = $is_dependent && !$parent_has_options;
                             ?>
                             <div class="filter-group <?php echo $should_hide ? 'dependent-hidden' : ''; ?>"
                                  data-filter-name="<?php echo $filter['name']; ?>"
@@ -2223,13 +2245,11 @@ function detect_late_registration($record, $record_type) {
                                             name="<?php echo $filter['name']; ?>"
                                             onchange="this.form.submit()"
                                             data-dependent-on="<?php echo $filter['dependent_on']; ?>"
-                                            <?php echo !$parent_has_value ? 'disabled' : ''; ?>
+                                            <?php echo !$parent_has_options ? 'disabled' : ''; ?>
                                         >
                                             <option value=""><?php echo $filter['options']['']; ?></option>
                                             <?php
                                             // Get the parent filter value
-                                            $parent_value = $_GET[$filter['dependent_on']] ?? '';
-
                                             // If parent has a value, show options for that category
                                             if (!empty($parent_value) && isset($filter['options'][$parent_value]) && is_array($filter['options'][$parent_value])) {
                                                 foreach ($filter['options'][$parent_value] as $location) {
@@ -2738,6 +2758,16 @@ function detect_late_registration($record, $record_type) {
                 'Hospital': [
                     'Baggao District Hospital',
                     'Municipal Health Office'
+                ],
+                'Hospital/Clinic': [
+                    'Baggao District Hospital',
+                    'Municipal Health Office',
+                    'Baggao Community Medicare (Poblacion)',
+                    'Baggao Municipal Hospital (Tallang)'
+                ],
+                'Barangay Health Center': [
+                    'Baggao Rural Health Unit',
+                    'Barangay Health Station'
                 ]
             };
 
@@ -2767,7 +2797,10 @@ function detect_late_registration($record, $record_type) {
 
                     // Update label dynamically
                     if (locationLabel) {
-                        const labelText = selectedType === 'Barangay' ? 'Barangay' : 'Hospital';
+                        const labelText = selectedType === 'Barangay' ? 'Barangay'
+                            : selectedType === 'Barangay Health Center' ? 'Health Center'
+                            : selectedType === 'Hospital/Clinic' ? 'Hospital/Clinic'
+                            : 'Hospital';
                         locationLabel.textContent = labelText;
                     }
                 } else {
@@ -2787,19 +2820,23 @@ function detect_late_registration($record, $record_type) {
 
             // Initialize on page load - set proper state
             const initialPlaceType = placeTypeSelect.value;
-            if (!initialPlaceType || initialPlaceType === '') {
-                locationGroup.classList.add('dependent-hidden');
-                locationSelect.disabled = true;
-            } else {
+            if (initialPlaceType && Array.isArray(locationOptions[initialPlaceType])) {
                 locationGroup.classList.remove('dependent-hidden');
                 locationSelect.disabled = false;
 
                 // Update label based on initial value
                 const locationLabel = locationGroup.querySelector('label[for="child_place_of_birth"]');
-                if (locationLabel && initialPlaceType) {
-                    const labelText = initialPlaceType === 'Barangay' ? 'Barangay' : 'Hospital';
+                if (locationLabel) {
+                    const labelText = initialPlaceType === 'Barangay' ? 'Barangay'
+                        : initialPlaceType === 'Barangay Health Center' ? 'Health Center'
+                        : initialPlaceType === 'Hospital/Clinic' ? 'Hospital/Clinic'
+                        : 'Hospital';
                     locationLabel.textContent = labelText;
                 }
+            } else {
+                locationGroup.classList.add('dependent-hidden');
+                locationSelect.disabled = true;
+                locationSelect.value = '';
             }
         }
 
